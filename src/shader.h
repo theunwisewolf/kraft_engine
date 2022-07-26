@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "math.h"
 
 struct Program
 {
@@ -12,4 +13,5 @@ struct Program
     void Use();
     void SetFloat(const char* name, float value);
     void SetInt(const char* name, int value);
+    void SetMat4(const char* name, Mat4 value);
 };

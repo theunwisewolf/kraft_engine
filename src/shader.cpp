@@ -1,5 +1,6 @@
 #include "shader.h"
 #include "util.h"
+#include "math.h"
 
 #include <glad/gl.h>
 
@@ -64,4 +65,9 @@ void Program::SetFloat(const char* name, float value)
 void Program::SetInt(const char* name, int value)
 {
     glUniform1i(glGetUniformLocation(ProgramID, name), value);
+}
+
+void Program::SetMat4(const char* name, Mat4 value)
+{
+    glUniformMatrix4fv(glGetUniformLocation(ProgramID, name), 1, GL_FALSE, value._data);
 }

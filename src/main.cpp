@@ -16,6 +16,8 @@
 #include "Windows.h"
 #endif
 
+#include "math.h"
+
 internal void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -46,6 +48,22 @@ internal void read_token(char **src, char *token)
 
 internal void render()
 {
+    float2 vec1, vec2, vec3;
+    vec1.x = 12;
+    vec1.y = 10;
+    vec2.x = 5;
+    vec2.y = 6;
+
+    vec1 += vec2;
+    
+    float3 color3(1.0f, 0.0f, 1.0f);
+    float4 color;
+    color.rgb = color3;
+
+    Mat4 mat1, mat2, mat3;
+    mat1 = mat2 * mat3;
+
+    // printf("%f, %f\n", color.r, color.g);
 }
 
 int main()
@@ -81,9 +99,9 @@ int main()
     int maxWidth = GetSystemMetrics(SM_CXSCREEN);
     int maxHeight = GetSystemMetrics(SM_CYSCREEN);
     glfwSetWindowPos(window, (maxWidth / 2) - (width / 2), (maxHeight / 2) - (height / 2));
-    glfwShowWindow(window);
 #endif
 
+    glfwShowWindow(window);
     glfwMakeContextCurrent(window);
     // if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
     if (!gladLoadGL((GLADloadfunc)glfwGetProcAddress))
@@ -149,12 +167,15 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
+        auto t = TranslationMatrix(float3(0.5f, 0.5f, 0.0f));
+        PrintMatrix(t);
+        
         process_input(window);
 
         glClearColor(0.2f, 0.1f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // render();
+        render();
         // glUseProgram(shaderProgramID);
         // program->SetFloat("offset", 0.05);
         program->Use();
@@ -163,6 +184,8 @@ int main()
 
         texture->Bind(0);
         program->SetInt("texture2Data", 0);
+        program->SetMat4("transform", t);
+
         glBindVertexArray(vao);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawElements(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, 0);
