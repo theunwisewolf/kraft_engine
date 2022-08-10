@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_NAME "GameEngine")
+set(CMAKE_CXX_STANDARD 14)
 project(${PROJECT_NAME})
 
 set(SRC_FILES 
@@ -16,6 +17,7 @@ set(HEADER_FILES
     src/shader.h
     src/util.h
     src/texture.h
+    src/math.h
 )
 
 # list(APPEND SRC_FILES src/main.cpp)

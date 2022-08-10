@@ -13,7 +13,7 @@ Texture::Texture(const char *filename)
         printf("Failed to load image %s", filename);
         return;
     }
-
+    
     glGenTextures(1, &TextureID);
     glBindTexture(GL_TEXTURE_2D, TextureID);
 
