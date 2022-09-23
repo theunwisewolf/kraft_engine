@@ -1,6 +1,5 @@
 #include "shader.h"
 #include "util.h"
-#include "math.h"
 
 #include <glad/gl.h>
 
