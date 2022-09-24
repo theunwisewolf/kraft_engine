@@ -36,7 +36,8 @@ struct Platform
     static void ConsoleOutputStringError(const char *str, int color);
 
     // Time
-    static float GetTime();
+    static float64 GetAbsoluteTime();
+    static float64 GetElapsedTime();
 
     // Misc
     static void SleepMilliseconds(uint64_t msec);

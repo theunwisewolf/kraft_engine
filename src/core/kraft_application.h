@@ -19,6 +19,7 @@ struct ApplicationConfig
 struct ApplicationState
 {
     kraft::Window Window;
+    float64 LastTime;
 };
 
 struct Application

@@ -4,6 +4,7 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_time.h"
 #include "platform/kraft_platform.h"
 #include "platform/windows/kraft_win32_window.h"
 
@@ -33,20 +34,37 @@ bool Application::Create()
 
 bool Application::Run()
 {
+    kraft::Time::Start();
+    State.LastTime = kraft::Time::ElapsedTime;
+    float64 targetFrameRate = 1 / 60.f;
+
     kraft::PrintDebugMemoryInfo();
 
     while (this->Running)
     {
+        kraft::Time::Update();
+        float64 currentTime = kraft::Time::ElapsedTime;
+        float64 deltaTime = currentTime - State.LastTime;
+
         this->Running = State.Window.PollEvents();
 
         // If the app is not suspended, update & render
         if (!this->Suspended)
         {
-            this->Update(0);
-            this->Render(0);
+            this->Update(deltaTime);
+            this->Render(deltaTime);
 
-            InputSystem::Update(0);
+            InputSystem::Update(deltaTime);
         }
+
+        // if (deltaTime < targetFrameRate)
+        // {
+            // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
+            // Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
+            // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
+        // }
+
+        State.LastTime = currentTime;
     }
 
     this->Destroy();
@@ -58,6 +76,7 @@ void Application::Destroy()
     KINFO("Shutting down...");
 
     this->Shutdown();
+    kraft::Time::Stop();
     kraft::Platform::Shutdown();
 
     KSUCCESS("Application shutdown successfully!");

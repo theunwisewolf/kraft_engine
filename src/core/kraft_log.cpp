@@ -16,7 +16,7 @@ void Logger::Shutdown() {}
 void Logger::Log(LogLevel level, const char* message, ...)
 {
     const int BUFFER_SIZE = 32000;
-    static const char* levelsPrefix[LogLevel::NUM_LEVELS] = { 
+    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
         "[FATAL]:", 
         "[ERROR]:", 
         "[WARN]:", 
@@ -24,7 +24,7 @@ void Logger::Log(LogLevel level, const char* message, ...)
         "[SUCCESS]:",
     };
 
-    static int colors[LogLevel::NUM_LEVELS] = { 
+    static int colors[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
         Platform::ConsoleColorBGRed,
         Platform::ConsoleColorRed,
         Platform::ConsoleColorRed | Platform::ConsoleColorGreen,
@@ -52,7 +52,7 @@ void Logger::Log(LogLevel level, const char* message, ...)
         out[i++] = ' ';
     }
 
-    if (level < LogLevel::WARN)
+    if (level < LogLevel::LOG_LEVEL_WARN)
     {
         kraft::Platform::ConsoleOutputStringError(out, colors[level]);
     }

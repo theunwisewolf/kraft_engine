@@ -74,7 +74,7 @@ bool Init()
 
 void Update(float64 deltaTime)
 {
-    // KINFO("%f", kraft::Platform::GetTime());
+    // KINFO("%f ms", kraft::Platform::GetElapsedTime());
 }
 
 void Render(float64 deltaTime)

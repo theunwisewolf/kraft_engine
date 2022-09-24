@@ -5,6 +5,8 @@
 #include <memory>
 #include <Windows.h>
 
+#include "core/kraft_log.h"
+
 namespace kraft
 {
 
@@ -17,13 +19,11 @@ int Platform::ConsoleColorBGGreen   = BACKGROUND_GREEN;
 int Platform::ConsoleColorBGBlue    = BACKGROUND_BLUE;
 
 static LARGE_INTEGER s_StartTime;
-static double s_ClockFrequency;
+static LARGE_INTEGER s_ClockFrequency;
 
 bool Platform::Init()
 {
-    LARGE_INTEGER frequency;
-    QueryPerformanceFrequency(&frequency);
-    s_ClockFrequency = 1.0 / (double)frequency.QuadPart;
+    QueryPerformanceFrequency(&s_ClockFrequency);
     QueryPerformanceCounter(&s_StartTime);
 
     return true;
@@ -93,15 +93,27 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
     WriteConsole(out, str, strlen(str), 0, NULL);
 }
 
-float Platform::GetTime()
+float64 Platform::GetAbsoluteTime()
 {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
-    
-    return (float)((float)now.QuadPart * s_ClockFrequency);
+
+    return (float64)((float64)now.QuadPart / (float64)s_ClockFrequency.QuadPart);
 }
 
-void SleepMilliseconds(uint64_t msec)
+float64 Platform::GetElapsedTime()
+{
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+
+    LARGE_INTEGER elapsed;
+    elapsed.QuadPart = now.QuadPart - s_StartTime.QuadPart;
+    elapsed.QuadPart *= 1000; // Convert to ms to preserve precision
+
+    return (float64)((float64)elapsed.QuadPart / (float64)s_ClockFrequency.QuadPart);
+}
+
+void Platform::SleepMilliseconds(uint64_t msec)
 {
     Sleep(msec);
 }

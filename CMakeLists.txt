@@ -36,6 +36,7 @@ set(SRC_FILES
     src/core/kraft_input.cpp
     src/core/kraft_events.cpp
     src/core/kraft_application.cpp
+    src/core/kraft_time.cpp
     src/math/kraft_math.cpp
     src/platform/windows/kraft_win32.cpp
     src/platform/windows/kraft_win32_window.cpp
