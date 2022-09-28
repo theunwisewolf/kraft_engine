@@ -1,6 +1,7 @@
 #include "kraft_win32_window.h"
 #include "core/kraft_log.h"
 #include "core/kraft_input.h"
+#include "renderer/kraft_renderer_frontend.h"
 
 #include <vulkan/vulkan.h>
 
@@ -15,7 +16,23 @@ int Window::Init(const char* title, size_t width, size_t height)
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    Renderer.Type = RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN; // TODO: Configurable
+    RendererFrontend::I = &Renderer;
+
+    if (Renderer.Type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
+    {
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    }
+    else if (Renderer.Type == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
+    {
+
+    }
+
+    if (!Renderer.Init())
+    {
+        KERROR("[Application::Create]: Failed to initalize renderer!");
+        return false;
+    }
 
     this->Window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!this->Window)
@@ -41,6 +58,8 @@ int Window::Init(const char* title, size_t width, size_t height)
 
 void Window::Destroy()
 {
+    Renderer.Shutdown();
+
     glfwDestroyWindow(Window);
     glfwTerminate();
 }

@@ -10,13 +10,15 @@ enum MemoryTag
 {
     MEMORY_TAG_NONE,
     MEMORY_TAG_ARRAY,
+    MEMORY_TAG_RENDERER,
 
     MEMORY_TAG_NUM_COUNT
 };
 
-static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][8] = {
-    "UNKNOWN",
-    "ARRAY  ",
+static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][9] = {
+    "UNKNOWN ",
+    "ARRAY   ",
+    "RENDERER",
 }; 
 
 struct MemoryStats
@@ -72,8 +74,11 @@ static void FreeBlock(Block block)
 // Normal malloc/free/realloc function wrappers
 //
 
-static void* Malloc(uint64_t size)
+static void* Malloc(uint64_t size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE)
 {
+    g_MemoryStats.Allocated += size;
+    g_MemoryStats.AllocationsByTag[tag] += size;
+
     return Platform::Malloc(size, false);
 }
 
@@ -84,6 +89,14 @@ static void* Realloc(void *region, uint64_t size)
 
 static void Free(void *region)
 {
+    Platform::Free(region, false);
+}
+
+static void Free(void *region, uint64_t size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE)
+{
+    g_MemoryStats.Allocated -= size;
+    g_MemoryStats.AllocationsByTag[tag] -= size;
+
     Platform::Free(region, false);
 }
 

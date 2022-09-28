@@ -7,6 +7,7 @@
 #include "core/kraft_time.h"
 #include "platform/kraft_platform.h"
 #include "platform/windows/kraft_win32_window.h"
+#include "renderer/kraft_renderer_frontend.h"
 
 namespace kraft
 {
@@ -54,6 +55,10 @@ bool Application::Run()
             this->Update(deltaTime);
             this->Render(deltaTime);
 
+            RenderPacket packet;
+            packet.deltaTime = deltaTime;
+            RendererFrontend::DrawFrame(&packet);
+
             InputSystem::Update(deltaTime);
         }
 
@@ -76,8 +81,9 @@ void Application::Destroy()
     KINFO("Shutting down...");
 
     this->Shutdown();
-    kraft::Time::Stop();
-    kraft::Platform::Shutdown();
+    Time::Stop();
+    Platform::Shutdown();
+    RendererFrontend::Shutdown();
 
     KSUCCESS("Application shutdown successfully!");
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "renderer/kraft_renderer_frontend.h"
 
 #include <GLFW/glfw3.h>
 
@@ -13,6 +14,7 @@ namespace kraft
 struct Window
 {
     GLFWwindow* Window;
+    RendererFrontend Renderer;
 
     int Init(const char* title, size_t width, size_t height);
     bool PollEvents(); // Returns false if the window wants to close

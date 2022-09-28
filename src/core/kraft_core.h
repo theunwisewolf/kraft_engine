@@ -20,6 +20,10 @@
     #endif
 #endif
 
+#ifdef _DEBUG
+    #define KRAFT_DEBUG
+#endif
+
 // Some types
 #include <cstdint>
 

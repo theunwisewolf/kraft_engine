@@ -41,6 +41,11 @@ set(SRC_FILES
     src/platform/windows/kraft_win32.cpp
     src/platform/windows/kraft_win32_window.cpp
 
+    # Renderer
+    src/renderer/kraft_renderer_backend.cpp
+    src/renderer/kraft_renderer_frontend.cpp
+    src/renderer/vulkan/kraft_vulkan_backend.cpp
+
     # imgui
     # vendor/imgui/imgui.cpp
     # vendor/imgui/imgui_draw.cpp

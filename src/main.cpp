@@ -31,9 +31,9 @@ bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kra
 
 bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int x = data.Int32[0];
-    int y = data.Int32[1];
-    KINFO("Mouse moved = %d, %d", x, y);
+    // int x = data.Int32[0];
+    // int y = data.Int32[1];
+    // KINFO("Mouse moved = %d, %d", x, y);
 
     return false;
 }
