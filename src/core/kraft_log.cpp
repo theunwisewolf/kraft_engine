@@ -52,6 +52,7 @@ void Logger::Log(LogLevel level, const char* message, ...)
         out[i++] = ' ';
     }
 
+    out[strlen(out)] = '\n';
     if (level < LogLevel::LOG_LEVEL_WARN)
     {
         kraft::Platform::ConsoleOutputStringError(out, colors[level]);

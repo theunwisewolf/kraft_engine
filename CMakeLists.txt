@@ -76,10 +76,14 @@ set(HEADER_FILES
 # list(APPEND SRC_FILES src/main.cpp)
 # list(APPEND HEADER_FILES src/main.h)
 
-set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})
-
 add_subdirectory(vendor/glfw)
 
+if (APPLE)
+    list(APPEND SRC_FILES src/platform/macos/kraft_macos.mm)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_MACOS_MVK")
+endif()
+
+set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})
 add_executable(${PROJECT_NAME} ${CODE_FILES})
 
 # Include dirs
@@ -88,7 +92,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE vendor)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glad/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/imgui)
-target_include_directories(${PROJECT_NAME} PRIVATE ${VULKAN_PATH}/Include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
 
 # Compile time defines
 target_compile_definitions(${PROJECT_NAME} PRIVATE GLFW_INCLUDE_NONE)
@@ -96,10 +100,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE GLFW_INCLUDE_NONE)
 # find_package(OpenGL REQUIRED)
 
 # Library links
-target_link_directories(${PROJECT_NAME} PRIVATE ${VULKAN_PATH}/Bin;${VULKAN_PATH}/Lib;)
+# target_link_directories(${PROJECT_NAME} PRIVATE ${VULKAN_PATH}/Bin;${VULKAN_PATH}/Lib;)
 target_link_libraries(${PROJECT_NAME} glfw ${GLFW_LIBRARIES})
 # target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} "vulkan-1")
+target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARY})
 
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

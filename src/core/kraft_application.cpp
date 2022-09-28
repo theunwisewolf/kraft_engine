@@ -57,7 +57,7 @@ bool Application::Run()
 
             RenderPacket packet;
             packet.deltaTime = deltaTime;
-            RendererFrontend::DrawFrame(&packet);
+            State.Window.Renderer.DrawFrame(&packet);
 
             InputSystem::Update(deltaTime);
         }
@@ -83,7 +83,7 @@ void Application::Destroy()
     this->Shutdown();
     Time::Stop();
     Platform::Shutdown();
-    RendererFrontend::Shutdown();
+    State.Window.Renderer.Shutdown();
 
     KSUCCESS("Application shutdown successfully!");
 }
