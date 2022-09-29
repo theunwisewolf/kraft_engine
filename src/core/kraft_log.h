@@ -14,7 +14,8 @@ enum LogLevel
     LOG_LEVEL_WARN,
     LOG_LEVEL_INFO,
     LOG_LEVEL_SUCCESS,
-    LOG_LEVEL_NUM_COUNT
+    LOG_LEVEL_DEBUG, // For very verbose logging
+    LOG_LEVEL_NUM_COUNT,
 };
 
 struct Logger
@@ -35,11 +36,13 @@ extern struct Logger g_LoggerInstance;
 #define KRAFT_LOG_FATAL(str, ...)       KraftLog(kraft::LogLevel::LOG_LEVEL_FATAL,    str, ##__VA_ARGS__);
 #define KRAFT_LOG_ERROR(str, ...)       KraftLog(kraft::LogLevel::LOG_LEVEL_ERROR,    str, ##__VA_ARGS__);
 #define KRAFT_LOG_WARN(str, ...)        KraftLog(kraft::LogLevel::LOG_LEVEL_WARN,     str, ##__VA_ARGS__);
-#define KRAFT_LOG_INFO(str, ...)        KraftLog(kraft::LogLevel::LOG_LEVEL_INFO,     str, ##__VA_ARGS__);
 #define KRAFT_LOG_SUCCESS(str, ...)     KraftLog(kraft::LogLevel::LOG_LEVEL_SUCCESS,  str, ##__VA_ARGS__);
+#define KRAFT_LOG_INFO(str, ...)        KraftLog(kraft::LogLevel::LOG_LEVEL_INFO,     str, ##__VA_ARGS__);
+#define KRAFT_LOG_DEBUG(str, ...)       KraftLog(kraft::LogLevel::LOG_LEVEL_DEBUG,    str, ##__VA_ARGS__);
 
 #define KFATAL      KRAFT_LOG_FATAL
 #define KERROR      KRAFT_LOG_ERROR
 #define KWARN       KRAFT_LOG_WARN
 #define KSUCCESS    KRAFT_LOG_SUCCESS
 #define KINFO       KRAFT_LOG_INFO
+#define KDEBUG      KRAFT_LOG_DEBUG

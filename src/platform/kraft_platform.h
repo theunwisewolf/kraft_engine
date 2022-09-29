@@ -25,12 +25,39 @@ struct Platform
     static void *MemSet(void *region, int value, uint64_t size);
 
     // Console
-    static int ConsoleColorRed;
-    static int ConsoleColorGreen;
-    static int ConsoleColorBlue;
-    static int ConsoleColorBGRed;
-    static int ConsoleColorBGGreen;
-    static int ConsoleColorBGBlue;
+    // Foreground colors
+    static const int ConsoleColorBlack;
+    static const int ConsoleColorLoWhite;
+    static const int ConsoleColorHiWhite;
+    static const int ConsoleColorLoRed;
+    static const int ConsoleColorHiRed;
+    static const int ConsoleColorLoGreen;
+    static const int ConsoleColorHiGreen;
+    static const int ConsoleColorLoBlue;
+    static const int ConsoleColorHiBlue;
+    static const int ConsoleColorLoYellow;
+    static const int ConsoleColorHiYellow;
+    static const int ConsoleColorLoCyan;
+    static const int ConsoleColorHiCyan;
+    static const int ConsoleColorLoMagenta;
+    static const int ConsoleColorHiMagenta;
+
+    // Background colors
+    static const int ConsoleColorBGBlack;
+    static const int ConsoleColorBGLoWhite;
+    static const int ConsoleColorBGHiWhite;
+    static const int ConsoleColorBGLoRed;
+    static const int ConsoleColorBGHiRed;
+    static const int ConsoleColorBGLoGreen;
+    static const int ConsoleColorBGHiGreen;
+    static const int ConsoleColorBGLoBlue;
+    static const int ConsoleColorBGHiBlue;
+    static const int ConsoleColorBGLoYellow;
+    static const int ConsoleColorBGHiYellow;
+    static const int ConsoleColorBGLoCyan;
+    static const int ConsoleColorBGHiCyan;
+    static const int ConsoleColorBGLoMagenta;
+    static const int ConsoleColorBGHiMagenta;
 
     static void ConsoleOutputString(const char *str, int color);
     static void ConsoleOutputStringError(const char *str, int color);

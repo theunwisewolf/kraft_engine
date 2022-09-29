@@ -2,6 +2,7 @@
 
 #include "core/kraft_log.h"
 #include "containers/array.h"
+#include "renderer/vulkan/kraft_vulkan_device.h"
 
 namespace kraft
 {
@@ -103,7 +104,15 @@ bool VulkanRendererBackend::Init()
     }
 #endif
 
-    
+    VulkanPhysicalDeviceRequirements requirements;
+    requirements.Compute = true;
+    requirements.Graphics = true;
+    requirements.Present = true;
+    requirements.Transfer = true;
+    requirements.DeviceExtensionNames = nullptr;
+    arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+    SelectVulkanPhysicalDevice(&s_Context, requirements);
     
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
     return true;

@@ -11,14 +11,43 @@
 namespace kraft
 {
 
+struct VulkanQueueFamilyInfo
+{
+    uint32 GraphicsQueueIndex;
+    uint32 ComputeQueueIndex;
+    uint32 TransferQueueIndex;
+    uint32 PresentQueueIndex;
+};
+
+struct VulkanPhysicalDevice
+{
+    VkPhysicalDevice                    Device;
+    VkPhysicalDeviceProperties          Properties; 
+    VkPhysicalDeviceFeatures            Features;
+    VkPhysicalDeviceMemoryProperties    MemoryProperties;
+    VulkanQueueFamilyInfo               QueueFamilyInfo;
+};
+
 struct VulkanContext
 {
     VkInstance              Instance;
     VkAllocationCallbacks*  AllocationCallbacks;
+    VulkanPhysicalDevice    PhysicalDevice;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
 #endif
+};
+
+struct VulkanPhysicalDeviceRequirements
+{
+    bool Graphics;
+    bool Present;
+    bool Transfer;
+    bool Compute;
+    bool DiscreteGPU;
+
+    const char** DeviceExtensionNames;
 };
 
 }
