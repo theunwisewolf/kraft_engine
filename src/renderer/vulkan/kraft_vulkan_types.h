@@ -28,11 +28,22 @@ struct VulkanPhysicalDevice
     VulkanQueueFamilyInfo               QueueFamilyInfo;
 };
 
+struct VulkanLogicalDevice
+{
+    VulkanPhysicalDevice    PhysicalDevice;
+    VkDevice                Device;
+    VkQueue                 GraphicsQueue;
+    VkQueue                 ComputeQueue;
+    VkQueue                 TransferQueue;
+    VkQueue                 PresentQueue;
+};
+
 struct VulkanContext
 {
     VkInstance              Instance;
     VkAllocationCallbacks*  AllocationCallbacks;
     VulkanPhysicalDevice    PhysicalDevice;
+    VulkanLogicalDevice     LogicalDevice;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;

@@ -1,6 +1,6 @@
 #include "platform/kraft_platform.h"
 
-#ifdef KRAFT_PLATFORM_MACOSX
+#ifdef KRAFT_PLATFORM_MACOS
 
 #include <unistd.h>
 #include <memory>

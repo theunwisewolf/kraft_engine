@@ -14,13 +14,13 @@
     #elif TARGET_OS_IPHONE
         #define KRAFT_PLATFORM_IOS
     #elif TARGET_OS_MAC
-        #define KRAFT_PLATFORM_MACOSX
+        #define KRAFT_PLATFORM_MACOS
     #else
         #error "Unknown apple platform"
     #endif
 #endif
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(DEBUG)
     #define KRAFT_DEBUG
 #endif
 

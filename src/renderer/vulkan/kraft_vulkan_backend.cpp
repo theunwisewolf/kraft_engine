@@ -27,8 +27,10 @@ bool VulkanRendererBackend::Init()
     const char** extensions = nullptr;
     arrput(extensions, VK_KHR_SURFACE_EXTENSION_NAME);
 
-#ifdef KRAFT_PLATFORM_WINDOWS
+#if defined(KRAFT_PLATFORM_WINDOWS)
     arrput(extensions, "VK_KHR_win32_surface");
+#elif defined(KRAFT_PLATFORM_MACOS)
+    arrput(extensions, "VK_EXT_metal_surface");
 #endif
 
 #ifdef KRAFT_DEBUG
@@ -85,7 +87,8 @@ bool VulkanRendererBackend::Init()
     instanceCreateInfo.ppEnabledLayerNames = layers;
 
     KRAFT_VK_CHECK(vkCreateInstance(&instanceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Instance));
-    
+    arrfree(extensions);
+
 #ifdef KRAFT_DEBUG
     {
         // Setup vulkan debug callback messenger
@@ -113,6 +116,9 @@ bool VulkanRendererBackend::Init()
     arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
     SelectVulkanPhysicalDevice(&s_Context, requirements);
+    CreateVulkanLogicalDevice(&s_Context, requirements);
+
+    arrfree(requirements.DeviceExtensionNames);
     
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
     return true;

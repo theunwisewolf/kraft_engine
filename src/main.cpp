@@ -56,11 +56,11 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
 
 bool Init()
 {
-    KFATAL("Fatal error");
-    KERROR("Error");
-    KWARN("Warning");
-    KINFO("Info");
-    KSUCCESS("Success");
+    // KFATAL("Fatal error");
+    // KERROR("Error");
+    // KWARN("Warning");
+    // KINFO("Info");
+    // KSUCCESS("Success");
 
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
