@@ -26,7 +26,7 @@ void Logger::Log(LogLevel level, const char* message, ...)
     };
 
     static int colors[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
-        Platform::ConsoleColorBGLoRed,                                  // Fatal
+        Platform::ConsoleColorBGLoRed | Platform::ConsoleColorHiWhite,  // Fatal
         Platform::ConsoleColorHiRed,                                    // Error
         Platform::ConsoleColorHiYellow,                                 // Warning
         Platform::ConsoleColorHiCyan,                                   // Info

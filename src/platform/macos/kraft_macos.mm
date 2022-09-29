@@ -45,42 +45,6 @@ const int Platform::ConsoleColorBGHiCyan    = 106   << 16;
 const int Platform::ConsoleColorBGLoMagenta = 45    << 16;
 const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
-const char* ForegroundColorTable[] = {
-    KRAFT_ANSI_COLOR_LO_BLK,
-    KRAFT_ANSI_COLOR_LO_WHT,
-    KRAFT_ANSI_COLOR_HI_WHT,
-    KRAFT_ANSI_COLOR_LO_RED,
-    KRAFT_ANSI_COLOR_HI_RED,
-    KRAFT_ANSI_COLOR_LO_GRN,
-    KRAFT_ANSI_COLOR_HI_GRN,
-    KRAFT_ANSI_COLOR_LO_BLU,
-    KRAFT_ANSI_COLOR_HI_BLU,
-    KRAFT_ANSI_COLOR_LO_YEL,
-    KRAFT_ANSI_COLOR_HI_YEL,
-    KRAFT_ANSI_COLOR_LO_CYN,
-    KRAFT_ANSI_COLOR_HI_CYN,
-    KRAFT_ANSI_COLOR_LO_MAG,
-    KRAFT_ANSI_COLOR_HI_MAG,
-};
-
-const char* BackgroundColorTable[] = {
-    KRAFT_ANSI_COLOR_BG_LO_BLK,
-    KRAFT_ANSI_COLOR_BG_LO_WHT,
-    KRAFT_ANSI_COLOR_BG_HI_WHT,
-    KRAFT_ANSI_COLOR_BG_LO_RED,
-    KRAFT_ANSI_COLOR_BG_HI_RED,
-    KRAFT_ANSI_COLOR_BG_LO_GRN,
-    KRAFT_ANSI_COLOR_BG_HI_GRN,
-    KRAFT_ANSI_COLOR_BG_LO_BLU,
-    KRAFT_ANSI_COLOR_BG_HI_BLU,
-    KRAFT_ANSI_COLOR_BG_LO_YEL,
-    KRAFT_ANSI_COLOR_BG_HI_YEL,
-    KRAFT_ANSI_COLOR_BG_LO_CYN,
-    KRAFT_ANSI_COLOR_BG_HI_CYN,
-    KRAFT_ANSI_COLOR_BG_LO_MAG,
-    KRAFT_ANSI_COLOR_BG_HI_MAG,
-};
-
 bool Platform::Init()
 {
     return true;
@@ -133,12 +97,11 @@ void Platform::ConsoleOutputString(const char* str, int color)
 {
     // \033 is the control code
     //"\033[{FORMAT_ATTRIBUTE};{FORGROUND_COLOR};{BACKGROUND_COLOR}m{TEXT}\033[{RESET_FORMATE_ATTRIBUTE}m"
-    //"\033[%d;%d;%dm%s\033[%dm"
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
     int foregroundColor = color & 0xffff;
     int backgroundColor = color >> 0x10; 
     const int resetFormatAttribute = 0;
-    fprintf(stdout, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor, str, resetFormatAttribute);
+    fprintf(stdout, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str, resetFormatAttribute);
 }
 
 void Platform::ConsoleOutputStringError(const char* str, int color)
@@ -147,8 +110,7 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
     int foregroundColor = color & 0xffff;
     int backgroundColor = color >> 0x10; 
     const int resetFormatAttribute = 0;
-    fprintf(stdout, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor, str, resetFormatAttribute);
-    fprintf(stderr, "%s", str);
+    fprintf(stderr, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str, resetFormatAttribute);
 }
 
 float64 Platform::GetAbsoluteTime()
