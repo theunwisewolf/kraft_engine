@@ -4,8 +4,17 @@
 
 #include "core/kraft_core.h"
 
+#if defined(KRAFT_PLATFORM_WINDOWS)
+#include "windows/kraft_win32.h"
+#elif defined(KRAFT_PLATFORM_MACOS)
+#include "macos/kraft_macos.h"
+#endif
+
 namespace kraft
 {
+
+struct VulkanContext;
+struct ApplicationConfig;
 
 struct Platform
 {
@@ -13,7 +22,8 @@ struct Platform
     // it should do so in this variable
     static void *InternalState;
 
-    static bool Init();
+    static bool Init(ApplicationConfig* config);
+    static bool PollEvents();
     static void Shutdown();
 
     // Memory

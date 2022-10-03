@@ -6,7 +6,6 @@
 #include "core/kraft_input.h"
 #include "core/kraft_time.h"
 #include "platform/kraft_platform.h"
-#include "platform/windows/kraft_win32_window.h"
 #include "renderer/kraft_renderer_frontend.h"
 
 namespace kraft
@@ -14,12 +13,18 @@ namespace kraft
 
 bool Application::Create()
 {
-    Platform::Init();
+    Platform::Init(&this->Config);
     EventSystem::Init();
     InputSystem::Init();
 
-    State.Window = kraft::Window();
-    State.Window.Init(this->Config.WindowTitle, this->Config.WindowWidth, this->Config.WindowHeight);
+    State.Renderer.Type = this->Config.RendererBackend;
+    RendererFrontend::I = &State.Renderer;
+
+    if (!State.Renderer.Init())
+    {
+        KERROR("[Application::Create]: Failed to initalize renderer!");
+        return false;
+    }
 
     if (!this->Init())
     {
@@ -47,7 +52,7 @@ bool Application::Run()
         float64 currentTime = kraft::Time::ElapsedTime;
         float64 deltaTime = currentTime - State.LastTime;
 
-        this->Running = State.Window.PollEvents();
+        this->Running = Platform::PollEvents();
 
         // If the app is not suspended, update & render
         if (!this->Suspended)
@@ -57,7 +62,7 @@ bool Application::Run()
 
             RenderPacket packet;
             packet.deltaTime = deltaTime;
-            State.Window.Renderer.DrawFrame(&packet);
+            State.Renderer.DrawFrame(&packet);
 
             InputSystem::Update(deltaTime);
         }
@@ -83,7 +88,7 @@ void Application::Destroy()
     this->Shutdown();
     Time::Stop();
     Platform::Shutdown();
-    State.Window.Renderer.Shutdown();
+    State.Renderer.Shutdown();
 
     KSUCCESS("Application shutdown successfully!");
 }

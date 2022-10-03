@@ -7,6 +7,7 @@ namespace kraft
 
 enum RendererBackendType
 {
+    RENDERER_BACKEND_TYPE_NONE,
     RENDERER_BACKEND_TYPE_VULKAN,
     RENDERER_BACKEND_TYPE_OPENGL,
 

@@ -14,6 +14,8 @@ namespace VulkanRendererBackend
     bool EndFrame(float64 deltaTime);
     void OnResize(int width, int height);
 
+    void CreateVulkanSurface();
+
 #ifdef KRAFT_DEBUG
     VkBool32 DebugUtilsMessenger(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,

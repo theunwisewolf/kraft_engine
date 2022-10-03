@@ -3,6 +3,17 @@
 #include "core/kraft_log.h"
 #include "containers/array.h"
 #include "renderer/vulkan/kraft_vulkan_device.h"
+#include "platform/kraft_platform.h"
+
+#include <vulkan/vulkan.h>
+
+// Platform specific includes
+#if defined(KRAFT_PLATFORM_WINDOWS)
+#include <Windows.h>
+#include <vulkan/vulkan_win32.h>
+#elif defined(KRAFT_PLATFORM_MACOS)
+#include <vulkan/vulkan_macos.h>
+#endif
 
 namespace kraft
 {
@@ -31,6 +42,8 @@ bool VulkanRendererBackend::Init()
     arrput(extensions, "VK_KHR_win32_surface");
 #elif defined(KRAFT_PLATFORM_MACOS)
     arrput(extensions, "VK_EXT_metal_surface");
+#elif defined(KRAFT_PLATFORM_LINUX)
+    arrput(extensions, "VK_KHR_xcb_surface");
 #endif
 
 #ifdef KRAFT_DEBUG
@@ -117,6 +130,7 @@ bool VulkanRendererBackend::Init()
 
     SelectVulkanPhysicalDevice(&s_Context, requirements);
     CreateVulkanLogicalDevice(&s_Context, requirements);
+    CreateVulkanSurface();
 
     arrfree(requirements.DeviceExtensionNames);
     
@@ -126,6 +140,14 @@ bool VulkanRendererBackend::Init()
 
 bool VulkanRendererBackend::Shutdown()
 {
+    DestroyVulkanLogicalDevice(&s_Context);
+
+    if (s_Context.Surface)
+    {
+        vkDestroySurfaceKHR(s_Context.Instance, s_Context.Surface, s_Context.AllocationCallbacks);
+        s_Context.Surface = 0;
+    }
+
     return true;
 }
 
@@ -142,6 +164,25 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 void VulkanRendererBackend::OnResize(int width, int height)
 {
 
+}
+
+void VulkanRendererBackend::CreateVulkanSurface()
+{
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
+    Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
+    surfaceCreateInfo.hinstance = State->hInstance;
+    surfaceCreateInfo.hwnd = State->hWindow;
+
+    KRAFT_VK_CHECK(vkCreateWin32SurfaceKHR(s_Context.Instance, &surfaceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Surface));
+#elif defined(KRAFT_PLATFORM_MACOS)
+    VkMetalSurfaceCreateInfoKHR surfaceCreateInfo = {VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_KHR};
+    MacOSPlatformState* State = (MacOSPlatformState*)Platform::InternalState;
+
+    KRAFT_VK_CHECK(vkCreateMetalSurfaceKHR(s_Context.Instance, &surfaceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Surface));
+#elif defined(KRAFT_PLATFORM_LINUX)
+
+#endif
 }
 
 #ifdef KRAFT_DEBUG
@@ -165,12 +206,12 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
         {
-            KINFO("%s", pCallbackData->pMessage);
+            KDEBUG("%s", pCallbackData->pMessage);
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
         {
-            KINFO("%s", pCallbackData->pMessage);
+            KDEBUG("%s", pCallbackData->pMessage);
         } break;
     }
 

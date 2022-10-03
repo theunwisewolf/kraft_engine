@@ -38,8 +38,8 @@ set(SRC_FILES
     src/core/kraft_application.cpp
     src/core/kraft_time.cpp
     src/math/kraft_math.cpp
+    src/platform/kraft_window.cpp
     src/platform/windows/kraft_win32.cpp
-    src/platform/windows/kraft_win32_window.cpp
 
     # Renderer
     src/renderer/kraft_renderer_backend.cpp
@@ -71,7 +71,6 @@ set(HEADER_FILES
     src/core/kraft_application.h
     src/math/kraft_math.h
     src/platform/kraft_platform.h
-    src/platform/windows/kraft_win32_window.h
 )
 
 # list(APPEND SRC_FILES src/main.cpp)

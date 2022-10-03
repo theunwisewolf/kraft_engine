@@ -18,7 +18,7 @@ bool InputSystem::Init()
         return false;
     }
 
-    ZeroMemory(&State, sizeof(InputSystemState));
+    MemZero(&State, sizeof(InputSystemState));
     Initialized = true;
 
     return true;

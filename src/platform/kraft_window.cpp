@@ -1,14 +1,14 @@
-#include "kraft_win32_window.h"
+#include "kraft_window.h"
+
 #include "core/kraft_log.h"
 #include "core/kraft_input.h"
-#include "renderer/kraft_renderer_frontend.h"
 
 #include <vulkan/vulkan.h>
 
 namespace kraft
 {
 
-int Window::Init(const char* title, size_t width, size_t height)
+int Window::Init(const char* title, size_t width, size_t height, RendererBackendType backendType)
 {
     if (!glfwInit())
     {
@@ -16,26 +16,17 @@ int Window::Init(const char* title, size_t width, size_t height)
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
-    Renderer.Type = RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN; // TODO: Configurable
-    RendererFrontend::I = &Renderer;
-
-    if (Renderer.Type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
+    if (backendType == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     }
-    else if (Renderer.Type == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
+    else if (backendType == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
     {
 
     }
 
-    if (!Renderer.Init())
-    {
-        KERROR("[Application::Create]: Failed to initalize renderer!");
-        return false;
-    }
-
-    this->Window = glfwCreateWindow(width, height, title, NULL, NULL);
-    if (!this->Window)
+    this->PlatformWindowHandle = glfwCreateWindow(width, height, title, NULL, NULL);
+    if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
 
@@ -44,10 +35,10 @@ int Window::Init(const char* title, size_t width, size_t height)
     }
 
     // Window callbacks
-    glfwSetKeyCallback(this->Window, KeyCallback);
-    glfwSetMouseButtonCallback(this->Window, MouseButtonCallback);
-    glfwSetScrollCallback(this->Window, ScrollCallback);
-    glfwSetCursorPosCallback(this->Window, CursorPositionCallback);
+    glfwSetKeyCallback(this->PlatformWindowHandle, KeyCallback);
+    glfwSetMouseButtonCallback(this->PlatformWindowHandle, MouseButtonCallback);
+    glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
+    glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
 
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -58,16 +49,14 @@ int Window::Init(const char* title, size_t width, size_t height)
 
 void Window::Destroy()
 {
-    Renderer.Shutdown();
-
-    glfwDestroyWindow(Window);
+    glfwDestroyWindow(this->PlatformWindowHandle);
     glfwTerminate();
 }
 
 bool Window::PollEvents()
 {
     glfwPollEvents();
-    return !glfwWindowShouldClose(this->Window);
+    return !glfwWindowShouldClose(this->PlatformWindowHandle);
 }
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)

@@ -13,7 +13,7 @@ struct RendererFrontend
 
     RendererBackend* Backend = nullptr;
     Block BackendMemory;
-    RendererBackendType Type;
+    RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
 
     bool Init();
     bool Shutdown();

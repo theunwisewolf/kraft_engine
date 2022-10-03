@@ -1,16 +1,24 @@
-#include "platform/kraft_platform.h"
+#include "kraft_win32.h"
 
 #ifdef KRAFT_PLATFORM_WINDOWS
 
-#include <memory>
 #include <Windows.h>
+#include <memory>
+
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
 
 #include "core/kraft_log.h"
+#include "core/kraft_application.h"
+#include "platform/kraft_platform.h"
+#include "renderer/vulkan/kraft_vulkan_types.h"
 
 namespace kraft
 {
 
-void* Platform::InternalState       = nullptr;
+Win32PlatformState* State                 = nullptr;
+void* Platform::InternalState             = nullptr;
+
 const int Platform::ConsoleColorBlack     = 0;
 const int Platform::ConsoleColorLoWhite   = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 const int Platform::ConsoleColorHiWhite   = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
@@ -46,17 +54,29 @@ const int Platform::ConsoleColorBGHiMagenta = Platform::ConsoleColorBGHiBlue | P
 static LARGE_INTEGER s_StartTime;
 static LARGE_INTEGER s_ClockFrequency;
 
-bool Platform::Init()
+bool Platform::Init(ApplicationConfig* config)
 {
+    InternalState = Malloc(sizeof(Win32PlatformState), false);
+    State = (Win32PlatformState*)InternalState;
+    State->Window.Init(config->WindowTitle, config->WindowWidth, config->WindowHeight, config->RendererBackend);
+    State->hWindow = glfwGetWin32Window(State->Window.PlatformWindowHandle);
+    State->hInstance = GetModuleHandleW(NULL);
+
     QueryPerformanceFrequency(&s_ClockFrequency);
     QueryPerformanceCounter(&s_StartTime);
 
     return true;
 }
 
+bool Platform::PollEvents()
+{
+    return State->Window.PollEvents();
+}
+
 void Platform::Shutdown()
 {
-
+    State->Window.Destroy();
+    Free(InternalState, false);
 }
 
 // ------------------------------------------ 

@@ -2,6 +2,7 @@
 
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
+#include "core/kraft_asserts.h"
 #include "renderer/kraft_renderer_backend.h"
 
 namespace kraft
@@ -13,6 +14,7 @@ bool RendererFrontend::Init()
 {
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
+    KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
     if (!RendererCreateBackend(Type, Backend))
     {

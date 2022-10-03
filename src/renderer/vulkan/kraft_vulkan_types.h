@@ -44,6 +44,7 @@ struct VulkanContext
     VkAllocationCallbacks*  AllocationCallbacks;
     VulkanPhysicalDevice    PhysicalDevice;
     VulkanLogicalDevice     LogicalDevice;
+    VkSurfaceKHR            Surface;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;

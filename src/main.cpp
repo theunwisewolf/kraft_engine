@@ -12,6 +12,7 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "renderer/kraft_renderer_types.h"
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -109,6 +110,7 @@ bool CreateApplication(kraft::Application* app)
     app->Config.WindowTitle     = "Kraft! [VULKAN]";
     app->Config.WindowWidth     = 1024;
     app->Config.WindowHeight    = 768;
+    app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
 
     app->Init                   = Init;
     app->Update                 = Update;

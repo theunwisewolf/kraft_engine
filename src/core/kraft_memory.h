@@ -100,12 +100,12 @@ static void Free(void *region, uint64_t size, MemoryTag tag = MemoryTag::MEMORY_
     Platform::Free(region, false);
 }
 
-static void ZeroMemory(void *region, uint64_t size)
+static void MemZero(void *region, uint64_t size)
 {
     Platform::MemZero(region, size);
 }
 
-static void ZeroMemory(Block block)
+static void MemZero(Block block)
 {
     Platform::MemZero(block.Data, block.Size);
 }

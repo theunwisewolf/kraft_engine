@@ -336,7 +336,7 @@ void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     );
 
     arrfree(createInfos);
-    KDEBUG("[CreateVulkanLogicalDevice]: Successfully created VkDevice");
+    KSUCCESS("[CreateVulkanLogicalDevice]: Successfully created VkDevice");
 
     // Grab the queues
     vkGetDeviceQueue(context->LogicalDevice.Device, familyInfo.GraphicsQueueIndex, 0, &context->LogicalDevice.GraphicsQueue);

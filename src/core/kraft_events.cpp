@@ -18,7 +18,7 @@ bool EventSystem::Init()
         return false;
     }
 
-    ZeroMemory(&State, sizeof(EventSystemState));
+    MemZero(&State, sizeof(EventSystemState));
     Initialized = true;
 
     return true;

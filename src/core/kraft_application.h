@@ -1,7 +1,8 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "platform/windows/kraft_win32_window.h"
+#include "renderer/kraft_renderer_types.h"
+#include "renderer/kraft_renderer_frontend.h"
 
 namespace kraft
 {
@@ -10,22 +11,23 @@ struct Window;
 
 struct ApplicationConfig
 {
-    size_t      WindowWidth;
-    size_t      WindowHeight;
-    const char* ApplicationName;
-    const char* WindowTitle;
+    size_t              WindowWidth;
+    size_t              WindowHeight;
+    const char*         ApplicationName;
+    const char*         WindowTitle;
+    RendererBackendType RendererBackend = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
 };
 
 struct ApplicationState
 {
-    kraft::Window Window;
-    float64 LastTime;
+    RendererFrontend Renderer;
+    float64          LastTime;
 };
 
 struct Application
 {
     ApplicationConfig Config;
-    ApplicationState State;
+    ApplicationState  State;
 
     bool Running = false;
     bool Suspended = false;

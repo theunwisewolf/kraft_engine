@@ -1,4 +1,4 @@
-#include "platform/kraft_platform.h"
+#include "kraft_macos.h"
 
 #ifdef KRAFT_PLATFORM_MACOS
 
