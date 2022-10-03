@@ -8,7 +8,47 @@
 namespace kraft
 {
 
-bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VulkanPhysicalDeviceRequirements requirements, VulkanQueueFamilyInfo* queueFamilyInfo)
+bool checkSwapchainSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out)
+{
+    // Surface capabilities
+    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &out->SurfaceCapabilities));
+
+    // Suface formats
+    if (!out->Formats)
+    {
+        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, 0));
+        if (out->FormatCount > 0)
+        {
+            arrsetlen(out->Formats, out->FormatCount);
+            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, out->Formats));
+        }
+        else
+        {
+            KDEBUG("Skipping device %s because swapchain has no formats", properties.deviceName);
+            return false;
+        }
+    }
+
+    // Present Modes
+    if (!out->PresentModes)
+    {
+        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, 0));
+        if (out->PresentModeCount > 0)
+        {
+            arrsetlen(out->PresentModes, out->PresentModeCount);
+            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, out->PresentModes));
+        }
+        else
+        {
+            KDEBUG("Skipping device %s because swapchain has no present modes", properties.deviceName);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VkSurfaceKHR surface, VulkanPhysicalDeviceRequirements requirements, VulkanQueueFamilyInfo* queueFamilyInfo)
 {
     uint32 queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -58,6 +98,16 @@ bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties prope
                 minTransferScore = transferScore;
             }
         }
+
+        // Check presentation support
+        {
+            VkBool32 supported = VK_FALSE;
+            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &supported));
+            if (supported)
+            {
+                queueFamilyInfo->PresentQueueIndex = j;
+            }
+        }
     }
 
     arrfree(queueFamilies);
@@ -78,6 +128,12 @@ bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties prope
     if (requirements.Transfer && queueFamilyInfo->TransferQueueIndex == -1)
     {
         KDEBUG("Skipping device %s because transfer queue is not supported and is required", properties.deviceName);
+        failures++;
+    }
+
+    if (requirements.Present && queueFamilyInfo->PresentQueueIndex == -1)
+    {
+        KDEBUG("Skipping device %s because no queue family supports presentation", properties.deviceName);
         failures++;
     }
 
@@ -168,7 +224,6 @@ bool DeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension)
         if (strcmp(extension, availableExtensions[k].extensionName) == 0)
         {
             return true;
-            break;
         }
     }
 
@@ -215,12 +270,18 @@ bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDev
         queueFamilyInfo.ComputeQueueIndex  = -1;
         queueFamilyInfo.TransferQueueIndex = -1;
 
-        if (!checkQueueSupport(device, properties, requirements, &queueFamilyInfo))
+        if (!checkQueueSupport(device, properties, context->Surface, requirements, &queueFamilyInfo))
         {
             continue;
         }
 
         if (!checkExtensionsSupport(device, properties, requirements))
+        {
+            continue;
+        }
+
+        VulkanSwapchainSupportInfo swapchainSupportInfo;
+        if (!checkSwapchainSupport(device, properties, context->Surface, &swapchainSupportInfo))
         {
             continue;
         }
@@ -231,6 +292,7 @@ bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDev
         physicalDevice.Features         = features;
         physicalDevice.MemoryProperties = memoryProperties;
         physicalDevice.QueueFamilyInfo  = queueFamilyInfo;
+        physicalDevice.SwapchainSupportInfo = swapchainSupportInfo;
 
         context->PhysicalDevice = physicalDevice;
         break;
@@ -295,6 +357,14 @@ void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
         queueCreateInfoCount++;
     }
 
+    if (familyInfo.PresentQueueIndex != familyInfo.GraphicsQueueIndex &&
+        familyInfo.PresentQueueIndex != familyInfo.ComputeQueueIndex &&
+        familyInfo.PresentQueueIndex != familyInfo.TransferQueueIndex)
+    {
+        indices[queueCreateInfoCount] = familyInfo.PresentQueueIndex;
+        queueCreateInfoCount++;
+    }
+
     VkDeviceQueueCreateInfo* createInfos = nullptr;
     arrsetlen(createInfos, queueCreateInfoCount);
     for (int i = 0; i < queueCreateInfoCount; ++i)
@@ -320,7 +390,7 @@ void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
         arrpush(requirements.DeviceExtensionNames, "VK_KHR_portability_subset");
     }
 
-    VkDeviceCreateInfo deviceCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    VkDeviceCreateInfo deviceCreateInfo      = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount    = queueCreateInfoCount;
     deviceCreateInfo.pQueueCreateInfos       = createInfos;
     deviceCreateInfo.pEnabledFeatures        = &featureRequests;

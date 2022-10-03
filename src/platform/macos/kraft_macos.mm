@@ -7,11 +7,15 @@
 #include <mach/mach_time.h>
 
 #include "core/kraft_log.h"
+#include "core/kraft_application.h"
+#include "platform/kraft_platform.h"
+#include "renderer/vulkan/kraft_vulkan_types.h"
 
 namespace kraft
 {
 
-void* Platform::InternalState       = nullptr;
+MacOSPlatformState* State                 = nullptr;
+void* Platform::InternalState             = nullptr;
 
 const int Platform::ConsoleColorBlack     = 30;
 const int Platform::ConsoleColorLoWhite   = 37;
@@ -45,9 +49,18 @@ const int Platform::ConsoleColorBGHiCyan    = 106   << 16;
 const int Platform::ConsoleColorBGLoMagenta = 45    << 16;
 const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
-bool Platform::Init()
+bool Platform::Init(ApplicationConfig* config)
 {
+    InternalState = Malloc(sizeof(MacOSPlatformState), false);
+    State = (MacOSPlatformState*)InternalState;
+    State->Window.Init(config->WindowTitle, config->WindowWidth, config->WindowHeight, config->RendererBackend);
+
     return true;
+}
+
+bool Platform::PollEvents()
+{
+    return State->Window.PollEvents();
 }
 
 void Platform::Shutdown()

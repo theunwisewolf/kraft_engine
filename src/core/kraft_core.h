@@ -26,6 +26,7 @@
 
 // Some types
 #include <cstdint>
+#include <cstddef>
 
 typedef double      float64;
 typedef float       float32;

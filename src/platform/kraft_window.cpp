@@ -1,9 +1,9 @@
 #include "kraft_window.h"
 
+#include <GLFW/glfw3.h>
+
 #include "core/kraft_log.h"
 #include "core/kraft_input.h"
-
-#include <vulkan/vulkan.h>
 
 namespace kraft
 {
@@ -41,7 +41,7 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
 
     uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    // vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
     KRAFT_LOG_INFO("Vulkan extensions count %d", extensionCount);
     return 0;

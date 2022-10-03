@@ -4,6 +4,8 @@
 #include <cstdarg>
 #include <cstring>
 
+#include "core/kraft_core.h"
+
 namespace kraft
 {
 

@@ -13,7 +13,6 @@
 namespace kraft
 {
 
-struct VulkanContext;
 struct ApplicationConfig;
 
 struct Platform

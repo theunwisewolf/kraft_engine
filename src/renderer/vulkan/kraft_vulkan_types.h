@@ -19,6 +19,15 @@ struct VulkanQueueFamilyInfo
     uint32 PresentQueueIndex;
 };
 
+struct VulkanSwapchainSupportInfo
+{
+    uint32                      FormatCount;
+    uint32                      PresentModeCount;
+    VkSurfaceCapabilitiesKHR    SurfaceCapabilities;
+    VkSurfaceFormatKHR*         Formats;
+    VkPresentModeKHR*           PresentModes;
+};
+
 struct VulkanPhysicalDevice
 {
     VkPhysicalDevice                    Device;
@@ -26,6 +35,7 @@ struct VulkanPhysicalDevice
     VkPhysicalDeviceFeatures            Features;
     VkPhysicalDeviceMemoryProperties    MemoryProperties;
     VulkanQueueFamilyInfo               QueueFamilyInfo;
+    VulkanSwapchainSupportInfo          SwapchainSupportInfo;
 };
 
 struct VulkanLogicalDevice
@@ -37,14 +47,13 @@ struct VulkanLogicalDevice
     VkQueue                 TransferQueue;
     VkQueue                 PresentQueue;
 };
-
 struct VulkanContext
 {
-    VkInstance              Instance;
-    VkAllocationCallbacks*  AllocationCallbacks;
-    VulkanPhysicalDevice    PhysicalDevice;
-    VulkanLogicalDevice     LogicalDevice;
-    VkSurfaceKHR            Surface;
+    VkInstance               Instance;
+    VkAllocationCallbacks*   AllocationCallbacks;
+    VulkanPhysicalDevice     PhysicalDevice;
+    VulkanLogicalDevice      LogicalDevice;
+    VkSurfaceKHR             Surface;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
