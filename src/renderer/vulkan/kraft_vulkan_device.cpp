@@ -8,6 +8,40 @@
 namespace kraft
 {
 
+bool checkDepthFormatSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VulkanPhysicalDeviceRequirements requirements, VkFormat* out)
+{
+    // No depth buffer required
+    if (!requirements.DepthBuffer)
+    {
+        return true;
+    }
+
+    const int candidateCount = 5;
+    VkFormat candidates[candidateCount] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM
+    };
+
+    for (int i = 0; i < candidateCount; ++i)
+    {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(device, candidates[i], &properties);
+        if (properties.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT ||
+            properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        {
+            *out = candidates[i];
+            return true;
+        }
+    }
+
+    *out = VK_FORMAT_UNDEFINED;
+    KDEBUG("Skipping device %s because device does not support the required depth buffer format", properties.deviceName);
+    return false;
+}
+
 bool checkSwapchainSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out)
 {
     // Surface capabilities
@@ -199,9 +233,9 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
     return true;
 }
 
-VkExtensionProperties* GetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount)
+VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount)
 {
-    KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Device, nullptr, outExtensionCount, nullptr));
+    KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Handle, nullptr, outExtensionCount, nullptr));
     if (outExtensionCount == 0)
     {
         return nullptr;
@@ -209,15 +243,15 @@ VkExtensionProperties* GetAvailableDeviceExtensions(VulkanPhysicalDevice device,
 
     VkExtensionProperties* outExtensionProperties = nullptr;
     arrsetlen(outExtensionProperties, *outExtensionCount);
-    KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Device, nullptr, outExtensionCount, outExtensionProperties));
+    KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Handle, nullptr, outExtensionCount, outExtensionProperties));
 
     return outExtensionProperties;
 }
 
-bool DeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension)
+bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension)
 {
     uint32 extensionsCount = 0;
-    VkExtensionProperties* availableExtensions = GetAvailableDeviceExtensions(device, &extensionsCount);
+    VkExtensionProperties* availableExtensions = VulkanGetAvailableDeviceExtensions(device, &extensionsCount);
 
     for (uint32 k = 0; k < extensionsCount; ++k)
     {
@@ -231,13 +265,13 @@ bool DeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension)
     return false;
 }
 
-bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDeviceRequirements requirements)
+bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanPhysicalDevice* out)
 {
     uint32 deviceCount = 0;
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, nullptr));
     if (deviceCount <= 0)
     {
-        KERROR("[SelectVulkanPhysicalDevice]: No vulkan capable physical devices found!");
+        KERROR("[VulkanSelectPhysicalDevice]: No vulkan capable physical devices found!");
         return false;
     }
 
@@ -252,10 +286,10 @@ bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDev
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(device, &properties);
 
-        KDEBUG("[SelectVulkanPhysicalDevice]: Checking device %s", properties.deviceName);
+        KDEBUG("[VulkanSelectPhysicalDevice]: Checking device %s", properties.deviceName);
         if (requirements.DiscreteGPU && properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
-            KDEBUG("[SelectVulkanPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one", properties.deviceName);
+            KDEBUG("[VulkanSelectPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one", properties.deviceName);
             continue;
         }
 
@@ -280,27 +314,34 @@ bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDev
             continue;
         }
 
-        VulkanSwapchainSupportInfo swapchainSupportInfo;
+        VkFormat depthBufferFormat = VK_FORMAT_UNDEFINED;
+        if (!checkDepthFormatSupport(device, properties, requirements, &depthBufferFormat))
+        {
+            continue;
+        }
+
+        VulkanSwapchainSupportInfo swapchainSupportInfo = {};
         if (!checkSwapchainSupport(device, properties, context->Surface, &swapchainSupportInfo))
         {
             continue;
         }
 
         VulkanPhysicalDevice physicalDevice;
-        physicalDevice.Device           = device;
-        physicalDevice.Properties       = properties;
-        physicalDevice.Features         = features;
-        physicalDevice.MemoryProperties = memoryProperties;
-        physicalDevice.QueueFamilyInfo  = queueFamilyInfo;
+        physicalDevice.Handle               = device;
+        physicalDevice.Properties           = properties;
+        physicalDevice.Features             = features;
+        physicalDevice.MemoryProperties     = memoryProperties;
+        physicalDevice.QueueFamilyInfo      = queueFamilyInfo;
+        physicalDevice.DepthBufferFormat    = depthBufferFormat;
         physicalDevice.SwapchainSupportInfo = swapchainSupportInfo;
 
         context->PhysicalDevice = physicalDevice;
         break;
     }
 
-    if (!context->PhysicalDevice.Device)
+    if (!context->PhysicalDevice.Handle)
     {
-        KERROR("[SelectVulkanPhysicalDevice]: Failed to find a suitable physical device!");
+        KERROR("[VulkanSelectPhysicalDevice]: Failed to find a suitable physical device!");
         return false;
     }
 
@@ -334,9 +375,11 @@ bool SelectVulkanPhysicalDevice(VulkanContext* context, kraft::VulkanPhysicalDev
             KINFO("Shared GPU memory: %.3f GiB", sizeInGiB);
         }
     }
+
+    if (out)    *out = context->PhysicalDevice; 
 }
 
-void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements)
+void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out)
 {
     uint32 indices[3];
     uint32 queueCreateInfoCount = 1; // We need at least 1 queue
@@ -385,7 +428,7 @@ void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
 
     // As per the vulkan spec, if the device supports VK_KHR_portability_subset
     // then the extension must be included
-    if (DeviceSupportsExtension(context->PhysicalDevice, "VK_KHR_portability_subset"))
+    if (VulkanDeviceSupportsExtension(context->PhysicalDevice, "VK_KHR_portability_subset"))
     {
         arrpush(requirements.DeviceExtensionNames, "VK_KHR_portability_subset");
     }
@@ -398,31 +441,33 @@ void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     deviceCreateInfo.ppEnabledExtensionNames = requirements.DeviceExtensionNames;
 
     KRAFT_VK_CHECK(
-        vkCreateDevice(context->PhysicalDevice.Device, 
+        vkCreateDevice(context->PhysicalDevice.Handle, 
             &deviceCreateInfo, 
             context->AllocationCallbacks, 
-            &context->LogicalDevice.Device
+            &context->LogicalDevice.Handle
         )
     );
 
     arrfree(createInfos);
-    KSUCCESS("[CreateVulkanLogicalDevice]: Successfully created VkDevice");
+    KSUCCESS("[VulkanCreateLogicalDevice]: Successfully created VkDevice");
 
     // Grab the queues
-    vkGetDeviceQueue(context->LogicalDevice.Device, familyInfo.GraphicsQueueIndex, 0, &context->LogicalDevice.GraphicsQueue);
-    vkGetDeviceQueue(context->LogicalDevice.Device, familyInfo.ComputeQueueIndex,  0, &context->LogicalDevice.ComputeQueue);
-    vkGetDeviceQueue(context->LogicalDevice.Device, familyInfo.TransferQueueIndex, 0, &context->LogicalDevice.TransferQueue);
+    vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.GraphicsQueueIndex, 0, &context->LogicalDevice.GraphicsQueue);
+    vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.ComputeQueueIndex,  0, &context->LogicalDevice.ComputeQueue);
+    vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.TransferQueueIndex, 0, &context->LogicalDevice.TransferQueue);
+
+    if (out)    *out = context->LogicalDevice; 
 }
 
-void DestroyVulkanLogicalDevice(VulkanContext* context)
+void VulkanDestroyLogicalDevice(VulkanContext* context)
 {
     context->PhysicalDevice.QueueFamilyInfo = {0};
 
-    vkDestroyDevice(context->LogicalDevice.Device, context->AllocationCallbacks);
-    context->LogicalDevice.Device  = 0;
-    context->PhysicalDevice.Device = 0;
+    vkDestroyDevice(context->LogicalDevice.Handle, context->AllocationCallbacks);
+    context->LogicalDevice.Handle  = 0;
+    context->PhysicalDevice.Handle = 0;
 
-    KDEBUG("[DestroyVulkanLogicalDevice]: Destroyed VkDevice");
+    KDEBUG("[VulkanDestroyLogicalDevice]: Destroyed VkDevice");
 }
 
 }

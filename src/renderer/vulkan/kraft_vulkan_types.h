@@ -11,6 +11,15 @@
 namespace kraft
 {
 
+struct VulkanImage
+{
+    uint32         Width;
+    uint32         Height;
+    VkImage        Handle;
+    VkImageView    View;
+    VkDeviceMemory Memory;
+};
+
 struct VulkanQueueFamilyInfo
 {
     uint32 GraphicsQueueIndex;
@@ -30,23 +39,36 @@ struct VulkanSwapchainSupportInfo
 
 struct VulkanPhysicalDevice
 {
-    VkPhysicalDevice                    Device;
+    VkPhysicalDevice                    Handle;
     VkPhysicalDeviceProperties          Properties; 
     VkPhysicalDeviceFeatures            Features;
     VkPhysicalDeviceMemoryProperties    MemoryProperties;
     VulkanQueueFamilyInfo               QueueFamilyInfo;
     VulkanSwapchainSupportInfo          SwapchainSupportInfo;
+    VkFormat                            DepthBufferFormat;
 };
 
 struct VulkanLogicalDevice
 {
     VulkanPhysicalDevice    PhysicalDevice;
-    VkDevice                Device;
+    VkDevice                Handle;
     VkQueue                 GraphicsQueue;
     VkQueue                 ComputeQueue;
     VkQueue                 TransferQueue;
     VkQueue                 PresentQueue;
 };
+
+struct VulkanSwapchain
+{
+    VkSwapchainKHR      Handle;
+    VkSurfaceFormatKHR  ImageFormat;
+    VkImage*            Images;
+    VkImageView*        ImageViews;
+    uint8               MaxFramesInFlight;               
+    uint32              ImageCount;
+    VulkanImage             DepthAttachment;
+};
+
 struct VulkanContext
 {
     VkInstance               Instance;
@@ -54,6 +76,9 @@ struct VulkanContext
     VulkanPhysicalDevice     PhysicalDevice;
     VulkanLogicalDevice      LogicalDevice;
     VkSurfaceKHR             Surface;
+    uint32                   FramebufferWidth;
+    uint32                   FramebufferHeight;
+    VulkanSwapchain          Swapchain;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
@@ -67,6 +92,7 @@ struct VulkanPhysicalDeviceRequirements
     bool Transfer;
     bool Compute;
     bool DiscreteGPU;
+    bool DepthBuffer;
 
     const char** DeviceExtensionNames;
 };

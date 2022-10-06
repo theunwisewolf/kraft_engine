@@ -46,6 +46,8 @@ set(SRC_FILES
     src/renderer/kraft_renderer_frontend.cpp
     src/renderer/vulkan/kraft_vulkan_backend.cpp
     src/renderer/vulkan/kraft_vulkan_device.cpp
+    src/renderer/vulkan/kraft_vulkan_swapchain.cpp
+    src/renderer/vulkan/kraft_vulkan_image.cpp
 
     # imgui
     # vendor/imgui/imgui.cpp

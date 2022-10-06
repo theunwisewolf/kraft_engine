@@ -4,6 +4,7 @@
 #include "containers/array.h"
 #include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_surface.h"
+#include "renderer/vulkan/kraft_vulkan_swapchain.h"
 
 namespace kraft
 {
@@ -115,12 +116,14 @@ bool VulkanRendererBackend::Init()
     requirements.Graphics = true;
     requirements.Present = true;
     requirements.Transfer = true;
+    requirements.DepthBuffer = true;
     requirements.DeviceExtensionNames = nullptr;
     arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
     CreateVulkanSurface(&s_Context);
-    SelectVulkanPhysicalDevice(&s_Context, requirements);
-    CreateVulkanLogicalDevice(&s_Context, requirements);
+    VulkanSelectPhysicalDevice(&s_Context, requirements);
+    VulkanCreateLogicalDevice(&s_Context, requirements);
+    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight);
 
     arrfree(requirements.DeviceExtensionNames);
     
@@ -130,7 +133,8 @@ bool VulkanRendererBackend::Init()
 
 bool VulkanRendererBackend::Shutdown()
 {
-    DestroyVulkanLogicalDevice(&s_Context);
+    VulkanDestroySwapchain(&s_Context);
+    VulkanDestroyLogicalDevice(&s_Context);
 
     if (s_Context.Surface)
     {

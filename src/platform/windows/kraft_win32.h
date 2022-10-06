@@ -3,6 +3,8 @@
 #include "core/kraft_core.h"
 
 #ifdef KRAFT_PLATFORM_WINDOWS
+#include "Windows.h"
+
 #include "platform/kraft_window.h"
 
 namespace kraft

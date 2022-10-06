@@ -8,10 +8,10 @@
 namespace kraft
 {
 
-VkExtensionProperties* GetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount);
-bool DeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension);
-bool SelectVulkanPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements);
-void CreateVulkanLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements);
-void DestroyVulkanLogicalDevice(VulkanContext* context);
+VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount);
+bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension);
+bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanPhysicalDevice* out = 0);
+void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out = 0);
+void VulkanDestroyLogicalDevice(VulkanContext* context);
     
 }
