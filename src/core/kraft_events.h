@@ -10,6 +10,7 @@ namespace kraft
 // Different event types
 enum EventType
 {
+    EVENT_TYPE_WINDOW_RESIZE,
     EVENT_TYPE_KEY_UP,
     EVENT_TYPE_KEY_DOWN,
     EVENT_TYPE_MOUSE_UP,

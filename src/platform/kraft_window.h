@@ -23,6 +23,7 @@ struct Window
     bool PollEvents(); // Returns false if the window wants to close
     void Destroy();
     
+    static void WindowSizeCallback(GLFWwindow* window, int width, int height);
     static void KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods);
     static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);

@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_asserts.h"
+#include "math/kraft_math.h"
 
 #include <vulkan/vulkan.h>
 
@@ -10,6 +11,58 @@
 
 namespace kraft
 {
+
+struct VulkanFence
+{
+    VkFence Handle;
+    bool    Signalled;
+};
+
+enum VulkanCommandBufferState
+{
+    VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED,
+    VULKAN_COMMAND_BUFFER_STATE_READY,
+    VULKAN_COMMAND_BUFFER_STATE_RECORDING,
+    VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS,
+    VULKAN_COMMAND_BUFFER_STATE_RECORDING_ENDED,
+    VULKAN_COMMAND_BUFFER_STATE_SUBMITTED,
+};
+
+struct VulkanCommandBuffer
+{
+    VkCommandBuffer          Handle;
+    VulkanCommandBufferState State;
+};
+
+enum VulkanRenderPassState
+{
+    VULKAN_RENDER_PASS_STATE_NOT_ALLOCATED,
+    VULKAN_RENDER_PASS_STATE_READY,
+    VULKAN_RENDER_PASS_STATE_RECORDING,
+    VULKAN_RENDER_PASS_STATE_IN_RENDER_PASS,
+    VULKAN_RENDER_PASS_STATE_RECORDING_ENDED,
+    VULKAN_RENDER_PASS_STATE_SUBMITTED,
+};
+
+struct VulkanRenderPass
+{
+    VkRenderPass            Handle;
+    float4                  Rect;
+    float4                  Color;
+    float32                 Depth;
+    uint32                  Stencil;
+    VulkanRenderPassState   State;
+};
+
+struct VulkanFramebuffer
+{
+    VkFramebuffer       Handle;
+    uint32              Width;
+    uint32              Height;
+    uint32              AttachmentCount;
+    VulkanRenderPass*   RenderPass;
+    VkImageView*        Attachments;
+};
 
 struct VulkanImage
 {
@@ -56,6 +109,7 @@ struct VulkanLogicalDevice
     VkQueue                 ComputeQueue;
     VkQueue                 TransferQueue;
     VkQueue                 PresentQueue;
+    VkCommandPool           GraphicsCommandPool;
 };
 
 struct VulkanSwapchain
@@ -64,9 +118,11 @@ struct VulkanSwapchain
     VkSurfaceFormatKHR  ImageFormat;
     VkImage*            Images;
     VkImageView*        ImageViews;
+    uint8               CurrentFrame;               
     uint8               MaxFramesInFlight;               
     uint32              ImageCount;
-    VulkanImage             DepthAttachment;
+    VulkanImage         DepthAttachment;
+    VulkanFramebuffer*  Framebuffers;
 };
 
 struct VulkanContext
@@ -79,6 +135,12 @@ struct VulkanContext
     uint32                   FramebufferWidth;
     uint32                   FramebufferHeight;
     VulkanSwapchain          Swapchain;
+    VulkanRenderPass         MainRenderPass;
+    VulkanCommandBuffer*     GraphicsCommandBuffers;
+    VulkanFence*             WaitFences;
+    VkSemaphore*             PresentCompleteSemaphores;
+    VkSemaphore*             RenderCompleteSemaphores;
+    uint32                   CurrentSwapchainImageIndex;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;

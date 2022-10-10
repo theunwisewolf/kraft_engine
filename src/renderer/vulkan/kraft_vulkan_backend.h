@@ -6,9 +6,11 @@
 namespace kraft
 {
 
+struct ApplicationConfig;
+
 namespace VulkanRendererBackend
 {
-    bool Init();
+    bool Init(ApplicationConfig* config);
     bool Shutdown();
     bool BeginFrame(float64 deltaTime);
     bool EndFrame(float64 deltaTime);

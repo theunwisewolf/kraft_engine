@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "core/kraft_events.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_frontend.h"
 
@@ -44,6 +45,7 @@ struct Application
     bool Create();
     bool Run();
     void Destroy();
+    static bool WindowResizeListener(EventType type, void* sender, void* listener, EventData data);
 };
 
 }

@@ -2,8 +2,9 @@
 
 #include <GLFW/glfw3.h>
 
-#include "core/kraft_log.h"
+#include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_log.h"
 
 namespace kraft
 {
@@ -12,7 +13,7 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
 {
     if (!glfwInit())
     {
-        KERROR("KRAFT_ERROR_GLFW_INIT_FAILED");
+        KERROR("glfwInit() failed");
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
@@ -30,20 +31,18 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
     {
         glfwTerminate();
 
-        KERROR("KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED");
+        KERROR("glfwCreateWindow() failed");
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
 
     // Window callbacks
+    glfwSetWindowUserPointer(this->PlatformWindowHandle, this);
+    glfwSetWindowSizeCallback(this->PlatformWindowHandle, WindowSizeCallback);
     glfwSetKeyCallback(this->PlatformWindowHandle, KeyCallback);
     glfwSetMouseButtonCallback(this->PlatformWindowHandle, MouseButtonCallback);
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
 
-    uint32_t extensionCount = 0;
-    // vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    KRAFT_LOG_INFO("Vulkan extensions count %d", extensionCount);
     return 0;
 }
 
@@ -57,6 +56,15 @@ bool Window::PollEvents()
 {
     glfwPollEvents();
     return !glfwWindowShouldClose(this->PlatformWindowHandle);
+}
+
+void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
+{
+    EventData data;
+    data.UInt32[0] = width;
+    data.UInt32[1] = height;
+
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, data, glfwGetWindowUserPointer(window));
 }
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)

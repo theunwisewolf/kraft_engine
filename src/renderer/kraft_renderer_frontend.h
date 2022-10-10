@@ -7,6 +7,8 @@
 namespace kraft
 {
 
+struct ApplicationConfig;
+
 struct RendererFrontend
 {
     static RendererFrontend* I;
@@ -15,7 +17,7 @@ struct RendererFrontend
     Block BackendMemory;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
 
-    bool Init();
+    bool Init(ApplicationConfig* config);
     bool Shutdown();
     void OnResize(int width, int height);
     bool DrawFrame(RenderPacket* packet);

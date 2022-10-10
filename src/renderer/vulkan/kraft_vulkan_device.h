@@ -13,5 +13,7 @@ bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* exte
 bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanPhysicalDevice* out = 0);
 void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out = 0);
 void VulkanDestroyLogicalDevice(VulkanContext* context);
+
+void VulkanGetSwapchainSupportInfo(VkPhysicalDevice device, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out);
     
 }

@@ -2,7 +2,6 @@
 
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
-#include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "core/kraft_time.h"
 #include "platform/kraft_platform.h"
@@ -11,16 +10,43 @@
 namespace kraft
 {
 
+bool Application::WindowResizeListener(EventType type, void* sender, void* listener, EventData data)
+{
+    uint32 width = data.UInt32[0];
+    uint32 height = data.UInt32[1];
+
+    Application* application = (Application*)listener;
+    application->Config.WindowWidth = width;
+    application->Config.WindowHeight = height;
+
+    if (width == 0 && height == 0)
+    {
+        KINFO("Application suspended");
+        application->Suspended = true;   
+    }
+    else
+    {
+        if (application->Suspended)
+        {
+            KINFO("Application resumed");
+            application->Suspended = false;
+        }
+
+        application->OnResize(width, height);
+        application->State.Renderer.OnResize(width, height);
+    }
+
+    return false;
+}
+
 bool Application::Create()
 {
     Platform::Init(&this->Config);
     EventSystem::Init();
     InputSystem::Init();
 
-    State.Renderer.Type = this->Config.RendererBackend;
     RendererFrontend::I = &State.Renderer;
-
-    if (!State.Renderer.Init())
+    if (!State.Renderer.Init(&this->Config))
     {
         KERROR("[Application::Create]: Failed to initalize renderer!");
         return false;
@@ -35,6 +61,7 @@ bool Application::Create()
     this->Suspended = false;
     this->OnResize(this->Config.WindowWidth, this->Config.WindowHeight);
 
+    EventSystem::Listen(EventType::EVENT_TYPE_WINDOW_RESIZE, this, Application::WindowResizeListener);
     return true;
 }
 

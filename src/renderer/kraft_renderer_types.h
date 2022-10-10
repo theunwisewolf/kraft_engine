@@ -5,6 +5,8 @@
 namespace kraft
 {
 
+struct ApplicationConfig;
+
 enum RendererBackendType
 {
     RENDERER_BACKEND_TYPE_NONE,
@@ -16,7 +18,7 @@ enum RendererBackendType
 
 struct RendererBackend
 {
-    bool (*Init)();
+    bool (*Init)(ApplicationConfig* config);
     bool (*Shutdown)();
     bool (*BeginFrame)(float64 deltaTime);
     bool (*EndFrame)(float64 deltaTime);

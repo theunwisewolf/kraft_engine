@@ -85,7 +85,7 @@ void Render(float64 deltaTime)
 
 void OnResize(size_t width, size_t height)
 {
-
+    KINFO("Window size changed = %d, %d", width, height);
 }
 
 void OnBackground()

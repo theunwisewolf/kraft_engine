@@ -2,6 +2,7 @@
 
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
+#include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_image.h"
 
 namespace kraft
@@ -11,15 +12,22 @@ namespace kraft
 
 void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, VulkanSwapchain* out)
 {
+    // context->Swapchain = {};
+    context->Swapchain.MaxFramesInFlight = 2;
+
     if (out)
         context->Swapchain = *out;
 
     VkExtent2D extent = {width, height};
 
+    // Query swapchain support info once more to get the most updated values
+    // in case of window resize
+    VulkanGetSwapchainSupportInfo(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo);
+
     // Find a suitable image format
     VulkanSwapchainSupportInfo info = context->PhysicalDevice.SwapchainSupportInfo;
     bool found = false;
-    for (int i = 0; i < info.FormatCount; ++i)
+    for (uint32 i = 0; i < info.FormatCount; ++i)
     {
         VkSurfaceFormatKHR format = info.Formats[i];
         if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
@@ -40,7 +48,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // Present mode
     // Choose FIFO as default
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    for (int i = 0; i < info.PresentModeCount; ++i)
+    for (uint32 i = 0; i < info.PresentModeCount; ++i)
     {
         // If Mailbox presentation mode is supported, we want that
         if (info.PresentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -159,6 +167,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
 void VulkanDestroySwapchain(VulkanContext* context)
 {
+    vkDeviceWaitIdle(context->LogicalDevice.Handle);
     for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
         vkDestroyImageView(context->LogicalDevice.Handle, context->Swapchain.ImageViews[i], context->AllocationCallbacks);
@@ -175,15 +184,15 @@ void VulkanRecreateSwapchain(VulkanContext* context)
     VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight);
 }
 
-bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)
+bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore presentCompleteSemaphore, VkFence fence, uint32* out)
 {
-    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, timeoutNS, imageAvailableSemaphore, fence, out);
+    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, timeoutNS, presentCompleteSemaphore, fence, out);
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);
         return false;
     }
-    else if (result != VK_SUCCESS || result != VK_SUBOPTIMAL_KHR)
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         KERROR("[VulkanAcquireNextImageIndex]: Failed to acquire swapchain image");
         return false;
@@ -192,7 +201,7 @@ bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSem
     return true;
 }
 
-void VulkanSwapchainPresent(VulkanContext* context, VkQueue graphicsQueue, VkQueue presentQueue, VkSemaphore renderCompleteSemaphore, uint32 presentImageIndex)
+void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSemaphore renderCompleteSemaphore, uint32 presentImageIndex)
 {
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -210,8 +219,10 @@ void VulkanSwapchainPresent(VulkanContext* context, VkQueue graphicsQueue, VkQue
     }
     else if (result != VK_SUCCESS)
     {
-        KFATAL("[VulkanSwapchainPresent]: Presentation failed!");
+        KFATAL("[VulkanPresentSwapchain]: Presentation failed!");
     }
+
+    context->Swapchain.CurrentFrame = (context->Swapchain.CurrentFrame + 1) % context->Swapchain.MaxFramesInFlight;
 }
 
 }

@@ -3,6 +3,7 @@
 #include "core/kraft_core.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_log.h"
+#include "core/kraft_memory.h"
 #include "containers/array.h"
 
 namespace kraft
@@ -42,41 +43,18 @@ bool checkDepthFormatSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties
     return false;
 }
 
-bool checkSwapchainSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out)
+bool checkSwapchainSupport(VkPhysicalDeviceProperties properties, VulkanSwapchainSupportInfo info)
 {
-    // Surface capabilities
-    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &out->SurfaceCapabilities));
-
-    // Suface formats
-    if (!out->Formats)
+    if (info.FormatCount <= 0)
     {
-        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, 0));
-        if (out->FormatCount > 0)
-        {
-            arrsetlen(out->Formats, out->FormatCount);
-            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, out->Formats));
-        }
-        else
-        {
-            KDEBUG("Skipping device %s because swapchain has no formats", properties.deviceName);
-            return false;
-        }
+        KDEBUG("Skipping device %s because swapchain has no formats", properties.deviceName);
+        return false;
     }
 
-    // Present Modes
-    if (!out->PresentModes)
+    if (info.PresentModeCount <= 0)
     {
-        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, 0));
-        if (out->PresentModeCount > 0)
-        {
-            arrsetlen(out->PresentModes, out->PresentModeCount);
-            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, out->PresentModes));
-        }
-        else
-        {
-            KDEBUG("Skipping device %s because swapchain has no present modes", properties.deviceName);
-            return false;
-        }
+        KDEBUG("Skipping device %s because swapchain has no present modes", properties.deviceName);
+        return false;
     }
 
     return true;
@@ -181,7 +159,7 @@ bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties prope
 
 bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VulkanPhysicalDeviceRequirements requirements)
 {
-    int n = arrlen(requirements.DeviceExtensionNames);
+    size_t n = arrlen(requirements.DeviceExtensionNames);
     if (n == 0)
     {
         KDEBUG("[checkExtensionsSupport]: No extensions requested", properties.deviceName);
@@ -233,6 +211,36 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
     return true;
 }
 
+void VulkanGetSwapchainSupportInfo(VkPhysicalDevice device, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out)
+{
+    MemZero(out, sizeof(VulkanSwapchainSupportInfo));
+
+    // Surface capabilities
+    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &out->SurfaceCapabilities));
+
+    // Suface formats
+    if (!out->Formats)
+    {
+        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, 0));
+        if (out->FormatCount > 0)
+        {
+            arrsetlen(out->Formats, out->FormatCount);
+            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->FormatCount, out->Formats));
+        }
+    }
+
+    // Present Modes
+    if (!out->PresentModes)
+    {
+        KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, 0));
+        if (out->PresentModeCount > 0)
+        {
+            arrsetlen(out->PresentModes, out->PresentModeCount);
+            KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->PresentModeCount, out->PresentModes));
+        }
+    }
+}
+
 VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount)
 {
     KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Handle, nullptr, outExtensionCount, nullptr));
@@ -267,6 +275,8 @@ bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* exte
 
 bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanPhysicalDevice* out)
 {
+    context->PhysicalDevice = {};
+
     uint32 deviceCount = 0;
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, nullptr));
     if (deviceCount <= 0)
@@ -321,7 +331,8 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         }
 
         VulkanSwapchainSupportInfo swapchainSupportInfo = {};
-        if (!checkSwapchainSupport(device, properties, context->Surface, &swapchainSupportInfo))
+        VulkanGetSwapchainSupportInfo(device, context->Surface, &swapchainSupportInfo);
+        if (!checkSwapchainSupport(properties, swapchainSupportInfo))
         {
             continue;
         }
@@ -361,7 +372,7 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         VK_VERSION_MINOR(context->PhysicalDevice.Properties.apiVersion), 
         VK_VERSION_PATCH(context->PhysicalDevice.Properties.apiVersion));
 
-    for (int i = 0; i < context->PhysicalDevice.MemoryProperties.memoryHeapCount; i++)
+    for (uint32 i = 0; i < context->PhysicalDevice.MemoryProperties.memoryHeapCount; i++)
     {
         VkDeviceSize size = context->PhysicalDevice.MemoryProperties.memoryHeaps[i].size;
         float32 sizeInGiB = ((float32)size) / 1024.f / 1024.f / 1024.f;
@@ -377,10 +388,15 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     }
 
     if (out)    *out = context->PhysicalDevice; 
+    arrfree(physicalDevices);
+
+    return true;
 }
 
 void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out)
 {
+    context->LogicalDevice = {};
+
     uint32 indices[3];
     uint32 queueCreateInfoCount = 1; // We need at least 1 queue
     VulkanQueueFamilyInfo familyInfo = context->PhysicalDevice.QueueFamilyInfo;
@@ -410,7 +426,7 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
 
     VkDeviceQueueCreateInfo* createInfos = nullptr;
     arrsetlen(createInfos, queueCreateInfoCount);
-    for (int i = 0; i < queueCreateInfoCount; ++i)
+    for (uint32 i = 0; i < queueCreateInfoCount; ++i)
     {
         float32 queuePriorities = 1.0f;
 
@@ -437,7 +453,7 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     deviceCreateInfo.queueCreateInfoCount    = queueCreateInfoCount;
     deviceCreateInfo.pQueueCreateInfos       = createInfos;
     deviceCreateInfo.pEnabledFeatures        = &featureRequests;
-    deviceCreateInfo.enabledExtensionCount   = arrlen(requirements.DeviceExtensionNames);
+    deviceCreateInfo.enabledExtensionCount   = (uint32)arrlen(requirements.DeviceExtensionNames);
     deviceCreateInfo.ppEnabledExtensionNames = requirements.DeviceExtensionNames;
 
     KRAFT_VK_CHECK(
@@ -455,13 +471,26 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.GraphicsQueueIndex, 0, &context->LogicalDevice.GraphicsQueue);
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.ComputeQueueIndex,  0, &context->LogicalDevice.ComputeQueue);
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.TransferQueueIndex, 0, &context->LogicalDevice.TransferQueue);
+    vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.PresentQueueIndex, 0, &context->LogicalDevice.PresentQueue);
+    KDEBUG("[VulkanCreateLogicalDevice]: Required queues obtained");
 
-    if (out)    *out = context->LogicalDevice; 
+    VkCommandPoolCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    info.queueFamilyIndex = familyInfo.GraphicsQueueIndex;
+    info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    KRAFT_VK_CHECK(vkCreateCommandPool(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->LogicalDevice.GraphicsCommandPool));
+    KDEBUG("[VulkanCreateLogicalDevice]: Graphics command pool created");
+
+    if (out)    *out = context->LogicalDevice;
 }
 
 void VulkanDestroyLogicalDevice(VulkanContext* context)
 {
     context->PhysicalDevice.QueueFamilyInfo = {0};
+
+    vkDestroyCommandPool(context->LogicalDevice.Handle, context->LogicalDevice.GraphicsCommandPool, context->AllocationCallbacks);
+    context->LogicalDevice.GraphicsCommandPool = 0;
 
     vkDestroyDevice(context->LogicalDevice.Handle, context->AllocationCallbacks);
     context->LogicalDevice.Handle  = 0;
