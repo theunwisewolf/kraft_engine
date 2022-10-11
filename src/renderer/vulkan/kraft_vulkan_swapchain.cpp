@@ -184,9 +184,9 @@ void VulkanRecreateSwapchain(VulkanContext* context)
     VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight);
 }
 
-bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore presentCompleteSemaphore, VkFence fence, uint32* out)
+bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)
 {
-    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, timeoutNS, presentCompleteSemaphore, fence, out);
+    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, timeoutNS, imageAvailableSemaphore, fence, out);
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);

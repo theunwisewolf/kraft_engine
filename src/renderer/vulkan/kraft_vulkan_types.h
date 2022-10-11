@@ -138,7 +138,7 @@ struct VulkanContext
     VulkanRenderPass         MainRenderPass;
     VulkanCommandBuffer*     GraphicsCommandBuffers;
     VulkanFence*             WaitFences;
-    VkSemaphore*             PresentCompleteSemaphores;
+    VkSemaphore*             ImageAvailableSemaphores;
     VkSemaphore*             RenderCompleteSemaphores;
     uint32                   CurrentSwapchainImageIndex;
 

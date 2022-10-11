@@ -148,14 +148,14 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
     createCommandBuffers();
 
-    CreateArray(s_Context.PresentCompleteSemaphores, s_Context.Swapchain.ImageCount);
+    CreateArray(s_Context.ImageAvailableSemaphores, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.RenderCompleteSemaphores, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.WaitFences, s_Context.Swapchain.ImageCount);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
         VkSemaphoreCreateInfo info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        vkCreateSemaphore(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &s_Context.PresentCompleteSemaphores[i]);
+        vkCreateSemaphore(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &s_Context.ImageAvailableSemaphores[i]);
         vkCreateSemaphore(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &s_Context.RenderCompleteSemaphores[i]);
 
         VulkanCreateFence(&s_Context, true, &s_Context.WaitFences[i]);
@@ -170,8 +170,8 @@ bool VulkanRendererBackend::Shutdown()
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
-        vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.PresentCompleteSemaphores[i], s_Context.AllocationCallbacks);
-        s_Context.PresentCompleteSemaphores[i] = 0;
+        vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.ImageAvailableSemaphores[i], s_Context.AllocationCallbacks);
+        s_Context.ImageAvailableSemaphores[i] = 0;
 
         vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.RenderCompleteSemaphores[i], s_Context.AllocationCallbacks);
         s_Context.RenderCompleteSemaphores[i] = 0;
@@ -179,7 +179,7 @@ bool VulkanRendererBackend::Shutdown()
         VulkanDestroyFence(&s_Context, &s_Context.WaitFences[i]);
     }
 
-    DestroyArray(s_Context.PresentCompleteSemaphores);
+    DestroyArray(s_Context.ImageAvailableSemaphores);
     DestroyArray(s_Context.RenderCompleteSemaphores);
     DestroyArray(s_Context.WaitFences);
 
@@ -211,7 +211,7 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     }
 
     // Acquire the next image
-    if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.PresentCompleteSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
+    if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
     {
         return false;
     }
@@ -258,7 +258,7 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     info.commandBufferCount = 1;
     info.pCommandBuffers = &buffer->Handle;
     info.waitSemaphoreCount = 1;
-    info.pWaitSemaphores = &s_Context.PresentCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
+    info.pWaitSemaphores = &s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame];
     info.signalSemaphoreCount = 1;
     info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
     info.pWaitDstStageMask = &waitStageMask;
@@ -269,7 +269,8 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
 
     // To make sure that the next frame which we will render to is finished
-    vkWaitForFences(s_Context.LogicalDevice.Handle, 1, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame].Handle, true, UINT64_MAX);
+    // s_Context.Swapchain.CurrentFrame is incremented in VulkanPresentSwapchain()
+    // vkWaitForFences(s_Context.LogicalDevice.Handle, 1, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame].Handle, true, UINT64_MAX);
 
     return true;
 }
