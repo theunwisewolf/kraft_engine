@@ -107,9 +107,9 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     KRAFT_VK_CHECK(vkCreateInstance(&instanceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Instance));
     arrfree(extensions);
     arrfree(layers);
-    arrfree(availableLayerProperties);
 
 #ifdef KRAFT_DEBUG
+    arrfree(availableLayerProperties);
     {
         // Setup vulkan debug callback messenger
         uint32 logLevel = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
@@ -151,6 +151,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     CreateArray(s_Context.ImageAvailableSemaphores, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.RenderCompleteSemaphores, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.WaitFences, s_Context.Swapchain.ImageCount);
+    CreateArray(s_Context.InFlightImageToFenceMap, s_Context.Swapchain.ImageCount);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -159,6 +160,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         vkCreateSemaphore(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &s_Context.RenderCompleteSemaphores[i]);
 
         VulkanCreateFence(&s_Context, true, &s_Context.WaitFences[i]);
+        s_Context.InFlightImageToFenceMap[i] = &s_Context.WaitFences[i];
     }
     
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
@@ -204,17 +206,26 @@ bool VulkanRendererBackend::Shutdown()
 
 bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 {
-    if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
-    {
-        KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
-        return false;
-    }
+    // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
+    // {
+    //     KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
+    //     return false;
+    // }
 
     // Acquire the next image
     if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
     {
         return false;
     }
+
+    VulkanFence* fence = s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex];
+    if (!VulkanWaitForFence(&s_Context, fence, UINT64_MAX))
+    {
+        KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
+        return false;
+    }
+
+    VulkanResetFence(&s_Context, fence);
 
     // Record commands
     VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
@@ -250,8 +261,6 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     VulkanEndRenderPass(buffer, &s_Context.MainRenderPass);
     VulkanEndCommandBuffer(buffer);
 
-    VulkanResetFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame]);
-
     VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -263,7 +272,7 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
     info.pWaitDstStageMask = &waitStageMask;
 
-    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.WaitFences[s_Context.Swapchain.CurrentFrame].Handle));
+    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex]->Handle));
     
     VulkanSetCommandBufferSubmitted(buffer);
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
@@ -278,6 +287,12 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 void VulkanRendererBackend::OnResize(int width, int height)
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
+
+    if (width == 0 || height == 0)
+    {
+        KERROR("Cannot recreate swapchain because width/height is 0 | %d, %d", width, height);
+        return;
+    }
 
     s_Context.FramebufferWidth = width;
     s_Context.FramebufferHeight = height;

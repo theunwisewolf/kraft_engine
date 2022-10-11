@@ -138,6 +138,7 @@ struct VulkanContext
     VulkanRenderPass         MainRenderPass;
     VulkanCommandBuffer*     GraphicsCommandBuffers;
     VulkanFence*             WaitFences;
+    VulkanFence**            InFlightImageToFenceMap;
     VkSemaphore*             ImageAvailableSemaphores;
     VkSemaphore*             RenderCompleteSemaphores;
     uint32                   CurrentSwapchainImageIndex;
