@@ -129,7 +129,7 @@ void Platform::ConsoleOutputString(const char* str, int color)
     
     SetConsoleTextAttribute(out, color);
     OutputDebugString(str);
-    WriteConsole(out, str, strlen(str), 0, NULL);
+    WriteConsole(out, str, (DWORD)strlen(str), 0, NULL);
 }
 
 void Platform::ConsoleOutputStringError(const char* str, int color)
@@ -139,7 +139,7 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
     
     SetConsoleTextAttribute(out, color);
     OutputDebugString(str);
-    WriteConsole(out, str, strlen(str), 0, NULL);
+    WriteConsole(out, str, (DWORD)strlen(str), 0, NULL);
 }
 
 float64 Platform::GetAbsoluteTime()
@@ -164,7 +164,7 @@ float64 Platform::GetElapsedTime()
 
 void Platform::SleepMilliseconds(uint64_t msec)
 {
-    Sleep(msec);
+    Sleep((DWORD)msec);
 }
 
 }

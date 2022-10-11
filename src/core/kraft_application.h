@@ -12,8 +12,8 @@ struct Window;
 
 struct ApplicationConfig
 {
-    size_t              WindowWidth;
-    size_t              WindowHeight;
+    uint32              WindowWidth;
+    uint32              WindowHeight;
     const char*         ApplicationName;
     const char*         WindowTitle;
     RendererBackendType RendererBackend = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;

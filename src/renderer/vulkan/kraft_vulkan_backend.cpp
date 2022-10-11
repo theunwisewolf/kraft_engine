@@ -141,7 +141,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VulkanSelectPhysicalDevice(&s_Context, requirements);
     VulkanCreateLogicalDevice(&s_Context, requirements);
     VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight);
-    VulkanCreateRenderPass(&s_Context, {0.0f, 0.1f, 0.0f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass);
+    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass);
 
     arrfree(requirements.DeviceExtensionNames);
 
@@ -236,8 +236,8 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 
     vkCmdSetScissor(buffer->Handle, 0, 1, &scissor);
 
-    s_Context.MainRenderPass.Rect.z = s_Context.FramebufferWidth;
-    s_Context.MainRenderPass.Rect.w = s_Context.FramebufferHeight;
+    s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
+    s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
 
     VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle);
 
@@ -375,7 +375,7 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         MemZero(swapchain->Framebuffers, sizeof(VulkanFramebuffer) * swapchain->ImageCount);
     }
 
-    for (int i = 0; i < swapchain->ImageCount; ++i)
+    for (uint32 i = 0; i < swapchain->ImageCount; ++i)
     {
         if (swapchain->Framebuffers[i].Handle)
         {

@@ -90,6 +90,9 @@
         return a;                                              \
     }
 
+namespace kraft
+{
+
 template <typename T, int n>
 struct Vector
 {
@@ -318,9 +321,11 @@ Vector<T, n> Dot(Vector<T, n> a, Vector<T, n> b)
     };
 }
 
-typedef Vector<float, 2> float2;
-typedef Vector<float, 3> float3;
-typedef Vector<float, 4> float4;
+typedef Vector<float, 2> Vec2f;
+typedef Vector<float, 3> Vec3f;
+typedef Vector<float, 4> Vec4f;
+
+}
 
 /**
  *
@@ -388,6 +393,10 @@ typedef Vector<float, 4> float4;
         return out;                                                  \
     }
 
+
+namespace kraft
+{
+
 enum IdentityTag
 {
     Identity
@@ -429,9 +438,41 @@ Matrix<T, rows, cols> operator*(const Matrix<T, rows, cols> &a, const Matrix<T, 
 {
     Matrix<T, rows, cols> out(0);
     for (int i = 0; i < rows; i++)
+    {
         for (int j = 0; j < cols; ++j)
+        {
             for (int k = 0; k < rows; ++k)
-                out[i][j] += a[i][k] * b[k][i];
+            {
+                out[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
+
+    return out;
+}
+
+template <typename T>
+Matrix<T, 4, 4> operator*(const Matrix<T, 4, 4> &a, const Matrix<T, 4, 4> &b)
+{
+    Matrix<T, 4, 4> out(0);
+    const T *aPtr = a._data;
+    const T *bPtr = b._data;
+    T *outPtr = out._data;
+
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            *outPtr = aPtr[0] * bPtr[0 + j]
+                    + aPtr[1] * bPtr[4 + j]
+                    + aPtr[2] * bPtr[8 + j]
+                    + aPtr[3] * bPtr[12 + j];
+
+            outPtr++;
+        }
+
+        aPtr += 4;
+    }
 
     return out;
 }
@@ -499,9 +540,9 @@ template <typename T, int rows, int cols>
 void PrintMatrix(Matrix<T, rows, cols> in)
 {
     printf("{");
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < rows * cols; i++)
     {
-        if (i % 4 == 0)
+        if (i % cols == 0)
             printf("\n\t");
 
         printf("%f, ", in._data[i]);
@@ -539,3 +580,5 @@ BINARY_INPLACE_SCALAR_OPERATOR(/=);
 #undef BINARY_INPLACE_SCALAR_OPERATOR
 
 typedef Matrix<float, 4, 4> Mat4;
+
+}

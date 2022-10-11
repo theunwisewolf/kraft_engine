@@ -8,7 +8,7 @@ namespace kraft
 
 void VulkanCreateFramebuffer(VulkanContext* context, uint32 width, uint32 height, VulkanRenderPass* renderPass, VkImageView* attachments, VulkanFramebuffer* out)
 {
-    out->AttachmentCount = arrlen(attachments);
+    out->AttachmentCount = (uint32)arrlen(attachments);
     arrsetlen(out->Attachments, out->AttachmentCount);
     for (uint32 i = 0; i < out->AttachmentCount; ++i)
     {

@@ -46,12 +46,12 @@ enum VulkanRenderPassState
 
 struct VulkanRenderPass
 {
-    VkRenderPass            Handle;
-    float4                  Rect;
-    float4                  Color;
-    float32                 Depth;
-    uint32                  Stencil;
-    VulkanRenderPassState   State;
+    VkRenderPass          Handle;
+    Vec4f                 Rect;
+    Vec4f                 Color;
+    float32               Depth;
+    uint32                Stencil;
+    VulkanRenderPassState State;
 };
 
 struct VulkanFramebuffer

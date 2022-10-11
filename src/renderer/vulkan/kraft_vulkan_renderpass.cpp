@@ -3,7 +3,7 @@
 namespace kraft
 {
 
-void VulkanCreateRenderPass(VulkanContext* context, float4 color, float4 rect, float32 depth, uint32 stencil, VulkanRenderPass* out)
+void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, float32 depth, uint32 stencil, VulkanRenderPass* out)
 {
     out->Color   = color;
     out->Rect    = rect;
@@ -83,10 +83,10 @@ void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass*
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     info.framebuffer = frameBuffer;
     info.renderPass = pass->Handle;
-    info.renderArea.offset.x = pass->Rect.x;
-    info.renderArea.offset.y = pass->Rect.y;
-    info.renderArea.extent.width = pass->Rect.z;
-    info.renderArea.extent.height = pass->Rect.w;
+    info.renderArea.offset.x = (int32)pass->Rect.x;
+    info.renderArea.offset.y = (int32)pass->Rect.y;
+    info.renderArea.extent.width = (uint32)pass->Rect.z;
+    info.renderArea.extent.height = (uint32)pass->Rect.w;
     
     VkClearValue clearValues[2];
     clearValues[0].color.float32[0] = pass->Color.r;

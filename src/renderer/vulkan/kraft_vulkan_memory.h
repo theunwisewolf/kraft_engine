@@ -9,7 +9,7 @@ namespace kraft
 
 int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)
 {
-    for (int32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
+    for (uint32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
     {
         VkMemoryType type = device.MemoryProperties.memoryTypes[i];
         if (typeFilter & (1 << i) && (type.propertyFlags & propertyFlags) == propertyFlags)

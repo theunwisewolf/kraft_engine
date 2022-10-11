@@ -13,6 +13,7 @@
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "renderer/kraft_renderer_types.h"
+#include "math/kraft_math.h"
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -69,6 +70,17 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_DOWN, nullptr, MouseDownEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_UP, nullptr, MouseUpEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_MOVE, nullptr, MouseMoveEventListener);
+
+    Mat4 a(Identity), b(Identity);
+    a._data[5] = 9;
+    a._data[7] = 8;
+    a._data[11] = 3;
+    b._data[3] = 5;
+    b._data[10] = 2;
+
+    PrintMatrix(a);
+    PrintMatrix(b);
+    PrintMatrix(a * b);
 
     return true;
 }
