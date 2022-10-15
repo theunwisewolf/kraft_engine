@@ -64,6 +64,7 @@ set(SRC_FILES
     src/core/kraft_time.cpp
     src/math/kraft_math.cpp
     src/platform/kraft_window.cpp
+    src/platform/kraft_filesystem.cpp
     src/platform/windows/kraft_win32.cpp
 
     # Renderer
@@ -77,6 +78,7 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_command_buffer.cpp
     src/renderer/vulkan/kraft_vulkan_framebuffer.cpp
     src/renderer/vulkan/kraft_vulkan_fence.cpp
+    src/renderer/vulkan/kraft_vulkan_shader.cpp
 
     # imgui
     # vendor/imgui/imgui.cpp

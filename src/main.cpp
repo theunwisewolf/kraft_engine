@@ -14,6 +14,7 @@
 #include "core/kraft_input.h"
 #include "renderer/kraft_renderer_types.h"
 #include "math/kraft_math.h"
+#include "platform/kraft_filesystem.h"
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -81,6 +82,16 @@ bool Init()
     PrintMatrix(a);
     PrintMatrix(b);
     PrintMatrix(a * b);
+
+    kraft::FileHandle handle;
+    uint8* buffer = 0;
+    uint64 size;
+    kraft::FileSystem::OpenFile("res/shaders/combined.shader", kraft::FILE_OPEN_MODE_READ, true, &handle);
+    kraft::FileSystem::ReadAllBytes(&handle, &buffer, &size);
+    kraft::FileSystem::CloseFile(&handle);
+    kraft::Free(buffer);
+
+    printf("%s\n", buffer);
 
     return true;
 }

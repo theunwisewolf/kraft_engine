@@ -2,6 +2,8 @@
 
 #ifdef KRAFT_PLATFORM_MACOS
 
+#include <GLFW/glfw3.h>
+
 #include <unistd.h>
 #include <memory>
 #include <mach/mach_time.h>
