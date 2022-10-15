@@ -4,8 +4,33 @@ set(PROJECT_NAME "Kraft")
 set(CMAKE_CXX_STANDARD 14)
 project(${PROJECT_NAME})
 
+function(add_shader TARGET SHADER)
+    # find_program(GLSLC glslc)
+
+    set(CurrentShaderPath ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/${SHADER})
+    set(CurrentOutputPath ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/res/shaders/${SHADER}.spv)
+
+    # Create the output shader directory
+    get_filename_component(CurrentOutputDirectory ${CurrentOutputPath} DIRECTORY)
+    file(MAKE_DIRECTORY ${CurrentOutputDirectory})
+    
+    # Add a custom command to compile GLSL to SPIR-V.
+    add_custom_command(
+            TARGET ${TARGET} PRE_BUILD 
+            # OUTPUT ${CurrentShaderPath}
+            COMMAND ${glslc_executable} -o ${CurrentOutputPath} ${CurrentShaderPath}
+            DEPENDS ${CurrentShaderPath}
+            IMPLICIT_DEPENDS CXX ${CurrentShaderPath}
+            VERBATIM)
+
+    # Make sure our build depends on this output.
+    set_source_files_properties(${CurrentOutputPath} PROPERTIES GENERATED TRUE)
+    target_sources(${TARGET} PRIVATE ${CurrentOutputPath})
+endfunction(add_shader)
+
 # Vulkan
-find_package(Vulkan)
+find_package(Vulkan COMPONENTS glslc)
+find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 	
 # Try extracting VulkanSDK path from ${Vulkan_INCLUDE_DIRS}
 if (NOT ${Vulkan_INCLUDE_DIRS} STREQUAL "")
@@ -92,6 +117,8 @@ endif()
 
 set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})
 add_executable(${PROJECT_NAME} ${CODE_FILES})
+
+add_shader(${PROJECT_NAME} vertex.vert)
 
 # Include dirs
 target_include_directories(${PROJECT_NAME} PRIVATE src)

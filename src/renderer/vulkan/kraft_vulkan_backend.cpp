@@ -128,7 +128,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 #endif
 
     // TODO: These requirements should come from a config or something
-    VulkanPhysicalDeviceRequirements requirements;
+    VulkanPhysicalDeviceRequirements requirements = {};
     requirements.Compute = true;
     requirements.Graphics = true;
     requirements.Present = true;

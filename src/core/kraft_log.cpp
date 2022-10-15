@@ -34,7 +34,7 @@ void Logger::Log(LogLevel level, const char* message, ...)
         Platform::ConsoleColorHiWhite,                                  // Debug
     };
 
-    int prefixLength = strlen(levelsPrefix[level]);
+    int prefixLength = (int)strlen(levelsPrefix[level]);
     int reservedSize = prefixLength + this->Padding;
     char out[BUFFER_SIZE] = {0};
 

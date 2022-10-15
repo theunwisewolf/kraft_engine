@@ -17,16 +17,16 @@
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int keycode = data.Int32[0];
-    KINFO("%d key pressed", keycode);
+    kraft::Keys keycode = (kraft::Keys)data.Int32[0];
+    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
 
 bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int keycode = data.Int32[0];
-    KINFO("%d key released", keycode);
+    kraft::Keys keycode = (kraft::Keys)data.Int32[0];
+    KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }

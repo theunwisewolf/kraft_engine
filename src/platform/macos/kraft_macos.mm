@@ -146,6 +146,12 @@ void Platform::SleepMilliseconds(uint64_t msec)
     usleep((msec % 1000) * 1000);
 }
 
+const char* Platform::GetKeyName(Keys key)
+{
+    int keycode = (int)key;
+    return glfwGetKeyName(keycode, glfwGetKeyScancode(keycode));
+}
+
 }
 
 #endif

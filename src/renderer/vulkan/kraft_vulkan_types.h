@@ -138,6 +138,13 @@ struct VulkanContext
     VulkanRenderPass         MainRenderPass;
     VulkanCommandBuffer*     GraphicsCommandBuffers;
     VulkanFence*             WaitFences;
+    // If everything was perfect, this mapping below would not be needed
+    // but, what I saw happening was on an M1 Mac, vkAcquireNextImageKHR
+    // was returning an image for which the associated command buffers 
+    // were still active. So it was just spitting errors. The fix was to
+    // associate a fence with each image and before rendering begins,
+    // just wait on the acquired image's corresponding fence. This works 
+    // both on Mac and Windows. Maybe I am doing something wrong.
     VulkanFence**            InFlightImageToFenceMap;
     VkSemaphore*             ImageAvailableSemaphores;
     VkSemaphore*             RenderCompleteSemaphores;

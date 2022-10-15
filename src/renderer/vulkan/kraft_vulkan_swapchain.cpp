@@ -13,7 +13,6 @@ namespace kraft
 void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, VulkanSwapchain* out)
 {
     // context->Swapchain = {};
-    context->Swapchain.MaxFramesInFlight = 2;
 
     if (out)
         context->Swapchain = *out;
@@ -79,6 +78,8 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     {
         context->Swapchain.ImageCount = info.SurfaceCapabilities.maxImageCount;
     }
+
+    context->Swapchain.MaxFramesInFlight = context->Swapchain.ImageCount - 1;
 
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
     swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;

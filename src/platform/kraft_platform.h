@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "core/kraft_core.h"
+#include "core/kraft_input.h"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include "windows/kraft_win32.h"
@@ -77,6 +78,7 @@ struct Platform
 
     // Misc
     static void SleepMilliseconds(uint64_t msec);
+    static const char* GetKeyName(Keys key);
 };
 
 }
