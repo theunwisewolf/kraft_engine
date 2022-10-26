@@ -1,15 +1,8 @@
-#version 330 core
+#version 450
+// #extension GL_ARB_separate_shader_objects : enable
 
-in vec4 vertexColor;
-in vec2 textureCoords;
+layout(location = 0) out vec4 outColor;
 
-out vec4 FragColor;
-
-uniform sampler2D texture2Data;
-uniform sampler2D textureData;
-
-void main()
-{
-    // FragColor = vertexColor;
-    FragColor = mix(texture(textureData, textureCoords), texture(texture2Data, textureCoords), 0.1);
-} 
+void main() {
+    outColor = vec4(0.0, 1.0, 1.0, 1.0);
+}

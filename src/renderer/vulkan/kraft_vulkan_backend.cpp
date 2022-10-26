@@ -11,6 +11,7 @@
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_framebuffer.h"
 #include "renderer/vulkan/kraft_vulkan_fence.h"
+#include "renderer/vulkan/kraft_vulkan_shader.h"
 
 namespace kraft
 {
@@ -164,6 +165,12 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     }
     
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
+
+    // DEBUG Stuff
+    VkShaderModule vertex, fragment;
+    VulkanCreateShaderModule(&s_Context, "res/shaders/vertex.vert.spv", &vertex);
+    VulkanCreateShaderModule(&s_Context, "res/shaders/fragment.frag.spv", &fragment);
+
     return true;
 }
 

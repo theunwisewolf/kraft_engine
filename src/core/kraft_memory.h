@@ -6,6 +6,8 @@
 namespace kraft
 {
 
+static void MemZero(void *region, uint64_t size);
+
 enum MemoryTag
 {
     MEMORY_TAG_NONE,
@@ -75,12 +77,18 @@ static void FreeBlock(Block block)
 // Normal malloc/free/realloc function wrappers
 //
 
-static void* Malloc(uint64_t size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE)
+static void* Malloc(uint64_t size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE, bool zero = false)
 {
     g_MemoryStats.Allocated += size;
     g_MemoryStats.AllocationsByTag[tag] += size;
 
-    return Platform::Malloc(size, false);
+    void* retval = Platform::Malloc(size, false);
+    if (zero)
+    {
+        MemZero(retval, size);
+    }
+
+    return retval;
 }
 
 static void* Realloc(void *region, uint64_t size)
