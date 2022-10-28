@@ -86,7 +86,7 @@ bool Init()
     kraft::FileHandle handle;
     uint8* buffer = 0;
     kraft::filesystem::OpenFile("res/shaders/combined.shader", kraft::FILE_OPEN_MODE_READ, true, &handle);
-    buffer = (uint8*)kraft::Malloc(kraft::filesystem::GetSize(&handle) + 1, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
+    buffer = (uint8*)kraft::Malloc(kraft::filesystem::GetFileSize(&handle) + 1, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
     kraft::filesystem::ReadAllBytes(&handle, &buffer);
     kraft::filesystem::CloseFile(&handle);
 

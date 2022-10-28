@@ -49,7 +49,7 @@ bool OpenFile(const char* path, int mode, bool binary, FileHandle* out)
     return true;
 }
 
-uint64 GetSize(FileHandle* handle)
+uint64 GetFileSize(FileHandle* handle)
 {
     KASSERT(handle->Handle);
 
@@ -94,7 +94,8 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     if (!*outBuffer) 
         *outBuffer = (uint8*)Malloc(size, MEMORY_TAG_FILE_BUF);
 
-    int read = fread(*outBuffer, 1, size, (FILE*)handle->Handle);
+    size_t read = fread(*outBuffer, 1, size, (FILE*)handle->Handle);
+
     // Not all bytes were read
     if (read != size)
     {

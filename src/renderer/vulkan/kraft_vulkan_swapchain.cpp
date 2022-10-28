@@ -214,16 +214,19 @@ void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSema
     presentInfo.pResults = 0;
 
     VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    // Common case
+    if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
+    {
+        context->Swapchain.CurrentFrame = (context->Swapchain.CurrentFrame + 1) % context->Swapchain.MaxFramesInFlight;
+    }
+    else if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);
     }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    else
     {
-        KFATAL("[VulkanPresentSwapchain]: Presentation failed!");
+        KERROR("[VulkanPresentSwapchain]: Presentation failed!");
     }
-
-    context->Swapchain.CurrentFrame = (context->Swapchain.CurrentFrame + 1) % context->Swapchain.MaxFramesInFlight;
 }
 
 }

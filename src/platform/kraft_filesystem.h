@@ -23,12 +23,11 @@ namespace filesystem
 {
 
 bool OpenFile(const char* path, int mode, bool binary, FileHandle* out);
-uint64 GetSize(FileHandle* handle);
+uint64 GetFileSize(FileHandle* handle);
 void CloseFile(FileHandle* handle);
 bool FileExists(const char* path);
 
-// outBuffer, if null is allocated
-// outBuffer must be freed by the caller
+// outBuffer, if null is allocated & must be freed by the caller
 bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);
 bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead = nullptr);
 

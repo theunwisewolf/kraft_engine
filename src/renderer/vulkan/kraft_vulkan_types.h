@@ -7,7 +7,9 @@
 #include <vulkan/vulkan.h>
 
 #define KRAFT_VK_CHECK(expression) \
-    KRAFT_ASSERT(expression == VK_SUCCESS)
+    do { \
+        KRAFT_ASSERT(expression == VK_SUCCESS) \
+    } while (0)
 
 namespace kraft
 {

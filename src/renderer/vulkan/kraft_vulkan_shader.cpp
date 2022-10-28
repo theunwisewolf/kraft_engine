@@ -15,7 +15,7 @@ bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShader
         return false;
     }
 
-    uint64 bufferSize = filesystem::GetSize(&handle);
+    uint64 bufferSize = filesystem::GetFileSize(&handle);
     uint8* buffer = (uint8*)Malloc(bufferSize, MEMORY_TAG_RENDERER, true);
     uint64 size = 0;
     filesystem::ReadAllBytes(&handle, &buffer, &size);

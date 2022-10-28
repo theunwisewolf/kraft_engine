@@ -57,6 +57,10 @@ const int Platform::ConsoleColorBGHiMagenta = Platform::ConsoleColorBGHiBlue | P
 
 static LARGE_INTEGER s_StartTime;
 static LARGE_INTEGER s_ClockFrequency;
+static HANDLE s_ConsoleOutputHandle;
+static HANDLE s_ConsoleErrorHandle;
+static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
+static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
 bool Platform::Init(ApplicationConfig* config)
 {
@@ -68,6 +72,12 @@ bool Platform::Init(ApplicationConfig* config)
 
     QueryPerformanceFrequency(&s_ClockFrequency);
     QueryPerformanceCounter(&s_StartTime);
+
+    s_ConsoleOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+    s_ConsoleErrorHandle = GetStdHandle(STD_ERROR_HANDLE);
+
+    GetConsoleScreenBufferInfo(s_ConsoleOutputHandle, &s_ConsoleOutputScreenBufferInfo);
+    GetConsoleScreenBufferInfo(s_ConsoleErrorHandle, &s_ConsoleErrorScreenBufferInfo);
 
     return true;
 }
@@ -124,22 +134,22 @@ void *Platform::MemSet(void *region, int value, uint64_t size)
 // https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
 void Platform::ConsoleOutputString(const char* str, int color)
 {
-    // Get a handle to STDOUT
-    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-    
-    SetConsoleTextAttribute(out, color);
+    SetConsoleTextAttribute(s_ConsoleOutputHandle, color);
     OutputDebugString(str);
-    WriteConsole(out, str, (DWORD)strlen(str), 0, NULL);
+    WriteConsole(s_ConsoleOutputHandle, str, (DWORD)strlen(str), 0, NULL);
+
+    // Reset console
+    SetConsoleTextAttribute(s_ConsoleOutputHandle, s_ConsoleOutputScreenBufferInfo.wAttributes);
 }
 
 void Platform::ConsoleOutputStringError(const char* str, int color)
 {
-    // Get a handle to STDERR
-    HANDLE out = GetStdHandle(STD_ERROR_HANDLE);
-    
-    SetConsoleTextAttribute(out, color);
+    SetConsoleTextAttribute(s_ConsoleErrorHandle, color);
     OutputDebugString(str);
-    WriteConsole(out, str, (DWORD)strlen(str), 0, NULL);
+    WriteConsole(s_ConsoleErrorHandle, str, (DWORD)strlen(str), 0, NULL);
+
+    // Reset console
+    SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
 }
 
 float64 Platform::GetAbsoluteTime()

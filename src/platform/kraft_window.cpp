@@ -26,7 +26,7 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
 
     }
 
-    this->PlatformWindowHandle = glfwCreateWindow(width, height, title, NULL, NULL);
+    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), title, NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
@@ -87,7 +87,7 @@ void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 
 void Window::CursorPositionCallback(GLFWwindow* window, double x, double y)
 {
-    InputSystem::ProcessMouseMove(x, y);
+    InputSystem::ProcessMouseMove(int(x), int(y));
 }
 
 }
