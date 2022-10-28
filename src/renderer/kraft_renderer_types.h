@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "math/kraft_math.h"
 
 namespace kraft
 {
@@ -28,6 +29,11 @@ struct RendererBackend
 struct RenderPacket
 {
     float64 deltaTime;
+};
+
+struct Vertex3D
+{
+    Vec3f Position;
 };
 
 }

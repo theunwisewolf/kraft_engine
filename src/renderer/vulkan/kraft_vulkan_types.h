@@ -12,6 +12,25 @@
 namespace kraft
 {
 
+struct VulkanPipeline
+{
+    VkPipelineLayout Layout;
+    VkPipeline       Handle;
+};
+
+struct VulkanPipelineDescription
+{
+    VkVertexInputAttributeDescription*  Attributes;
+    uint32                              AttributeCount;
+    VkDescriptorSetLayout*              DescriptorSetLayouts;
+    uint32                              DescriptorSetLayoutCount;
+    VkPipelineShaderStageCreateInfo*    ShaderStages;
+    uint32                              ShaderStageCount;
+    VkViewport                          Viewport;
+    VkRect2D                            Scissor;
+    bool                                IsWireframe;
+};
+
 struct VulkanFence
 {
     VkFence Handle;
@@ -149,6 +168,7 @@ struct VulkanContext
     VkSemaphore*             ImageAvailableSemaphores;
     VkSemaphore*             RenderCompleteSemaphores;
     uint32                   CurrentSwapchainImageIndex;
+    VulkanPipeline           GraphicsPipeline;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;

@@ -55,6 +55,7 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_framebuffer.cpp
     src/renderer/vulkan/kraft_vulkan_fence.cpp
     src/renderer/vulkan/kraft_vulkan_shader.cpp
+    src/renderer/vulkan/kraft_vulkan_pipeline.cpp
 
     # imgui
     # vendor/imgui/imgui.cpp
@@ -121,7 +122,8 @@ add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 )
 
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 
+    ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 )
 
 set_target_properties(${PROJECT_NAME}

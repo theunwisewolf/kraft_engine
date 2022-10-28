@@ -4,6 +4,8 @@
 #include "core/kraft_asserts.h"
 #include "core/kraft_memory.h"
 
+#include <cerrno>
+
 namespace kraft
 {
 

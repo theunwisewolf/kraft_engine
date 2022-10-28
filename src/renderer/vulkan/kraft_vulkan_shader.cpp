@@ -28,6 +28,14 @@ bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShader
 
     KRAFT_VK_CHECK(vkCreateShaderModule(context->LogicalDevice.Handle, &shaderModuleCreateInfo, context->AllocationCallbacks, out));
     Free(buffer);
+
+    return true;
+}
+
+void VulkanDestroyShaderModule(VulkanContext* context, VkShaderModule* module)
+{
+    vkDestroyShaderModule(context->LogicalDevice.Handle, *module, context->AllocationCallbacks);
+    *module = 0;
 }
 
 }

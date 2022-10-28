@@ -218,7 +218,7 @@ void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSema
     {
         VulkanRecreateSwapchain(context);
     }
-    else if (result != VK_SUCCESS)
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         KFATAL("[VulkanPresentSwapchain]: Presentation failed!");
     }

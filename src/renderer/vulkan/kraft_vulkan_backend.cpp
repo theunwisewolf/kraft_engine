@@ -12,6 +12,7 @@
 #include "renderer/vulkan/kraft_vulkan_framebuffer.h"
 #include "renderer/vulkan/kraft_vulkan_fence.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
+#include "renderer/vulkan/kraft_vulkan_pipeline.h"
 
 namespace kraft
 {
@@ -169,7 +170,62 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     // DEBUG Stuff
     VkShaderModule vertex, fragment;
     VulkanCreateShaderModule(&s_Context, "res/shaders/vertex.vert.spv", &vertex);
+    assert(vertex);
+
     VulkanCreateShaderModule(&s_Context, "res/shaders/fragment.frag.spv", &fragment);
+    assert(fragment);
+
+    VkPipelineShaderStageCreateInfo vertexShaderStage = {};
+    vertexShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertexShaderStage.module = vertex;
+    vertexShaderStage.pName = "main";
+    vertexShaderStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkPipelineShaderStageCreateInfo fragmentShaderStage = {};
+    fragmentShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragmentShaderStage.module = fragment;
+    fragmentShaderStage.pName = "main";
+    fragmentShaderStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkPipelineShaderStageCreateInfo stages[] = {
+        vertexShaderStage,
+        fragmentShaderStage
+    };
+
+    VkViewport viewport;
+    viewport.x = 0;
+    viewport.y = (float32)s_Context.FramebufferHeight;
+    viewport.width = (float32)s_Context.FramebufferWidth;
+    viewport.height = -(float32)s_Context.FramebufferHeight;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor = {};
+    scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
+    
+    uint32 offset = 0;
+    VkVertexInputAttributeDescription inputAttributeDesc;
+    inputAttributeDesc.location = 0;
+    inputAttributeDesc.format = VK_FORMAT_R32G32B32_SFLOAT;
+    inputAttributeDesc.binding = 0;
+    inputAttributeDesc.offset = offset;
+    offset += sizeof(Vec3f);
+
+    VulkanPipelineDescription pipelineDesc = {};
+    pipelineDesc.IsWireframe = false;
+    pipelineDesc.ShaderStageCount = sizeof(stages) / sizeof(stages[0]);
+    pipelineDesc.ShaderStages = stages;
+    pipelineDesc.Viewport = viewport;
+    pipelineDesc.Scissor = scissor;
+    pipelineDesc.Attributes = &inputAttributeDesc;
+    pipelineDesc.AttributeCount = 1;
+
+    s_Context.GraphicsPipeline = {};
+    VulkanCreateGraphicsPipeline(&s_Context, &s_Context.MainRenderPass, pipelineDesc, &s_Context.GraphicsPipeline);
+    assert(s_Context.GraphicsPipeline.Handle);
+
+    VulkanDestroyShaderModule(&s_Context, &vertex);
+    VulkanDestroyShaderModule(&s_Context, &fragment);
 
     return true;
 }
@@ -177,6 +233,10 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 bool VulkanRendererBackend::Shutdown()
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
+
+    VulkanDestroyPipeline(&s_Context, &s_Context.GraphicsPipeline);
+    s_Context.GraphicsPipeline = {};
+
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
         vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.ImageAvailableSemaphores[i], s_Context.AllocationCallbacks);
@@ -239,7 +299,9 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     VulkanResetCommandBuffer(buffer);
     VulkanBeginCommandBuffer(buffer, false, false, false);
 
-    VkViewport viewport;
+    VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle);
+    
+    VkViewport viewport = {};
     viewport.x = 0;
     viewport.y = (float32)s_Context.FramebufferHeight;
     viewport.width = (float32)s_Context.FramebufferWidth;
@@ -257,8 +319,8 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
 
-    VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle);
-
+    VulkanBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, &s_Context.GraphicsPipeline);
+    vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
     return true;
 }
 

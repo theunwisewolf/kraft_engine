@@ -1,0 +1,15 @@
+#!/bin/sh
+
+echo "Compiling shaders..."
+echo "Input = $1"
+echo "Output = $2"
+
+for f in $(find $1 -name '*.vert'); do 
+    name=$(basename "$f")
+    glslc -o "$2/shaders/$name.spv" $f
+done
+
+for f in $(find $1 -name '*.frag'); do 
+    name=$(basename "$f")
+    glslc -o "$2/shaders/$name.spv" $f
+done
