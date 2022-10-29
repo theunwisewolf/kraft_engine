@@ -34,7 +34,7 @@ struct RenderPacket
 struct Vertex3D
 {
     Vec3f Position;
-    Vec3f Color;
+    Vec4f Color;
 };
 
 }

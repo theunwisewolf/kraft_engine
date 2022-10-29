@@ -219,7 +219,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     inputAttributeDesc[0].offset = offsetof(Vertex3D, Position);
 
     inputAttributeDesc[1].location = 1;
-    inputAttributeDesc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    inputAttributeDesc[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     inputAttributeDesc[1].binding = 0;
     inputAttributeDesc[1].offset = offsetof(Vertex3D, Color);
 
@@ -241,8 +241,8 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     
     // #5865f2
     // Vec3f color = Vec3f(0x58 / 255.0f, 0x65 / 255.0f, 0xf2 / 255.0f);
-    Vec3f color = KRGB(0x58, 0x65, 0xf2);
-    Vec3f colorB = KRGB(0xff, 0x6b, 0x6b);
+    Vec4f color = KRGBA(0x58, 0x65, 0xf2, 0x1f);
+    Vec4f colorB = KRGBA(0xff, 0x6b, 0x6b, 0xff);
     // Vertex and index buffers
     Vertex3D verts[] = {
         {Vec3f(+0.5f, +0.5f, +0.0f), colorB},
