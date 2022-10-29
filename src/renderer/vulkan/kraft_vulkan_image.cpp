@@ -19,6 +19,7 @@ bool VulkanCreateImage(
     VkImageAspectFlags  imageAspectFlags,
     VulkanImage* out)
 {
+    out->View = 0;
     out->Handle = 0;
     out->Memory = 0;
     out->View   = 0;
@@ -62,7 +63,6 @@ bool VulkanCreateImage(
     // Bind memory
     KRAFT_VK_CHECK(vkBindImageMemory(context->LogicalDevice.Handle, out->Handle, out->Memory, 0));
 
-    out->View = 0;
     if (createView)
     {
         VulkanCreateImageView(context, format, imageAspectFlags, out);

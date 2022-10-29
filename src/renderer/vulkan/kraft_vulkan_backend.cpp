@@ -4,6 +4,7 @@
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
 #include "containers/array.h"
+#include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_surface.h"
 #include "renderer/vulkan/kraft_vulkan_swapchain.h"
@@ -13,6 +14,9 @@
 #include "renderer/vulkan/kraft_vulkan_fence.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
 #include "renderer/vulkan/kraft_vulkan_pipeline.h"
+#include "renderer/vulkan/kraft_vulkan_buffer.h"
+#include "renderer/vulkan/kraft_vulkan_index_buffer.h"
+#include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
 
 namespace kraft
 {
@@ -23,6 +27,11 @@ static void createCommandBuffers();
 static void destroyCommandBuffers();
 static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass);
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
+
+// TODO: Temp
+static VulkanBuffer VertexBuffer;
+static VulkanBuffer IndexBuffer;
+static uint32 IndexCount = 0;
 
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
@@ -227,12 +236,28 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VulkanDestroyShaderModule(&s_Context, &vertex);
     VulkanDestroyShaderModule(&s_Context, &fragment);
 
+    // Vertex and index buffers
+    Vertex3D verts[] = {
+        Vec3f(0.5, 0.5, 0.0),
+        Vec3f(-0.5, -0.5, 0.0),
+        Vec3f(0.5, -0.5, 0.0),
+        Vec3f(-0.5, 0.5, 0.0),
+    };
+
+    uint32 indices[] = {0, 1, 2, 3, 1, 0};
+    IndexCount = sizeof(indices) / sizeof(indices[0]);
+    VulkanCreateVertexBuffer(&s_Context, verts, sizeof(verts), &VertexBuffer);
+    VulkanCreateIndexBuffer(&s_Context, indices, sizeof(indices), &IndexBuffer);
+
     return true;
 }
 
 bool VulkanRendererBackend::Shutdown()
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
+
+    VulkanDestroyBuffer(&s_Context, &VertexBuffer);
+    VulkanDestroyBuffer(&s_Context, &IndexBuffer);
 
     VulkanDestroyPipeline(&s_Context, &s_Context.GraphicsPipeline);
     s_Context.GraphicsPipeline = {};
@@ -320,7 +345,13 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
 
     VulkanBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, &s_Context.GraphicsPipeline);
-    vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
+
+    VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(buffer->Handle, 0, 1, &VertexBuffer.Handle, offsets);
+    vkCmdBindIndexBuffer(buffer->Handle, IndexBuffer.Handle, 0, VK_INDEX_TYPE_UINT32);
+
+    // vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
+    vkCmdDrawIndexed(buffer->Handle, IndexCount, 1, 0, 0, 0);
     return true;
 }
 

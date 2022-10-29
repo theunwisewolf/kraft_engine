@@ -17,6 +17,7 @@ const vec3 pos[3] = {
 void main()
 {
     // gl_Position = transform * vec4(aPosition.x, aPosition.y, aPosition.z, 1.0);
-    gl_Position = vec4(pos[gl_VertexIndex], 1.0);
+    // gl_Position = vec4(pos[gl_VertexIndex], 1.0);
+    gl_Position = vec4(aPosition, 1.0);
     // textureCoords = aTexureCoords;
 }

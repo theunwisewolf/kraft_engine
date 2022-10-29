@@ -14,6 +14,17 @@
 namespace kraft
 {
 
+struct VulkanBuffer
+{
+    VkBuffer                Handle;
+    uint64                  Size;
+    VkDeviceMemory          Memory;
+    VkBufferUsageFlags      UsageFlags;
+    bool                    IsLocked;
+    int32                   MemoryIndex;
+    VkMemoryPropertyFlags   MemoryPropertyFlags;
+};
+
 struct VulkanPipeline
 {
     VkPipelineLayout Layout;

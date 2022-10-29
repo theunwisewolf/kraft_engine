@@ -95,10 +95,10 @@ bool VulkanCreateGraphicsPipeline(VulkanContext* context, VulkanRenderPass* pass
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    // vertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDesc;
-    // vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-    // vertexInputStateCreateInfo.pVertexAttributeDescriptions = desc.Attributes;
-    // vertexInputStateCreateInfo.vertexAttributeDescriptionCount = desc.AttributeCount;
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDesc;
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = desc.Attributes;
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = desc.AttributeCount;
     createInfo.pVertexInputState = &vertexInputStateCreateInfo;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};

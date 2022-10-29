@@ -7,7 +7,7 @@
 namespace kraft
 {
 
-int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)
+static int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)
 {
     for (uint32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
     {
@@ -21,7 +21,7 @@ int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 pro
     return -1;
 }
 
-bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeFilter, VkMemoryPropertyFlags propertyFlags, VkDeviceMemory* out)
+static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeFilter, VkMemoryPropertyFlags propertyFlags, VkDeviceMemory* out)
 {
     int32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
     if (memoryTypeIndex == -1)
@@ -40,7 +40,7 @@ bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeF
     return true;
 }
 
-void VulkanFreeMemory(VulkanContext* context, VkDeviceMemory memory)
+static void VulkanFreeMemory(VulkanContext* context, VkDeviceMemory memory)
 {
     vkFreeMemory(context->LogicalDevice.Handle, memory, context->AllocationCallbacks);
 }

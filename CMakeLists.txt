@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_NAME "Kraft")
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(${PROJECT_NAME})
 
 # Vulkan
@@ -56,6 +57,9 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_fence.cpp
     src/renderer/vulkan/kraft_vulkan_shader.cpp
     src/renderer/vulkan/kraft_vulkan_pipeline.cpp
+    src/renderer/vulkan/kraft_vulkan_buffer.cpp
+    src/renderer/vulkan/kraft_vulkan_index_buffer.cpp
+    src/renderer/vulkan/kraft_vulkan_vertex_buffer.cpp
 
     # imgui
     # vendor/imgui/imgui.cpp
