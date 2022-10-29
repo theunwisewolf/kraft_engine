@@ -11,6 +11,9 @@
 #include <cmath>
 #include <initializer_list>
 
+#define KRGB(r, g, b) Vec3f(r / 255.f, g / 255.f, b / 255.f)
+#define KRGBA(r, g, b, a) Vec4f(r / 255.f, g / 255.f, b / 255.f, a / 255.f)
+
 #define COMMON_VECTOR_MEMBERS(n)                                       \
     Vector() {}                                                        \
     Vector(std::initializer_list<T> list)                              \

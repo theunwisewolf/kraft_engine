@@ -212,13 +212,16 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VkRect2D scissor = {};
     scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
     
-    uint32 offset = 0;
-    VkVertexInputAttributeDescription inputAttributeDesc;
-    inputAttributeDesc.location = 0;
-    inputAttributeDesc.format = VK_FORMAT_R32G32B32_SFLOAT;
-    inputAttributeDesc.binding = 0;
-    inputAttributeDesc.offset = offset;
-    offset += sizeof(Vec3f);
+    VkVertexInputAttributeDescription inputAttributeDesc[2];
+    inputAttributeDesc[0].location = 0;
+    inputAttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    inputAttributeDesc[0].binding = 0;
+    inputAttributeDesc[0].offset = offsetof(Vertex3D, Position);
+
+    inputAttributeDesc[1].location = 1;
+    inputAttributeDesc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    inputAttributeDesc[1].binding = 0;
+    inputAttributeDesc[1].offset = offsetof(Vertex3D, Color);
 
     VulkanPipelineDescription pipelineDesc = {};
     pipelineDesc.IsWireframe = false;
@@ -226,8 +229,8 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     pipelineDesc.ShaderStages = stages;
     pipelineDesc.Viewport = viewport;
     pipelineDesc.Scissor = scissor;
-    pipelineDesc.Attributes = &inputAttributeDesc;
-    pipelineDesc.AttributeCount = 1;
+    pipelineDesc.Attributes = inputAttributeDesc;
+    pipelineDesc.AttributeCount = sizeof(inputAttributeDesc) / sizeof(inputAttributeDesc[0]);
 
     s_Context.GraphicsPipeline = {};
     VulkanCreateGraphicsPipeline(&s_Context, &s_Context.MainRenderPass, pipelineDesc, &s_Context.GraphicsPipeline);
@@ -235,13 +238,17 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     VulkanDestroyShaderModule(&s_Context, &vertex);
     VulkanDestroyShaderModule(&s_Context, &fragment);
-
+    
+    // #5865f2
+    // Vec3f color = Vec3f(0x58 / 255.0f, 0x65 / 255.0f, 0xf2 / 255.0f);
+    Vec3f color = KRGB(0x58, 0x65, 0xf2);
+    Vec3f colorB = KRGB(0xff, 0x6b, 0x6b);
     // Vertex and index buffers
     Vertex3D verts[] = {
-        Vec3f(0.5, 0.5, 0.0),
-        Vec3f(-0.5, -0.5, 0.0),
-        Vec3f(0.5, -0.5, 0.0),
-        Vec3f(-0.5, 0.5, 0.0),
+        {Vec3f(+0.5f, +0.5f, +0.0f), colorB},
+        {Vec3f(-0.5f, -0.5f, +0.0f), color},
+        {Vec3f(+0.5f, -0.5f, +0.0f), color},
+        {Vec3f(-0.5f, +0.5f, +0.0f), colorB},
     };
 
     uint32 indices[] = {0, 1, 2, 3, 1, 0};
