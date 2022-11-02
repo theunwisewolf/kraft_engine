@@ -25,23 +25,33 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     // Find a suitable image format
     VulkanSwapchainSupportInfo info = context->PhysicalDevice.SwapchainSupportInfo;
-    bool found = false;
-    for (uint32 i = 0; i < info.FormatCount; ++i)
+    // If only 1 format is present and that is VK_FORMAT_UNDEFINED, then this means 
+    // that there is no preferred format & we can choose any format we want
+    if (info.FormatCount == 1 && info.Formats[0].format == VK_FORMAT_UNDEFINED)
     {
-        VkSurfaceFormatKHR format = info.Formats[i];
-        if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
-            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-        {
-            context->Swapchain.ImageFormat = format;
-            found = true;
-            break;
-        }
+        VkSurfaceFormatKHR format = { VK_FORMAT_B8G8R8A8_UNORM, info.Formats[0].colorSpace };
+        context->Swapchain.ImageFormat = format;
     }
-
-    // Choose whatever is available
-    if (!found)
+    else
     {
-        context->Swapchain.ImageFormat = info.Formats[0];
+        bool found = false;
+        for (uint32 i = 0; i < info.FormatCount; ++i)
+        {
+            VkSurfaceFormatKHR format = info.Formats[i];
+            if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
+                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            {
+                context->Swapchain.ImageFormat = format;
+                found = true;
+                break;
+            }
+        }
+
+        // Choose whatever is available
+        if (!found)
+        {
+            context->Swapchain.ImageFormat = info.Formats[0];
+        }
     }
 
     // Present mode

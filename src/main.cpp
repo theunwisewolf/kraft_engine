@@ -72,7 +72,7 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_UP, nullptr, MouseUpEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_MOVE, nullptr, MouseMoveEventListener);
 
-    Mat4 a(Identity), b(Identity);
+    Mat4f a(Identity), b(Identity);
     a._data[5] = 9;
     a._data[7] = 8;
     a._data[11] = 3;

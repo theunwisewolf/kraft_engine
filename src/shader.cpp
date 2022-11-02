@@ -66,7 +66,7 @@ void Program::SetInt(const char* name, int value)
     glUniform1i(glGetUniformLocation(ProgramID, name), value);
 }
 
-void Program::SetMat4(const char* name, Mat4 value)
+void Program::SetMat4(const char* name, Mat4f value)
 {
     glUniformMatrix4fv(glGetUniformLocation(ProgramID, name), 1, GL_FALSE, value._data);
 }

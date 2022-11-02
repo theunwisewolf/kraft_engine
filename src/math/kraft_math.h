@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/kraft_core.h"
+
 /**
  *
  * Vectors
@@ -582,6 +584,8 @@ BINARY_INPLACE_SCALAR_OPERATOR(/=);
 #undef BINARY_INPLACE_OPERATOR
 #undef BINARY_INPLACE_SCALAR_OPERATOR
 
-typedef Matrix<float, 4, 4> Mat4;
+typedef Matrix<float32, 4, 4> Mat4f;
+
+Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip);
 
 }
