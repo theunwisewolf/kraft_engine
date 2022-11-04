@@ -10,6 +10,8 @@
 namespace kraft
 {
 
+Application* Application::I = nullptr;
+
 bool Application::WindowResizeListener(EventType type, void* sender, void* listener, EventData data)
 {
     uint32 width = data.UInt32[0];
@@ -41,6 +43,7 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
 
 bool Application::Create()
 {
+    I = this;
     Platform::Init(&this->Config);
     EventSystem::Init();
     InputSystem::Init();
@@ -88,7 +91,7 @@ bool Application::Run()
             this->Render(deltaTime);
 
             RenderPacket packet;
-            packet.deltaTime = deltaTime;
+            packet.DeltaTime = deltaTime;
             State.Renderer.DrawFrame(&packet);
 
             InputSystem::Update(deltaTime);

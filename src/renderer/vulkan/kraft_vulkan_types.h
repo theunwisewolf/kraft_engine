@@ -141,7 +141,6 @@ struct VulkanLogicalDevice
     VkQueue                 ComputeQueue;
     VkQueue                 TransferQueue;
     VkQueue                 PresentQueue;
-    VkCommandPool           GraphicsCommandPool;
 };
 
 struct VulkanSwapchain
@@ -168,6 +167,7 @@ struct VulkanContext
     uint32                   FramebufferHeight;
     VulkanSwapchain          Swapchain;
     VulkanRenderPass         MainRenderPass;
+    VkCommandPool            GraphicsCommandPool;
     VulkanCommandBuffer*     GraphicsCommandBuffers;
     VulkanFence*             WaitFences;
     // If everything was perfect, this mapping below would not be needed

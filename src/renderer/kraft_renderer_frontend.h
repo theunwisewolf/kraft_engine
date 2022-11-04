@@ -3,6 +3,7 @@
 #include "core/kraft_core.h"
 #include "core/kraft_memory.h"
 #include "renderer/kraft_renderer_types.h"
+#include "renderer/kraft_renderer_imgui.h"
 
 namespace kraft
 {
@@ -16,6 +17,7 @@ struct RendererFrontend
     RendererBackend* Backend = nullptr;
     Block BackendMemory;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
+    RendererImGui ImGuiRenderer;
 
     bool Init(ApplicationConfig* config);
     bool Shutdown();

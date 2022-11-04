@@ -2,9 +2,14 @@
 
 #include <GLFW/glfw3.h>
 
+#include "core/kraft_core.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "core/kraft_log.h"
+
+#if defined(KRAFT_PLATFORM_WINDOWS)
+#include <Windows.h>
+#endif
 
 namespace kraft
 {
@@ -34,6 +39,13 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
         KERROR("glfwCreateWindow() failed");
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
+
+// Center the window
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    int maxWidth = GetSystemMetrics(SM_CXSCREEN);
+    int maxHeight = GetSystemMetrics(SM_CYSCREEN);
+    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - (width / 2), (maxHeight / 2) - (height / 2));
+#endif
 
     // Window callbacks
     glfwSetWindowUserPointer(this->PlatformWindowHandle, this);

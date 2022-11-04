@@ -16,6 +16,8 @@ bool RendererFrontend::Init(ApplicationConfig* config)
     Type = config->RendererBackend;
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
+    ImGuiRenderer.Init();
+
     KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
     if (!RendererCreateBackend(Type, Backend))
@@ -34,6 +36,7 @@ bool RendererFrontend::Init(ApplicationConfig* config)
 
 bool RendererFrontend::Shutdown()
 {
+    ImGuiRenderer.Destroy();
     bool ret = Backend->Shutdown();
 
     FreeBlock(BackendMemory);
@@ -56,9 +59,11 @@ void RendererFrontend::OnResize(int width, int height)
 
 bool RendererFrontend::DrawFrame(RenderPacket* packet)
 {
-    if (Backend->BeginFrame(packet->deltaTime))
+    if (Backend->BeginFrame(packet->DeltaTime))
     {
-        if (!Backend->EndFrame(packet->deltaTime))
+        ImGuiRenderer.RenderWidgets();
+
+        if (!Backend->EndFrame(packet->DeltaTime))
         {
             KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
             return false;

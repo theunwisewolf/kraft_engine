@@ -77,7 +77,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     KRAFT_VK_CHECK(vkCreateRenderPass(context->LogicalDevice.Handle, &createInfo, context->AllocationCallbacks, &out->Handle));
 }
 
-void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass, VkFramebuffer frameBuffer)
+void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass, VkFramebuffer frameBuffer, VkSubpassContents contents)
 {
     VkRenderPassBeginInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -99,7 +99,7 @@ void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass*
     info.clearValueCount = 2;
     info.pClearValues = clearValues;
 
-    vkCmdBeginRenderPass(commandBuffer->Handle, &info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer->Handle, &info, contents);
     commandBuffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 }
 

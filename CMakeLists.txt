@@ -31,8 +31,6 @@ endif()
 
 set(SRC_FILES 
     src/main.cpp
-    # src/shader.cpp
-    # src/texture.cpp
     src/containers/array.cpp
     src/core/kraft_log.cpp
     src/core/kraft_input.cpp
@@ -43,10 +41,11 @@ set(SRC_FILES
     src/platform/kraft_window.cpp
     src/platform/kraft_filesystem.cpp
     src/platform/windows/kraft_win32.cpp
-
+    
     # Renderer
     src/renderer/kraft_renderer_backend.cpp
     src/renderer/kraft_renderer_frontend.cpp
+    src/renderer/kraft_renderer_imgui.cpp
     src/renderer/vulkan/kraft_vulkan_backend.cpp
     src/renderer/vulkan/kraft_vulkan_device.cpp
     src/renderer/vulkan/kraft_vulkan_swapchain.cpp
@@ -60,23 +59,21 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_buffer.cpp
     src/renderer/vulkan/kraft_vulkan_index_buffer.cpp
     src/renderer/vulkan/kraft_vulkan_vertex_buffer.cpp
+    src/renderer/vulkan/kraft_vulkan_imgui.cpp
 
     # imgui
-    # vendor/imgui/imgui.cpp
-    # vendor/imgui/imgui_draw.cpp
-    # vendor/imgui/imgui_widgets.cpp
-    # vendor/imgui/imgui_tables.cpp
-    # vendor/imgui/imgui_demo.cpp
-    # vendor/imgui/backends/imgui_impl_opengl3.cpp
-    # vendor/imgui/backends/imgui_impl_glfw.cpp
-    # vendor/glad/src/glad.c
+    vendor/imgui/imgui.cpp
+    vendor/imgui/imgui_impl_vulkan.cpp
+    vendor/imgui/imgui_impl_glfw.cpp
+    vendor/imgui/imgui_draw.cpp
+    vendor/imgui/imgui_widgets.cpp
+    vendor/imgui/imgui_tables.cpp
+    vendor/imgui/imgui_demo.cpp
 )
 
 set(HEADER_FILES
     src/main.h
-    # src/shader.h
     src/util.h
-    # src/texture.h
     src/core/kraft_main.h
     src/core/kraft_core.h
     src/core/kraft_log.h
@@ -103,10 +100,9 @@ add_executable(${PROJECT_NAME} ${CODE_FILES})
 
 # Include dirs
 target_include_directories(${PROJECT_NAME} PRIVATE src)
-target_include_directories(${PROJECT_NAME} PRIVATE vendor)
+target_include_directories(${PROJECT_NAME} PRIVATE vendor/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glad/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glfw/include)
-target_include_directories(${PROJECT_NAME} PRIVATE vendor/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
 
 # Compile time defines

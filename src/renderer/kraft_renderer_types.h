@@ -28,7 +28,7 @@ struct RendererBackend
 
 struct RenderPacket
 {
-    float64 deltaTime;
+    float64 DeltaTime;
 };
 
 struct Vertex3D

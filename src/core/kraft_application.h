@@ -27,6 +27,8 @@ struct ApplicationState
 
 struct Application
 {
+    static Application* I;
+
     ApplicationConfig Config;
     ApplicationState  State;
 

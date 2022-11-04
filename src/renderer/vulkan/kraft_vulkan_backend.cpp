@@ -17,6 +17,7 @@
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_index_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
+#include "renderer/vulkan/kraft_vulkan_imgui.h"
 
 namespace kraft
 {
@@ -54,6 +55,7 @@ static VkDescriptorSet GlobalDescriptorSets[3] = {};
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
     s_Context = {};
+
     s_Context.AllocationCallbacks = nullptr;
     s_Context.FramebufferWidth = config->WindowWidth;
     s_Context.FramebufferHeight = config->WindowHeight;
@@ -193,6 +195,10 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     }
     
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
+
+    // Imgui
+    VulkanImguiInit(&s_Context);
+    VulkanImguiPostAPIInit(&s_Context);
 
     // DEBUG Stuff
     VkShaderModule vertex, fragment;
@@ -383,6 +389,8 @@ bool VulkanRendererBackend::Shutdown()
 
 bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 {
+    VulkanImguiBeginFrame(&s_Context);
+
     // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
     // {
     //     KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
@@ -407,9 +415,10 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     // Record commands
     VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
     VulkanResetCommandBuffer(buffer);
+
     VulkanBeginCommandBuffer(buffer, false, false, false);
 
-    VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle);
+    VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
     
     VkViewport viewport = {};
     viewport.x = 0;
@@ -462,12 +471,16 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 
     // vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
     vkCmdDrawIndexed(buffer->Handle, IndexCount, 1, 0, 0, 0);
+
     return true;
 }
 
 bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 {
     VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
+
+    VulkanImguiEndFrame(&s_Context);
+
     VulkanEndRenderPass(buffer, &s_Context.MainRenderPass);
     VulkanEndCommandBuffer(buffer);
 
@@ -564,11 +577,11 @@ void createCommandBuffers()
     {
         if (s_Context.GraphicsCommandBuffers[i].Handle)
         {
-            VulkanFreeCommandBuffer(&s_Context, s_Context.LogicalDevice.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
+            VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
         }
         
         MemZero(&s_Context.GraphicsCommandBuffers[i], sizeof(VulkanCommandBuffer));
-        VulkanAllocateCommandBuffer(&s_Context, s_Context.LogicalDevice.GraphicsCommandPool, true, &s_Context.GraphicsCommandBuffers[i]);
+        VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &s_Context.GraphicsCommandBuffers[i]);
     }
 
     KDEBUG("[VulkanRendererBackend::Init]: Graphics command buffers created");
@@ -582,7 +595,7 @@ void destroyCommandBuffers()
         {
             if (s_Context.GraphicsCommandBuffers[i].Handle)
             {
-                VulkanFreeCommandBuffer(&s_Context, s_Context.LogicalDevice.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
+                VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
             }
 
             s_Context.GraphicsCommandBuffers[i].Handle = 0;

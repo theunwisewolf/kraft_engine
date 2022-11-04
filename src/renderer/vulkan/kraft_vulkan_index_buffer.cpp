@@ -26,7 +26,7 @@ bool VulkanCreateIndexBuffer(VulkanContext* context, const void* data, uint64 si
     VulkanLoadDataInBuffer(context, &stagingBuffer, (void*)data, size, 0);
 
     // Copy the staging buffer data to the index buffer
-    VulkanCopyBufferTo(context, &stagingBuffer, 0, out, 0, size, context->LogicalDevice.GraphicsQueue, context->LogicalDevice.GraphicsCommandPool);
+    VulkanCopyBufferTo(context, &stagingBuffer, 0, out, 0, size, context->LogicalDevice.GraphicsQueue, context->GraphicsCommandPool);
 
     // Destroy the staging buffer
     VulkanDestroyBuffer(context, &stagingBuffer);

@@ -2,6 +2,8 @@
 
 #include "stb_ds.h"
 
+#include "core/kraft_memory.h"
+
 namespace kraft
 {
 

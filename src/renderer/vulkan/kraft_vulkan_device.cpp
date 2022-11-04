@@ -479,7 +479,7 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     info.queueFamilyIndex = familyInfo.GraphicsQueueIndex;
     info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-    KRAFT_VK_CHECK(vkCreateCommandPool(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->LogicalDevice.GraphicsCommandPool));
+    KRAFT_VK_CHECK(vkCreateCommandPool(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->GraphicsCommandPool));
     KDEBUG("[VulkanCreateLogicalDevice]: Graphics command pool created");
 
     if (out)    *out = context->LogicalDevice;
@@ -489,8 +489,8 @@ void VulkanDestroyLogicalDevice(VulkanContext* context)
 {
     context->PhysicalDevice.QueueFamilyInfo = {0};
 
-    vkDestroyCommandPool(context->LogicalDevice.Handle, context->LogicalDevice.GraphicsCommandPool, context->AllocationCallbacks);
-    context->LogicalDevice.GraphicsCommandPool = 0;
+    vkDestroyCommandPool(context->LogicalDevice.Handle, context->GraphicsCommandPool, context->AllocationCallbacks);
+    context->GraphicsCommandPool = 0;
 
     vkDestroyDevice(context->LogicalDevice.Handle, context->AllocationCallbacks);
     context->LogicalDevice.Handle  = 0;
