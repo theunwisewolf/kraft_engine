@@ -25,7 +25,7 @@ struct ApplicationState
     float64          LastTime;
 };
 
-struct Application
+struct KRAFT_API Application
 {
     static Application* I;
 

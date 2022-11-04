@@ -19,6 +19,9 @@
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_imgui.h"
 
+// TODO: (amn) This is just temporary
+#include "renderer/vulkan/tests/simple_scene.h"
+
 namespace kraft
 {
 
@@ -28,29 +31,6 @@ static void createCommandBuffers();
 static void destroyCommandBuffers();
 static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass);
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
-
-// TODO: Temp
-struct CameraBuffer
-{
-    union
-    {
-        struct
-        {
-            Mat4f Projection;
-            Mat4f View;
-        };
-
-        char _[256];
-    };
-
-    CameraBuffer() {}
-};
-
-static VulkanBuffer CameraUniformBuffer = {};
-static VulkanBuffer VertexBuffer;
-static VulkanBuffer IndexBuffer;
-static uint32 IndexCount = 0;
-static VkDescriptorSet GlobalDescriptorSets[3] = {};
 
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
@@ -200,145 +180,8 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VulkanImguiInit(&s_Context);
     VulkanImguiPostAPIInit(&s_Context);
 
-    // DEBUG Stuff
-    VkShaderModule vertex, fragment;
-    VulkanCreateShaderModule(&s_Context, "res/shaders/vertex.vert.spv", &vertex);
-    assert(vertex);
-
-    VulkanCreateShaderModule(&s_Context, "res/shaders/fragment.frag.spv", &fragment);
-    assert(fragment);
-
-    VkPipelineShaderStageCreateInfo vertexShaderStage = {};
-    vertexShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertexShaderStage.module = vertex;
-    vertexShaderStage.pName = "main";
-    vertexShaderStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkPipelineShaderStageCreateInfo fragmentShaderStage = {};
-    fragmentShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragmentShaderStage.module = fragment;
-    fragmentShaderStage.pName = "main";
-    fragmentShaderStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    VkPipelineShaderStageCreateInfo stages[] = {
-        vertexShaderStage,
-        fragmentShaderStage
-    };
-
-    VkViewport viewport;
-    viewport.x = 0;
-    viewport.y = (float32)s_Context.FramebufferHeight;
-    viewport.width = (float32)s_Context.FramebufferWidth;
-    viewport.height = -(float32)s_Context.FramebufferHeight;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = {};
-    scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
-    
-    VkVertexInputAttributeDescription inputAttributeDesc[2];
-    inputAttributeDesc[0].location = 0;
-    inputAttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    inputAttributeDesc[0].binding = 0;
-    inputAttributeDesc[0].offset = offsetof(Vertex3D, Position);
-
-    inputAttributeDesc[1].location = 1;
-    inputAttributeDesc[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    inputAttributeDesc[1].binding = 0;
-    inputAttributeDesc[1].offset = offsetof(Vertex3D, Color);
-
-    // Descriptor Sets
-    VkDescriptorSetLayoutBinding descriptorSetLayoutBinding = {};
-    descriptorSetLayoutBinding.binding = 0;
-    descriptorSetLayoutBinding.descriptorCount = 1;
-    descriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorSetLayoutBinding.pImmutableSamplers = 0;
-    descriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-    descriptorSetLayoutCreateInfo.bindingCount = 1;
-    descriptorSetLayoutCreateInfo.pBindings = &descriptorSetLayoutBinding;
-    
-    VkDescriptorSetLayout descriptorSetLayout;
-    KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(s_Context.LogicalDevice.Handle, &descriptorSetLayoutCreateInfo, s_Context.AllocationCallbacks, &descriptorSetLayout));
-
-    VkDescriptorPoolSize descriptorPoolSize = {};
-    descriptorPoolSize.descriptorCount = s_Context.Swapchain.ImageCount;
-    descriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-    descriptorPoolCreateInfo.poolSizeCount = 1;
-    descriptorPoolCreateInfo.pPoolSizes = &descriptorPoolSize;
-    descriptorPoolCreateInfo.maxSets = s_Context.Swapchain.ImageCount;
-
-    VkDescriptorPool descriptorPool;
-    vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &descriptorPoolCreateInfo, s_Context.AllocationCallbacks, &descriptorPool);
-
-    VulkanPipelineDescription pipelineDesc = {};
-    pipelineDesc.IsWireframe = false;
-    pipelineDesc.ShaderStageCount = sizeof(stages) / sizeof(stages[0]);
-    pipelineDesc.ShaderStages = stages;
-    pipelineDesc.Viewport = viewport;
-    pipelineDesc.Scissor = scissor;
-    pipelineDesc.Attributes = inputAttributeDesc;
-    pipelineDesc.AttributeCount = sizeof(inputAttributeDesc) / sizeof(inputAttributeDesc[0]);
-    pipelineDesc.DescriptorSetLayoutCount = 1;
-    pipelineDesc.DescriptorSetLayouts = &descriptorSetLayout;
-
-    s_Context.GraphicsPipeline = {};
-    VulkanCreateGraphicsPipeline(&s_Context, &s_Context.MainRenderPass, pipelineDesc, &s_Context.GraphicsPipeline);
-    assert(s_Context.GraphicsPipeline.Handle);
-
-    VulkanDestroyShaderModule(&s_Context, &vertex);
-    VulkanDestroyShaderModule(&s_Context, &fragment);
-
-    // Create a buffer where we can push camera data
-    VulkanCreateBuffer(&s_Context, sizeof(CameraBuffer) * 3, VK_SHARING_MODE_EXCLUSIVE, 
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        true, &CameraUniformBuffer);
-
-    assert(CameraUniformBuffer.Handle);
-
-    VkDescriptorSetLayout descriptorSets[3] = {
-        descriptorSetLayout,
-        descriptorSetLayout,
-        descriptorSetLayout,
-    };
-
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-    descriptorSetAllocateInfo.descriptorSetCount = sizeof(descriptorSets) / sizeof(descriptorSets[0]);
-    descriptorSetAllocateInfo.pSetLayouts = descriptorSets;
-
-    KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &descriptorSetAllocateInfo, GlobalDescriptorSets));
-    
-    // #5865f2
-    // Vec3f color = Vec3f(0x58 / 255.0f, 0x65 / 255.0f, 0xf2 / 255.0f);
-    Vec4f color = KRGBA(0x58, 0x65, 0xf2, 0x1f);
-    Vec4f colorB = KRGBA(0xff, 0x6b, 0x6b, 0xff);
-    // Vertex and index buffers
-    Vertex3D verts[] = {
-        {Vec3f(+0.5f, +0.5f, +0.0f), colorB},
-        {Vec3f(-0.5f, -0.5f, +0.0f), color},
-        {Vec3f(+0.5f, -0.5f, +0.0f), color},
-        {Vec3f(-0.5f, +0.5f, +0.0f), colorB},
-    };
-
-    const float32 scale = 100.f;
-    const int vertsCount = sizeof(verts) / sizeof(verts[0]);
-    for (int i = 0; i < vertsCount; ++i)
-    {
-        for (int j = 0; j < 2; j++)
-        {
-            verts[i].Position._data[j] *= scale;
-        }
-    }
-
-    uint32 indices[] = {0, 1, 2, 3, 1, 0};
-    IndexCount = sizeof(indices) / sizeof(indices[0]);
-    VulkanCreateVertexBuffer(&s_Context, verts, sizeof(verts), &VertexBuffer);
-    VulkanCreateIndexBuffer(&s_Context, indices, sizeof(indices), &IndexBuffer);
+    // TODO: (amn) This is just temporary
+    InitTestScene(&s_Context);
 
     return true;
 }
@@ -347,11 +190,10 @@ bool VulkanRendererBackend::Shutdown()
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
 
-    VulkanDestroyBuffer(&s_Context, &VertexBuffer);
-    VulkanDestroyBuffer(&s_Context, &IndexBuffer);
+    // TODO: (amn) This is just temporary
+    DestroyTestScene(&s_Context);
 
-    VulkanDestroyPipeline(&s_Context, &s_Context.GraphicsPipeline);
-    s_Context.GraphicsPipeline = {};
+    VulkanImguiDestroy(&s_Context);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -438,39 +280,8 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
 
-    VulkanBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, &s_Context.GraphicsPipeline);
-
-    VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(buffer->Handle, 0, 1, &VertexBuffer.Handle, offsets);
-    vkCmdBindIndexBuffer(buffer->Handle, IndexBuffer.Handle, 0, VK_INDEX_TYPE_UINT32);
-
-    CameraBuffer cameraData;
-    cameraData.Projection = OrthographicMatrix(-1024.0f * 0.5f, 1024.0f * 0.5f, -768.0f * 0.5f, 768.0f * 0.5f, -1.0f, 1.0f);
-    cameraData.View = TranslationMatrix(Vec3f(50.0f, 50.0f, 0.0f));
-    // cameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, 0.0f));
-
-    VulkanLoadDataInBuffer(&s_Context, &CameraUniformBuffer, &cameraData, sizeof(CameraBuffer), 0);
-
-    VkDescriptorBufferInfo descriptorBufferInfo;
-    descriptorBufferInfo.buffer = CameraUniformBuffer.Handle;
-    descriptorBufferInfo.offset = 0;
-    descriptorBufferInfo.range = sizeof(CameraBuffer);
-
-    VkWriteDescriptorSet descriptorWriteInfo = {};
-    descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWriteInfo.descriptorCount = 1;
-    descriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWriteInfo.dstSet = GlobalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
-    descriptorWriteInfo.dstBinding = 0;
-    descriptorWriteInfo.dstArrayElement = 0;
-    descriptorWriteInfo.pBufferInfo = &descriptorBufferInfo;
-
-    vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, 1, &descriptorWriteInfo, 0, 0);
-
-    vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, s_Context.GraphicsPipeline.Layout, 0, 1, &GlobalDescriptorSets[s_Context.CurrentSwapchainImageIndex], 0, 0);
-
-    // vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
-    vkCmdDrawIndexed(buffer->Handle, IndexCount, 1, 0, 0, 0);
+    // Debug Stuff
+    RenderTestScene(&s_Context, buffer);
 
     return true;
 }

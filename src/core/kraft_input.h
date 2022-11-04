@@ -176,7 +176,7 @@ struct InputSystemState
     MouseState CurrentMouseState;
 };
 
-struct InputSystem
+struct KRAFT_API InputSystem
 {
     static InputSystemState State;
     static bool Initialized;
@@ -189,32 +189,32 @@ struct InputSystem
     static void ProcessMouseMove(int x, int y);
     static void ProcessScroll(float64 x, float64 y);
 
-    inline static bool IsKeyDown(Keys key)
+    KRAFT_INLINE static bool IsKeyDown(Keys key)
     {
         return State.CurrentKeyboardState.Keys[key];
     }
 
-    inline static bool WasKeyDown(Keys key)
+    KRAFT_INLINE static bool WasKeyDown(Keys key)
     {
         return State.PreviousKeyboardState.Keys[key];
     }
 
-    inline static bool IsMouseButtonDown(MouseButtons button)
+    KRAFT_INLINE static bool IsMouseButtonDown(MouseButtons button)
     {
         return State.CurrentMouseState.Buttons[button];
     }
 
-    inline static bool WasMouseButtonDown(MouseButtons button)
+    KRAFT_INLINE static bool WasMouseButtonDown(MouseButtons button)
     {
         return State.PreviousMouseState.Buttons[button];
     }
 
-    inline static MousePosition GetMousePosition()
+    KRAFT_INLINE static MousePosition GetMousePosition()
     {
         return State.CurrentMouseState.Position;
     }
 
-    inline static MousePosition GetPreviousMousePosition()
+    KRAFT_INLINE static MousePosition GetPreviousMousePosition()
     {
         return State.PreviousMouseState.Position;
     }

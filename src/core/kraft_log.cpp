@@ -4,7 +4,7 @@
 namespace kraft
 {
 
-struct Logger g_LoggerInstance = kraft::Logger(); 
+struct Logger LoggerInstance = kraft::Logger(); 
 
 bool Logger::Init() 
 {

@@ -16,7 +16,7 @@ namespace kraft
 
 struct ApplicationConfig;
 
-struct Platform
+struct KRAFT_API Platform
 {
     // If the platform wants to store any internal state,
     // it should do so in this variable

@@ -20,7 +20,7 @@ enum LogLevel
     LOG_LEVEL_NUM_COUNT,
 };
 
-struct Logger
+struct KRAFT_API Logger
 {
     int  Padding        = 1;
     bool EnableColors   = true;
@@ -30,11 +30,11 @@ struct Logger
     void Log(kraft::LogLevel level, const char* message, ...);
 };
 
-extern struct Logger g_LoggerInstance; 
+KRAFT_API extern struct Logger LoggerInstance; 
 
 }
 
-#define KraftLog                        kraft::g_LoggerInstance.Log
+#define KraftLog                        kraft::LoggerInstance.Log
 #define KRAFT_LOG_FATAL(str, ...)       KraftLog(kraft::LogLevel::LOG_LEVEL_FATAL,    str, ##__VA_ARGS__);
 #define KRAFT_LOG_ERROR(str, ...)       KraftLog(kraft::LogLevel::LOG_LEVEL_ERROR,    str, ##__VA_ARGS__);
 #define KRAFT_LOG_WARN(str, ...)        KraftLog(kraft::LogLevel::LOG_LEVEL_WARN,     str, ##__VA_ARGS__);

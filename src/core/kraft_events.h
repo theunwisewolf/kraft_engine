@@ -62,7 +62,7 @@ struct EventSystemState
     EventEntry EventEntries[EventType::EVENT_TYPE_NUM_COUNT];
 };
 
-struct EventSystem
+struct KRAFT_API EventSystem
 {
     static EventSystemState State;
     static bool Initialized;

@@ -13,8 +13,11 @@
 namespace kraft
 {
 
+// TODO: (amn) All of this code needs rework
 static VulkanCommandBuffer CommandBuffers[3];
 static bool Initialized = false;
+
+static VkDescriptorPool ImGuiDescriptorPool;
 
 // TODO (Amn): Improve this?
 static void CheckVkResult(VkResult err)
@@ -44,7 +47,6 @@ void VulkanImguiInit(VulkanContext* context)
 
 void VulkanImguiPostAPIInit(VulkanContext* context)
 {
-    VkDescriptorPool descriptorPool;
     VkDescriptorPoolSize poolSizes[] =
     {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -67,7 +69,7 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
     poolInfo.poolSizeCount = (uint32_t)IM_ARRAYSIZE(poolSizes);
     poolInfo.pPoolSizes = poolSizes;
 
-    KRAFT_VK_CHECK(vkCreateDescriptorPool(context->LogicalDevice.Handle, &poolInfo, context->AllocationCallbacks, &descriptorPool));
+    KRAFT_VK_CHECK(vkCreateDescriptorPool(context->LogicalDevice.Handle, &poolInfo, context->AllocationCallbacks, &ImGuiDescriptorPool));
 
     GLFWwindow* window;
 
@@ -89,8 +91,8 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
     initInfo.Device = context->LogicalDevice.Handle;
     initInfo.QueueFamily = context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex;
     initInfo.Queue = context->LogicalDevice.GraphicsQueue;
-    initInfo.PipelineCache = 0; // TODO (Amn): Pipeline cache
-    initInfo.DescriptorPool = descriptorPool;
+    initInfo.PipelineCache = 0; // TODO: (amn) Pipeline cache
+    initInfo.DescriptorPool = ImGuiDescriptorPool;
     initInfo.Subpass = 0;
     initInfo.MinImageCount = context->Swapchain.ImageCount;
     initInfo.ImageCount = context->Swapchain.ImageCount;
@@ -112,7 +114,7 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
     }
 
     // Command Buffers
-    for (int i = 0; i < context->Swapchain.ImageCount; ++i)
+    for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
         // VulkanAllocateCommandBuffer(context, context->GraphicsCommandPool, false, &CommandBuffers[i]);
     }
@@ -201,6 +203,15 @@ void VulkanImguiEndFrame(VulkanContext* context)
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
+}
+
+void VulkanImguiDestroy(VulkanContext* context)
+{
+    vkDestroyDescriptorPool(context->LogicalDevice.Handle, ImGuiDescriptorPool, context->AllocationCallbacks);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 }
 
 }

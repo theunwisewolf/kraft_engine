@@ -11,5 +11,6 @@ void VulkanImguiInit(VulkanContext* context);
 void VulkanImguiPostAPIInit(VulkanContext* context);
 void VulkanImguiBeginFrame(VulkanContext* context);
 void VulkanImguiEndFrame(VulkanContext* context);
+void VulkanImguiDestroy(VulkanContext* context);
 
 }

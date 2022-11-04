@@ -44,7 +44,7 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
 #if defined(KRAFT_PLATFORM_WINDOWS)
     int maxWidth = GetSystemMetrics(SM_CXSCREEN);
     int maxHeight = GetSystemMetrics(SM_CYSCREEN);
-    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - (width / 2), (maxHeight / 2) - (height / 2));
+    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - ((int)width / 2), (maxHeight / 2) - ((int)height / 2));
 #endif
 
     // Window callbacks

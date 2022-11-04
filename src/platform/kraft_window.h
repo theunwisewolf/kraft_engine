@@ -13,7 +13,7 @@ struct GLFWwindow;
 namespace kraft 
 {
 
-struct Window
+struct KRAFT_API Window
 {
 #if defined(KRAFT_PLATFORM_WINDOWS) || defined(KRAFT_PLATFORM_MACOS) || defined(KRAFT_PLATFORM_LINUX)
     GLFWwindow* PlatformWindowHandle;

@@ -181,7 +181,6 @@ struct VulkanContext
     VkSemaphore*             ImageAvailableSemaphores;
     VkSemaphore*             RenderCompleteSemaphores;
     uint32                   CurrentSwapchainImageIndex;
-    VulkanPipeline           GraphicsPipeline;
 
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;

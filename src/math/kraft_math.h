@@ -2,6 +2,28 @@
 
 #include "core/kraft_core.h"
 
+// 
+// Useful defines
+//
+
+#define KRAFT_PI 3.14159265358979323846f
+
+//
+// Useful functions
+//
+
+KRAFT_API float32 Sin(float32 x);
+KRAFT_API float32 Cos(float32 x);
+KRAFT_API float32 Tan(float32 x);
+KRAFT_API float32 Acos(float32 x);
+KRAFT_API float32 Sqrt(float32 x);
+KRAFT_API float32 Abs(float32 x);
+
+KRAFT_INLINE float32 DegreeToRadians(float32 degrees) 
+{
+    return degrees * (KRAFT_PI / 180.0f);
+}
+
 /**
  *
  * Vectors
@@ -586,6 +608,7 @@ BINARY_INPLACE_SCALAR_OPERATOR(/=);
 
 typedef Matrix<float32, 4, 4> Mat4f;
 
-Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip);
+KRAFT_API Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip);
+KRAFT_API Mat4f PerspectiveMatrix(float32 fieldOfViewRadians, float32 aspectRatio, float32 nearClip, float32 farClip);
 
 }

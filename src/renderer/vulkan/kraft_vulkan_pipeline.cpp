@@ -107,10 +107,17 @@ bool VulkanCreateGraphicsPipeline(VulkanContext* context, VulkanRenderPass* pass
     inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     createInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
 
+    VkPushConstantRange pushConstantsRange = {};
+    pushConstantsRange.size = 128; // TODO: (amn) Hardcode or no? No idea :(
+    pushConstantsRange.offset = 0;
+    pushConstantsRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
     VkPipelineLayoutCreateInfo layoutCreateInfo = {};
     layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutCreateInfo.setLayoutCount = desc.DescriptorSetLayoutCount;
     layoutCreateInfo.pSetLayouts = desc.DescriptorSetLayouts;
+    layoutCreateInfo.pushConstantRangeCount = 1;
+    layoutCreateInfo.pPushConstantRanges = &pushConstantsRange;
 
     KRAFT_VK_CHECK(vkCreatePipelineLayout(context->LogicalDevice.Handle, &layoutCreateInfo, context->AllocationCallbacks, &out->Layout));
     assert(out->Layout);

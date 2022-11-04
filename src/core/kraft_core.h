@@ -1,5 +1,6 @@
 #pragma once
 
+// Platform detection
 #if defined(WIN32) || defined(_WIN32)
     #define KRAFT_PLATFORM_WINDOWS
 #elif __linux__
@@ -20,8 +21,38 @@
     #endif
 #endif
 
+// Debug
 #if defined(_DEBUG) || defined(DEBUG)
     #define KRAFT_DEBUG
+#endif
+
+// Inlining
+#if defined(_MSC_VER)
+    #define KRAFT_INLINE __forceinline
+    #define KRAFT_NOINLINE __declspec(noinline)
+#elif defined(__clang__) || defined(__gcc__)
+    #define KRAFT_INLINE __attribute__((always_inline)) inline
+    #define KRAFT_NOINLINE __attribute__((noinline))
+#else
+    #define KRAFT_INLINE inline
+    #define KRAFT_NOINLINE
+#endif
+
+// Library export
+#if defined(KRAFT_STATIC)
+    #define KRAFT_API 
+#elif defined(KRAFT_SHARED)
+    #ifdef _MSC_VER
+        #define KRAFT_API __declspec(dllexport)
+    #else
+        #define KRAFT_API __attribute__((visibility("default")))
+    #endif
+#else
+    #ifdef _MSC_VER
+        #define KRAFT_API __declspec(dllimport)
+    #else
+        #define KRAFT_API
+    #endif
 #endif
 
 // Some types
