@@ -89,7 +89,7 @@ void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int acti
 
 void Window::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-    InputSystem::ProcessMouseButton(button, action != GLFW_PRESS);
+    InputSystem::ProcessMouseButton(button, action == GLFW_PRESS);
 }
 
 void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)

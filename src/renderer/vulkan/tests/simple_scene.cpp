@@ -14,29 +14,6 @@
 namespace kraft
 {
 
-struct CameraBuffer
-{
-    union
-    {
-        struct
-        {
-            Mat4f Projection;
-            Mat4f View;
-        };
-
-        char _[256];
-    };
-
-    CameraBuffer() {}
-};
-
-struct SimpleObjectState
-{
-    VulkanPipeline  Pipeline;
-    CameraBuffer    CameraData;
-    Mat4f           ModelMatrix;
-};
-
 static VulkanBuffer CameraUniformBuffer = {};
 static VulkanBuffer VertexBuffer;
 static VulkanBuffer IndexBuffer;
@@ -45,6 +22,11 @@ static VkDescriptorSet GlobalDescriptorSets[3] = {};
 static SimpleObjectState ObjectState;
 static VkDescriptorPool DescriptorPool;
 static VkDescriptorSetLayout DescriptorSetLayout;
+
+SimpleObjectState* GetObjectState()
+{
+    return &ObjectState;
+}
 
 static void ImGuiWidgets()
 {
@@ -68,7 +50,7 @@ static void ImGuiWidgets()
     if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true))
     {
         usePerspectiveProjection = true;
-        ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
+        ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
         ObjectState.CameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, -30.f));
     }
 
@@ -86,27 +68,27 @@ static void ImGuiWidgets()
 
         if (ImGui::DragFloat("FOV", &fov))
         {
-            ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(fov), width / height, nearClipP, farClipP);
+            ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Width", &width))
         {
-            ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(fov), width / height, nearClipP, farClipP);
+            ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Height", &height))
         {
-            ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(fov), width / height, nearClipP, farClipP);
+            ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Near clip", &nearClipP))
         {
-            ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(fov), width / height, nearClipP, farClipP);
+            ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Far clip", &farClipP))
         {
-            ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(fov), width / height, nearClipP, farClipP);
+            ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
     }
     else
@@ -156,8 +138,9 @@ static void ImGuiWidgets()
 void InitTestScene(VulkanContext* context)
 {
     // ObjectState.CameraData.Projection = OrthographicMatrix(-1024.0f * 0.5f, 1024.0f * 0.5f, -768.0f * 0.5f, 768.0f * 0.5f, -1.0f, 1.0f);
-    ObjectState.CameraData.Projection = PerspectiveMatrix(DegreeToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
-    ObjectState.CameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, -30.f));
+    ObjectState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
+    ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
+    ObjectState.CameraData.View = ObjectState.SceneCamera.GetViewMatrix();
     ObjectState.ModelMatrix = Mat4f(Identity);
 
     RendererFrontend::I->ImGuiRenderer.AddWidget("demo window", ImGuiWidgets);
@@ -312,7 +295,7 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 
     // static float32 z = -1.0f;
     // z -= 0.005f;
-    // ObjectState.CameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, z));
+    ObjectState.CameraData.View = ObjectState.SceneCamera.GetViewMatrix();
     VulkanLoadDataInBuffer(context, &CameraUniformBuffer, &ObjectState.CameraData, sizeof(CameraBuffer), 0);
 
     VkDescriptorBufferInfo descriptorBufferInfo;

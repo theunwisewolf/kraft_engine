@@ -44,6 +44,7 @@ set(SRC_FILES
     src/platform/windows/kraft_win32.cpp
     
     # Renderer
+    src/renderer/kraft_camera.cpp
     src/renderer/kraft_renderer_backend.cpp
     src/renderer/kraft_renderer_frontend.cpp
     src/renderer/kraft_renderer_imgui.cpp

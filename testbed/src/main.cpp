@@ -16,6 +16,8 @@
 #include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_types.h"
 
+#include "renderer/vulkan/tests/simple_scene.h"
+
 #include <imgui.h>
 
 #include "scenes/test.cpp"
@@ -56,7 +58,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     int button = data.Int32[0];
-    KINFO("%d mouse button pressed", button);
+    KINFO("%d mouse button released", button);
 
     return false;
 }
@@ -103,6 +105,76 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
+    kraft::Camera *camera = &kraft::GetObjectState()->SceneCamera;
+    if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
+    {
+        float32 speed = 50.f;
+        kraft::Vec3f direction = kraft::Vec3fZero;
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
+        {
+            kraft::Vec3f forwardVector = ForwardVector(camera->GetViewMatrix());
+            direction += forwardVector;
+        }
+        else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
+        {
+            kraft::Vec3f backwardVector = BackwardVector(camera->GetViewMatrix());
+            direction += backwardVector;
+        }
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
+        {
+            kraft::Vec3f leftVector = LeftVector(camera->GetViewMatrix());
+            direction += leftVector;
+        }
+        else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
+        {
+            kraft::Vec3f rightVector = RightVector(camera->GetViewMatrix());
+            direction += rightVector;
+        }
+
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_SPACE))
+        {
+            if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT_SHIFT))
+            {
+                kraft::Vec3f down = DownVector(camera->GetViewMatrix());
+                direction += down;
+            }
+            else
+            {
+                kraft::Vec3f up = UpVector(camera->GetViewMatrix());
+                direction += up;
+            }
+        }
+
+        if (!Vec3fCompare(direction, kraft::Vec3fZero, 0.00001f))
+        {
+            direction = kraft::Normalize(direction);
+            kraft::Vec3f position = camera->Position;
+            kraft::Vec3f change = direction * speed * (float32)deltaTime;
+            camera->SetPosition(position + change);
+        }
+    }
+    else
+    {
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
+        {
+            camera->SetPitch(camera->Pitch + 1.f * deltaTime);
+        }
+
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
+        {
+            camera->SetPitch(camera->Pitch - 1.f * deltaTime);
+        }
+
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
+        {
+            camera->SetYaw(camera->Yaw + 1.f * deltaTime);
+        }
+
+        if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
+        {
+            camera->SetYaw(camera->Yaw - 1.f * deltaTime);
+        }
+    }
 }
 
 void Render(float64 deltaTime)

@@ -367,6 +367,8 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
         {
             KDEBUG("%s", pCallbackData->pMessage);
         } break;
+
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT: break;
     }
 
     return VK_FALSE;
