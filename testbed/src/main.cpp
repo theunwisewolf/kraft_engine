@@ -105,20 +105,37 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
-    kraft::Camera *camera = &kraft::GetObjectState()->SceneCamera;
+    kraft::SceneState* sceneState = kraft::GetSceneState();
+    kraft::Camera *camera = &sceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         float32 speed = 50.f;
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
-            kraft::Vec3f forwardVector = ForwardVector(camera->GetViewMatrix());
-            direction += forwardVector;
+            if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
+            {
+                kraft::Vec3f up = UpVector(camera->GetViewMatrix());
+                direction += up;
+            }
+            else
+            {
+                kraft::Vec3f forwardVector = ForwardVector(camera->GetViewMatrix());
+                direction += forwardVector;
+            }
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
         {
-            kraft::Vec3f backwardVector = BackwardVector(camera->GetViewMatrix());
-            direction += backwardVector;
+            if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
+            {
+                kraft::Vec3f down = DownVector(camera->GetViewMatrix());
+                direction += down;
+            }
+            else
+            {
+                kraft::Vec3f backwardVector = BackwardVector(camera->GetViewMatrix());
+                direction += backwardVector;
+            }
         }
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
         {

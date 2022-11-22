@@ -11,8 +11,15 @@
         KRAFT_ASSERT(expression == VK_SUCCESS) \
     } while (0)
 
+#define KRAFT_VULKAN_SHADER_MAX_BINDINGS 2
+
 namespace kraft
 {
+
+struct VulkanDescriptorSetState
+{
+    uint8 Generations[3];
+};
 
 struct VulkanBuffer
 {
@@ -185,6 +192,12 @@ struct VulkanContext
 #ifdef KRAFT_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
 #endif
+};
+
+struct VulkanTexture
+{
+    VulkanImage Image;
+    VkSampler   Sampler;
 };
 
 struct VulkanPhysicalDeviceRequirements

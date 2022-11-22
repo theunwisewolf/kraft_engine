@@ -70,3 +70,6 @@ typedef uint8_t     uint8;
 typedef uint16_t    uint16;
 typedef uint32_t    uint32;
 typedef uint64_t    uint64;
+
+#define KRAFT_INVALID_ID        4294967295U
+#define KRAFT_INVALID_ID_UINT8  255U

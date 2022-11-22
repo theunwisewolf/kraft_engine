@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "math/kraft_math.h"
+#include "resources/kraft_resource_types.h"
 
 namespace kraft
 {
@@ -24,6 +25,10 @@ struct RendererBackend
     bool (*BeginFrame)(float64 deltaTime);
     bool (*EndFrame)(float64 deltaTime);
     void (*OnResize)(int width, int height);
+
+    // Texture
+    void (*CreateTexture)(uint8* data, Texture* out);
+    void (*DestroyTexture)(Texture* texture);
 };
 
 struct RenderPacket
@@ -34,7 +39,7 @@ struct RenderPacket
 struct Vertex3D
 {
     Vec3f Position;
-    Vec4f Color;
+    Vec2f UV;
 };
 
 }

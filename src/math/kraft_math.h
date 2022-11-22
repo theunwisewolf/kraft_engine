@@ -660,6 +660,17 @@ Matrix<T, n + 1, n + 1> TranslationMatrix(Vector<T, n> position)
     return out;
 }
 
+template <typename T, int n>
+Matrix<T, n + 1, n + 1> ScaleMatrix(Vector<T, n> scale)
+{
+    Matrix<T, n + 1, n + 1> out(Identity);
+    out._data[0] = scale[0];
+    out._data[5] = scale[1];
+    out._data[10] = scale[2];
+    
+    return out;
+}
+
 template <typename T>
 Matrix<T, 2, 2> Inverse(const Matrix<T, 2, 2> &in)
 {

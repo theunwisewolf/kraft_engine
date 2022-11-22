@@ -62,6 +62,7 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_index_buffer.cpp
     src/renderer/vulkan/kraft_vulkan_vertex_buffer.cpp
     src/renderer/vulkan/kraft_vulkan_imgui.cpp
+    src/renderer/vulkan/kraft_vulkan_texture.cpp
 
     # imgui
     vendor/imgui/imgui.cpp

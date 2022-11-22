@@ -23,7 +23,7 @@ struct Camera
     };
     
     Mat4f    ViewMatrix; // Computed matrix
-    bool     Dirty;
+    bool     Dirty = true;
 
     Camera();
 

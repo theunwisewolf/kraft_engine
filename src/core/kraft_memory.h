@@ -12,6 +12,7 @@ enum MemoryTag
     MEMORY_TAG_ARRAY,
     MEMORY_TAG_RENDERER,
     MEMORY_TAG_FILE_BUF,
+    MEMORY_TAG_TEXTURE,
 
     MEMORY_TAG_NUM_COUNT
 };
@@ -20,6 +21,8 @@ static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][9] = {
     "UNKNOWN ",
     "ARRAY   ",
     "RENDERER",
+    "FILEBUF ",
+    "TEXTURE "
 }; 
 
 struct MemoryStats

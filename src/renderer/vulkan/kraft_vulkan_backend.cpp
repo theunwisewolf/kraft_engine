@@ -18,6 +18,7 @@
 #include "renderer/vulkan/kraft_vulkan_index_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_imgui.h"
+#include "renderer/vulkan/kraft_vulkan_texture.h"
 
 // TODO: (amn) This is just temporary
 #include "renderer/vulkan/tests/simple_scene.h"
@@ -173,7 +174,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         VulkanCreateFence(&s_Context, true, &s_Context.WaitFences[i]);
         s_Context.InFlightImageToFenceMap[i] = &s_Context.WaitFences[i];
     }
-    
+
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
 
     // Imgui
@@ -337,6 +338,16 @@ void VulkanRendererBackend::OnResize(int width, int height)
     
     createCommandBuffers();
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
+}
+
+void VulkanRendererBackend::CreateTexture(uint8* data, Texture* texture)
+{
+    VulkanCreateTexture(&s_Context, data, texture);
+}
+
+void VulkanRendererBackend::DestroyTexture(Texture* texture)
+{
+    VulkanDestroyTexture(&s_Context, texture);
 }
 
 #ifdef KRAFT_DEBUG

@@ -14,6 +14,9 @@ bool RendererCreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->BeginFrame = VulkanRendererBackend::BeginFrame;
         backend->EndFrame   = VulkanRendererBackend::EndFrame;
         backend->OnResize   = VulkanRendererBackend::OnResize;
+        
+        backend->CreateTexture  = VulkanRendererBackend::CreateTexture;
+        backend->DestroyTexture = VulkanRendererBackend::DestroyTexture;
 
         return true;
     }
