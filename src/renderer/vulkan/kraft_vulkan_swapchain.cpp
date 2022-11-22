@@ -159,18 +159,16 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // Depth buffer if required
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
-        VulkanCreateImage(
-            context, 
-            VK_IMAGE_TYPE_2D, 
-            extent.width, 
-            extent.height,
-            context->PhysicalDevice.DepthBufferFormat,
-            VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            true,
-            VK_IMAGE_ASPECT_DEPTH_BIT,
-            &context->Swapchain.DepthAttachment);
+        VulkanImageDescription desc;
+        desc.Type        = VK_IMAGE_TYPE_2D;
+        desc.Width       = extent.width;
+        desc.Height      = extent.height;
+        desc.Format      = context->PhysicalDevice.DepthBufferFormat;
+        desc.Tiling      = VK_IMAGE_TILING_OPTIMAL;
+        desc.UsageFlags  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        desc.AspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        VulkanCreateImage(context, desc, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &context->Swapchain.DepthAttachment);
     }
 
     KSUCCESS("[VulkanCreateSwapchain]: Swapchain created successfully!");

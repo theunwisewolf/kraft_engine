@@ -47,18 +47,23 @@ static void ImGuiWidgets()
 
     static bool usePerspectiveProjection = true;
 
+    kraft::Camera& camera = ObjectState.SceneCamera;
     if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true))
     {
         usePerspectiveProjection = true;
         ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
-        ObjectState.CameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, -30.f));
+
+        camera.Reset();
+        camera.SetPosition({0.0f, 0.0f, 30.f});
     }
 
     if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false))
     {
         usePerspectiveProjection = false;
         ObjectState.CameraData.Projection = OrthographicMatrix(-1024.0f * 0.5f, 1024.0f * 0.5f, -768.0f * 0.5f, 768.0f * 0.5f, -1.0f, 1.0f);
-        ObjectState.CameraData.View = TranslationMatrix(Vec3f(0.0f, 0.0f, 0.0f));
+
+        camera.Reset();
+        camera.SetPosition(Vec3fZero);
     }
 
     if (usePerspectiveProjection)
@@ -130,14 +135,13 @@ static void ImGuiWidgets()
     ImGui::Separator();
     ImGui::Text("Tranform");
     ImGui::Separator();
-    ImGui::DragFloat4("Translation", ObjectState.CameraData.View[3]._data);
+    ImGui::DragFloat4("Translation", camera.GetViewMatrix()[3]._data);
     
     ImGui::End();
 }
 
 void InitTestScene(VulkanContext* context)
 {
-    // ObjectState.CameraData.Projection = OrthographicMatrix(-1024.0f * 0.5f, 1024.0f * 0.5f, -768.0f * 0.5f, 768.0f * 0.5f, -1.0f, 1.0f);
     ObjectState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
     ObjectState.CameraData.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
     ObjectState.CameraData.View = ObjectState.SceneCamera.GetViewMatrix();

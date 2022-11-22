@@ -22,8 +22,8 @@ struct Camera
         Vec3f Euler;
     };
     
-    Mat4f   ViewMatrix; // Computed matrix
-    bool    Dirty;
+    Mat4f    ViewMatrix; // Computed matrix
+    bool     Dirty;
 
     Camera();
 
@@ -34,7 +34,7 @@ struct Camera
     void SetYaw(float32 yaw);
     void SetRoll(float32 roll);
 
-    Mat4f GetViewMatrix();
+    Mat4f& GetViewMatrix();
 };
 
 

@@ -48,7 +48,7 @@ void Camera::SetRoll(float32 roll)
     this->Roll = roll;
 }
 
-Mat4f Camera::GetViewMatrix()
+Mat4f& Camera::GetViewMatrix()
 {
     if (this->Dirty)
     {
