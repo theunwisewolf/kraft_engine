@@ -309,6 +309,18 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         VkPhysicalDeviceMemoryProperties memoryProperties;
         vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
 
+        bool supportsDeviceLocalHostVisible = false;
+        for (uint32 i = 0; i < memoryProperties.memoryTypeCount; ++i) 
+        {
+            if (
+                ((memoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0) &&
+                ((memoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)) 
+            {
+                supportsDeviceLocalHostVisible = true;
+                break;
+            }
+        }
+
         VulkanQueueFamilyInfo queueFamilyInfo;
         queueFamilyInfo.GraphicsQueueIndex = -1;
         queueFamilyInfo.ComputeQueueIndex  = -1;
@@ -345,6 +357,7 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         physicalDevice.QueueFamilyInfo      = queueFamilyInfo;
         physicalDevice.DepthBufferFormat    = depthBufferFormat;
         physicalDevice.SwapchainSupportInfo = swapchainSupportInfo;
+        physicalDevice.SupportsDeviceLocalHostVisible = supportsDeviceLocalHostVisible;
 
         context->PhysicalDevice = physicalDevice;
         break;

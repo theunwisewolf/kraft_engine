@@ -39,21 +39,25 @@ float32 Abs(float32 x)
     return fabsf(x);
 }
 
-Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip)
+Mat4f OrthographicMatrix(float32 left, float32 right, float32 bottom, float32 top, float32 zNear, float32 zFar)
 {
     Mat4f out(Identity);
 
     float32 leftRight = 1.0f / (right - left);
-    float32 bottomTop = 1.0f / (bottom - top);
-    float32 nearFar = 1.0f / (farClip - nearClip);
+    float32 bottomTop = 1.0f / (top - bottom);
+    float32 nearFar = 1.0f / (zFar - zNear);
 
+    // We have specified minDepth & maxDepth in vkViewport to be [0,1]
+    // The commented part will work if we would've used [-1,1]
     out._data[0] = 2.0f * leftRight;
     out._data[5] = 2.0f * bottomTop;
-    out._data[10] = 2.0f * nearFar;
+    // out._data[10] = 2.0f * nearFar;
+    out._data[10] = 1.0f * nearFar;
 
     out._data[12] = -(left + right) * leftRight;
     out._data[13] = -(top + bottom) * bottomTop;
-    out._data[14] = -(farClip + nearClip) * nearFar;
+    // out._data[14] = -(farClip + nearClip) * nearFar;
+    out._data[14] = -zNear / (zFar - zNear);
 
     return out;
 }

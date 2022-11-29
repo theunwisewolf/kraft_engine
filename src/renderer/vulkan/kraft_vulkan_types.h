@@ -138,6 +138,7 @@ struct VulkanPhysicalDevice
     VulkanQueueFamilyInfo               QueueFamilyInfo;
     VulkanSwapchainSupportInfo          SwapchainSupportInfo;
     VkFormat                            DepthBufferFormat;
+    bool                                SupportsDeviceLocalHostVisible;
 };
 
 struct VulkanLogicalDevice

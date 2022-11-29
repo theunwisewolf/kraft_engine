@@ -48,6 +48,12 @@ static void ImGuiWidgets()
     static float nearClipP = 0.1f;
     static float farClipP = 1000.f;
 
+    // Model
+    static Vec3f scale = {10.0f, 10.0f, 10.0f};
+    static Vec3f position = Vec3fZero;
+    static Vec3f rotationDeg = Vec3fZero;
+    static Vec3f rotation = Vec3fZero;
+
     static bool usePerspectiveProjection = true;
 
     kraft::Camera& camera = TestSceneState.SceneCamera;
@@ -59,6 +65,8 @@ static void ImGuiWidgets()
 
         camera.Reset();
         camera.SetPosition({0.0f, 0.0f, 30.f});
+
+        scale = {10.0f, 10.0f, 10.0f};
     }
 
     if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false))
@@ -69,6 +77,8 @@ static void ImGuiWidgets()
 
         camera.Reset();
         camera.SetPosition(Vec3fZero);
+
+        scale = {512.0f, 512.0f, 512.0f};
     }
 
     if (usePerspectiveProjection)
@@ -100,8 +110,6 @@ static void ImGuiWidgets()
         {
             TestSceneState.GlobalUBO.Projection = PerspectiveMatrix(DegToRadians(fov), width / height, nearClipP, farClipP);
         }
-
-        ObjectState.ModelMatrix = ScaleMatrix(Vec3f(10.f, 10.f, 1.f));
     }
     else
     {
@@ -137,15 +145,45 @@ static void ImGuiWidgets()
         {
             TestSceneState.GlobalUBO.Projection = OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
-
-        ObjectState.ModelMatrix = ScaleMatrix(Vec3f(512.f, 512.f, 1.f));
     }
 
-    ImGui::Separator();
-    ImGui::Text("Tranform");
-    ImGui::Separator();
-    ImGui::DragFloat4("Translation", camera.GetViewMatrix()[3]._data);
-    
+    ImGui::PushID("CAMERA_TRANSFORM");
+    {
+        ImGui::Separator();
+        ImGui::Text("Camera Transform");
+        ImGui::Separator();
+        ImGui::DragFloat4("Translation", camera.GetViewMatrix()[3]._data);
+    }
+    ImGui::PopID();
+
+    ImGui::PushID("OBJECT_TRANSFORM");
+    {
+        ImGui::Separator();
+        ImGui::Text("Transform");
+        ImGui::Separator();
+        
+        if (ImGui::DragFloat3("Scale", scale._data))
+        {
+            KINFO("Scale - %f, %f, %f", scale.x, scale.y, scale.z);
+            // ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
+        }
+
+        if (ImGui::DragFloat3("Translation", position._data))
+        {
+            KINFO("Translation - %f, %f, %f", position.x, position.y, position.z);
+            // ObjectState.ModelMatrix *= TranslationMatrix(position);
+        }
+
+        if (ImGui::DragFloat3("Rotation Degrees", rotationDeg._data))
+        {
+            rotation.x = DegToRadians(rotationDeg.x);
+            rotation.y = DegToRadians(rotationDeg.y);
+            rotation.z = DegToRadians(rotationDeg.z);
+        }
+    }
+    ImGui::PopID();
+
+    ObjectState.ModelMatrix = ScaleMatrix(scale) * RotationMatrixFromEulerAngles(rotation) * TranslationMatrix(position);
     ImGui::End();
 }
 
@@ -325,9 +363,10 @@ void InitTestScene(VulkanContext* context)
     // Create a buffer where we can push camera data
     // As per https://community.arm.com/arm-community-blogs/b/graphics-gaming-and-vr-blog/posts/vulkan-descriptor-and-buffer-management
     // We should ideally be creating 1 VkBuffer per frame
+    uint32 extraMemoryFlags = context->PhysicalDevice.SupportsDeviceLocalHostVisible ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
     VulkanCreateBuffer(context, sizeof(GlobalUniformBuffer) * 3, VK_SHARING_MODE_EXCLUSIVE, 
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | extraMemoryFlags,
         true, &TestSceneState.GlobalUniformBuffer);
 
     assert(TestSceneState.GlobalUniformBuffer.Handle);
@@ -363,7 +402,7 @@ void InitTestScene(VulkanContext* context)
     // Local buffer for uploading object data
     VulkanCreateBuffer(context, sizeof(ObjectUniformBuffer) * 3, VK_SHARING_MODE_EXCLUSIVE, 
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | extraMemoryFlags,
         true, &TestSceneState.LocalUniformBuffer);
 
     // Local descriptor sets
