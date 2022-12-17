@@ -68,9 +68,9 @@ KRAFT_INLINE float32 DegToRadians(float32 degrees)
                                                                        \
     /* C array conversions */                                          \
     typedef T(&array_t)[n];                                            \
-    operator array_t () { return data; }                               \
+    operator array_t () { return _data; }                               \
     typedef const T(&const_array_t)[n];                                \
-    operator const_array_t () const { return data; }                   \
+    operator const_array_t () const { return _data; }                   \
     private: operator bool();                                          \
     public:                                                            \
 
@@ -556,6 +556,8 @@ struct Matrix
     private: operator bool();
 };
 
+typedef Matrix<float32, 4, 4> Mat4f;
+
 // Matrix multiplication
 template <typename T, int rows, int cols>
 Matrix<T, rows, cols> operator*(const Matrix<T, rows, cols> &a, const Matrix<T, rows, cols> &b)
@@ -784,8 +786,6 @@ BINARY_INPLACE_SCALAR_OPERATOR(/=);
 #undef BINARY_SCALAR_OPERATOR
 #undef BINARY_INPLACE_OPERATOR
 #undef BINARY_INPLACE_SCALAR_OPERATOR
-
-typedef Matrix<float32, 4, 4> Mat4f;
 
 // Projection
 KRAFT_API Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip);

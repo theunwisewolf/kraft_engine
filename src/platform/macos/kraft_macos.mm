@@ -51,12 +51,18 @@ const int Platform::ConsoleColorBGHiCyan    = 106   << 16;
 const int Platform::ConsoleColorBGLoMagenta = 45    << 16;
 const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
+static uint64_t s_ClockFrequency;
+
 bool Platform::Init(ApplicationConfig* config)
 {
     InternalState = Malloc(sizeof(MacOSPlatformState), false);
     State = (MacOSPlatformState*)InternalState;
     State->Window.Init(config->WindowTitle, config->WindowWidth, config->WindowHeight, config->RendererBackend);
 
+    mach_timebase_info_data_t info;
+    mach_timebase_info(&info);
+
+    s_ClockFrequency = (info.denom * 1e9) / info.numer;
     return true;
 }
 
@@ -130,7 +136,8 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
 
 float64 Platform::GetAbsoluteTime()
 {
-    return mach_absolute_time();
+    uint64 absoluteTime = mach_absolute_time();
+    return (float64)absoluteTime / (float64)s_ClockFrequency;
 }
 
 float64 Platform::GetElapsedTime()

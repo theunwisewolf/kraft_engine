@@ -50,10 +50,13 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     instanceCreateInfo.pApplicationInfo = &appInfo;
+    // instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
-    // Extensions
+    // Instance level extensions
     const char** extensions = nullptr;
     arrput(extensions, VK_KHR_SURFACE_EXTENSION_NAME);
+    // arrput(extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    // arrput(extensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
     arrput(extensions, "VK_KHR_win32_surface");
