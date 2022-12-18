@@ -17,8 +17,8 @@ void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
     
     VulkanTexture* vulkanTexture = (VulkanTexture*)texture->RendererData;
 
-    VkDeviceSize deviceSize = texture->Width * texture->Height * 4;
-    VkFormat     format = VK_FORMAT_R8G8B8A8_UNORM;
+    VkDeviceSize deviceSize = texture->Width * texture->Height * texture->Channels;
+    VkFormat     format = texture->Channels == 4 ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8_UNORM;
 
     // Load data into a staging buffer
     VkBufferUsageFlags usageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -42,13 +42,15 @@ void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
     VulkanCommandBuffer tempCommandBuffer;
     VulkanAllocateAndBeginSingleUseCommandBuffer(context, context->GraphicsCommandPool, &tempCommandBuffer);
 
-    // Default image layout is undefined, so make it transfer optimal
+    // Default image layout is undefined, so make it transfer dst optimal
+    // This will change the image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
     VulkanTransitionImageLayout(context, tempCommandBuffer, vulkanTexture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    // This will change the image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+    // Copy the image pixels from the staging buffer to the image using the temp command buffer
     VulkanCopyBufferToImage(context, tempCommandBuffer, stagingBuffer, &vulkanTexture->Image);
 
     // Transition the layout from VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    // so the image turns into a suitable format for the shader to read 
     VulkanTransitionImageLayout(context, tempCommandBuffer, vulkanTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // End our temp command buffer
@@ -57,6 +59,7 @@ void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
     // Free the staging buffer
     VulkanDestroyBuffer(context, &stagingBuffer);
 
+    // Create the texture sampler
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType           = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter       = VK_FILTER_LINEAR;

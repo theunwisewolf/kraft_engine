@@ -12,8 +12,6 @@ struct ApplicationConfig;
 
 struct RendererFrontend
 {
-    static RendererFrontend* I;
-
     RendererBackend* Backend = nullptr;
     Block BackendMemory;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
@@ -23,6 +21,12 @@ struct RendererFrontend
     bool Shutdown();
     void OnResize(int width, int height);
     bool DrawFrame(RenderPacket* packet);
+
+    // API
+    void CreateTexture(uint8* data, Texture* out);
+    void DestroyTexture(Texture* texture);
 };
+
+extern RendererFrontend* Renderer;
 
 }

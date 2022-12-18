@@ -9,10 +9,11 @@
 namespace kraft
 {
 
-RendererFrontend* RendererFrontend::I = nullptr;
+RendererFrontend* Renderer = nullptr;
 
 bool RendererFrontend::Init(ApplicationConfig* config)
 {
+    Renderer = this;
     Type = config->RendererBackend;
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
@@ -73,6 +74,19 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
     }
 
     return false;
+}
+
+// 
+// API
+//
+void RendererFrontend::CreateTexture(uint8* data, Texture* out)
+{
+    Backend->CreateTexture(data, out);
+}
+
+void RendererFrontend::DestroyTexture(Texture* texture)
+{
+    Backend->DestroyTexture(texture);
 }
 
 }

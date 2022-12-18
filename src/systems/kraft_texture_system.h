@@ -1,0 +1,19 @@
+#pragma once
+
+#include "core/kraft_core.h"
+#include "resources/kraft_resource_types.h"
+
+namespace kraft
+{
+
+namespace TextureSystem
+{
+    void Init(uint32 maxTextureCount);
+    void Shutdown();
+
+    Texture* AcquireTexture(const char* name, bool autoRelease = true);
+    void ReleaseTexture(const char* name);
+    bool LoadTexture(const char* name, Texture* texture);
+};
+
+}

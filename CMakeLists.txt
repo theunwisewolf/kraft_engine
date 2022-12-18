@@ -64,6 +64,9 @@ set(SRC_FILES
     src/renderer/vulkan/kraft_vulkan_imgui.cpp
     src/renderer/vulkan/kraft_vulkan_texture.cpp
 
+    # Systems
+    src/systems/kraft_texture_system.cpp
+
     # imgui
     vendor/imgui/imgui.cpp
     vendor/imgui/imgui_impl_vulkan.cpp

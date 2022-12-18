@@ -6,6 +6,7 @@
 #include "core/kraft_time.h"
 #include "platform/kraft_platform.h"
 #include "renderer/kraft_renderer_frontend.h"
+#include "systems/kraft_texture_system.h"
 
 namespace kraft
 {
@@ -23,14 +24,14 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
 
     if (width == 0 && height == 0)
     {
-        KINFO("Application suspended");
+        KINFO("[Application::WindowResizeListener]: Application suspended");
         application->Suspended = true;   
     }
     else
     {
         if (application->Suspended)
         {
-            KINFO("Application resumed");
+            KINFO("[Application::WindowResizeListener]: Application resumed");
             application->Suspended = false;
         }
 
@@ -47,8 +48,8 @@ bool Application::Create()
     Platform::Init(&this->Config);
     EventSystem::Init();
     InputSystem::Init();
+    TextureSystem::Init(256);
 
-    RendererFrontend::I = &State.Renderer;
     if (!State.Renderer.Init(&this->Config))
     {
         KERROR("[Application::Create]: Failed to initalize renderer!");
@@ -113,14 +114,18 @@ bool Application::Run()
 
 void Application::Destroy()
 {
-    KINFO("Shutting down...");
+    KINFO("[Application::Destroy]: Shutting down...");
 
-    this->Shutdown();
-    Time::Stop();
+    TextureSystem::Shutdown();
+    InputSystem::Shutdown();
+    EventSystem::Shutdown();
     Platform::Shutdown();
     State.Renderer.Shutdown();
 
-    KSUCCESS("Application shutdown successfully!");
+    this->Shutdown();
+    Time::Stop();
+
+    KSUCCESS("[Application::Destroy]: Application shutdown successfully!");
 }
 
 }

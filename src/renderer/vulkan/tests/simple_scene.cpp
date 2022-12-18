@@ -9,6 +9,7 @@
 #include "renderer/vulkan/kraft_vulkan_texture.h"
 
 #include "renderer/kraft_renderer_frontend.h"
+#include "systems/kraft_texture_system.h"
 
 #include <imgui.h>
 
@@ -30,6 +31,8 @@ SceneState* GetSceneState()
 {
     return &TestSceneState;
 }
+
+static const char* TextureName = "res/textures/texture.jpg";
 
 static void ImGuiWidgets()
 {
@@ -211,7 +214,7 @@ void SimpleObjectState::AcquireResources(VulkanContext *context)
 
 void SimpleObjectState::ReleaseResources(VulkanContext *context)
 {
-    VulkanDestroyTexture(context, &ObjectState.Texture);
+    TextureSystem::ReleaseTexture(TextureName);
     // KRAFT_VK_CHECK(vkFreeDescriptorSets(context->LogicalDevice.Handle, TestSceneState.LocalDescriptorPool, 3, ObjectState.DescriptorSets));
 
     for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
@@ -226,18 +229,7 @@ void InitTestScene(VulkanContext* context)
     TestSceneState.Projection = SceneState::ProjectionType::Perspective;
 
     // Load textures
-    stbi_set_flip_vertically_on_load(1);
-    int width, height, channels;
-    unsigned char *data = stbi_load("res/textures/texture.jpg", &width, &height, &channels, 4);
-    KASSERT(data);
-
-    ObjectState.Texture.Width = width;
-    ObjectState.Texture.Height = height;
-    ObjectState.Texture.Channels = 4;
-
-    VulkanCreateTexture(context, data, &ObjectState.Texture);
-
-    stbi_image_free(data);
+    ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
 
     TestSceneState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
     ObjectState.ModelMatrix = ScaleMatrix(Vec3f(10.f, 10.f, 1.f));
@@ -248,7 +240,7 @@ void InitTestScene(VulkanContext* context)
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
-    RendererFrontend::I->ImGuiRenderer.AddWidget("demo window", ImGuiWidgets);
+    Renderer->ImGuiRenderer.AddWidget("demo window", ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
     VulkanCreateShaderModule(context, "res/shaders/vertex.vert.spv", &vertex);
@@ -317,6 +309,7 @@ void InitTestScene(VulkanContext* context)
         VkDescriptorSetLayoutBinding objectDescriptorSetLayoutBinding[2] = {};
         
         // Material data
+        // Currently only diffuse color
         objectDescriptorSetLayoutBinding[0].binding = 0;
         objectDescriptorSetLayoutBinding[0].descriptorCount = 1;
         objectDescriptorSetLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -509,7 +502,7 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
         // Sampler
         if (ObjectState.DescriptorSetStates[bindingIndex].Generations[context->CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
         {
-            VulkanTexture* texture = (VulkanTexture*)ObjectState.Texture.RendererData;
+            VulkanTexture* texture = (VulkanTexture*)ObjectState.Texture->RendererData;
             assert(texture->Image.Handle);
             assert(texture->Image.View);
 
