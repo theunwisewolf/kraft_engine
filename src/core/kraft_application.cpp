@@ -48,13 +48,14 @@ bool Application::Create()
     Platform::Init(&this->Config);
     EventSystem::Init();
     InputSystem::Init();
-    TextureSystem::Init(256);
 
     if (!State.Renderer.Init(&this->Config))
     {
         KERROR("[Application::Create]: Failed to initalize renderer!");
         return false;
     }
+
+    TextureSystem::Init(256);
 
     if (!this->Init())
     {
@@ -116,11 +117,11 @@ void Application::Destroy()
 {
     KINFO("[Application::Destroy]: Shutting down...");
 
-    TextureSystem::Shutdown();
     InputSystem::Shutdown();
     EventSystem::Shutdown();
     Platform::Shutdown();
     State.Renderer.Shutdown();
+    TextureSystem::Shutdown();
 
     this->Shutdown();
     Time::Stop();

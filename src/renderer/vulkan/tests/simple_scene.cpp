@@ -229,7 +229,8 @@ void InitTestScene(VulkanContext* context)
     TestSceneState.Projection = SceneState::ProjectionType::Perspective;
 
     // Load textures
-    ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    // ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
     TestSceneState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
     ObjectState.ModelMatrix = ScaleMatrix(Vec3f(10.f, 10.f, 1.f));

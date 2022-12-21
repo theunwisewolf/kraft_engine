@@ -27,6 +27,7 @@ struct TextureSystemState
 };
 
 static TextureSystemState* state = 0;
+void createDefaultTextures();
 
 void TextureSystem::Init(uint32 maxTextureCount)
 {
@@ -35,6 +36,8 @@ void TextureSystem::Init(uint32 maxTextureCount)
     state = (TextureSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
     state->Textures = (TextureReference*)(state + sizeof(TextureSystemState));
     state->MaxTextureCount = maxTextureCount;
+
+    createDefaultTextures();
 }
 
 void TextureSystem::Shutdown()
@@ -116,7 +119,7 @@ void TextureSystem::ReleaseTexture(const char* name)
 
     TextureReference* ref = &state->Textures[index];
     ref->RefCount--;
-    if (ref->RefCount == 0)
+    if (ref->RefCount == 0 && ref->AutoRelease)
     {
         Renderer->DestroyTexture(&ref->Texture);
     }
@@ -149,6 +152,100 @@ bool TextureSystem::LoadTexture(const char* name, Texture* texture)
     }
 
     return false;
+}
+
+void createDefaultTextures()
+{
+    TextureReference* ref = &state->Textures[0];
+    StringCopy(ref->Name, sizeof(ref->Name), "default-diffuse");
+    ref->RefCount = 1;
+    ref->AutoRelease = false;
+    TextureSystem::CreateEmptyTexture(256, 256, 4, &ref->Texture);
+}
+
+void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channels, Texture* out)
+{
+    if (!out)
+        out = (Texture*)Malloc(sizeof(Texture), MEMORY_TAG_TEXTURE_SYSTEM);
+
+    out->Width = width;
+    out->Height = height;
+    out->Channels = channels;
+
+    uint8* pixels = (uint8*)Malloc(width * height * channels, MEMORY_TAG_TEXTURE);
+    MemSet(pixels, 255, width * height * channels);
+
+    const int segments = 8, boxSize = width / segments;
+    unsigned char white[4] = {255, 255, 255, 255};
+    unsigned char black[4] = {0, 0, 0, 255};
+    unsigned char* color = NULL;
+    int swap = 0;
+    int fill = 0;
+    for(int i = 0; i < width * height; i++)
+    {
+        if (i > 0)
+        {
+            if (i % (width * boxSize) == 0)
+                swap = !swap;
+
+            if (i % boxSize == 0)
+                fill = !fill;
+        }
+
+        if (fill)
+        {
+            if (swap)
+                color = black;
+            else
+                color = white;
+        }
+        else
+        {
+            if (swap)
+                color = white;
+            else
+                color = black;
+        }
+
+        for(int j = 0; j < channels; j++)
+        {
+            pixels[i * channels + j] = color[j];
+        }
+    }
+
+    // for (int i = 0; i < width; i++)
+    // {
+    //     for (int j = 0; j < height; j++)
+    //     {
+    //         uint8 color = (((i & 0x8) == 0) ^ ((j & 0x8)  == 0)) * 255;
+    //         int index = i * width + j;
+    //         int indexChannel = index * channels;
+
+    //         if (i % 2)
+    //         {
+    //             if (j % 2)
+    //             {
+    //                 pixels[indexChannel + 0] = 0;
+    //                 pixels[indexChannel + 1] = 0;
+    //                 pixels[indexChannel + 2] = 0;
+    //             }
+    //         }
+    //         else if (!(j % 2))
+    //         {
+    //             pixels[indexChannel + 0] = 0;
+    //             pixels[indexChannel + 1] = 0;
+    //             pixels[indexChannel + 2] = 0;
+    //         }
+    //     }
+    // }
+
+    Renderer->CreateTexture(pixels, out);
+    Free(pixels);
+}
+
+Texture* TextureSystem::GetDefaultDiffuseTexture()
+{
+    return &state->Textures[0].Texture;
 }
 
 }

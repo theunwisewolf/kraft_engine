@@ -184,9 +184,6 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VulkanImguiInit(&s_Context);
     VulkanImguiPostAPIInit(&s_Context);
 
-    // TODO: (amn) This is just temporary
-    InitTestScene(&s_Context);
-
     return true;
 }
 
@@ -235,6 +232,14 @@ bool VulkanRendererBackend::Shutdown()
 
 bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 {
+    // TODO: (amn) This is just temporary
+    static bool initTestScene = false;
+    if (!initTestScene)
+    {
+        InitTestScene(&s_Context);
+        initTestScene = true;
+    }
+
     VulkanImguiBeginFrame(&s_Context);
 
     // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
