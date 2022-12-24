@@ -32,6 +32,7 @@ static void createCommandBuffers();
 static void destroyCommandBuffers();
 static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass);
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
+static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count);
 
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
@@ -50,13 +51,13 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     instanceCreateInfo.pApplicationInfo = &appInfo;
-    // instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
     // Instance level extensions
     const char** extensions = nullptr;
     arrput(extensions, VK_KHR_SURFACE_EXTENSION_NAME);
-    // arrput(extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    // arrput(extensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    arrput(extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    arrput(extensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
     arrput(extensions, "VK_KHR_win32_surface");
@@ -98,16 +99,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     for (int i = 0; i < arrlen(layers); ++i)
     {
-        bool found = false;
-        for (uint32 j = 0; j < availableLayers; ++j)
-        {
-            if (strcmp(availableLayerProperties[j].layerName, layers[i]) == 0)
-            {
-                found = true;
-                break;
-            }
-        }
-
+        bool found = instanceLayerSupported(layers[i], availableLayerProperties, availableLayers);
         if (!found)
         {
             KERROR("[VulkanRendererBackend::Init]: %s layer not found", layers[i]);
@@ -472,6 +464,19 @@ void destroyFramebuffers(VulkanSwapchain* swapchain)
     }
 
     arrfree(swapchain->Framebuffers);
+}
+
+bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count)
+{
+    for (uint32 j = 0; j < count; ++j)
+    {
+        if (strcmp(layerProperties[j].layerName, layer) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 }

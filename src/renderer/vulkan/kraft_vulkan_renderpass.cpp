@@ -56,21 +56,39 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         attachmentCount++;
     }
 
-    VkSubpassDependency subpassDependency = {};
-    subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    subpassDependency.dstSubpass = 0;
-    subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpassDependency.srcAccessMask = 0;
-    subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    subpassDependency.dependencyFlags = 0;
+    VkSubpassDependency colorPassDependency = {        
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dependencyFlags = 0,
+    };
+
+    // https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#first-render-pass-writes-to-a-depth-attachment-second-render-pass-re-uses-the-same-depth-attachment
+    VkSubpassDependency depthPassDependency = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Both stages might have access the depth-buffer, so need both in src/dstStageMask
+        .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dependencyFlags = 0,
+    };
+
+    const int subpassDependenciesCount = 2;
+    VkSubpassDependency dependencies[2] = {
+        colorPassDependency,
+        depthPassDependency,
+    };
 
     VkRenderPassCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     createInfo.attachmentCount = attachmentCount;
     createInfo.pAttachments = attachmentDescriptions;
-    createInfo.dependencyCount = 1;
-    createInfo.pDependencies = &subpassDependency;
+    createInfo.dependencyCount = subpassDependenciesCount;
+    createInfo.pDependencies = dependencies;
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
 

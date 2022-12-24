@@ -1,5 +1,8 @@
 #include "simple_scene.h"
 
+#include "core/kraft_events.h"
+#include "core/kraft_input.h"
+
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
@@ -26,13 +29,34 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
+static const char* TextureName = "res/textures/texture.jpg";
+
+bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    static bool defaultTexture = false;
+    kraft::Keys keycode = (kraft::Keys)data.Int32[0];
+    if (keycode == kraft::KEY_C)
+    {
+        ObjectState.Texture = defaultTexture ? TextureSystem::AcquireTexture(TextureName) : TextureSystem::GetDefaultDiffuseTexture();
+        defaultTexture = !defaultTexture;
+        for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                ObjectState.DescriptorSetStates[i].Generations[j] = KRAFT_INVALID_ID_UINT8;
+            }
+        }
+    }
+
+    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+
+    return false;
+}
 
 SceneState* GetSceneState()
 {
     return &TestSceneState;
 }
-
-static const char* TextureName = "res/textures/texture.jpg";
 
 static void ImGuiWidgets()
 {
@@ -226,11 +250,12 @@ void SimpleObjectState::ReleaseResources(VulkanContext *context)
 
 void InitTestScene(VulkanContext* context)
 {
+    EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
     TestSceneState.Projection = SceneState::ProjectionType::Perspective;
 
     // Load textures
-    // ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
-    ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
+    ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    // ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
     TestSceneState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
     ObjectState.ModelMatrix = ScaleMatrix(Vec3f(10.f, 10.f, 1.f));
