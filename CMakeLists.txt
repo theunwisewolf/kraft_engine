@@ -1,22 +1,25 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_NAME "Kraft")
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-project(${PROJECT_NAME})
+project(${PROJECT_NAME} LANGUAGES CXX C)
 
 # Vulkan
 find_package(Vulkan COMPONENTS glslc)
 find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
-	
+
 # Try extracting VulkanSDK path from ${Vulkan_INCLUDE_DIRS}
 if (NOT ${Vulkan_INCLUDE_DIRS} STREQUAL "")
     set(VULKAN_PATH ${Vulkan_INCLUDE_DIRS})
     STRING(REGEX REPLACE "/Include" "" VULKAN_PATH ${VULKAN_PATH})
 endif()
         
-if(NOT Vulkan_FOUND)
+if (NOT Vulkan_FOUND)
     # CMake may fail to locate the libraries but could be able to 
     # provide some path in Vulkan SDK include directory variable
     # 'Vulkan_INCLUDE_DIRS', try to extract path from this.
@@ -66,6 +69,8 @@ set(SRC_FILES
 
     # Systems
     src/systems/kraft_texture_system.cpp
+    src/systems/kraft_material_system.cpp
+    src/systems/kraft_geometry_system.cpp
 
     # imgui
     vendor/imgui/imgui.cpp

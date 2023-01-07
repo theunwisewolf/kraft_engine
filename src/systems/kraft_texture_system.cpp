@@ -26,40 +26,47 @@ struct TextureSystemState
     TextureReference* Textures;
 };
 
-static TextureSystemState* state = 0;
-void createDefaultTextures();
+static TextureSystemState* State = 0;
+static void _createDefaultTextures();
 
 void TextureSystem::Init(uint32 maxTextureCount)
 {
     uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * maxTextureCount;
     
-    state = (TextureSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
-    state->Textures = (TextureReference*)(state + sizeof(TextureSystemState));
-    state->MaxTextureCount = maxTextureCount;
+    State = (TextureSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
+    State->Textures = (TextureReference*)(State + sizeof(TextureSystemState));
+    State->MaxTextureCount = maxTextureCount;
 
-    createDefaultTextures();
+    _createDefaultTextures();
 }
 
 void TextureSystem::Shutdown()
 {
-    kraft::Free(state, MEMORY_TAG_TEXTURE_SYSTEM);
+    uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * State->MaxTextureCount;
+    kraft::Free(State, totalSize, MEMORY_TAG_TEXTURE_SYSTEM);
 }
 
-Texture* TextureSystem::AcquireTexture(const char* name, bool autoRelease)
+Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
 {
+    const char* name = StringTrim(_name);
+    if (StringLength(name) == 0)
+    {
+        return NULL;
+    }
+
     int freeIndex = -1;
     int index = -1;
 
     // TODO: (TheUnwiseWolf) Use a hashmap instead of this
-    for (int i = 0; i < state->MaxTextureCount; ++i)
+    for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (state->Textures[i].Name == name)
+        if (State->Textures[i].Name == name)
         {
             index = i;
             break;
         }
 
-        if (freeIndex == -1 && state->Textures[i].RefCount == 0)
+        if (freeIndex == -1 && State->Textures[i].RefCount == 0)
         {
             freeIndex = i;
         }        
@@ -69,13 +76,13 @@ Texture* TextureSystem::AcquireTexture(const char* name, bool autoRelease)
     // Just increase the ref-count
     if (index > -1)
     {
-        state->Textures[index].RefCount++;
+        State->Textures[index].RefCount++;
     }
     else
     {
         if (freeIndex > -1)
         {
-            TextureReference* reference = &state->Textures[freeIndex];
+            TextureReference* reference = &State->Textures[freeIndex];
             reference->RefCount++;
             reference->AutoRelease = autoRelease;
 
@@ -96,15 +103,16 @@ Texture* TextureSystem::AcquireTexture(const char* name, bool autoRelease)
         }
     }
 
-    return &state->Textures[index].Texture;
+    kraft::Free((void*)name);
+    return &State->Textures[index].Texture;
 }
 
 void TextureSystem::ReleaseTexture(const char* name)
 {
     int index = -1;
-    for (int i = 0; i < state->MaxTextureCount; ++i)
+    for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (state->Textures[i].Name == name)
+        if (StringEqual(State->Textures[i].Name, name))
         {
             index = i;
             break;
@@ -117,7 +125,7 @@ void TextureSystem::ReleaseTexture(const char* name)
         return;
     }
 
-    TextureReference* ref = &state->Textures[index];
+    TextureReference* ref = &State->Textures[index];
     ref->RefCount--;
     if (ref->RefCount == 0 && ref->AutoRelease)
     {
@@ -152,15 +160,6 @@ bool TextureSystem::LoadTexture(const char* name, Texture* texture)
     }
 
     return false;
-}
-
-void createDefaultTextures()
-{
-    TextureReference* ref = &state->Textures[0];
-    StringCopy(ref->Name, sizeof(ref->Name), "default-diffuse");
-    ref->RefCount = 1;
-    ref->AutoRelease = false;
-    TextureSystem::CreateEmptyTexture(256, 256, 4, &ref->Texture);
 }
 
 void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channels, Texture* out)
@@ -245,7 +244,21 @@ void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channe
 
 Texture* TextureSystem::GetDefaultDiffuseTexture()
 {
-    return &state->Textures[0].Texture;
+    return &State->Textures[0].Texture;
+}
+
+//
+// Internal methods
+//
+
+static void _createDefaultTextures()
+{
+    TextureReference* ref = &State->Textures[0];
+    StringNCopy(ref->Name, "default-diffuse", sizeof(ref->Name));
+
+    ref->RefCount = 1;
+    ref->AutoRelease = false;
+    TextureSystem::CreateEmptyTexture(256, 256, 4, &ref->Texture);
 }
 
 }

@@ -9,22 +9,26 @@ namespace kraft
 enum MemoryTag
 {
     MEMORY_TAG_NONE,
+    MEMORY_TAG_STRING,
     MEMORY_TAG_ARRAY,
     MEMORY_TAG_RENDERER,
     MEMORY_TAG_FILE_BUF,
     MEMORY_TAG_TEXTURE,
     MEMORY_TAG_TEXTURE_SYSTEM,
+    MEMORY_TAG_MATERIAL_SYSTEM,
 
     MEMORY_TAG_NUM_COUNT
 };
 
 static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][255] = {
-    "UNKNOWN ",
-    "ARRAY   ",
-    "RENDERER",
-    "FILEBUF ",
-    "TEXTURE ",
-    "TEXTURE_SYSTEM",
+    "UNKNOWN        ",
+    "STRING         ",
+    "ARRAY          ",
+    "RENDERER       ",
+    "FILEBUF        ",
+    "TEXTURE        ",
+    "TEXTURE_SYSTEM ",
+    "MATERIAL_SYSTEM",
 }; 
 
 struct MemoryStats

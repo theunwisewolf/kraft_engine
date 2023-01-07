@@ -29,7 +29,7 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
-static const char* TextureName = "res/textures/texture.jpg";
+static char TextureName[] = "res/textures/texture.jpg";
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
