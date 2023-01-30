@@ -8,6 +8,8 @@ namespace kraft
 const Vec2f Vec2fZero = Vec2f(0);
 const Vec3f Vec3fZero = Vec3f(0);
 const Vec4f Vec4fZero = Vec4f(0);
+const Vec3f Vec3fOne = Vec3f(1);
+const Vec4f Vec4fOne = Vec4f(1);
 
 float32 Sin(float32 x) 
 {

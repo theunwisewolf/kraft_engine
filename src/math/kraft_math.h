@@ -420,6 +420,8 @@ typedef Vector<float, 4> Vec4f;
 extern const Vec2f Vec2fZero;
 extern const Vec3f Vec3fZero;
 extern const Vec4f Vec4fZero;
+extern const Vec3f Vec3fOne;
+extern const Vec4f Vec4fOne;
 
 }
 

@@ -25,6 +25,7 @@ struct MaterialSystem
     static void Init(MaterialSystemConfig config);
     static void Shutdown();
 
+    static Material* GetDefaultMaterial();
     static Material* AcquireMaterial(const char* name);
     static Material* AcquireMaterialWithData(MaterialData data);
     static void ReleaseMaterial(const char* name);

@@ -1,6 +1,7 @@
 #include "kraft_material_system.h"
 
 #include "core/kraft_memory.h"
+#include "math/kraft_math.h"
 #include "core/kraft_string.h"
 #include "systems/kraft_texture_system.h"
 #include "renderer/kraft_renderer_frontend.h"
@@ -18,31 +19,46 @@ struct MaterialReference
 struct MaterialSystemState
 {
     uint32             MaxMaterialCount;
-    MaterialReference *Materials;
+    MaterialReference *MaterialReferences;
 };
 
 static MaterialSystemState* State = 0;
 
 static void _releaseMaterial(MaterialReference ref);
+static void _createDefaultMaterials();
 
 void MaterialSystem::Init(MaterialSystemConfig config)
 {
-    uint32 totalSize = sizeof(MaterialSystemConfig) + sizeof(MaterialReference) * config.MaxMaterialsCount;
+    uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * config.MaxMaterialsCount;
 
     State = (MaterialSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_MATERIAL_SYSTEM, true);
     State->MaxMaterialCount = config.MaxMaterialsCount;
-    State->Materials = (MaterialReference*)(State + sizeof(MaterialSystemState));
+    State->MaterialReferences = (MaterialReference*)(State + sizeof(MaterialSystemState));
+
+    _createDefaultMaterials();
 }
 
 void MaterialSystem::Shutdown()
 {
-    uint32 totalSize = sizeof(MaterialSystemConfig) + sizeof(MaterialReference) * State->MaxMaterialCount;
+    uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * State->MaxMaterialCount;
     kraft::Free(State, totalSize, MEMORY_TAG_MATERIAL_SYSTEM);
+}
+
+Material* MaterialSystem::GetDefaultMaterial()
+{
+    if (!State)
+    {
+        KFATAL("MaterialSystem not yet initialized!");
+        return nullptr;
+    }
+
+    return &State->MaterialReferences[0].Material;
 }
 
 Material* MaterialSystem::AcquireMaterial(const char* name)
 {
-
+    // TODO: Read from file
+    return nullptr;
 }
 
 Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
@@ -52,7 +68,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
     // Look for an already acquired material
     for (int i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (State->Materials[i].Material.Name == data.Name)
+        if (StringEqual(State->MaterialReferences[i].Material.Name, data.Name))
         {
             index = i;
             break;
@@ -64,7 +80,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
     {
         for (int i = 0; i < State->MaxMaterialCount; ++i)
         {
-            if (State->Materials[i].RefCount == 0)
+            if (State->MaterialReferences[i].RefCount == 0)
             {
                 index = i;
                 break;
@@ -78,7 +94,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
         return NULL;
     }
 
-    Material *material = &State->Materials[index].Material;
+    Material *material = &State->MaterialReferences[index].Material;
     Texture* texture = TextureSystem::AcquireTexture(data.DiffuseTextureMapName);
     if (!texture)
     {
@@ -105,7 +121,7 @@ void ReleaseMaterial(const char* name)
     int index = -1;
     for (int i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (StringEqual(State->Materials[i].Material.Name, name))
+        if (StringEqual(State->MaterialReferences[i].Material.Name, name))
         {
             index = i;
             break;
@@ -118,7 +134,7 @@ void ReleaseMaterial(const char* name)
         return;
     }
 
-    _releaseMaterial(State->Materials[index]);
+    _releaseMaterial(State->MaterialReferences[index]);
 }
 
 void ReleaseMaterial(Material *material)
@@ -128,7 +144,7 @@ void ReleaseMaterial(Material *material)
     int index = -1;
     for (int i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (State->Materials[i].Material.ID == material->ID)
+        if (State->MaterialReferences[i].Material.ID == material->ID)
         {
             index = i;
             break;
@@ -141,7 +157,7 @@ void ReleaseMaterial(Material *material)
         return;
     }
 
-    _releaseMaterial(State->Materials[index]);
+    _releaseMaterial(State->MaterialReferences[index]);
 }
 
 void DestroyMaterial(Material *material)
@@ -150,7 +166,7 @@ void DestroyMaterial(Material *material)
 
     if (material->DiffuseMap.Texture)
     {
-
+        TextureSystem::ReleaseTexture(material->DiffuseMap.Texture->Name);
     }
 }
 
@@ -171,6 +187,23 @@ static void _releaseMaterial(MaterialReference ref)
     {
         DestroyMaterial(&ref.Material);
     }
+}
+
+static void _createDefaultMaterials()
+{
+    MaterialReference* ref = &State->MaterialReferences[0];
+    ref->RefCount = 1;
+    
+    Material* material = &ref->Material;
+    material->ID = 0;
+    material->DiffuseColor = Vec4fOne;
+    material->DiffuseMap = TextureMap
+    {
+        .Texture = TextureSystem::GetDefaultDiffuseTexture(),
+        .Usage = TEXTURE_USE_MAP_DIFFUSE,
+    };
+
+    StringNCopy(material->Name, "default-material", sizeof(material->Name));
 }
 
 }

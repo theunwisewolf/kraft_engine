@@ -60,7 +60,7 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
     // TODO: (TheUnwiseWolf) Use a hashmap instead of this
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (State->Textures[i].Name == name)
+        if (StringEqual(State->Textures[i].Name, name))
         {
             index = i;
             break;
@@ -76,31 +76,30 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
     // Just increase the ref-count
     if (index > -1)
     {
+        KINFO("[TextureSystem::AcquireTexture]: Texture already acquired; Reusing!");
         State->Textures[index].RefCount++;
     }
     else
     {
-        if (freeIndex > -1)
-        {
-            TextureReference* reference = &State->Textures[freeIndex];
-            reference->RefCount++;
-            reference->AutoRelease = autoRelease;
-
-            uint64 length = StringLengthClamped(name, sizeof(TextureReference::Name));
-            MemCpy(&(reference->Name[0]), (void*)name, length);
-            if (!LoadTexture(name, &reference->Texture))
-            {
-                KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed");
-                return NULL;
-            }
-
-            index = freeIndex;
-        }
-        else
+        if (freeIndex == -1)
         {
             KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!");
             return NULL;
         }
+
+        TextureReference* reference = &State->Textures[freeIndex];
+        reference->RefCount++;
+        reference->AutoRelease = autoRelease;
+
+        uint64 length = StringLengthClamped(name, sizeof(TextureReference::Name));
+        MemCpy(&(reference->Name[0]), (void*)name, length);
+        if (!LoadTexture(name, &reference->Texture))
+        {
+            KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed");
+            return NULL;
+        }
+
+        index = freeIndex;
     }
 
     kraft::Free((void*)name);
@@ -109,6 +108,8 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
 
 void TextureSystem::ReleaseTexture(const char* name)
 {
+    KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture %s", name);
+
     int index = -1;
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
