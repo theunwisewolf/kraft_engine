@@ -350,6 +350,16 @@ void VulkanRendererBackend::DestroyTexture(Texture* texture)
     VulkanDestroyTexture(&s_Context, texture);
 }
 
+void VulkanRendererBackend::CreateMaterial(Material* material)
+{
+    // Create shader object
+}
+
+void VulkanRendererBackend::DestroyMaterial(Material* material)
+{
+
+}
+
 #ifdef KRAFT_DEBUG
 VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,

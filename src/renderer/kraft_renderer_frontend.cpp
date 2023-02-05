@@ -89,4 +89,14 @@ void RendererFrontend::DestroyTexture(Texture* texture)
     Backend->DestroyTexture(texture);
 }
 
+void RendererFrontend::CreateMaterial(Material* material)
+{
+    Backend->CreateMaterial(material);
+}
+
+void RendererFrontend::DestroyMaterial(Material* material)
+{
+    Backend->DestroyMaterial(material);
+}
+
 }

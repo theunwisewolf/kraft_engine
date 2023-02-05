@@ -20,6 +20,9 @@ namespace VulkanRendererBackend
     void CreateTexture(uint8* data, Texture* texture);
     void DestroyTexture(Texture* texture);
 
+    void CreateMaterial(Material* material);
+    void DestroyMaterial(Material* material);
+
 #ifdef KRAFT_DEBUG
     VkBool32 DebugUtilsMessenger(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,

@@ -25,6 +25,8 @@ struct RendererFrontend
     // API
     void CreateTexture(uint8* data, Texture* out);
     void DestroyTexture(Texture* texture);
+    void CreateMaterial(Material* material);
+    void DestroyMaterial(Material* material);
 };
 
 extern RendererFrontend* Renderer;

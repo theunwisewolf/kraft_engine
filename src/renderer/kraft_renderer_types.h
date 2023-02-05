@@ -29,6 +29,10 @@ struct RendererBackend
     // Texture
     void (*CreateTexture)(uint8* data, Texture* out);
     void (*DestroyTexture)(Texture* texture);
+
+    // Shader
+    void (*CreateMaterial)(Material *material);
+    void (*DestroyMaterial)(Material *material);
 };
 
 struct RenderPacket

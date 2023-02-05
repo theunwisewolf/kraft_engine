@@ -17,6 +17,8 @@ bool RendererCreateBackend(RendererBackendType type, RendererBackend* backend)
         
         backend->CreateTexture  = VulkanRendererBackend::CreateTexture;
         backend->DestroyTexture = VulkanRendererBackend::DestroyTexture;
+        backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
+        backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
 
         return true;
     }
@@ -34,6 +36,11 @@ void RendererDestroyBackend(RendererBackend* backend)
     backend->BeginFrame = 0;
     backend->EndFrame   = 0;
     backend->OnResize   = 0;
+    
+    backend->CreateTexture = 0;
+    backend->DestroyTexture = 0;
+    backend->CreateMaterial = 0;
+    backend->DestroyMaterial = 0;
 }
 
 }
