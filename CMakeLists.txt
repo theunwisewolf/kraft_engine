@@ -72,6 +72,10 @@ set(SRC_FILES
     src/systems/kraft_material_system.cpp
     src/systems/kraft_geometry_system.cpp
 
+    # Networking
+    src/networking/kraft_socket.cpp
+    src/networking/kraft_socket_address.cpp
+
     # imgui
     vendor/imgui/imgui.cpp
     vendor/imgui/imgui_impl_vulkan.cpp

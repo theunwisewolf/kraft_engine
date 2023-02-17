@@ -11,6 +11,7 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_string.h"
 #include "math/kraft_math.h"
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
@@ -22,10 +23,22 @@
 
 #include "scenes/test.cpp"
 
+#include "networking/kraft_socket.h"
+
+static kraft::Socket s_ServerSocket;
+static kraft::Socket s_ClientSocket;
+
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
     KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+
+    if (keycode == kraft::KEY_ENTER)
+    {
+        char data[256] = "Hello world!";
+        kraft::SocketAddress serverAddress(127, 0, 0, 1, 4000);
+        s_ClientSocket.Send(serverAddress, data, strlen(data));
+    }
 
     return false;
 }
@@ -98,6 +111,12 @@ bool Init()
 
     // printf("%s\n", buffer);
     kraft::Free(buffer);
+
+    kraft::Socket::Init();
+    s_ServerSocket = Socket();
+    s_ClientSocket = Socket();
+    KASSERT(s_ServerSocket.Open(4000));
+    KASSERT(s_ClientSocket.Open(0));
 
     return true;
 }
@@ -191,6 +210,13 @@ void Update(float64 deltaTime)
         {
             camera->SetYaw(camera->Yaw - 1.f * deltaTime);
         }
+    }
+
+    kraft::SocketAddress clientAddress;
+    char buffer[512] = {};
+    if (s_ServerSocket.Receive(&clientAddress, buffer, 512) > -1)
+    {
+        KINFO("Received message %s", buffer);
     }
 }
 
