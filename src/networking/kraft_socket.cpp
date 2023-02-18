@@ -7,7 +7,6 @@
 #pragma comment(lib, "wsock32.lib")
 #endif
 
-
 namespace kraft
 {
 
@@ -17,7 +16,7 @@ bool Socket::Init()
 {
 #if defined(KRAFT_PLATFORM_WINDOWS)
     WSADATA data;
-    return WSAStartup(MakeWord(2, 2), &data) == NO_ERROR;
+    return WSAStartup(MAKEWORD(2, 2), &data) == NO_ERROR;
 #endif
 
     Initialized = true;
@@ -92,7 +91,7 @@ bool Socket::Send(SocketAddress address, const void* data, size_t size)
     addr.sin_port = address.GetPortN();
     addr.sin_family = AF_INET;
 
-    int sentBytes = sendto(this->_handle, data, size, 0, (sockaddr*)&addr, sizeof(addr));
+    int sentBytes = sendto(this->_handle, (const char*)data, size, 0, (sockaddr*)&addr, sizeof(addr));
     if (sentBytes != size)
     {
         KERROR("Failed to send packet!");
@@ -111,7 +110,7 @@ int Socket::Receive(SocketAddress* address, void* data, size_t size)
     peerAddressLength = sizeof(peerAddress);
     char buffer[512];
 
-    ssize_t receivedBytes = recvfrom(this->_handle, buffer, 512, 0, (sockaddr*)&peerAddress, &peerAddressLength);
+    uint64 receivedBytes = recvfrom(this->_handle, buffer, 512, 0, (sockaddr*)&peerAddress, &peerAddressLength);
     if (receivedBytes == -1)
     {
         // KWARN("recvfrom failed");

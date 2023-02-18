@@ -2,7 +2,6 @@
 
 #ifdef KRAFT_PLATFORM_WINDOWS
 
-#include <Windows.h>
 #include <memory>
 
 #include <GLFW/glfw3.h>
