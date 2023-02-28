@@ -24,8 +24,9 @@
 #include "scenes/test.cpp"
 
 #include "networking/kraft_socket.h"
+#include "networking/kraft_server.h"
 
-static kraft::Socket s_ServerSocket;
+static kraft::Server s_Server;
 static kraft::Socket s_ClientSocket;
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
@@ -113,9 +114,10 @@ bool Init()
     kraft::Free(buffer);
 
     kraft::Socket::Init();
-    s_ServerSocket = Socket();
+    kraft::SocketAddress address(0, 4000);
+    s_Server = kraft::Server(address, kraft::SERVER_UPDATE_MODE_MANUAL);
     s_ClientSocket = Socket();
-    KASSERT(s_ServerSocket.Open(4000));
+    KASSERT(s_Server.Start());
     KASSERT(s_ClientSocket.Open(0));
 
     return true;
@@ -212,12 +214,7 @@ void Update(float64 deltaTime)
         }
     }
 
-    kraft::SocketAddress clientAddress;
-    char buffer[512] = {};
-    if (s_ServerSocket.Receive(&clientAddress, buffer, 512) > -1)
-    {
-        KINFO("Received message %s", buffer);
-    }
+    s_Server.Update();
 }
 
 void Render(float64 deltaTime)

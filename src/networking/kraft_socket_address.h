@@ -1,12 +1,17 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "stdio.h"
 
 #if defined(KRAFT_PLATFORM_MACOS)
 #include <sys/socket.h>
 #elif defined(KRAFT_PLATFORM_WINDOWS)
 #include <winsock2.h>
+#undef SetPort
 #endif
+
+#define KRAFT_MAX_SOCKET_ADDRESS_STRING_LENGTH 256
+
 
 namespace kraft
 {
@@ -22,13 +27,23 @@ struct SocketAddress
     inline uint8 GetC() const { return _address >> 8; }
     inline uint8 GetD() const { return _address; }
 
-    inline uint16 GetPortH() const { return ntohs(this->_port); };
-    inline uint32 GetAddressH() const { return ntohl(this->_address); }
+    inline uint16 GetPort() const { return this->_port; };
+    inline uint32 GetAddress() const { return this->_address; }
 
-    inline uint16 GetPortN() const { return this->_port; };
-    inline uint32 GetAddressN() const { return this->_address; }
+    inline void SetAddress(uint32 address) { this->_address = address; }
+    inline void SetPort(uint16 port) { this->_port = port; }
+
+    inline void ToString(char* buffer)
+    {
+        snprintf(buffer, KRAFT_MAX_SOCKET_ADDRESS_STRING_LENGTH, "%d.%d.%d.%d:%d", _data[3], _data[2], _data[1], _data[0], _port);
+    }
 private:
-    uint32 _address;
+    union
+    {
+        uint32 _address;
+        uint8 _data[4];
+    };
+
     uint16 _port;
 };
 

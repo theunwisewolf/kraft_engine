@@ -75,6 +75,8 @@ set(SRC_FILES
     # Networking
     src/networking/kraft_socket.cpp
     src/networking/kraft_socket_address.cpp
+    src/networking/kraft_server.cpp
+    src/networking/kraft_client.cpp
 
     # imgui
     vendor/imgui/imgui.cpp

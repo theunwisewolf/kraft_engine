@@ -5,6 +5,8 @@
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #pragma comment(lib, "wsock32.lib")
+#pragma comment(lib, "Ws2_32.lib")
+#include "WS2tcpip.h"
 #endif
 
 namespace kraft
@@ -35,11 +37,13 @@ bool Socket::Shutdown()
 
 bool Socket::Open(uint16 port, bool blocking)
 {
+    if (!Initialized) Socket::Init();
+
     // Create
     int handle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (handle == -1)
     {
-        KERROR("Failed to create socket | Port = %d", port);
+        KERROR("[Socket::Open]: Failed to create socket | Port = %d", port);
         return false;
     }
 
@@ -51,7 +55,7 @@ bool Socket::Open(uint16 port, bool blocking)
 
     if (bind(handle, (sockaddr*)&address, sizeof(address)) < 0)
     {
-        KERROR("Failed to bind socket | Port = %d", port);
+        KERROR("[Socket::Open]: Failed to bind socket | Port = %d", port);
 
         this->Close();
         return false;
@@ -63,7 +67,7 @@ bool Socket::Open(uint16 port, bool blocking)
 #if defined(KRAFT_PLATFORM_MACOS)
         if (fcntl(handle, F_SETFL, O_NONBLOCK, 1) == -1)
         {
-            KERROR("Failed to set socket to non-blocking!");
+            KERROR("[Socket::Open]: Failed to set socket to non-blocking!");
 
             this->Close();
             return false;
@@ -72,7 +76,7 @@ bool Socket::Open(uint16 port, bool blocking)
         DWORD nonBlocking = 1;
         if (ioctlsocket(handle, FIONBIO, &nonBlocking) != 0)
         {
-            KERROR("Failed to set socket to non-blocking!");
+            KERROR("[Socket::Open]: Failed to set socket to non-blocking!");
 
             this->Close();
             return false;
@@ -87,14 +91,14 @@ bool Socket::Open(uint16 port, bool blocking)
 bool Socket::Send(SocketAddress address, const void* data, size_t size)
 {
     sockaddr_in addr;
-    addr.sin_addr.s_addr = address.GetAddressN();
-    addr.sin_port = address.GetPortN();
+    addr.sin_addr.s_addr = htonl(address.GetAddress());
+    addr.sin_port = htons(address.GetPort());
     addr.sin_family = AF_INET;
 
     int sentBytes = sendto(this->_handle, (const char*)data, size, 0, (sockaddr*)&addr, sizeof(addr));
     if (sentBytes != size)
     {
-        KERROR("Failed to send packet!");
+        KERROR("[Socket::Send]: Failed to send packet!");
         return false;
     }
 
@@ -103,6 +107,7 @@ bool Socket::Send(SocketAddress address, const void* data, size_t size)
 
 int Socket::Receive(SocketAddress* address, void* data, size_t size)
 {
+    KASSERT(address);
     KASSERT(data);
 
     sockaddr_storage peerAddress;
@@ -119,12 +124,36 @@ int Socket::Receive(SocketAddress* address, void* data, size_t size)
 
     if (receivedBytes > size)
     {
-        KWARN("Receive buffer not large enough!");
+        KWARN("[Socket::Receive]: Receive buffer not large enough!");
         receivedBytes = size;
     }
 
     memset(data, 0, size);
     memcpy(data, (void*)buffer, receivedBytes);
+
+    if (peerAddress.ss_family == AF_INET6)
+    {
+        
+    }
+    else if (peerAddress.ss_family == AF_INET)
+    {
+        sockaddr_in *in = (sockaddr_in*)(&peerAddress);
+        
+        address->SetAddress(ntohl(in->sin_addr.s_addr));
+        address->SetPort(ntohs(in->sin_port));
+    }
+
+    char hostname[NI_MAXHOST];
+    char port[NI_MAXSERV];
+    int ret = getnameinfo((sockaddr*)&peerAddress, peerAddressLength, hostname, NI_MAXHOST, port, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
+    if (ret == 0)
+    {
+        KINFO("[Socket::Receive]: Received %d bytes from %s:%s", receivedBytes, hostname, port);
+    }
+    else
+    {
+        KWARN("[Socket::Receive]: getnameinfo() failed with error %s", gai_strerror(ret));
+    }
 
     return receivedBytes;
 }
