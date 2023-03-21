@@ -2,36 +2,22 @@
 
 #include "networking/kraft_socket.h"
 #include "networking/kraft_socket_address.h"
+#include "networking/kraft_networking_types.h"
 
 namespace kraft
 {
-
-enum ConnectionState
-{
-    CONNECTION_STATE_DISCONNECTED,
-    CONNECTION_STATE_CONNECTED,
-    CONNECTION_STATE_NUM_COUNT,
-};
 
 struct Connection
 {
     ConnectionState State;
 };
 
-enum ServerUpdateMode
-{
-    SERVER_UPDATE_MODE_MANUAL,
-    SERVER_UPDATE_MODE_AUTO,
-    SERVER_UPDATE_MODE_NUM_COUNT
-};
-
 struct ServerConfig
 {
     SocketAddress       Address;
     ServerUpdateMode    UpdateMode;
+    uint64              ReceiveBufferSize = 4096;
 };
-
-typedef void (*PacketReceiveCallback)(const char* buffer, uint64 size);
 
 struct Server
 {
@@ -43,11 +29,12 @@ struct Server
     void Update();
     bool Shutdown();
 
-    PacketReceiveCallback OnPacketReceive;
+    PacketReceiveCallback   OnPacketReceive;
 
 private:
     Socket _socket;
     ServerConfig _config;
+    char* _receiveBuffer;
 };
 
 }

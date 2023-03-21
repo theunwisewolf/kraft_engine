@@ -16,6 +16,7 @@
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_types.h"
+#include "core/kraft_string.h"
 
 #include "renderer/vulkan/tests/simple_scene.h"
 
@@ -23,11 +24,12 @@
 
 #include "scenes/test.cpp"
 
-#include "networking/kraft_socket.h"
+#include "networking/kraft_networking_types.h"
+#include "networking/kraft_client.h"
 #include "networking/kraft_server.h"
 
 static kraft::Server s_Server;
-static kraft::Socket s_ClientSocket;
+static kraft::Client s_Client;
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -36,9 +38,29 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
 
     if (keycode == kraft::KEY_ENTER)
     {
-        char data[256] = "Hello world!";
-        kraft::SocketAddress serverAddress(127, 0, 0, 1, 4000);
-        s_ClientSocket.Send(serverAddress, data, strlen(data));
+        char data[256];
+        switch (rand() % 4)
+        {
+        case 0:
+            kraft::StringCopy(data, "Hello world!");
+            s_Client.Send(data, strlen(data));
+            break;
+
+        case 1:
+            kraft::StringCopy(data, "Ahoy");
+            s_Client.Send(data, strlen(data));
+            break;
+
+        case 2:
+            kraft::StringCopy(data, "What's up?");
+            s_Client.Send(data, strlen(data));
+            break;
+
+        case 3:
+            kraft::StringCopy(data, "Am I random?");
+            s_Client.Send(data, strlen(data));
+            break;
+        }
     }
 
     return false;
@@ -115,10 +137,10 @@ bool Init()
 
     kraft::Socket::Init();
     kraft::SocketAddress address(0, 4000);
+    kraft::SocketAddress serverAddress(127, 0, 0, 1, 4000);
     s_Server = kraft::Server(address, kraft::SERVER_UPDATE_MODE_MANUAL);
-    s_ClientSocket = Socket();
+    s_Client.Init(serverAddress);
     KASSERT(s_Server.Start());
-    KASSERT(s_ClientSocket.Open(0));
 
     return true;
 }

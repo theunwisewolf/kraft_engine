@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_log.h"
+#include "core/kraft_memory.h"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
@@ -35,25 +36,30 @@ bool Server::Start()
         // Create a thread that calls ::Update()
     }
 
+    _receiveBuffer = (char*)kraft::Malloc(_config.ReceiveBufferSize, MEMORY_TAG_NETWORK);
+
     return true;
 }
 
 void Server::Update()
 {
     SocketAddress sender;
-    char buffer[512];
     char senderAddressBuffer[KRAFT_MAX_SOCKET_ADDRESS_STRING_LENGTH];
 
-    while (_socket.Receive(&sender, buffer, 512) > 0)
+    int receivedBytes = 0;
+    while ((receivedBytes = _socket.Receive(&sender, _receiveBuffer, _config.ReceiveBufferSize)) > 0)
     {
         sender.ToString(senderAddressBuffer);
-        KINFO("Received message %s from %s", buffer, senderAddressBuffer);
+        KINFO("Received message %s from %s", _receiveBuffer, senderAddressBuffer);
+        
+        MemZero(_receiveBuffer, _config.ReceiveBufferSize);
     }
 }
 
 bool Server::Shutdown()
 {
     _socket.Close();
+    kraft::Free(_receiveBuffer);
 
     return true;
 }
