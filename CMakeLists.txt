@@ -74,8 +74,8 @@ set(SRC_FILES
 
     # imgui
     vendor/imgui/imgui.cpp
-    vendor/imgui/imgui_impl_vulkan.cpp
-    vendor/imgui/imgui_impl_glfw.cpp
+    vendor/imgui/backends/imgui_impl_vulkan.cpp
+    vendor/imgui/backends/imgui_impl_glfw.cpp
     vendor/imgui/imgui_draw.cpp
     vendor/imgui/imgui_widgets.cpp
     vendor/imgui/imgui_tables.cpp
@@ -113,6 +113,7 @@ add_library(${PROJECT_NAME} STATIC ${CODE_FILES})
 
 # Include dirs
 target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PRIVATE vendor)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glad/include)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/glfw/include)
