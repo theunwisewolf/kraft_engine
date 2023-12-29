@@ -17,7 +17,8 @@ layout (push_constant) uniform pushConstants
 } variableState;
 
 // Output from the vertex shader to the fragment shader
-layout(location = 0) out struct DataTransferObject {
+layout(location = 0) out struct DataTransferObject 
+{
 	vec2 UV;
 } outDTO;
 

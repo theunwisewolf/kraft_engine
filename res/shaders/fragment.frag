@@ -2,7 +2,8 @@
 // #extension GL_ARB_separate_shader_objects : enable
 
 // Inputs from the vertex shader
-layout (location = 0) in struct DataTransferObject {
+layout (location = 0) in struct DataTransferObject 
+{
 	vec2 UV;
 } inDTO;
 
