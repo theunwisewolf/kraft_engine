@@ -310,6 +310,9 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex]->Handle));
     
     VulkanSetCommandBufferSubmitted(buffer);
+
+    VulkanImguiEndFrameUpdatePlatformWindows(&s_Context);
+
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
 
     // To make sure that the next frame which we will render to is finished

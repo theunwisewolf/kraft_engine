@@ -13,4 +13,7 @@ void VulkanImguiBeginFrame(VulkanContext* context);
 void VulkanImguiEndFrame(VulkanContext* context);
 void VulkanImguiDestroy(VulkanContext* context);
 
+// Only valid if multi-viewports is enabled
+void VulkanImguiEndFrameUpdatePlatformWindows(VulkanContext* context);
+
 }

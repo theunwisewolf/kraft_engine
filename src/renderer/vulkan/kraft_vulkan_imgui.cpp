@@ -1,8 +1,8 @@
 #include "kraft_vulkan_imgui.h"
 
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
 
 #include "core/kraft_asserts.h"
@@ -39,27 +39,33 @@ void VulkanImguiInit(VulkanContext* context)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
     
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
 }
 
 void VulkanImguiPostAPIInit(VulkanContext* context)
 {
     VkDescriptorPoolSize poolSizes[] =
     {
-        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        // { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        // { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        // { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        // { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        // { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        // { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
     };
 
     VkDescriptorPoolCreateInfo poolInfo = {};
@@ -104,13 +110,13 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
 
     // Upload Fonts
     {
-        VulkanCommandBuffer buffer;
-        VulkanAllocateAndBeginSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer);
-        ImGui_ImplVulkan_CreateFontsTexture(buffer.Handle);
-        VulkanEndAndSubmitSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer, context->LogicalDevice.GraphicsQueue);
+        // VulkanCommandBuffer buffer;
+        // VulkanAllocateAndBeginSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer);
+        // ImGui_ImplVulkan_CreateFontsTexture(buffer.Handle);
+        // VulkanEndAndSubmitSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer, context->LogicalDevice.GraphicsQueue);
 
-        KRAFT_VK_CHECK(vkDeviceWaitIdle(context->LogicalDevice.Handle));
-        ImGui_ImplVulkan_DestroyFontUploadObjects();
+        // KRAFT_VK_CHECK(vkDeviceWaitIdle(context->LogicalDevice.Handle));
+        // ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
     // Command Buffers
@@ -196,22 +202,27 @@ void VulkanImguiEndFrame(VulkanContext* context)
 
     // VulkanEndRenderPass(parentCommandBuffer, &context->MainRenderPass);
     // VulkanEndCommandBuffer(parentCommandBuffer);
+}
 
+void VulkanImguiDestroy(VulkanContext* context)
+{
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    vkDestroyDescriptorPool(context->LogicalDevice.Handle, ImGuiDescriptorPool, context->AllocationCallbacks);
+}
+
+// Only valid if multi-viewports is enabled
+void VulkanImguiEndFrameUpdatePlatformWindows(VulkanContext* context)
+{
+    // Update and Render additional Platform Windows
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
-}
-
-void VulkanImguiDestroy(VulkanContext* context)
-{
-    vkDestroyDescriptorPool(context->LogicalDevice.Handle, ImGuiDescriptorPool, context->AllocationCallbacks);
-
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 }
 
 }
