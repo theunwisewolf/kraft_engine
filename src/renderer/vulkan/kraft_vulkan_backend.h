@@ -23,7 +23,7 @@ namespace VulkanRendererBackend
     void CreateMaterial(Material* material);
     void DestroyMaterial(Material* material);
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
     VkBool32 DebugUtilsMessenger(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,

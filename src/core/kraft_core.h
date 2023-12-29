@@ -24,7 +24,11 @@
 // Debug
 #if defined(_DEBUG) || defined(DEBUG)
     #define KRAFT_DEBUG
+    #define KRAFT_RENDERER_DEBUG
 #endif
+
+// Comment out for disabling debugging features in the renderer
+#define KRAFT_RENDERER_DEBUG
 
 // Inlining
 #if defined(_MSC_VER)

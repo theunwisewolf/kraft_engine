@@ -106,13 +106,13 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     swapchainCreateInfo.clipped = VK_TRUE;
     swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
+    const uint32 queueFamilyIndices[2] = {
+        context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
+        context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex
+    };
+
     if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex != context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
     {
-        const uint32 queueFamilyIndices[2] = {
-            context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
-            context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex
-        };
-
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         swapchainCreateInfo.queueFamilyIndexCount = 2;
         swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;

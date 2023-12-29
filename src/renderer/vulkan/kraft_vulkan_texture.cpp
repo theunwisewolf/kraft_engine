@@ -13,7 +13,7 @@ namespace kraft
 void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
 {
     texture->Generation = KRAFT_INVALID_ID;
-    texture->RendererData = (VulkanTexture*)Malloc(sizeof(VulkanTexture), MEMORY_TAG_TEXTURE, true);
+    texture->RendererData = Malloc(sizeof(VulkanTexture), MEMORY_TAG_TEXTURE, true);
     
     VulkanTexture* vulkanTexture = (VulkanTexture*)texture->RendererData;
 

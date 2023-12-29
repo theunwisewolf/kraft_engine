@@ -86,7 +86,7 @@ static void ImGuiWidgets(bool refresh)
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
     // Model
-    // static Vec3f scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+    // static Vec3f scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f}; // Perspective
     static Vec3f scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
     static Vec3f position = Vec3fZero;
     static Vec3f rotationDeg = Vec3fZero;
@@ -506,18 +506,20 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
     {
         int bindingIndex = 0;
         VkWriteDescriptorSet writeInfos[KRAFT_VULKAN_SHADER_MAX_BINDINGS] = {};
+        VkDescriptorBufferInfo descriptorBufferInfo = {};
+        VkDescriptorImageInfo descriptorImageInfo = {};
+        VkWriteDescriptorSet descriptorWriteInfo = {};
 
         // Material data
         if (ObjectState.DescriptorSetStates[bindingIndex].Generations[context->CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
         {
             VulkanLoadDataInBuffer(context, &TestSceneState.LocalUniformBuffer, &ObjectState.UBO, sizeof(ObjectUniformBuffer), 0);
 
-            VkDescriptorBufferInfo descriptorBufferInfo;
             descriptorBufferInfo.buffer = TestSceneState.LocalUniformBuffer.Handle;
             descriptorBufferInfo.offset = 0;
             descriptorBufferInfo.range = sizeof(ObjectUniformBuffer);
 
-            VkWriteDescriptorSet descriptorWriteInfo = {};
+            descriptorWriteInfo = {};
             descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWriteInfo.descriptorCount = 1;
             descriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -539,12 +541,11 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
             assert(texture->Image.Handle);
             assert(texture->Image.View);
 
-            VkDescriptorImageInfo descriptorImageInfo = {};
             descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            descriptorImageInfo.imageView = texture->Image.View;
+            descriptorImageInfo.imageView = ((VulkanTexture*)ObjectState.Texture->RendererData)->Image.View;
             descriptorImageInfo.sampler = texture->Sampler;
 
-            VkWriteDescriptorSet descriptorWriteInfo = {};
+            descriptorWriteInfo = {};
             descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWriteInfo.descriptorCount = 1;
             descriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

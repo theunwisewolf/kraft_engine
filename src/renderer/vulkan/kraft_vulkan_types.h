@@ -190,7 +190,7 @@ struct VulkanContext
     VkSemaphore*             RenderCompleteSemaphores;
     uint32                   CurrentSwapchainImageIndex;
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
 #endif
 };

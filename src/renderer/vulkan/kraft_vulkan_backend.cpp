@@ -67,7 +67,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     arrput(extensions, "VK_KHR_xcb_surface");
 #endif
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
     arrput(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 
@@ -83,7 +83,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     // Layers
     const char** layers = nullptr;
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
     // Vulkan validation layer
     {
         arrput(layers, "VK_LAYER_KHRONOS_validation");
@@ -115,7 +115,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     arrfree(extensions);
     arrfree(layers);
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
     arrfree(availableLayerProperties);
     {
         // Setup vulkan debug callback messenger
@@ -363,7 +363,7 @@ void VulkanRendererBackend::DestroyMaterial(Material* material)
 
 }
 
-#ifdef KRAFT_DEBUG
+#ifdef KRAFT_RENDERER_DEBUG
 VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,
@@ -403,11 +403,7 @@ void createCommandBuffers()
 {
     if (!s_Context.GraphicsCommandBuffers)
     {
-        arrsetlen(s_Context.GraphicsCommandBuffers, s_Context.Swapchain.ImageCount);
-        for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
-        {
-            MemZero(&s_Context.GraphicsCommandBuffers[i], sizeof(VulkanCommandBuffer));
-        }
+        CreateArray(s_Context.GraphicsCommandBuffers, s_Context.Swapchain.ImageCount);
     }
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)

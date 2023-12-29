@@ -369,8 +369,6 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         return false;
     }
 
-    context->LogicalDevice.PhysicalDevice = context->PhysicalDevice;
-
     // Print some nice info about our physical device
     KINFO("Selected device: %s [Dedicated GPU = %s]", context->PhysicalDevice.Properties.deviceName, 
         context->PhysicalDevice.Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? "true" : "false");
@@ -408,7 +406,9 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
 
 void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out)
 {
-    context->LogicalDevice = {};
+    VulkanLogicalDevice device = {};
+    device.PhysicalDevice = context->PhysicalDevice;
+    context->LogicalDevice = device;
 
     uint32 indices[3];
     uint32 queueCreateInfoCount = 1; // We need at least 1 queue
@@ -438,11 +438,10 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     }
 
     VkDeviceQueueCreateInfo* createInfos = nullptr;
+    float32 queuePriorities = 1.0f;
     arrsetlen(createInfos, queueCreateInfoCount);
     for (uint32 i = 0; i < queueCreateInfoCount; ++i)
     {
-        float32 queuePriorities = 1.0f;
-
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#VkDeviceQueueCreateInfo
         createInfos[i].sType = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
         createInfos[i].flags = 0;
