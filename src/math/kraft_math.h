@@ -68,9 +68,9 @@ KRAFT_INLINE float32 DegToRadians(float32 degrees)
                                                                        \
     /* C array conversions */                                          \
     typedef T(&array_t)[n];                                            \
-    operator array_t () { return _data; }                               \
+    operator array_t () { return _data; }                              \
     typedef const T(&const_array_t)[n];                                \
-    operator const_array_t () const { return _data; }                   \
+    operator const_array_t () const { return _data; }                  \
     private: operator bool();                                          \
     public:                                                            \
 

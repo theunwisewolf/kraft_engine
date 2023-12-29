@@ -8,6 +8,8 @@
 #define STBI_FAILURE_USERMSG
 #include "stb_image.h"
 
+#define KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME "default-diffuse"
+
 namespace kraft
 {
 
@@ -16,7 +18,6 @@ struct TextureReference
     uint32      RefCount;
     bool        AutoRelease;
     Texture     Texture;
-    char        Name[255];
 };
 
 // Private state
@@ -42,8 +43,19 @@ void TextureSystem::Init(uint32 maxTextureCount)
 
 void TextureSystem::Shutdown()
 {
+    for (int i = 0; i < State->MaxTextureCount; ++i)
+    {
+        TextureReference* ref = &State->Textures[i];
+        if (ref->RefCount > 0)
+        {
+            Renderer->DestroyTexture(&ref->Texture);
+        }
+    }
+
     uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * State->MaxTextureCount;
     kraft::Free(State, totalSize, MEMORY_TAG_TEXTURE_SYSTEM);
+
+    KINFO("[TextureSystem::Shutdown]: Shutting down texture system");
 }
 
 Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
@@ -60,7 +72,7 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
     // TODO: (TheUnwiseWolf) Use a hashmap instead of this
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (StringEqual(State->Textures[i].Name, name))
+        if (StringEqual(State->Textures[i].Texture.Name, name))
         {
             index = i;
             break;
@@ -91,8 +103,8 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
         reference->RefCount++;
         reference->AutoRelease = autoRelease;
 
-        uint64 length = StringLengthClamped(name, sizeof(TextureReference::Name));
-        MemCpy(&(reference->Name[0]), (void*)name, length);
+        uint64 length = StringLengthClamped(name, KRAFT_TEXTURE_NAME_MAX_LENGTH);
+        MemCpy(&(reference->Texture.Name[0]), (void*)name, length);
         if (!LoadTexture(name, &reference->Texture))
         {
             KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed");
@@ -102,18 +114,25 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
         index = freeIndex;
     }
 
+    KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)", name, index);
     kraft::Free((void*)name);
     return &State->Textures[index].Texture;
 }
 
 void TextureSystem::ReleaseTexture(const char* name)
 {
+    if (StringEqual(name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME))
+    {
+        KDEBUG("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!", name);
+        return;
+    }
+
     KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture %s", name);
 
     int index = -1;
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (StringEqual(State->Textures[i].Name, name))
+        if (StringEqual(State->Textures[i].Texture.Name, name))
         {
             index = i;
             break;
@@ -127,11 +146,23 @@ void TextureSystem::ReleaseTexture(const char* name)
     }
 
     TextureReference* ref = &State->Textures[index];
+    if (ref->RefCount == 0)
+    {
+        KWARN("[TextureSystem::ReleaseTexture]: Texture %s already released!", ref->Texture.Name);
+        return;
+    }
+
     ref->RefCount--;
     if (ref->RefCount == 0 && ref->AutoRelease)
     {
         Renderer->DestroyTexture(&ref->Texture);
+        MemZero(&ref->Texture, sizeof(Texture));
     }
+}
+
+void TextureSystem::ReleaseTexture(Texture* texture)
+{
+    TextureSystem::ReleaseTexture(texture->Name);
 }
 
 bool TextureSystem::LoadTexture(const char* name, Texture* texture)
@@ -255,7 +286,7 @@ Texture* TextureSystem::GetDefaultDiffuseTexture()
 static void _createDefaultTextures()
 {
     TextureReference* ref = &State->Textures[0];
-    StringNCopy(ref->Name, "default-diffuse", sizeof(ref->Name));
+    StringNCopy(ref->Texture.Name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME, sizeof(ref->Texture.Name));
 
     ref->RefCount = 1;
     ref->AutoRelease = false;

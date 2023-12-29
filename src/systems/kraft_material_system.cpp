@@ -1,8 +1,9 @@
 #include "kraft_material_system.h"
 
 #include "core/kraft_memory.h"
-#include "math/kraft_math.h"
 #include "core/kraft_string.h"
+#include "core/kraft_asserts.h"
+#include "math/kraft_math.h"
 #include "systems/kraft_texture_system.h"
 #include "renderer/kraft_renderer_frontend.h"
 
@@ -40,6 +41,15 @@ void MaterialSystem::Init(MaterialSystemConfig config)
 
 void MaterialSystem::Shutdown()
 {
+    for (int i = 0; i < State->MaxMaterialCount; ++i)
+    {
+        MaterialReference* ref = &State->MaterialReferences[i];
+        if (ref->RefCount > 0)
+        {
+            MaterialSystem::DestroyMaterial(&ref->Material);
+        }
+    }
+
     uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * State->MaxMaterialCount;
     kraft::Free(State, totalSize, MEMORY_TAG_MATERIAL_SYSTEM);
 }
@@ -139,25 +149,9 @@ void ReleaseMaterial(const char* name)
 
 void ReleaseMaterial(Material *material)
 {
-    KDEBUG("[MaterialSystem::ReleaseMaterial]: Releasing material %s", material->Name);
+    KASSERTM(material, "[MaterialSystem::ReleaseMaterial]: Material is null");
 
-    int index = -1;
-    for (int i = 0; i < State->MaxMaterialCount; ++i)
-    {
-        if (State->MaterialReferences[i].Material.ID == material->ID)
-        {
-            index = i;
-            break;
-        }
-    }
-
-    if (index == -1)
-    {
-        KERROR("[MaterialSystem::ReleaseMaterial]: Unknown material %s", material->Name);
-        return;
-    }
-
-    _releaseMaterial(State->MaterialReferences[index]);
+    ReleaseMaterial(material->Name);
 }
 
 void DestroyMaterial(Material *material)
@@ -168,6 +162,8 @@ void DestroyMaterial(Material *material)
     {
         TextureSystem::ReleaseTexture(material->DiffuseMap.Texture->Name);
     }
+
+    MemZero(material, sizeof(Material));
 }
 
 //

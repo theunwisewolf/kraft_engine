@@ -120,8 +120,8 @@ void Application::Destroy()
     InputSystem::Shutdown();
     EventSystem::Shutdown();
     Platform::Shutdown();
-    State.Renderer.Shutdown();
     TextureSystem::Shutdown();
+    State.Renderer.Shutdown();
 
     this->Shutdown();
     Time::Stop();

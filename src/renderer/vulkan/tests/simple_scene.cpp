@@ -37,7 +37,10 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
     if (keycode == kraft::KEY_C)
     {
+        Texture *oldTexture = ObjectState.Texture;
         ObjectState.Texture = defaultTexture ? TextureSystem::AcquireTexture(TextureName) : TextureSystem::GetDefaultDiffuseTexture();
+        TextureSystem::ReleaseTexture(oldTexture);
+
         defaultTexture = !defaultTexture;
         for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
         {
@@ -216,7 +219,8 @@ static void ImGuiWidgets()
 
 void SimpleObjectState::AcquireResources(VulkanContext *context)
 {
-    VkDescriptorSetLayout descriptorSets[] = {
+    VkDescriptorSetLayout descriptorSets[] = 
+    {
         TestSceneState.LocalDescriptorSetLayout,
         TestSceneState.LocalDescriptorSetLayout,
         TestSceneState.LocalDescriptorSetLayout,
@@ -238,7 +242,7 @@ void SimpleObjectState::AcquireResources(VulkanContext *context)
 
 void SimpleObjectState::ReleaseResources(VulkanContext *context)
 {
-    TextureSystem::ReleaseTexture(TextureName);
+    // TextureSystem::ReleaseTexture(TextureName);
     // KRAFT_VK_CHECK(vkFreeDescriptorSets(context->LogicalDevice.Handle, TestSceneState.LocalDescriptorPool, 3, ObjectState.DescriptorSets));
 
     for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
@@ -270,10 +274,10 @@ void InitTestScene(VulkanContext* context)
 
     VkShaderModule vertex, fragment;
     VulkanCreateShaderModule(context, "res/shaders/vertex.vert.spv", &vertex);
-    assert(vertex);
+    KASSERT(vertex);
 
     VulkanCreateShaderModule(context, "res/shaders/fragment.frag.spv", &fragment);
-    assert(fragment);
+    KASSERT(fragment);
 
     VkPipelineShaderStageCreateInfo vertexShaderStage = {};
     vertexShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -356,7 +360,8 @@ void InitTestScene(VulkanContext* context)
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(context->LogicalDevice.Handle, &localDescriptorSetLayoutCreateInfo, context->AllocationCallbacks, &TestSceneState.LocalDescriptorSetLayout));
     }
 
-    VkDescriptorSetLayout descriptorSetLayouts[] = {
+    VkDescriptorSetLayout descriptorSetLayouts[] = 
+    {
         TestSceneState.GlobalDescriptorSetLayout,
         TestSceneState.LocalDescriptorSetLayout
     };
@@ -374,7 +379,7 @@ void InitTestScene(VulkanContext* context)
 
     ObjectState.Pipeline = {};
     VulkanCreateGraphicsPipeline(context, &context->MainRenderPass, pipelineDesc, &ObjectState.Pipeline);
-    assert(ObjectState.Pipeline.Handle);
+    KASSERT(ObjectState.Pipeline.Handle);
 
     VulkanDestroyShaderModule(context, &vertex);
     VulkanDestroyShaderModule(context, &fragment);
@@ -388,7 +393,7 @@ void InitTestScene(VulkanContext* context)
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | extraMemoryFlags,
         true, &TestSceneState.GlobalUniformBuffer);
 
-    assert(TestSceneState.GlobalUniformBuffer.Handle);
+    KASSERT(TestSceneState.GlobalUniformBuffer.Handle);
 
     // Allocate descriptor sets
     // Global descriptor sets
@@ -427,7 +432,8 @@ void InitTestScene(VulkanContext* context)
     // Local descriptor sets
     // These descriptor sets are per object!
     {
-        VkDescriptorPoolSize descriptorPoolSizes[] = {
+        VkDescriptorPoolSize descriptorPoolSizes[] = 
+        {
             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         MAX_OBJECT_COUNT * context->Swapchain.ImageCount },
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_OBJECT_COUNT * context->Swapchain.ImageCount },
         };
@@ -472,7 +478,7 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 
     // static float32 z = -1.0f;
     // z -= 0.005f;
-    // if (ObjectState.SceneCamera.Dirty)
+    // if (TestSceneState.SceneCamera.Dirty)
     {
         TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
         VulkanLoadDataInBuffer(context, &TestSceneState.GlobalUniformBuffer, &TestSceneState.GlobalUBO, sizeof(GlobalUniformBuffer), sizeof(GlobalUniformBuffer) * context->CurrentSwapchainImageIndex);

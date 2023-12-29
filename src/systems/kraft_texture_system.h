@@ -13,6 +13,7 @@ namespace TextureSystem
 
     Texture* AcquireTexture(const char* name, bool autoRelease = true);
     void ReleaseTexture(const char* name);
+    void ReleaseTexture(Texture* texture);
     bool LoadTexture(const char* name, Texture* texture);
     void CreateEmptyTexture(uint32 width, uint32 height, uint8 channels, Texture* out);
     Texture* GetDefaultDiffuseTexture();
