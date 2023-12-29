@@ -12,6 +12,22 @@
 namespace kraft
 {
 
+namespace math
+{
+template <typename T>
+KRAFT_API KRAFT_INLINE T Min(T a, T b)
+{
+    return a > b ? b : a;
+}
+
+template <typename T>
+KRAFT_API KRAFT_INLINE T Max(T a, T b)
+{
+    return a > b ? a : b;
+}
+
+}
+
 //
 // Useful functions
 //

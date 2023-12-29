@@ -28,6 +28,7 @@ struct ApplicationState
 struct KRAFT_API Application
 {
     static Application* I;
+    inline static Application* Get() { return I; };
 
     ApplicationConfig Config;
     ApplicationState  State;

@@ -10,9 +10,9 @@
 #include "renderer/vulkan/kraft_vulkan_index_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_pipeline.h"
 #include "renderer/vulkan/kraft_vulkan_texture.h"
-
 #include "renderer/kraft_renderer_frontend.h"
 #include "systems/kraft_texture_system.h"
+#include "core/kraft_application.h"
 
 #include <imgui.h>
 
@@ -29,7 +29,8 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
-static char TextureName[] = "res/textures/texture.jpg";
+static char TextureName[] = "res/textures/test-vert-image-2.jpg";
+static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -38,7 +39,8 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
     if (keycode == kraft::KEY_C)
     {
         Texture *oldTexture = ObjectState.Texture;
-        ObjectState.Texture = defaultTexture ? TextureSystem::AcquireTexture(TextureName) : TextureSystem::GetDefaultDiffuseTexture();
+        ObjectState.Texture = defaultTexture ? TextureSystem::AcquireTexture(TextureName) : TextureSystem::AcquireTexture(TextureNameWide);
+        ObjectState.Dirty = true;
         TextureSystem::ReleaseTexture(oldTexture);
 
         defaultTexture = !defaultTexture;
@@ -61,54 +63,55 @@ SceneState* GetSceneState()
     return &TestSceneState;
 }
 
-static void ImGuiWidgets()
+static void ImGuiWidgets(bool refresh)
 {
     ImGui::Begin("Debug");
+    ObjectState.Dirty |= refresh;
 
-    static float    left   = -1024.0f * 0.5f, 
-                    right  = 1024.0f * 0.5f, 
-                    top    = -768.0f * 0.5f, 
-                    bottom = 768.0f * 0.5f, 
+    static float    left   = -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
+                    right  = (float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
+                    top    = -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
+                    bottom = (float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
                     nearClip = -1.f, 
                     farClip = 1.f;
 
     static float fov = 45.f;
-    static float width = 1024.f;
-    static float height = 768.f;
+    static float width = (float)kraft::Application::Get()->Config.WindowWidth;
+    static float height = (float)kraft::Application::Get()->Config.WindowHeight;
     static float nearClipP = 0.1f;
     static float farClipP = 1000.f;
 
+    // To preserve the aspect ratio of the texture
+    kraft::Vec2f ratio = { (float)ObjectState.Texture->Width / Application::Get()->Config.WindowWidth, (float)ObjectState.Texture->Height / Application::Get()->Config.WindowHeight };
+    float downScale = kraft::math::Max(ratio.x, ratio.y);
+
     // Model
-    static Vec3f scale = {10.0f, 10.0f, 10.0f};
+    // static Vec3f scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+    static Vec3f scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
     static Vec3f position = Vec3fZero;
     static Vec3f rotationDeg = Vec3fZero;
     static Vec3f rotation = Vec3fZero;
 
-    static bool usePerspectiveProjection = true;
+    static bool usePerspectiveProjection = TestSceneState.Projection == SceneState::ProjectionType::Perspective;
 
     kraft::Camera& camera = TestSceneState.SceneCamera;
-    if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true))
+    if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true) || (ObjectState.Dirty && usePerspectiveProjection))
     {
         usePerspectiveProjection = true;
-        TestSceneState.Projection = SceneState::ProjectionType::Perspective;
-        TestSceneState.GlobalUBO.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
+        SetProjection(SceneState::ProjectionType::Perspective);
 
-        camera.Reset();
-        camera.SetPosition({0.0f, 0.0f, 30.f});
-
-        scale = {10.0f, 10.0f, 10.0f};
+        scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
     }
 
-    if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false))
+    if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false) || (ObjectState.Dirty && !usePerspectiveProjection))
     {
         usePerspectiveProjection = false;
-        TestSceneState.Projection = SceneState::ProjectionType::Orthographic;
-        TestSceneState.GlobalUBO.Projection = OrthographicMatrix(-1024.0f * 0.5f, 1024.0f * 0.5f, -768.0f * 0.5f, 768.0f * 0.5f, -1.0f, 1.0f);
+        SetProjection(SceneState::ProjectionType::Orthographic);
 
         camera.Reset();
         camera.SetPosition(Vec3fZero);
 
-        scale = {512.0f, 512.0f, 512.0f};
+        scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
     }
 
     if (usePerspectiveProjection)
@@ -255,16 +258,14 @@ void SimpleObjectState::ReleaseResources(VulkanContext *context)
 void InitTestScene(VulkanContext* context)
 {
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
-    TestSceneState.Projection = SceneState::ProjectionType::Perspective;
 
     // Load textures
     ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
     // ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
-    TestSceneState.SceneCamera.SetPosition(Vec3f(0.0f, 0.0f, 30.f));
-    ObjectState.ModelMatrix = ScaleMatrix(Vec3f(10.f, 10.f, 1.f));
+    SetProjection(SceneState::ProjectionType::Orthographic);
+    ObjectState.ModelMatrix = ScaleMatrix(Vec3f(ObjectState.Texture->Width, ObjectState.Texture->Height, 1.f));
     ObjectState.UBO.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
-    TestSceneState.GlobalUBO.Projection = PerspectiveMatrix(DegToRadians(45.0f), 1024.f / 768.f, 0.1f, 1000.f);
     TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
     TestSceneState.SceneCamera.Dirty = true;
 
@@ -570,6 +571,33 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 
     // vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
     vkCmdDrawIndexed(buffer->Handle, IndexCount, 1, 0, 0, 0);
+}
+
+void SetProjection(SceneState::ProjectionType projection)
+{
+    kraft::Camera& camera = TestSceneState.SceneCamera;
+    if (projection == SceneState::ProjectionType::Perspective)
+    {
+        TestSceneState.Projection = SceneState::ProjectionType::Perspective;
+        TestSceneState.GlobalUBO.Projection = PerspectiveMatrix(DegToRadians(45.0f), (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight, 0.1f, 1000.f);
+
+        camera.Reset();
+        camera.SetPosition({0.0f, 0.0f, 30.f});
+    }
+    else
+    {
+        TestSceneState.Projection = SceneState::ProjectionType::Orthographic;
+        TestSceneState.GlobalUBO.Projection = OrthographicMatrix(
+            -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
+            (float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
+            -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
+            (float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
+            -1.0f, 1.0f
+        );
+
+        camera.Reset();
+        camera.SetPosition(Vec3fZero);
+    }
 }
 
 void DestroyTestScene(VulkanContext* context)

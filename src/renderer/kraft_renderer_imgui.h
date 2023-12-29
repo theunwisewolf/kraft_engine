@@ -6,7 +6,8 @@
 namespace kraft
 {
 
-typedef void (*ImGuiRenderCallback)();
+// "refresh" is true whenever the window has been resized
+typedef void (*ImGuiRenderCallback)(bool refresh);
 
 struct ImGuiWidget
 {
@@ -28,6 +29,7 @@ struct RendererImGui
 
     void Init();
     void AddWidget(const char* name, ImGuiRenderCallback callback);
+    void OnResize(int width, int height);
     void RenderWidgets();
     void Destroy();
 };

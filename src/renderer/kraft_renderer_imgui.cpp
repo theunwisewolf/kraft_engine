@@ -5,6 +5,8 @@
 namespace kraft
 {
 
+static bool WidgetsNeedRefresh = false;
+
 void RendererImGui::Init()
 {
     // CreateArray(this->Widgets, 128);
@@ -26,8 +28,15 @@ void RendererImGui::RenderWidgets()
     size_t size = arrlen(this->Widgets);
     for (int i = 0; i < size; i++)
     {
-        this->Widgets[i].Callback();
+        this->Widgets[i].Callback(WidgetsNeedRefresh);
     }
+
+    WidgetsNeedRefresh = false;
+}
+
+void RendererImGui::OnResize(int width, int height)
+{
+    WidgetsNeedRefresh = true;
 }
 
 void RendererImGui::Destroy()

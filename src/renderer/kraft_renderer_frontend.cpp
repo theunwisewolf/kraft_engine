@@ -51,6 +51,7 @@ void RendererFrontend::OnResize(int width, int height)
     if (Backend)
     {
         Backend->OnResize(width, height);
+        ImGuiRenderer.OnResize(width, height);
     }
     else
     {
