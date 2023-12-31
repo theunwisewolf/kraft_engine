@@ -96,6 +96,37 @@ bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kr
     return false;
 }
 
+bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    int count = (int)data.Int64[0];
+    const char **paths = (const char**)data.Int64[1];
+
+    // Try loading the texture from the command line args
+    const char *filePath = paths[count - 1];
+    if (kraft::filesystem::FileExists(filePath))
+    {
+        KINFO("Loading texture from path %s", filePath);
+        Texture *oldTexture = ObjectState.Texture;
+        ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
+        ObjectState.Dirty = true;
+        TextureSystem::ReleaseTexture(oldTexture);
+
+        for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                ObjectState.DescriptorSetStates[i].Generations[j] = KRAFT_INVALID_ID_UINT8;
+            }
+        }
+    }
+    else
+    {
+        KWARN("%s path does not exist", filePath)
+    }
+
+    return false;
+}
+
 SceneState* GetSceneState()
 {
     return &TestSceneState;
@@ -302,6 +333,7 @@ void InitTestScene(VulkanContext* context)
 {
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
     EventSystem::Listen(EVENT_TYPE_SCROLL, &TestSceneState, ScrollEventListener);
+    EventSystem::Listen(EVENT_TYPE_WINDOW_DRAG_DROP, &TestSceneState, OnDragDrop);
 
     // Load textures
     if (kraft::Application::Get()->CommandLineArgs.Count > 1)

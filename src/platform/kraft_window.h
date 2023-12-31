@@ -6,20 +6,16 @@
 #define KRAFT_ERROR_GLFW_INIT_FAILED 1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
 
-#if defined(KRAFT_PLATFORM_WINDOWS) || defined(KRAFT_PLATFORM_MACOS) || defined(KRAFT_PLATFORM_LINUX)
 struct GLFWwindow;
-#endif
 
 namespace kraft 
 {
 
 struct KRAFT_API Window
 {
-#if defined(KRAFT_PLATFORM_WINDOWS) || defined(KRAFT_PLATFORM_MACOS) || defined(KRAFT_PLATFORM_LINUX)
     GLFWwindow* PlatformWindowHandle;
-#endif
 
-    int Init(const char* title, size_t width, size_t heightm, RendererBackendType backendType);
+    int Init(const char* title, size_t width, size_t height, RendererBackendType backendType);
     bool PollEvents(); // Returns false if the window wants to close
     void SetWindowTitle(const char* title);
     void Destroy();
@@ -29,6 +25,7 @@ struct KRAFT_API Window
     static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
     static void CursorPositionCallback(GLFWwindow* window, double x, double y);
+    static void DragDropCallback(GLFWwindow* window, int count, const char** paths); 
 };
 
 }

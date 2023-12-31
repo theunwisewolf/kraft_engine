@@ -54,6 +54,7 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
     glfwSetMouseButtonCallback(this->PlatformWindowHandle, MouseButtonCallback);
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
+    glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
 
     return 0;
 }
@@ -105,6 +106,20 @@ void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 void Window::CursorPositionCallback(GLFWwindow* window, double x, double y)
 {
     InputSystem::ProcessMouseMove(int(x), int(y));
+}
+
+void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
+{
+    EventData data;
+    data.Int64[0] = count;
+    data.Int64[1] = (int64)paths;
+
+    for (int i = 0; i < count; i++)
+    {
+        KINFO("Dropped file %s", ((char**)data.Int64[1])[i]);
+    }
+
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));
 }
 
 }

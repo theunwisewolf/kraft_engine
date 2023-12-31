@@ -17,6 +17,7 @@ enum EventType
     EVENT_TYPE_MOUSE_DOWN,
     EVENT_TYPE_MOUSE_MOVE,
     EVENT_TYPE_SCROLL,
+    EVENT_TYPE_WINDOW_DRAG_DROP,
 
     EVENT_TYPE_NUM_COUNT
 };
@@ -27,6 +28,7 @@ struct EventData
     // a 128 bit struct
     union
     {
+        char    Char[16];
         int8    Int8[16];
         int16   Int16[8];
         int32   Int32[4];
