@@ -4,6 +4,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_input.h"
+#include "platform/kraft_window.h"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include "windows/kraft_win32.h"
@@ -79,6 +80,18 @@ struct KRAFT_API Platform
     // Misc
     static void SleepMilliseconds(uint64_t msec);
     static const char* GetKeyName(Keys key);
+    static Window& GetWindow()
+    {
+#if defined(KRAFT_PLATFORM_WINDOWS)
+        Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
+#elif defined(KRAFT_PLATFORM_MACOS)
+        MacOSPlatformState* State = (MacOSPlatformState*)Platform::InternalState;
+#elif defined(KRAFT_PLATFORM_LINUX)
+        LinuxPlatformState* State = (LinuxPlatformState*)Platform::InternalState;
+#endif
+
+        return State->Window;
+    }
 };
 
 }

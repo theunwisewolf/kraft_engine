@@ -4,7 +4,10 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_input.h"
 #include "core/kraft_time.h"
+#include "core/kraft_string.h"
+#include "containers/array.h"
 #include "platform/kraft_platform.h"
+#include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_frontend.h"
 #include "systems/kraft_texture_system.h"
 
@@ -42,8 +45,22 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
     return false;
 }
 
-bool Application::Create()
+bool Application::Create(int argc, char *argv[])
 {
+    CommandLineArgs = {};
+    CommandLineArgs.Count = argc;
+    CreateArray(CommandLineArgs.RawArguments, argc);
+    for (int i = 0; i < argc; i++)
+    {
+        CommandLineArgs.RawArguments[i] = (char*)Malloc(StringLength(argv[i] + 1), MEMORY_TAG_STRING);
+        StringCopy(CommandLineArgs.RawArguments[i], argv[i]);
+    }
+
+    // TODO (amn): Free this
+    BasePath = (char*)kraft::Malloc(StringLength(CommandLineArgs.RawArguments[0]) + 1, MEMORY_TAG_STRING, true);
+    filesystem::Basename(CommandLineArgs.RawArguments[0], (char*)BasePath);
+    filesystem::CleanPath(BasePath, (char*)BasePath);
+
     I = this;
     Platform::Init(&this->Config);
     EventSystem::Init();
@@ -75,14 +92,17 @@ bool Application::Run()
     kraft::Time::Start();
     State.LastTime = kraft::Time::ElapsedTime;
     float64 targetFrameRate = 1 / 60.f;
+    uint64 frames = 0;
+    float64 timeSinceLastSecond = 0.f;
 
     kraft::PrintDebugMemoryInfo();
-
+    char windowTitleBuffer[1024];
     while (this->Running)
     {
         kraft::Time::Update();
         float64 currentTime = kraft::Time::ElapsedTime;
         float64 deltaTime = currentTime - State.LastTime;
+        timeSinceLastSecond += deltaTime;
 
         this->Running = Platform::PollEvents();
 
@@ -99,14 +119,24 @@ bool Application::Run()
             InputSystem::Update(deltaTime);
         }
 
-        // if (deltaTime < targetFrameRate)
-        // {
+        if (timeSinceLastSecond >= 1.f)
+        {
+            timeSinceLastSecond = 0.f;
+
+            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime);
+            Platform::GetWindow().SetWindowTitle(windowTitleBuffer);
+            frames = 0;
+        }
+
+        if (deltaTime < targetFrameRate)
+        {
             // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
-            // Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
+            Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
             // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
-        // }
+        }
 
         State.LastTime = currentTime;
+        frames++;
     }
 
     this->Destroy();

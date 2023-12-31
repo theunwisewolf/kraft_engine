@@ -2,6 +2,8 @@
 
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_string.h"
+#include "platform/kraft_filesystem.h"
 
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
@@ -101,6 +103,7 @@ static void ImGuiWidgets(bool refresh)
         SetProjection(SceneState::ProjectionType::Perspective);
 
         scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+        ObjectState.Dirty = true;
     }
 
     if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false) || (ObjectState.Dirty && !usePerspectiveProjection))
@@ -108,10 +111,8 @@ static void ImGuiWidgets(bool refresh)
         usePerspectiveProjection = false;
         SetProjection(SceneState::ProjectionType::Orthographic);
 
-        camera.Reset();
-        camera.SetPosition(Vec3fZero);
-
         scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
+        ObjectState.Dirty = true;
     }
 
     if (usePerspectiveProjection)
@@ -185,7 +186,10 @@ static void ImGuiWidgets(bool refresh)
         ImGui::Separator();
         ImGui::Text("Camera Transform");
         ImGui::Separator();
-        ImGui::DragFloat4("Translation", camera.GetViewMatrix()[3]._data);
+        if (ImGui::DragFloat4("Translation", camera.Position))
+        {
+            camera.Dirty = true;
+        }
     }
     ImGui::PopID();
 
@@ -198,12 +202,14 @@ static void ImGuiWidgets(bool refresh)
         if (ImGui::DragFloat3("Scale", scale._data))
         {
             KINFO("Scale - %f, %f, %f", scale.x, scale.y, scale.z);
+            ObjectState.Dirty = true;
             // ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
         }
 
         if (ImGui::DragFloat3("Translation", position._data))
         {
             KINFO("Translation - %f, %f, %f", position.x, position.y, position.z);
+            ObjectState.Dirty = true;
             // ObjectState.ModelMatrix *= TranslationMatrix(position);
         }
 
@@ -212,12 +218,19 @@ static void ImGuiWidgets(bool refresh)
             rotation.x = DegToRadians(rotationDeg.x);
             rotation.y = DegToRadians(rotationDeg.y);
             rotation.z = DegToRadians(rotationDeg.z);
+            ObjectState.Dirty = true;
         }
     }
     ImGui::PopID();
 
-    ObjectState.ModelMatrix = ScaleMatrix(scale) * RotationMatrixFromEulerAngles(rotation) * TranslationMatrix(position);
+    if (ObjectState.Dirty)
+    {
+        ObjectState.ModelMatrix = ScaleMatrix(scale) * RotationMatrixFromEulerAngles(rotation) * TranslationMatrix(position);
+    }
+
     ImGui::End();
+
+    ObjectState.Dirty = false;
 }
 
 void SimpleObjectState::AcquireResources(VulkanContext *context)
@@ -260,7 +273,19 @@ void InitTestScene(VulkanContext* context)
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
 
     // Load textures
-    ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    if (kraft::Application::Get()->CommandLineArgs.Count > 1)
+    {
+        // Try loading the texture from the command line args
+        char *filePath = kraft::Application::Get()->CommandLineArgs.RawArguments[1];
+        if (kraft::filesystem::FileExists(filePath))
+        {
+            KINFO("Loading texture from path %s", filePath);
+            ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
+        }
+    }
+
+    if (!ObjectState.Texture)
+        ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
     // ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
     SetProjection(SceneState::ProjectionType::Orthographic);
@@ -268,16 +293,20 @@ void InitTestScene(VulkanContext* context)
     ObjectState.UBO.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
     TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
     TestSceneState.SceneCamera.Dirty = true;
+    ObjectState.Dirty = true;
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
     Renderer->ImGuiRenderer.AddWidget("demo window", ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
-    VulkanCreateShaderModule(context, "res/shaders/vertex.vert.spv", &vertex);
+    char filepath[256] = {};
+    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/vertex.vert.spv", kraft::Application::Get()->BasePath);
+    VulkanCreateShaderModule(context, filepath, &vertex);
     KASSERT(vertex);
 
-    VulkanCreateShaderModule(context, "res/shaders/fragment.frag.spv", &fragment);
+    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/fragment.frag.spv", kraft::Application::Get()->BasePath);
+    VulkanCreateShaderModule(context, filepath, &fragment);
     KASSERT(fragment);
 
     VkPipelineShaderStageCreateInfo vertexShaderStage = {};
@@ -465,6 +494,35 @@ void InitTestScene(VulkanContext* context)
     IndexCount = sizeof(indices) / sizeof(indices[0]);
     VulkanCreateVertexBuffer(context, verts, sizeof(verts), &VertexBuffer);
     VulkanCreateIndexBuffer(context, indices, sizeof(indices), &IndexBuffer);
+
+    UpdateDescriptorSets(context);
+}
+
+// Uploads the data into the buffers and assigns the buffers
+// to the corresponding descriptor set
+void UpdateDescriptorSets(VulkanContext *context)
+{
+    TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
+    // Update all the descriptor sets
+    for (int i = 0; i < 3; i++)
+    {
+        VulkanLoadDataInBuffer(context, &TestSceneState.GlobalUniformBuffer, &TestSceneState.GlobalUBO, sizeof(GlobalUniformBuffer), sizeof(GlobalUniformBuffer) * i);
+        VkDescriptorBufferInfo descriptorBufferInfo;
+        descriptorBufferInfo.buffer = TestSceneState.GlobalUniformBuffer.Handle;
+        descriptorBufferInfo.offset = sizeof(GlobalUniformBuffer) * i;
+        descriptorBufferInfo.range = sizeof(GlobalUniformBuffer);
+
+        VkWriteDescriptorSet descriptorWriteInfo = {};
+        descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWriteInfo.descriptorCount = 1;
+        descriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWriteInfo.dstSet = TestSceneState.GlobalDescriptorSets[i];
+        descriptorWriteInfo.dstBinding = 0;
+        descriptorWriteInfo.dstArrayElement = 0;
+        descriptorWriteInfo.pBufferInfo = &descriptorBufferInfo;
+
+        vkUpdateDescriptorSets(context->LogicalDevice.Handle, 1, &descriptorWriteInfo, 0, 0);
+    }
 }
 
 void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
@@ -477,30 +535,10 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
     vkCmdBindVertexBuffers(buffer->Handle, 0, 1, &VertexBuffer.Handle, offsets);
     vkCmdBindIndexBuffer(buffer->Handle, IndexBuffer.Handle, 0, VK_INDEX_TYPE_UINT32);
 
-    // static float32 z = -1.0f;
-    // z -= 0.005f;
-    // if (TestSceneState.SceneCamera.Dirty)
-    {
-        TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
-        VulkanLoadDataInBuffer(context, &TestSceneState.GlobalUniformBuffer, &TestSceneState.GlobalUBO, sizeof(GlobalUniformBuffer), sizeof(GlobalUniformBuffer) * context->CurrentSwapchainImageIndex);
+    TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
+    VulkanLoadDataInBuffer(context, &TestSceneState.GlobalUniformBuffer, &TestSceneState.GlobalUBO, sizeof(GlobalUniformBuffer), sizeof(GlobalUniformBuffer) * context->CurrentSwapchainImageIndex);
 
-        VkDescriptorBufferInfo descriptorBufferInfo;
-        descriptorBufferInfo.buffer = TestSceneState.GlobalUniformBuffer.Handle;
-        descriptorBufferInfo.offset = sizeof(GlobalUniformBuffer) * context->CurrentSwapchainImageIndex;
-        descriptorBufferInfo.range = sizeof(GlobalUniformBuffer);
-
-        VkWriteDescriptorSet descriptorWriteInfo = {};
-        descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWriteInfo.descriptorCount = 1;
-        descriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWriteInfo.dstSet = TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex];
-        descriptorWriteInfo.dstBinding = 0;
-        descriptorWriteInfo.dstArrayElement = 0;
-        descriptorWriteInfo.pBufferInfo = &descriptorBufferInfo;
-
-        vkUpdateDescriptorSets(context->LogicalDevice.Handle, 1, &descriptorWriteInfo, 0, 0);
-        vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 0, 1, &TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
-    }
+    vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 0, 1, &TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
     
     // Update objects
     {
@@ -577,12 +615,12 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 void SetProjection(SceneState::ProjectionType projection)
 {
     kraft::Camera& camera = TestSceneState.SceneCamera;
+    camera.Reset();
     if (projection == SceneState::ProjectionType::Perspective)
     {
         TestSceneState.Projection = SceneState::ProjectionType::Perspective;
         TestSceneState.GlobalUBO.Projection = PerspectiveMatrix(DegToRadians(45.0f), (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight, 0.1f, 1000.f);
 
-        camera.Reset();
         camera.SetPosition({0.0f, 0.0f, 30.f});
     }
     else
@@ -596,9 +634,10 @@ void SetProjection(SceneState::ProjectionType projection)
             -1.0f, 1.0f
         );
 
-        camera.Reset();
         camera.SetPosition(Vec3fZero);
     }
+
+    camera.Dirty = true;
 }
 
 void DestroyTestScene(VulkanContext* context)

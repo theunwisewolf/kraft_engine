@@ -75,7 +75,10 @@ void InputSystem::ProcessMouseMove(int x, int y)
 
 void InputSystem::ProcessScroll(float64 x, float64 y)
 {
-
+    EventData data;
+    data.Float64[0] = x;
+    data.Float64[1] = y;
+    EventSystem::Dispatch(EventType::EVENT_TYPE_SCROLL, data, 0);
 }
 
 

@@ -70,4 +70,18 @@ KRAFT_INLINE uint64 StringEqual(const char *a, const char *b)
     return strcmp(a, b) == 0;
 }
 
+KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char* format, ...)
+{
+    if (buffer) 
+    {
+        __builtin_va_list argPtr;
+        va_start(argPtr, format);
+        int32 written = vsnprintf(buffer, n, format, argPtr);
+        va_end(argPtr);
+        return written;
+    }
+
+    return -1;
+}
+
 }

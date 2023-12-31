@@ -22,10 +22,20 @@ enum FileOpenMode
 namespace filesystem
 {
 
+// File helpers
 KRAFT_API bool OpenFile(const char* path, int mode, bool binary, FileHandle* out);
 KRAFT_API uint64 GetFileSize(FileHandle* handle);
 KRAFT_API void CloseFile(FileHandle* handle);
+
+// Returns true if the file exists at "path"
 KRAFT_API bool FileExists(const char* path);
+
+// Very basic for now, just replaces all windows path separators
+// with unix path separators
+KRAFT_API void CleanPath(const char* path, char* out);
+
+// Returns the directory without the filename 
+KRAFT_API void Basename(const char* path, char* out);
 
 // outBuffer, if null is allocated & must be freed by the caller
 KRAFT_API bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);

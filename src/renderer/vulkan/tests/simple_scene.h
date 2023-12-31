@@ -45,7 +45,7 @@ struct SimpleObjectState
 
     VkDescriptorSet          DescriptorSets[3]; // Per frame
     VulkanDescriptorSetState DescriptorSetStates[KRAFT_VULKAN_SHADER_MAX_BINDINGS];
-    Texture*                 Texture;
+    Texture*                 Texture = NULL;
     bool                     Dirty;
 
     void AcquireResources(VulkanContext *context);
@@ -73,6 +73,7 @@ struct SceneState
 
 void InitTestScene(VulkanContext* context);
 void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer);
+void UpdateDescriptorSets(VulkanContext *context);
 void DestroyTestScene(VulkanContext* context);
 void SetProjection(SceneState::ProjectionType projection);
 

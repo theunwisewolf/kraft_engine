@@ -70,6 +70,11 @@ bool Window::PollEvents()
     return !glfwWindowShouldClose(this->PlatformWindowHandle);
 }
 
+void Window::SetWindowTitle(const char* title)
+{
+    glfwSetWindowTitle(this->PlatformWindowHandle, title);
+}
+
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
 {
     EventData data;
@@ -94,7 +99,7 @@ void Window::MouseButtonCallback(GLFWwindow* window, int button, int action, int
 
 void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-
+    InputSystem::ProcessScroll(xoffset, yoffset);
 }
 
 void Window::CursorPositionCallback(GLFWwindow* window, double x, double y)

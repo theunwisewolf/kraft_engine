@@ -25,14 +25,23 @@ struct ApplicationState
     float64          LastTime;
 };
 
+struct ApplicationCommandLineArgs
+{
+    int     Count;
+    char    **RawArguments;
+};
+
 struct KRAFT_API Application
 {
     static Application* I;
     inline static Application* Get() { return I; };
 
-    ApplicationConfig Config;
-    ApplicationState  State;
+    ApplicationConfig Config = {};
+    ApplicationState  State = {};
+    ApplicationCommandLineArgs CommandLineArgs = {};
 
+    // The location of the executable without a trailing slash
+    const char* BasePath;
     bool Running = false;
     bool Suspended = false;
 
@@ -45,7 +54,7 @@ struct KRAFT_API Application
     void (*OnForeground)();
     bool (*Shutdown)();
 
-    bool Create();
+    bool Create(int argc, char *argv[]);
     bool Run();
     void Destroy();
     static bool WindowResizeListener(EventType type, void* sender, void* listener, EventData data);

@@ -89,15 +89,15 @@ bool Init()
     PrintMatrix(b);
     PrintMatrix(a * b);
 
-    kraft::FileHandle handle;
-    uint8* buffer = 0;
-    kraft::filesystem::OpenFile("res/shaders/combined.shader", kraft::FILE_OPEN_MODE_READ, true, &handle);
-    buffer = (uint8*)kraft::Malloc(kraft::filesystem::GetFileSize(&handle) + 1, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
-    kraft::filesystem::ReadAllBytes(&handle, &buffer);
-    kraft::filesystem::CloseFile(&handle);
+    // kraft::FileHandle handle;
+    // uint8* buffer = 0;
+    // kraft::filesystem::OpenFile("res/shaders/combined.shader", kraft::FILE_OPEN_MODE_READ, true, &handle);
+    // buffer = (uint8*)kraft::Malloc(kraft::filesystem::GetFileSize(&handle) + 1, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
+    // kraft::filesystem::ReadAllBytes(&handle, &buffer);
+    // kraft::filesystem::CloseFile(&handle);
 
-    // printf("%s\n", buffer);
-    kraft::Free(buffer);
+    // // printf("%s\n", buffer);
+    // kraft::Free(buffer);
 
     return true;
 }
@@ -220,12 +220,12 @@ bool Shutdown()
 }
 
 
-bool CreateApplication(kraft::Application* app)
+bool CreateApplication(kraft::Application* app, int argc, char *argv[])
 {
     app->Config.ApplicationName = "Kraft!";
     app->Config.WindowTitle     = "Kraft! [VULKAN]";
-    app->Config.WindowWidth     = 1024;
-    app->Config.WindowHeight    = 768;
+    app->Config.WindowWidth     = 1280;
+    app->Config.WindowHeight    = 800;
     app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
 
     app->Init                   = Init;

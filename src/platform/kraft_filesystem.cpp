@@ -1,6 +1,7 @@
 #include "kraft_filesystem.h"
 
 #include "core/kraft_log.h"
+#include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_memory.h"
 
@@ -122,6 +123,35 @@ bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
     CloseFile(&handle);
 
     return retval;
+}
+
+void CleanPath(const char* path, char* out)
+{
+    uint64 Length = StringLength(path);
+    for (int i = 0; i < Length; i++)
+    {
+        if (path[i] == '\\')
+        {
+            out[i] = '/';
+        }
+        else
+        {
+            out[i] = path[i];
+        }
+    }
+}
+
+void Basename(const char* path, char* out)
+{
+    uint64 Length = StringLength(path);
+    for (int i = Length - 1; i >= 0; i--)
+    {
+        if (path[i] == '/' || path[i] == '\\')
+        {
+            StringNCopy(out, path, i);
+            return;
+        }
+    }
 }
 
 }

@@ -192,6 +192,30 @@ struct Vector<T, 2>
         _data[1] = y;
     }
 
+    Vector(Vector<T, 3> xyz)
+    {
+        _data[0] = xyz.x;
+        _data[1] = xyz.y;
+    }
+
+    Vector(const Vector<T, 3>& xyz)
+    {
+        _data[0] = xyz.x;
+        _data[1] = xyz.y;
+    }
+
+    Vector(Vector<T, 4> xyzw)
+    {
+        _data[0] = xyzw.x;
+        _data[1] = xyzw.y;
+    }
+
+    Vector(const Vector<T, 4>& xyzw)
+    {
+        _data[0] = xyzw.x;
+        _data[1] = xyzw.y;
+    }
+
     COMMON_VECTOR_MEMBERS(2);
 };
 
@@ -244,6 +268,20 @@ struct Vector<T, 3>
         _data[0] = xy.x;
         _data[1] = xy.y;
         _data[2] = z;
+    }
+
+    Vector(Vector<T, 4> xyzw)
+    {
+        _data[0] = xyzw.x;
+        _data[1] = xyzw.y;
+        _data[2] = xyzw.z;
+    }
+
+    Vector(const Vector<T, 4>& xyzw)
+    {
+        _data[0] = xyzw.x;
+        _data[1] = xyzw.y;
+        _data[2] = xyzw.z;
     }
 
     COMMON_VECTOR_MEMBERS(3);

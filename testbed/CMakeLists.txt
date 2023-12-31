@@ -11,7 +11,11 @@ set(SRC_FILES
     src/main.cpp
 )
 
+if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
+else()
 add_executable(${PROJECT_NAME} ${SRC_FILES})
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../src)
 target_include_directories(${PROJECT_NAME} PRIVATE ../vendor/imgui)

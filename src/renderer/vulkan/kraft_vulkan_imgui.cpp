@@ -5,6 +5,8 @@
 #include <imgui/backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
 
+#include "core/kraft_memory.h"
+#include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_application.h"
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
@@ -40,6 +42,11 @@ void VulkanImguiInit(VulkanContext* context)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+    // TODO (amn): Free this
+    char *filepath = (char*)Malloc(256, MEMORY_TAG_STRING);
+    kraft::StringFormat(filepath, 256, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath);
+    io.IniFilename = filepath;
     
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -77,17 +84,9 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
 
     KRAFT_VK_CHECK(vkCreateDescriptorPool(context->LogicalDevice.Handle, &poolInfo, context->AllocationCallbacks, &ImGuiDescriptorPool));
 
-    GLFWwindow* window;
+    Window& KraftWindow = Platform::GetWindow();
+    GLFWwindow* window = KraftWindow.PlatformWindowHandle;
 
-#if defined(KRAFT_PLATFORM_WINDOWS)
-    Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_MACOS)
-    MacOSPlatformState* State = (MacOSPlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_LINUX)
-    LinuxPlatformState* State = (LinuxPlatformState*)Platform::InternalState;
-#endif
-
-    window = State->Window.PlatformWindowHandle;
     KASSERT(window);
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
