@@ -8,4 +8,4 @@ So far the ride has been fun and I have learned a lot of things.
 
 Here's a sneak peek -
 
-![alt text](https://github.com/theunwisewolf/kraft_engine/blob/master/docs/KraftDemo.png?raw=true)
+![KraftDemo](https://github.com/theunwisewolf/kraft_engine/blob/master/docs/KraftDemo.png?raw=true)
