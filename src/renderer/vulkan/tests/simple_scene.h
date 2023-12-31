@@ -42,6 +42,9 @@ struct SimpleObjectState
     VulkanPipeline          Pipeline;
     ObjectUniformBuffer     UBO;
     Mat4f                   ModelMatrix;
+    Vec3f                   Scale = Vec3fZero;
+    Vec3f                   Position = Vec3fZero;
+    Vec3f                   Rotation = Vec3fZero;
 
     VkDescriptorSet          DescriptorSets[3]; // Per frame
     VulkanDescriptorSetState DescriptorSetStates[KRAFT_VULKAN_SHADER_MAX_BINDINGS];

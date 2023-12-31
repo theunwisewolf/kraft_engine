@@ -3,6 +3,7 @@
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "core/kraft_string.h"
+#include "core/kraft_time.h"
 #include "platform/kraft_filesystem.h"
 
 #include "renderer/kraft_renderer_types.h"
@@ -60,6 +61,41 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
     return false;
 }
 
+bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    Camera& camera = TestSceneState.SceneCamera;
+    float y = data.Float64[1];
+    float32 speed = 50.f;
+
+    if (TestSceneState.Projection == SceneState::ProjectionType::Perspective)
+    {
+        kraft::Vec3f direction = ForwardVector(camera.ViewMatrix);
+        direction = direction * y;
+
+        kraft::Vec3f position = camera.Position;
+        kraft::Vec3f change = direction * speed * (float32)Time::DeltaTime;
+        camera.SetPosition(position + change);
+        camera.Dirty = true;
+    }
+    else
+    {
+        float zoom = 1.f;
+        if (y >= 0)
+        {
+            zoom *= 1.1f;
+        }
+        else
+        {
+            zoom /= 1.1f;
+        }
+
+        ObjectState.Scale *= zoom;
+        ObjectState.ModelMatrix = ScaleMatrix(ObjectState.Scale) * RotationMatrixFromEulerAngles(ObjectState.Rotation) * TranslationMatrix(ObjectState.Position);
+    }
+
+    return false;
+}
+
 SceneState* GetSceneState()
 {
     return &TestSceneState;
@@ -87,13 +123,7 @@ static void ImGuiWidgets(bool refresh)
     kraft::Vec2f ratio = { (float)ObjectState.Texture->Width / Application::Get()->Config.WindowWidth, (float)ObjectState.Texture->Height / Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
-    // Model
-    // static Vec3f scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f}; // Perspective
-    static Vec3f scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
-    static Vec3f position = Vec3fZero;
     static Vec3f rotationDeg = Vec3fZero;
-    static Vec3f rotation = Vec3fZero;
-
     static bool usePerspectiveProjection = TestSceneState.Projection == SceneState::ProjectionType::Perspective;
 
     kraft::Camera& camera = TestSceneState.SceneCamera;
@@ -102,7 +132,7 @@ static void ImGuiWidgets(bool refresh)
         usePerspectiveProjection = true;
         SetProjection(SceneState::ProjectionType::Perspective);
 
-        scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+        ObjectState.Scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
         ObjectState.Dirty = true;
     }
 
@@ -111,7 +141,7 @@ static void ImGuiWidgets(bool refresh)
         usePerspectiveProjection = false;
         SetProjection(SceneState::ProjectionType::Orthographic);
 
-        scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
+        ObjectState.Scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
         ObjectState.Dirty = true;
     }
 
@@ -199,25 +229,25 @@ static void ImGuiWidgets(bool refresh)
         ImGui::Text("Transform");
         ImGui::Separator();
         
-        if (ImGui::DragFloat3("Scale", scale._data))
+        if (ImGui::DragFloat3("Scale", ObjectState.Scale._data))
         {
-            KINFO("Scale - %f, %f, %f", scale.x, scale.y, scale.z);
+            KINFO("Scale - %f, %f, %f", ObjectState.Scale.x, ObjectState.Scale.y, ObjectState.Scale.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
         }
 
-        if (ImGui::DragFloat3("Translation", position._data))
+        if (ImGui::DragFloat3("Translation", ObjectState.Position._data))
         {
-            KINFO("Translation - %f, %f, %f", position.x, position.y, position.z);
+            KINFO("Translation - %f, %f, %f", ObjectState.Position.x, ObjectState.Position.y, ObjectState.Position.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix *= TranslationMatrix(position);
         }
 
         if (ImGui::DragFloat3("Rotation Degrees", rotationDeg._data))
         {
-            rotation.x = DegToRadians(rotationDeg.x);
-            rotation.y = DegToRadians(rotationDeg.y);
-            rotation.z = DegToRadians(rotationDeg.z);
+            ObjectState.Rotation.x = DegToRadians(rotationDeg.x);
+            ObjectState.Rotation.y = DegToRadians(rotationDeg.y);
+            ObjectState.Rotation.z = DegToRadians(rotationDeg.z);
             ObjectState.Dirty = true;
         }
     }
@@ -225,7 +255,7 @@ static void ImGuiWidgets(bool refresh)
 
     if (ObjectState.Dirty)
     {
-        ObjectState.ModelMatrix = ScaleMatrix(scale) * RotationMatrixFromEulerAngles(rotation) * TranslationMatrix(position);
+        ObjectState.ModelMatrix = ScaleMatrix(ObjectState.Scale) * RotationMatrixFromEulerAngles(ObjectState.Rotation) * TranslationMatrix(ObjectState.Position);
     }
 
     ImGui::End();
@@ -271,6 +301,7 @@ void SimpleObjectState::ReleaseResources(VulkanContext *context)
 void InitTestScene(VulkanContext* context)
 {
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
+    EventSystem::Listen(EVENT_TYPE_SCROLL, &TestSceneState, ScrollEventListener);
 
     // Load textures
     if (kraft::Application::Get()->CommandLineArgs.Count > 1)
@@ -289,7 +320,20 @@ void InitTestScene(VulkanContext* context)
     // ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
     SetProjection(SceneState::ProjectionType::Orthographic);
-    ObjectState.ModelMatrix = ScaleMatrix(Vec3f(ObjectState.Texture->Width, ObjectState.Texture->Height, 1.f));
+    
+    // To preserve the aspect ratio of the texture
+    kraft::Vec2f ratio = { (float)ObjectState.Texture->Width / Application::Get()->Config.WindowWidth, (float)ObjectState.Texture->Height / Application::Get()->Config.WindowHeight };
+    float downScale = kraft::math::Max(ratio.x, ratio.y);
+    if (TestSceneState.Projection == SceneState::ProjectionType::Orthographic)
+    {
+        ObjectState.Scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
+    }
+    else
+    {
+        ObjectState.Scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+    }
+
+    ObjectState.ModelMatrix = ScaleMatrix(ObjectState.Scale);
     ObjectState.UBO.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
     TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
     TestSceneState.SceneCamera.Dirty = true;

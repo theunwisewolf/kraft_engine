@@ -7,6 +7,7 @@ namespace kraft
 
 float64 Time::StartTime     = 0;
 float64 Time::ElapsedTime   = 0;
+float64 Time::DeltaTime   = 0;
 
 void Time::Start()
 {

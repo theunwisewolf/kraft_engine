@@ -102,6 +102,7 @@ bool Application::Run()
         kraft::Time::Update();
         float64 currentTime = kraft::Time::ElapsedTime;
         float64 deltaTime = currentTime - State.LastTime;
+        kraft::Time::DeltaTime = deltaTime;
         timeSinceLastSecond += deltaTime;
 
         this->Running = Platform::PollEvents();
