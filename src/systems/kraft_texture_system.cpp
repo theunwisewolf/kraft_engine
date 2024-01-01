@@ -62,12 +62,13 @@ void TextureSystem::Shutdown()
     KINFO(TEXT("[TextureSystem::Shutdown]: Shutting down texture system"));
 }
 
-Texture* TextureSystem::AcquireTexture(const TCHAR* _name, bool autoRelease)
+Texture* TextureSystem::AcquireTexture(const TString& name, bool autoRelease)
 {
-    const TCHAR* name = StringTrim(_name);
-    if (StringLength(name) == 0)
+    TString TextureName(name);
+    TextureName.Trim();
+    if (TextureName.Length == 0)
     {
-        return NULL;
+        return nullptr;
     }
 
     int freeIndex = -1;
@@ -76,7 +77,7 @@ Texture* TextureSystem::AcquireTexture(const TCHAR* _name, bool autoRelease)
     // TODO: (TheUnwiseWolf) Use a hashmap instead of this
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (StringEqual(State->Textures[i].Texture.Name, name))
+        if (State->Textures[i].Texture.Name == name)
         {
             index = i;
             break;
@@ -107,8 +108,8 @@ Texture* TextureSystem::AcquireTexture(const TCHAR* _name, bool autoRelease)
         reference->RefCount++;
         reference->AutoRelease = autoRelease;
 
-        uint64 length = StringLengthClamped(name, KRAFT_TEXTURE_NAME_MAX_LENGTH);
-        StringCopy(&(reference->Texture.Name[0]), (TCHAR*)name);
+        uint64 length = math::Min(TextureName.Length, (uint64)KRAFT_TEXTURE_NAME_MAX_LENGTH);
+        StringCopy(&(reference->Texture.Name[0]), TextureName.Data());
         if (!LoadTexture(name, &reference->Texture))
         {
             KERROR(TEXT("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed"));
@@ -118,25 +119,24 @@ Texture* TextureSystem::AcquireTexture(const TCHAR* _name, bool autoRelease)
         index = freeIndex;
     }
 
-    KDEBUG(TEXT("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)"), name, index);
-    kraft::Free((void*)name);
+    KDEBUG(TEXT("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)"), TextureName.Data(), index);
     return &State->Textures[index].Texture;
 }
 
-void TextureSystem::ReleaseTexture(const TCHAR* name)
+void TextureSystem::ReleaseTexture(const TString& TextureName)
 {
-    if (StringEqual(name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME))
+    if (TextureName == KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME)
     {
-        KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!"), name);
+        KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!"), TextureName.Data());
         return;
     }
 
-    KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: Releasing texture %s"), name);
+    KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: Releasing texture %s"), TextureName.Data());
 
     int index = -1;
     for (int i = 0; i < State->MaxTextureCount; ++i)
     {
-        if (StringEqual(State->Textures[i].Texture.Name, name))
+        if (State->Textures[i].Texture.Name == TextureName)
         {
             index = i;
             break;
@@ -145,7 +145,7 @@ void TextureSystem::ReleaseTexture(const TCHAR* name)
 
     if (index == -1)
     {
-        KERROR(TEXT("[TextureSystem::ReleaseTexture]: Called for unknown texture %s"), name);
+        KERROR(TEXT("[TextureSystem::ReleaseTexture]: Called for unknown texture %s"), TextureName.Data());
         return;
     }
 
@@ -169,13 +169,13 @@ void TextureSystem::ReleaseTexture(Texture* texture)
     TextureSystem::ReleaseTexture(texture->Name);
 }
 
-bool TextureSystem::LoadTexture(const TCHAR* name, Texture* texture)
+bool TextureSystem::LoadTexture(const TString& TexturePath, Texture* texture)
 {
     // Load textures
     stbi_set_flip_vertically_on_load(1);
 
     int width, height, channels, desiredChannels = 4;
-    const char* path = (char*)name;
+    const char* path = (char*)TexturePath.Data();
 
 #if UNICODE
     char utf8Path[256];
@@ -199,7 +199,7 @@ bool TextureSystem::LoadTexture(const TCHAR* name, Texture* texture)
 
     if (const char* failureReason = stbi_failure_reason())
     {
-        KERROR(TEXT("[TextureSystem::LoadTexture]: Failed to load image %s"), name);
+        KERROR(TEXT("[TextureSystem::LoadTexture]: Failed to load image %s"), TexturePath.Data());
         KERROR(TEXT("[TextureSystem::LoadTexture]: Error %s"), failureReason);
     }
 
@@ -215,8 +215,9 @@ void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channe
     out->Height = height;
     out->Channels = channels;
 
-    uint8* pixels = (uint8*)Malloc(width * height * channels, MEMORY_TAG_TEXTURE);
-    MemSet(pixels, 255, width * height * channels);
+    uint32 BufferSize = width * height * channels;
+    uint8* pixels = (uint8*)Malloc(BufferSize, MEMORY_TAG_TEXTURE);
+    MemSet(pixels, 255, BufferSize);
 
     const int segments = 8, boxSize = width / segments;
     unsigned char white[4] = {255, 255, 255, 255};
@@ -283,7 +284,7 @@ void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channe
     // }
 
     Renderer->CreateTexture(pixels, out);
-    Free(pixels);
+    Free(pixels, BufferSize, MEMORY_TAG_TEXTURE);
 }
 
 Texture* TextureSystem::GetDefaultDiffuseTexture()

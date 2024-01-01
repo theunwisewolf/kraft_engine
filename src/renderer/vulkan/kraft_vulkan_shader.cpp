@@ -27,7 +27,7 @@ bool VulkanCreateShaderModule(VulkanContext* context, const TCHAR* path, VkShade
     shaderModuleCreateInfo.pCode = (uint32*)buffer;
 
     KRAFT_VK_CHECK(vkCreateShaderModule(context->LogicalDevice.Handle, &shaderModuleCreateInfo, context->AllocationCallbacks, out));
-    Free(buffer);
+    Free(buffer, bufferSize, MEMORY_TAG_RENDERER);
 
     return true;
 }

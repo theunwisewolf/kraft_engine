@@ -30,6 +30,15 @@
 // Comment out for disabling debugging features in the renderer
 #define KRAFT_RENDERER_DEBUG
 
+// Compiler
+#if defined(_MSC_VER)
+    #define KRAFT_COMPILER_MSVC
+#elif defined(__clang__)
+    #define KRAFT_COMPILER_CLANG
+#elif defined(__gcc__)
+    #define KRAFT_COMPILER_GCC
+#endif
+
 // Inlining
 #if defined(_MSC_VER)
     #define KRAFT_INLINE __forceinline

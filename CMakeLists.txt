@@ -131,7 +131,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE GLFW_INCLUDE_NONE)
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)
 
 # Other definitions
-target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS)
+target_compile_definitions(${PROJECT_NAME} PUBLIC _CRT_SECURE_NO_WARNINGS)
 
 if (WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)

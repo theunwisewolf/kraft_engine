@@ -70,9 +70,9 @@ KRAFT_INLINE void Free(void *region)
     Platform::Free(region, false);
 }
 
-KRAFT_API void Free(void *region, uint64_t size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE);
+KRAFT_API void Free(void *region, uint64 size, MemoryTag tag = MemoryTag::MEMORY_TAG_NONE);
 
-KRAFT_INLINE void MemZero(void *region, uint64_t size)
+KRAFT_INLINE void MemZero(void *region, uint64 size)
 {
     Platform::MemZero(region, size);
 }
@@ -82,7 +82,7 @@ KRAFT_INLINE void MemZero(Block block)
     Platform::MemZero(block.Data, block.Size);
 }
 
-KRAFT_INLINE void MemSet(void *region, int value, uint64_t size)
+KRAFT_INLINE void MemSet(void *region, int value, uint64 size)
 {
     Platform::MemSet(region, value, size);
 }
@@ -92,14 +92,19 @@ KRAFT_INLINE void MemSet(Block block, int value)
     MemSet(block.Data, value, block.Size);
 }
 
-KRAFT_INLINE void MemCpy(void *dst, void const* src, size_t size)
+KRAFT_INLINE void MemCpy(void *dst, void const* src, uint64 size)
 {
     Platform::MemCpy(dst, src, size);
 }
 
-KRAFT_INLINE void MemCpy(Block dst, Block src, size_t size)
+KRAFT_INLINE void MemCpy(Block dst, Block src, uint64 size)
 {
     MemCpy(dst.Data, src.Data, size);
+}
+
+KRAFT_INLINE int MemCmp(const void* a, const void* b, uint64 size)
+{
+    return Platform::MemCmp(a, b, size);
 }
 
 KRAFT_API void PrintDebugMemoryInfo();

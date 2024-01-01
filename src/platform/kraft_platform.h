@@ -34,6 +34,7 @@ struct KRAFT_API Platform
     static void *MemZero(void *region, uint64_t size);
     static void *MemCpy(void *dst, const void *src, uint64_t size);
     static void *MemSet(void *region, int value, uint64_t size);
+    static int MemCmp(const void *a, const void *b, uint64_t size);
 
     // Console
     // Foreground colors

@@ -1,11 +1,16 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "math/kraft_math.h"
 #include "core/kraft_memory.h"
 
+/*
+    Much of the inspiration for this class is taken from the excellent talk 
+    "Optimizing A String Class for Computer Graphics in Cpp - Zander Majercik, Morgan McGuire CppCon 22" at CppCon
+    https://www.youtube.com/watch?v=fglXeSWGVDc
+ */
 #include <string.h>
 #include <ctype.h>
-#include <locale.h>
 
 #ifdef UNICODE
     #define ANSI_TO_TCHAR(x) CharToWChar(x).Data()
@@ -15,29 +20,111 @@
     #define TCHAR_TO_ANSI(x) x
 #endif
 
+constexpr size_t KRAFT_STRING_SSO_ALIGNMENT = 16;
+
 namespace kraft
 {
 
-// using ValueType = char;
-template<typename ValueType>
-struct KString
+template<typename ValueType, uint64 InternalBufferSize = 128>
+struct 
+#ifdef KRAFT_COMPILER_MSVC
+    __declspec(align(KRAFT_STRING_SSO_ALIGNMENT))
+#else
+    alignas(KRAFT_STRING_SSO_ALIGNMENT)
+#endif
+KString
 {
     typedef uint64 SizeType;
 
-    ValueType   *Buffer = nullptr;
+    union BufferUnion
+    {
+        ValueType    StackBuffer[InternalBufferSize];   
+        ValueType*   HeapBuffer = nullptr;
+    } Buffer;
+
+    // Length of the string
     SizeType     Length = 0;
+
+    // Allocated capacity of the buffer (if any)
     SizeType     Allocated = 0;
 
+protected:
+    static_assert(InternalBufferSize % KRAFT_STRING_SSO_ALIGNMENT == 0, "KString InternalBufferSize must be a multiple of 16");
+
+    constexpr inline static SizeType ChooseAllocationSize(SizeType Size)
+    {
+        return (Size <= InternalBufferSize ? InternalBufferSize : math::Max(2 * Size + 1, 2 * InternalBufferSize + 1)) * sizeof(ValueType);
+    }
+
+    KRAFT_INLINE void Alloc(SizeType Size)
+    {
+        if (Size > InternalBufferSize)
+        {
+            Buffer.HeapBuffer = (ValueType*)Malloc(Allocated * sizeof(ValueType), MEMORY_TAG_STRING, true);
+        }
+    }
+
+    // Does not take nullbyte into account
+    constexpr void ReallocIfRequired(SizeType CharCount)
+    {
+        SizeType BufferSizeRequired = CharCount * sizeof(ValueType);
+        if (BufferSizeRequired <= Allocated)
+        {
+            return;
+        }
+
+        Free(Data(), Allocated, MEMORY_TAG_STRING);
+
+        Allocated = ChooseAllocationSize(BufferSizeRequired);
+        Alloc(Allocated);
+    }
+
+    constexpr void EnlargeBufferIfRequired(SizeType CharCount)
+    {
+        SizeType BufferSizeRequired = CharCount * sizeof(ValueType);
+        if (BufferSizeRequired <= Allocated)
+        {
+            return;
+        }
+
+        bool WasInHeap = InHeap();
+        ValueType* OldBuffer = Data();
+        SizeType OldAllocationSize = Allocated;
+        Allocated = ChooseAllocationSize(BufferSizeRequired);
+        if (InHeap())
+        {
+            ValueType* NewBuffer = (ValueType*)Malloc(Allocated * sizeof(ValueType), MEMORY_TAG_STRING, true);;
+            MemCpy(NewBuffer, OldBuffer, Length);
+            Buffer.HeapBuffer = NewBuffer;
+        }
+
+        if (WasInHeap)
+        {
+            Free(OldBuffer, OldAllocationSize, MEMORY_TAG_STRING);
+        }
+    }
+
+    constexpr inline bool InHeap() const
+    {
+        return Allocated > InternalBufferSize;
+    }
+
+    constexpr inline bool InStack() const
+    {
+        return Allocated == InternalBufferSize;
+    }
+
+public:
     KString(std::nullptr_t)
     {
-        Buffer = nullptr;
+        Buffer.StackBuffer[0] = 0;
         Allocated = 0;
         Length = 0;
     }
 
     KRAFT_INLINE constexpr KString()
     {
-        Buffer = nullptr;
+        Buffer.StackBuffer[0] = 0;
         Allocated = 0;
         Length = 0;
     }
@@ -45,7 +132,7 @@ struct KString
     constexpr KString(SizeType CharCount, ValueType Char)
     {
         Length = CharCount;
-        Allocated = (Length + 1) * sizeof(ValueType);
+        Allocated = ChooseAllocationSize(Length + 1);
         Alloc(Allocated);
         MemSet(Data(), static_cast<ValueType>(Char), Allocated);
         Data()[Length] = 0;
@@ -54,16 +141,64 @@ struct KString
     constexpr KString(const ValueType* Str)
     {
         Length = _kstring_strlen(Str);
-        Allocated = (Length + 1) * sizeof(ValueType);
+        Allocated = ChooseAllocationSize(Length + 1);
         Alloc(Allocated);
         MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
+        Data()[Length] = 0;
+    }
+
+    constexpr KString(const ValueType* Str, SizeType Count)
+    {
+        Length = Count;
+        Allocated = ChooseAllocationSize(Length + 1);
+        Alloc(Allocated);
+        MemCpy(Data(), Str, Length * sizeof(ValueType));
+        Data()[Length] = 0;
+    }
+
+    constexpr KString(const ValueType* Str, SizeType Position, SizeType Count)
+    {
+        Length = Count;
+        Allocated = ChooseAllocationSize(Length + 1);
+        Alloc(Allocated);
+        MemCpy(Data(), Str + Position, Length * sizeof(ValueType));
+        Data()[Length] = 0;
+    }
+
+    // Copy constructor
+    constexpr KString(const KString& Str)
+    {
+        Length = Str.Length;
+        ReallocIfRequired(Length + 1);
+
+        MemCpy(Data(), Str.Data(), (Length + 1) * sizeof(ValueType));
+        Data()[Length] = 0;
+    }
+
+    // Move constructor
+    constexpr KString(KString&& Str) noexcept
+    {
+        Length = Str.Length;
+        Allocated = Str.Allocated;
+        Buffer = Str.Buffer;
+        Str.Length = 0;
+        Str.Allocated = 0;
+        Str.Buffer = {};
+    }
+
+    constexpr KString(const KString& Str, SizeType Position)
+    {
+        Length = Str.Length - Position;
+        Allocated = ChooseAllocationSize(Length + 1);
+        Alloc(Allocated);
+        MemCpy(Data(), Str.Data() + Position, (Length + 1) * sizeof(ValueType));
         Data()[Length] = 0;
     }
 
     constexpr KString(const KString& Str, SizeType Position, SizeType Count)
     {
         Length = ((Position + Count) >= Str.Size() ? Str.Size() - Position : Count);
-        Allocated = (Length + 1) * sizeof(ValueType);
+        Allocated = ChooseAllocationSize(Length + 1);
         Alloc(Allocated);
         MemCpy(Data(), Str.Data() + Position, (Length + 1) * sizeof(ValueType));
         Data()[Length] = 0;
@@ -96,33 +231,45 @@ struct KString
         return *this;
     }
 
-    constexpr void ReallocIfRequired(SizeType CharCount)
+    constexpr KString& operator+=(const ValueType* Str)
     {
-        SizeType BufferSizeRequired = CharCount * sizeof(ValueType);
-        if (BufferSizeRequired <= Allocated)
-        {
-            return;
-        }
+        SizeType StrLength = _kstring_strlen(Str);
+        EnlargeBufferIfRequired(Length + StrLength + 1);
+        MemCpy(Data() + Length, Str, StrLength + 1);
+        Length += StrLength;
+        Data()[Length] = 0;
 
-        Free(Data());
-
-        Allocated = BufferSizeRequired;
-        Alloc(BufferSizeRequired);
+        return *this;
     }
 
-    KRAFT_INLINE void Alloc(SizeType Size)
+    constexpr KString& operator+=(const ValueType Char)
     {
-        Buffer = (ValueType*)Malloc(Allocated * sizeof(ValueType), MEMORY_TAG_STRING, true);
+        EnlargeBufferIfRequired(Length + 2);
+        Data()[Length] = Char;
+        Length++;
+        Data()[Length] = 0;
+
+        return *this;
+    }
+
+    constexpr KString& Append(const ValueType* Str)
+    {
+        return (*this += Str);
+    }
+
+    constexpr KString& Append(const ValueType Char)
+    {
+        return (*this += Char);
     }
 
     constexpr const ValueType* Data() const noexcept
     {
-        return Buffer;
+        return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
     }
 
     constexpr ValueType* Data() noexcept
     {
-        return Buffer;
+        return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
     }
 
     KRAFT_INLINE constexpr SizeType Size() const noexcept
@@ -132,16 +279,21 @@ struct KString
 
     ~KString()
     {
-        if (sizeof(ValueType) == 1)
+        if (InHeap())
         {
-            KSUCCESS(TEXT("Deallocating string %S"), Data());
-        }
-        else
-        {
-            KSUCCESS(TEXT("Deallocating wstring %s"), Data());
-        }
+            if (sizeof(ValueType) == 1)
+            {
+                KSUCCESS(TEXT("Deallocating string %S"), Data());
+            }
+            else
+            {
+                KSUCCESS(TEXT("Deallocating wstring %s"), Data());
+            }
 
-        Free(Data());
+            // KString::Format("Hello %s %d", "World", 47);
+
+            Free(Data(), Allocated, MEMORY_TAG_STRING);
+        }
     }
 
     KRAFT_INLINE constexpr ValueType& operator[](SizeType Index)
@@ -154,12 +306,102 @@ struct KString
         return Data()[Index];
     }
 
+    static KString Format(const char* Format, ...)
+    {
+        __builtin_va_list args;
+        va_start(args, Format);
+        KString Output = FormatV(Format, args);
+        va_end(args);
+        return Output;
+    }
+
+    static KString FormatV(const char* Format, va_list Args)
+    {
+        KString Output;
+        char* At = (char*)Format;
+        while (At)
+        {
+            if (At[0] == '%')
+            {
+                At++;
+                if (At[0] == 's')
+                {
+                    At++;
+                    char* String = va_arg(Args, char*);
+                    Output += String;
+                }
+                else if (At[0] == 'd')
+                {
+                    At++;
+                    int Value = va_arg(Args, int);
+                    // char* String = itoa(Value);
+                    Output += String;
+                }
+            }
+            else
+            {
+                Output += At[0];
+            }
+        }
+
+        return Output;
+    }
+
+    KString& Trim()
+    {
+        SizeType Start = 0;
+        SizeType End = Length - 1;
+
+        while (Start < Length && isspace(Data()[Start])) Start++;
+        while (End >= Start && isspace(Data()[End])) End--;
+
+        Length = End - Start + 1;
+        MemCpy(Data(), Data() + Start, Length * sizeof(ValueType));
+        Data()[Length] = 0;
+
+        return *this;
+    }
+
+    constexpr int Compare(const ValueType* Str) const
+    {
+        return _kstring_compare(Data(), Length, Str, _kstring_strlen(Str));
+    }
+
+    constexpr int Compare(const KString& Str) const
+    {
+        if (Data() == Str.Data() && Length == Str.Length) return 0;
+
+        return _kstring_compare(Data(), Length, Str.Data(), Str.Length);
+    }
+
+    constexpr KRAFT_INLINE bool operator==(const KString& Str) const
+    {
+        return !Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator==(const ValueType* Str) const
+    {
+        return !Compare(Str);
+    }
+
+    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KString& b) 
+    {
+        return b == a;
+    }
+
 private:
-    SizeType _kstring_strlen(const ValueType* Str);
+    SizeType _kstring_strlen(const ValueType* Str) const;
+    
+    constexpr KRAFT_INLINE SizeType _kstring_compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
+    {
+        const SizeType Count = math::Min(aLen, bLen);
+        SizeType Result = MemCmp(a, b, Count);
+        return Result ? Result : aLen - bLen;
+    }
 };
 
 typedef KString<char> String;
-typedef KString<wchar_t> WString;
+// typedef KString<wchar_t> WString;
 
 #ifdef UNICODE
 typedef WString TString;
@@ -167,23 +409,23 @@ typedef WString TString;
 typedef String TString;
 #endif
 
-static WString CharToWChar(const String& Source)
-{
-    uint64 BufferSize = mbstowcs(nullptr, Source.Data(), 0);
-    WString Output(BufferSize, 0);
-    mbstowcs(Output.Data(), Source.Data(), BufferSize);
+// static WString CharToWChar(const String& Source)
+// {
+//     uint64 BufferSize = mbstowcs(nullptr, Source.Data(), 0);
+//     WString Output(BufferSize, 0);
+//     mbstowcs(Output.Data(), Source.Data(), BufferSize);
 
-    return Output;
-}
+//     return Output;
+// }
 
-static String WCharToChar(const WString& Source)
-{
-    uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
-    String Output(BufferSize, 0);
-    wcstombs(Output.Data(), Source.Data(), BufferSize);
+// static String WCharToChar(const WString& Source)
+// {
+//     uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
+//     String Output(BufferSize, 0);
+//     wcstombs(Output.Data(), Source.Data(), BufferSize);
 
-    return Output;
-}
+//     return Output;
+// }
 
 struct StringView
 {

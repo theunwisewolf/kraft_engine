@@ -14,6 +14,7 @@ namespace kraft
 
 namespace math
 {
+
 template <typename T>
 KRAFT_API KRAFT_INLINE T Min(T a, T b)
 {

@@ -128,6 +128,11 @@ void *Platform::MemSet(void *region, int value, uint64_t size)
     return memset(region, value, size);
 }
 
+int Platform::MemCmp(const void *a, const void *b, uint64_t size)
+{
+    return memcmp(a, b, size);
+}
+
 // ------------------------------------------ 
 // Console Specific Functions
 // ------------------------------------------ 
