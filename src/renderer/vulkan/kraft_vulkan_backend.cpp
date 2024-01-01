@@ -45,9 +45,9 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     appInfo.apiVersion = VK_API_VERSION_1_2;
-    appInfo.pApplicationName = TCHAR_TO_ANSI(config->ApplicationName);
+    appInfo.pApplicationName = config->ApplicationName;
     appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-    appInfo.pEngineName = TCHAR_TO_ANSI(config->ApplicationName);
+    appInfo.pEngineName = config->ApplicationName;
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -75,7 +75,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     KINFO("[VulkanRendererBackend::Init]: Loading the following debug extensions:");
     for (int i = 0; i < arrlen(extensions); ++i)
     {
-        KINFO("[VulkanRendererBackend::Init]: %s", ANSI_TO_TCHAR(extensions[i]));
+        KINFO("[VulkanRendererBackend::Init]: %s", extensions[i]);
     }
 
     instanceCreateInfo.enabledExtensionCount = (uint32)arrlen(extensions);
@@ -103,7 +103,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         bool found = instanceLayerSupported(layers[i], availableLayerProperties, availableLayers);
         if (!found)
         {
-            KERROR("[VulkanRendererBackend::Init]: %s layer not found", ANSI_TO_TCHAR(layers[i]));
+            KERROR("[VulkanRendererBackend::Init]: %s layer not found", layers[i]);
             return false;
         }
     }
@@ -375,22 +375,22 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
         {
-            KERROR("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KERROR("%s", pCallbackData->pMessage);
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
         {
-            KWARN("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KWARN("%s", pCallbackData->pMessage);
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
         {
-            KDEBUG("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KDEBUG("%s", pCallbackData->pMessage);
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
         {
-            KDEBUG("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KDEBUG("%s", pCallbackData->pMessage);
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT: break;

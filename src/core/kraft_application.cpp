@@ -50,10 +50,10 @@ bool Application::Create(int argc, char *argv[])
     CommandLineArgs = {};
     CommandLineArgs.Count = argc;
 
-    CommandLineArgs.Arguments = Array<TString>(argc);
+    CommandLineArgs.Arguments = Array<String>(argc);
     for (int i = 0; i < argc; i++)
     {
-        CommandLineArgs.Arguments[i] = ANSI_TO_TCHAR(argv[i]);
+        CommandLineArgs.Arguments[i] = argv[i];
     }
 
     BasePath = filesystem::Basename(CommandLineArgs.Arguments[0]);
@@ -94,7 +94,7 @@ bool Application::Run()
     float64 timeSinceLastSecond = 0.f;
 
     kraft::PrintDebugMemoryInfo();
-    TCHAR windowTitleBuffer[1024];
+    char windowTitleBuffer[1024];
     while (this->Running)
     {
         kraft::Time::Update();

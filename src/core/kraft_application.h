@@ -16,8 +16,8 @@ struct ApplicationConfig
 {
     uint32              WindowWidth;
     uint32              WindowHeight;
-    const TCHAR*        ApplicationName;
-    const TCHAR*        WindowTitle;
+    const char*         ApplicationName;
+    const char*         WindowTitle;
     RendererBackendType RendererBackend = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
 };
 
@@ -30,7 +30,7 @@ struct ApplicationState
 struct ApplicationCommandLineArgs
 {
     int             Count;
-    Array<TString>   Arguments;
+    Array<String>   Arguments;
 };
 
 struct KRAFT_API Application
@@ -43,7 +43,7 @@ struct KRAFT_API Application
     ApplicationCommandLineArgs CommandLineArgs = {};
 
     // The location of the executable without a trailing slash
-    TString BasePath;
+    String BasePath;
     bool Running = false;
     bool Suspended = false;
 

@@ -30,8 +30,8 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
-static TCHAR TextureName[] = "res/textures/test-vert-image-2.jpg";
-static TCHAR TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
+static char TextureName[] = "res/textures/test-vert-image-2.jpg";
+static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -100,7 +100,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     const char **paths = (const char**)data.Int64[1];
 
     // Try loading the texture from the command line args
-    const TCHAR *filePath = ANSI_TO_TCHAR(paths[count - 1]);
+    const char *filePath = paths[count - 1];
     if (kraft::filesystem::FileExists(filePath))
     {
         KINFO("Loading texture from path %s", filePath);
@@ -337,7 +337,7 @@ void InitTestScene(VulkanContext* context)
     if (kraft::Application::Get()->CommandLineArgs.Count > 1)
     {
         // Try loading the texture from the command line args
-        TString FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
+        String FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
         if (kraft::filesystem::FileExists(FilePath))
         {
             KINFO("Loading texture from cli path %s", FilePath.Data());
@@ -374,7 +374,7 @@ void InitTestScene(VulkanContext* context)
     Renderer->ImGuiRenderer.AddWidget("Debug", ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
-    TCHAR filepath[256] = {};
+    char filepath[256] = {};
     kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/vertex.vert.spv", kraft::Application::Get()->BasePath.Data());
     VulkanCreateShaderModule(context, filepath, &vertex);
     KASSERT(vertex);

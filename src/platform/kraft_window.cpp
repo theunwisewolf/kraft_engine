@@ -15,7 +15,7 @@
 namespace kraft
 {
 
-int Window::Init(const TCHAR* title, size_t width, size_t height, RendererBackendType backendType)
+int Window::Init(const char* title, size_t width, size_t height, RendererBackendType backendType)
 {
     if (!glfwInit())
     {
@@ -32,7 +32,7 @@ int Window::Init(const TCHAR* title, size_t width, size_t height, RendererBacken
 
     }
 
-    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), TCHAR_TO_ANSI(title), NULL, NULL);
+    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), title, NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
@@ -72,9 +72,9 @@ bool Window::PollEvents()
     return !glfwWindowShouldClose(this->PlatformWindowHandle);
 }
 
-void Window::SetWindowTitle(const TCHAR* title)
+void Window::SetWindowTitle(const char* title)
 {
-    glfwSetWindowTitle(this->PlatformWindowHandle, TCHAR_TO_ANSI(title));
+    glfwSetWindowTitle(this->PlatformWindowHandle, title);
 }
 
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
@@ -117,7 +117,7 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 
     for (int i = 0; i < count; i++)
     {
-        KINFO("Dropped file %s", ANSI_TO_TCHAR(((char**)data.Int64[1])[i]));
+        KINFO("Dropped file %s", ((char**)data.Int64[1])[i]);
     }
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));

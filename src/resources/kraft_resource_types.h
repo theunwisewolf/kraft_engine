@@ -16,7 +16,7 @@ struct Texture
     uint32 Height;
     uint8  Channels;
     uint32 Generation;
-    TCHAR  Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
+    char  Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
 
     void *RendererData; // Renderer specific data
 };
@@ -36,7 +36,7 @@ struct TextureMap
 struct Material
 {
     uint32      ID;
-    TCHAR       Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
+    char       Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
     TextureMap  DiffuseMap;
     Vec4f       DiffuseColor;
 };

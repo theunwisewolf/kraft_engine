@@ -11,7 +11,7 @@ void RendererImGui::Init()
 {
 }
 
-void RendererImGui::AddWidget(const TString& Name, ImGuiRenderCallback Callback)
+void RendererImGui::AddWidget(const String& Name, ImGuiRenderCallback Callback)
 {
     ImGuiWidget Widget(Name, Callback);
     Widgets.Push(Widget);

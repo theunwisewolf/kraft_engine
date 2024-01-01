@@ -138,21 +138,59 @@ int Platform::MemCmp(const void *a, const void *b, uint64_t size)
 // ------------------------------------------ 
 
 // https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
-void Platform::ConsoleOutputString(const TCHAR* str, int color)
+void Platform::ConsoleOutputString(const char* str, int color)
 {
     SetConsoleTextAttribute(s_ConsoleOutputHandle, color);
+#ifdef UNICODE
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+    if (!CharacterCount)
+    {
+        OutputDebugString(L"MultiByteToWideChar failed to get character count");
+        return;
+    }
+
+    WString WideString(CharacterCount, 0);
+    if (!MultiByteToWideChar(CP_UTF8, 0, str, -1, *WideString, CharacterCount))
+    {
+        OutputDebugString(L"MultiByteToWideChar failed");
+        return;
+    }
+
+    OutputDebugString(*WideString);
+    WriteConsole(s_ConsoleOutputHandle, *WideString, (DWORD)WideString.Length, 0, NULL);
+#else
     OutputDebugString(str);
     WriteConsole(s_ConsoleOutputHandle, str, (DWORD)StringLength(str), 0, NULL);
+#endif
 
     // Reset console
     SetConsoleTextAttribute(s_ConsoleOutputHandle, s_ConsoleOutputScreenBufferInfo.wAttributes);
 }
 
-void Platform::ConsoleOutputStringError(const TCHAR* str, int color)
+void Platform::ConsoleOutputStringError(const char* str, int color)
 {
     SetConsoleTextAttribute(s_ConsoleErrorHandle, color);
+#ifdef UNICODE
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+    if (!CharacterCount)
+    {
+        OutputDebugString(L"MultiByteToWideChar failed to get character count");
+        return;
+    }
+
+    WString WideString(CharacterCount, 0);
+    if (!MultiByteToWideChar(CP_UTF8, 0, str, -1, *WideString, CharacterCount))
+    {
+        OutputDebugString(L"MultiByteToWideChar failed");
+        return;
+    }
+
+    OutputDebugString(*WideString);
+    WriteConsole(s_ConsoleErrorHandle, *WideString, (DWORD)WideString.Length, 0, NULL);
+#else
     OutputDebugString(str);
     WriteConsole(s_ConsoleErrorHandle, str, (DWORD)StringLength(str), 0, NULL);
+#endif
 
     // Reset console
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
@@ -183,10 +221,10 @@ void Platform::SleepMilliseconds(uint64_t msec)
     Sleep((DWORD)msec);
 }
 
-const TCHAR* Platform::GetKeyName(Keys key)
+const char* Platform::GetKeyName(Keys key)
 {
     int keycode = (int)key;
-    return ANSI_TO_TCHAR(glfwGetKeyName(keycode, glfwGetKeyScancode(keycode)));
+    return glfwGetKeyName(keycode, glfwGetKeyScancode(keycode));
 }
 
 }

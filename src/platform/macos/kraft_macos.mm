@@ -119,7 +119,7 @@ int Platform::MemCmp(const void *a, const void *b, uint64_t size)
 // Console Specific Functions
 // ------------------------------------------ 
 
-void Platform::ConsoleOutputString(const TCHAR* str, int color)
+void Platform::ConsoleOutputString(const char* str, int color)
 {
     // \033 is the control code
     //"\033[{FORMAT_ATTRIBUTE};{FORGROUND_COLOR};{BACKGROUND_COLOR}m{TEXT}\033[{RESET_FORMATE_ATTRIBUTE}m"
@@ -130,7 +130,7 @@ void Platform::ConsoleOutputString(const TCHAR* str, int color)
     fprintf(stdout, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str, resetFormatAttribute);
 }
 
-void Platform::ConsoleOutputStringError(const TCHAR* str, int color)
+void Platform::ConsoleOutputStringError(const char* str, int color)
 {
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
     int foregroundColor = color & 0xffff;

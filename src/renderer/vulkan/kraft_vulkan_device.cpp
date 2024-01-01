@@ -40,7 +40,7 @@ bool checkDepthFormatSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties
     }
 
     *out = VK_FORMAT_UNDEFINED;
-    KDEBUG("Skipping device %s because device does not support the required depth buffer format", ANSI_TO_TCHAR(properties.deviceName));
+    KDEBUG("Skipping device %s because device does not support the required depth buffer format", properties.deviceName);
     return false;
 }
 
@@ -48,13 +48,13 @@ bool checkSwapchainSupport(VkPhysicalDeviceProperties properties, VulkanSwapchai
 {
     if (info.FormatCount <= 0)
     {
-        KDEBUG("Skipping device %s because swapchain has no formats", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because swapchain has no formats", properties.deviceName);
         return false;
     }
 
     if (info.PresentModeCount <= 0)
     {
-        KDEBUG("Skipping device %s because swapchain has no present modes", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because swapchain has no present modes", properties.deviceName);
         return false;
     }
 
@@ -128,25 +128,25 @@ bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties prope
     int failures = 0;
     if (requirements.Graphics && queueFamilyInfo->GraphicsQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because graphics queue is not supported and is required", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because graphics queue is not supported and is required", properties.deviceName);
         failures++;
     }
 
     if (requirements.Compute && queueFamilyInfo->ComputeQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because compute queue is not supported and is required", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because compute queue is not supported and is required", properties.deviceName);
         failures++;
     }
 
     if (requirements.Transfer && queueFamilyInfo->TransferQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because transfer queue is not supported and is required", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because transfer queue is not supported and is required", properties.deviceName);
         failures++;
     }
 
     if (requirements.Present && queueFamilyInfo->PresentQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because no queue family supports presentation", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("Skipping device %s because no queue family supports presentation", properties.deviceName);
         failures++;
     }
 
@@ -163,7 +163,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
     size_t n = arrlen(requirements.DeviceExtensionNames);
     if (n == 0)
     {
-        KDEBUG("[checkExtensionsSupport]: No extensions requested", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("[checkExtensionsSupport]: No extensions requested", properties.deviceName);
         return true;
     }
 
@@ -172,7 +172,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
 
     if (availableExtensionsCount == 0)
     {
-        KDEBUG("[checkExtensionsSupport]: Skipping device %s because it has no extensions supported and some extensions are required", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("[checkExtensionsSupport]: Skipping device %s because it has no extensions supported and some extensions are required", properties.deviceName);
         return false;
     }
 
@@ -198,7 +198,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
 
         if (!found)
         {
-            KDEBUG("Skipping device %s because required extension %s not available", ANSI_TO_TCHAR(properties.deviceName), ANSI_TO_TCHAR(requirements.DeviceExtensionNames[j]));
+            KDEBUG("Skipping device %s because required extension %s not available", properties.deviceName, requirements.DeviceExtensionNames[j]);
             failures++;
         }
     }
@@ -297,10 +297,10 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(device, &properties);
 
-        KDEBUG("[VulkanSelectPhysicalDevice]: Checking device %s", ANSI_TO_TCHAR(properties.deviceName));
+        KDEBUG("[VulkanSelectPhysicalDevice]: Checking device %s", properties.deviceName);
         if (requirements.DiscreteGPU && properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
-            KDEBUG("[VulkanSelectPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one", ANSI_TO_TCHAR(properties.deviceName));
+            KDEBUG("[VulkanSelectPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one", properties.deviceName);
             continue;
         }
 
@@ -371,7 +371,7 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     }
 
     // Print some nice info about our physical device
-    KINFO("Selected device: %s [Dedicated GPU = %s]", ANSI_TO_TCHAR(context->PhysicalDevice.Properties.deviceName), 
+    KINFO("Selected device: %s [Dedicated GPU = %s]", context->PhysicalDevice.Properties.deviceName, 
         context->PhysicalDevice.Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? "true" : "false");
 
     KINFO("Driver version: %d.%d.%d", 

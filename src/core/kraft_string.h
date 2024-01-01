@@ -12,14 +12,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#ifdef UNICODE
-    #define ANSI_TO_TCHAR(x) CharToWChar(x).Data()
-    #define TCHAR_TO_ANSI(x) WCharToChar(x).Data()
-#else
-    #define ANSI_TO_TCHAR(x) x
-    #define TCHAR_TO_ANSI(x) x
-#endif
-
 constexpr size_t KRAFT_STRING_SSO_ALIGNMENT = 16;
 
 namespace kraft
@@ -286,6 +278,11 @@ public:
         return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
     }
 
+    constexpr ValueType* operator*()
+    {
+        return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
+    }
+
     KRAFT_INLINE constexpr SizeType Size() const noexcept
     {
         return Length;
@@ -376,9 +373,26 @@ static String WCharToChar(const WString& Source)
     return Output;
 }
 
+static WString MultiByteStringToWideCharString(const String& Source)
+{
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, *Source, -1, NULL, 0);
+    if (!CharacterCount)
+    {
+        return {};
+    }
+
+    WString WideString(CharacterCount, 0);
+    if (!MultiByteToWideChar(CP_UTF8, 0, *Source, -1, *WideString, CharacterCount))
+    {
+        return {};
+    }
+
+    return WideString;
+}
+
 struct StringView
 {
-    TCHAR       *Buffer;
+    char       *Buffer;
     uint64      Length;
 
     bool operator==(const StringView& other)
@@ -401,40 +415,28 @@ struct StringView
     }
 };
 
-KRAFT_INLINE uint64 StringLength(const TCHAR* in)
+KRAFT_INLINE uint64 StringLength(const char* in)
 {
-#ifdef UNICODE
-    return wcslen(in);
-#else
     return strlen(in);
-#endif
 }
 
-KRAFT_INLINE uint64 StringLengthClamped(const TCHAR* in, uint64 max)
+KRAFT_INLINE uint64 StringLengthClamped(const char* in, uint64 max)
 {
     uint64 length = StringLength(in);
     return length > max ? max : length;
 }
 
-KRAFT_INLINE TCHAR* StringCopy(TCHAR* dst, TCHAR* src)
+KRAFT_INLINE char* StringCopy(char* dst, char* src)
 {
-#ifdef UNICODE
-    return wcscpy(dst, src);
-#else
     return strcpy(dst, src);
-#endif
 }
 
-KRAFT_INLINE TCHAR* StringNCopy(TCHAR* dst, const TCHAR* src, uint64 length)
+KRAFT_INLINE char* StringNCopy(char* dst, const char* src, uint64 length)
 {
-#ifdef UNICODE
-    return wcsncpy(dst, src, length);
-#else
     return strncpy(dst, src, length);
-#endif
 }
 
-KRAFT_INLINE const TCHAR* StringTrim(const TCHAR* in)
+KRAFT_INLINE const char* StringTrim(const char* in)
 {
     if (!in) return in;
     
@@ -442,58 +444,41 @@ KRAFT_INLINE const TCHAR* StringTrim(const TCHAR* in)
     int start = 0;
     int end = length - 1;
 
-#if UNICODE
-    while (start < length && iswspace(in[start])) start++;
-    while (end >= start && iswspace(in[end])) end--;
-#else
     while (start < length && isspace(in[start])) start++;
     while (end >= start && isspace(in[end])) end--;
-#endif
 
     length = end - start + 1;
-    TCHAR* out = (TCHAR*)kraft::Malloc((length + 1) * sizeof(TCHAR), MEMORY_TAG_STRING, true);
+    char* out = (char*)kraft::Malloc((length + 1) * sizeof(TCHAR), MEMORY_TAG_STRING, true);
     kraft::MemCpy(out, (void*)(in+start), length * sizeof(TCHAR));
 
-    return (const TCHAR*)out;
+    return (const char*)out;
 }
 
 // Will not work with string-literals as they are read only!
-KRAFT_INLINE TCHAR* StringTrimLight(TCHAR* in)
+KRAFT_INLINE char* StringTrimLight(char* in)
 {
     if (!in) return in;
 
-#if UNICODE
-    while (iswspace(*in)) in++;
-#else
     while (isspace(*in)) in++;
-#endif
-    TCHAR *p = in;
+    char *p = in;
 
     while (*p) p++;
     p--;
 
-#if UNICODE
-    while (iswspace(*p)) p--;
-#else
     while (isspace(*p)) p--;
-#endif
     p[1] = 0;
 
     return in;
 }
 
-KRAFT_INLINE uint64 StringEqual(const TCHAR *a, const TCHAR *b)
+KRAFT_INLINE uint64 StringEqual(const char *a, const char *b)
 {
-#if UNICODE
-    return wcscmp(a, b) == 0;
-#else
     return strcmp(a, b) == 0;
-#endif
 }
 
-KRAFT_INLINE int32 StringFormatV(TCHAR* buffer, int n, const TCHAR* format, va_list args);
+KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char*format, va_list args);
 
-KRAFT_INLINE int32 StringFormat(TCHAR* buffer, int n, const TCHAR* format, ...)
+KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char*format, ...)
 {
     if (buffer) 
     {
@@ -507,39 +492,11 @@ KRAFT_INLINE int32 StringFormat(TCHAR* buffer, int n, const TCHAR* format, ...)
     return -1;
 }
 
-KRAFT_INLINE int32 StringFormatV(TCHAR* buffer, int n, const TCHAR* format, va_list args)
+KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
 {
     if (buffer) 
     {
-        __builtin_va_list argPtr;
-#ifdef UNICODE
-    // #ifdef KRAFT_PLATFORM_WINDOWS
-    //     uint64 FormatStringLength = StringLength(format);
-    //     TCHAR _format[32000];
-    //     MemCpy(_format, format, FormatStringLength * sizeof(TCHAR));
-
-    //     for (int i = 0; i < FormatStringLength; i++)
-    //     {
-    //         if (_format[i] == '%' && _format[i+1] == 's')
-    //         {
-    //             _format[i+1] = 'S';
-    //         }
-    //         else if (format[i] == '%' && _format[i+1] == 'S')
-    //         {
-    //             _format[i+1] = 's';
-    //         }
-    //     }
-
-    //     _format[FormatStringLength] = 0;
-    //     int32 written = vswprintf(buffer, n, _format, args);
-    // #else
-        int32 written = vswprintf(buffer, n, format, args);
-    // #endif
-#else
-        int32 written = vsnprintf(buffer, n, format, args);
-#endif
-
-        return written;
+        return vsnprintf(buffer, n, format, args);
     }
 
     return -1;

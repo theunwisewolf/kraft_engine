@@ -27,7 +27,7 @@ struct KRAFT_API Logger
 
     bool Init();
     void Shutdown();
-    void Log(kraft::LogLevel level, const TCHAR* message, ...);
+    void Log(kraft::LogLevel level, const char* message, ...);
 };
 
 KRAFT_API extern struct Logger LoggerInstance; 

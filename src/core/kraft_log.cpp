@@ -15,10 +15,10 @@ bool Logger::Init()
 
 void Logger::Shutdown() {}
 
-void Logger::Log(LogLevel level, const TCHAR* message, ...)
+void Logger::Log(LogLevel level, const char* message, ...)
 {
     const int BUFFER_SIZE = 32000;
-    static const TCHAR* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
+    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
         "[FATAL]:", 
         "[ERROR]:", 
         "[WARN]:", 
@@ -38,7 +38,7 @@ void Logger::Log(LogLevel level, const TCHAR* message, ...)
 
     int prefixLength = (int)StringLength(levelsPrefix[level]);
     int reservedSize = prefixLength + this->Padding;
-    TCHAR out[BUFFER_SIZE] = {0};
+    char out[BUFFER_SIZE] = {0};
 
     va_list args;
     va_start(args, message);

@@ -71,8 +71,8 @@ struct KRAFT_API Platform
     static const int ConsoleColorBGLoMagenta;
     static const int ConsoleColorBGHiMagenta;
 
-    static void ConsoleOutputString(const TCHAR *str, int color);
-    static void ConsoleOutputStringError(const TCHAR *str, int color);
+    static void ConsoleOutputString(const char *str, int color);
+    static void ConsoleOutputStringError(const char *str, int color);
 
     // Time
     static float64 GetAbsoluteTime();
@@ -80,7 +80,7 @@ struct KRAFT_API Platform
 
     // Misc
     static void SleepMilliseconds(uint64_t msec);
-    static const TCHAR* GetKeyName(Keys key);
+    static const char* GetKeyName(Keys key);
     static Window& GetWindow()
     {
 #if defined(KRAFT_PLATFORM_WINDOWS)

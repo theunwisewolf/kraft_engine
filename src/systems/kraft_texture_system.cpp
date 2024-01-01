@@ -62,9 +62,9 @@ void TextureSystem::Shutdown()
     KINFO("[TextureSystem::Shutdown]: Shutting down texture system");
 }
 
-Texture* TextureSystem::AcquireTexture(const TString& name, bool autoRelease)
+Texture* TextureSystem::AcquireTexture(const String& name, bool autoRelease)
 {
-    TString TextureName(name);
+    String TextureName(name);
     TextureName.Trim();
     if (TextureName.Length == 0)
     {
@@ -123,7 +123,7 @@ Texture* TextureSystem::AcquireTexture(const TString& name, bool autoRelease)
     return &State->Textures[index].Texture;
 }
 
-void TextureSystem::ReleaseTexture(const TString& TextureName)
+void TextureSystem::ReleaseTexture(const String& TextureName)
 {
     if (TextureName == KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME)
     {
@@ -169,21 +169,13 @@ void TextureSystem::ReleaseTexture(Texture* texture)
     TextureSystem::ReleaseTexture(texture->Name);
 }
 
-bool TextureSystem::LoadTexture(const TString& TexturePath, Texture* texture)
+bool TextureSystem::LoadTexture(const String& TexturePath, Texture* texture)
 {
     // Load textures
     stbi_set_flip_vertically_on_load(1);
 
     int width, height, channels, desiredChannels = 4;
-    const char* path = (char*)TexturePath.Data();
-
-#if UNICODE
-    char utf8Path[256];
-    stbi_convert_wchar_to_utf8(utf8Path, sizeof(utf8Path), *TexturePath);
-    path = utf8Path;
-#endif
-
-    unsigned char *data = stbi_load(path, &width, &height, &channels, desiredChannels);
+    unsigned char *data = stbi_load(*TexturePath, &width, &height, &channels, desiredChannels);
 
     if (data)
     {

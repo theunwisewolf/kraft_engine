@@ -45,8 +45,7 @@ void VulkanImguiInit(VulkanContext* context)
 
     // TODO (amn): Free this
     char *filepath = (char*)Malloc(256, MEMORY_TAG_STRING);
-    StringFormat((TCHAR*)filepath, 256, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
-    strcpy(filepath, TCHAR_TO_ANSI((TCHAR*)filepath));
+    StringFormat((char*)filepath, 256, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
     io.IniFilename = filepath;
     
     // Setup Dear ImGui style

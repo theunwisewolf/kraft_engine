@@ -12,10 +12,10 @@ typedef void (*ImGuiRenderCallback)(bool refresh);
 
 struct ImGuiWidget
 {
-    TString             Name;
+    String             Name;
     ImGuiRenderCallback Callback  = nullptr;
 
-    ImGuiWidget(const TString& Name, ImGuiRenderCallback Callback) :
+    ImGuiWidget(const String& Name, ImGuiRenderCallback Callback) :
         Name(Name),
         Callback(Callback)
     {
@@ -35,7 +35,7 @@ struct RendererImGui
     Array<ImGuiWidget> Widgets;
 
     void Init();
-    void AddWidget(const TString& Name, ImGuiRenderCallback Callback);
+    void AddWidget(const String& Name, ImGuiRenderCallback Callback);
     void OnResize(int width, int height);
     void RenderWidgets();
     void Destroy();

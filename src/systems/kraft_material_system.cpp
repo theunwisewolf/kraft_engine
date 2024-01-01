@@ -65,7 +65,7 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->MaterialReferences[0].Material;
 }
 
-Material* MaterialSystem::AcquireMaterial(const TCHAR* name)
+Material* MaterialSystem::AcquireMaterial(const char* name)
 {
     // TODO: Read from file
     return nullptr;
@@ -124,7 +124,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
     return material;
 }
 
-void ReleaseMaterial(const TCHAR* name)
+void ReleaseMaterial(const char* name)
 {
     KDEBUG("[MaterialSystem::ReleaseMaterial]: Releasing material %s", name);
 

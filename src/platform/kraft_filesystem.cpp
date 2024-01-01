@@ -13,56 +13,48 @@ namespace kraft
 namespace filesystem
 {
 
-bool OpenFile(const TString& Path, int Mode, bool Binary, FileHandle* Out)
+bool OpenFile(const String& Path, int Mode, bool Binary, FileHandle* Out)
 {
     return OpenFile(Path.Data(), Mode, Binary, Out);
 }
 
-bool OpenFile(const TCHAR* path, int mode, bool binary, FileHandle* out)
+bool OpenFile(const char* Path, int Mode, bool binary, FileHandle* out)
 {
     out->Handle = {};
 
-    const TCHAR* modeString;
-    if (mode & FILE_OPEN_MODE_APPEND)
+    const char* ModeString;
+    if (Mode & FILE_OPEN_MODE_APPEND)
     {
-        modeString = binary ? "a+b" : "a+";
+        ModeString = binary ? "a+b" : "a+";
     }
-    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE))
+    else if ((Mode & FILE_OPEN_MODE_READ) && (Mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? "w+b" : "w+";
+        ModeString = binary ? "w+b" : "w+";
     }
-    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0)
+    else if ((Mode & FILE_OPEN_MODE_READ) && (Mode & FILE_OPEN_MODE_WRITE) == 0)
     {
-        modeString = binary ? "r+b" : "r";
+        ModeString = binary ? "r+b" : "r";
     }
-    else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE))
+    else if ((Mode & FILE_OPEN_MODE_READ) == 0 && (Mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? "wb" : "w";
+        ModeString = binary ? "wb" : "w";
     }
     else
     {
-        KERROR("[FileSystem::OpenFile] Invalid mode %d", mode);
+        KERROR("[FileSystem::OpenFile] Invalid mode %d", Mode);
         return false;
     }
 
-#if UNICODE
-    #ifdef KRAFT_PLATFORM_WINDOWS
-        out->Handle = _wfopen(path, modeString);
-    #else
-        char mbstrPath[256];
-        wcstombs(mbstrPath, path, sizeof(mbstrPath));
-
-        char mbstrMode[32];
-        wcstombs(mbstrPath, modeString, sizeof(mbstrMode));
-        
-        out->Handle = fopen(mbstrPath, mbstrMode);
-    #endif
+#if UNICODE && defined(KRAFT_PLATFORM_WINDOWS)
+    WString WideStringPath = MultiByteStringToWideCharString(Path);
+    WString WideStringMode = MultiByteStringToWideCharString(ModeString);
+    out->Handle = _wfopen(*WideStringPath, *WideStringMode);
 #else
-    out->Handle = fopen(path, modeString);
+    out->Handle = fopen(Path, ModeString);
 #endif
     if (!out->Handle)
     {
-        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", path, StrError(errno));
+        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", Path, StrError(errno));
         return false;
     }
 
@@ -89,7 +81,7 @@ void CloseFile(FileHandle* handle)
     }
 }
 
-bool FileExists(const TCHAR* path)
+bool FileExists(const char* path)
 {
     FileHandle temp;
     if (OpenFile(path, FILE_OPEN_MODE_READ, true, &temp))
@@ -101,7 +93,7 @@ bool FileExists(const TCHAR* path)
     return false;
 }
 
-bool FileExists(const TString& Path)
+bool FileExists(const String& Path)
 {
     return FileExists(Path.Data());
 }
@@ -135,7 +127,7 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     return true;
 }
 
-bool ReadAllBytes(const TCHAR* path, uint8** outBuffer, uint64* bytesRead)
+bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
 {
     FileHandle handle;
     if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
@@ -149,7 +141,7 @@ bool ReadAllBytes(const TCHAR* path, uint8** outBuffer, uint64* bytesRead)
     return retval;
 }
 
-void CleanPath(const TCHAR* path, TCHAR* out)
+void CleanPath(const char* path, char* out)
 {
     uint64 Length = StringLength(path);
     for (int i = 0; i < Length; i++)
@@ -165,9 +157,9 @@ void CleanPath(const TCHAR* path, TCHAR* out)
     }
 }
 
-TString CleanPath(const TString& Path)
+String CleanPath(const String& Path)
 {
-    TString Output(Path.Length, 0);
+    String Output(Path.Length, 0);
     for (int i = 0; i < Path.Length; i++)
     {
         if (Path[i] == '\\')
@@ -183,7 +175,7 @@ TString CleanPath(const TString& Path)
     return Output;
 }
 
-void Basename(const TCHAR* path, TCHAR* out)
+void Basename(const char* path, char* out)
 {
     uint64 Length = StringLength(path);
     for (int i = Length - 1; i >= 0; i--)
@@ -196,13 +188,13 @@ void Basename(const TCHAR* path, TCHAR* out)
     }
 }
 
-TString Basename(const TString& Path)
+String Basename(const String& Path)
 {
     for (int i = Path.Length - 1; i >= 0; i--)
     {
         if (Path[i] == '/' || Path[i] == '\\')
         {
-            return TString(Path, 0, i);
+            return String(Path, 0, i);
         }
     }
 
