@@ -171,7 +171,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
         VulkanCreateImage(context, desc, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &context->Swapchain.DepthAttachment);
     }
 
-    KSUCCESS(TEXT("[VulkanCreateSwapchain]: Swapchain created successfully!"));
+    KSUCCESS("[VulkanCreateSwapchain]: Swapchain created successfully!");
 }
 
 void VulkanDestroySwapchain(VulkanContext* context)
@@ -203,7 +203,7 @@ bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSem
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
-        KERROR(TEXT("[VulkanAcquireNextImageIndex]: Failed to acquire swapchain image"));
+        KERROR("[VulkanAcquireNextImageIndex]: Failed to acquire swapchain image");
         return false;
     }
 
@@ -233,7 +233,7 @@ void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSema
     }
     else
     {
-        KERROR(TEXT("[VulkanPresentSwapchain]: Presentation failed!"));
+        KERROR("[VulkanPresentSwapchain]: Presentation failed!");
     }
 }
 

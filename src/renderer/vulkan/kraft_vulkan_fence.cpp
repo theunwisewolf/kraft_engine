@@ -47,23 +47,23 @@ bool VulkanWaitForFence(VulkanContext* context, VulkanFence* fence, uint64 timeo
         } break;
         case VK_TIMEOUT:
         {
-            KWARN(TEXT("[VulkanFenceWait]: VK_TIMEOUT"));
+            KWARN("[VulkanFenceWait]: VK_TIMEOUT");
         } break;
         case VK_ERROR_DEVICE_LOST:
         {
-            KERROR(TEXT("[VulkanFenceWait]: VK_ERROR_DEVICE_LOST"));
+            KERROR("[VulkanFenceWait]: VK_ERROR_DEVICE_LOST");
         } break;
         case VK_ERROR_OUT_OF_HOST_MEMORY:
         {
-            KERROR(TEXT("[VulkanFenceWait]: VK_ERROR_OUT_OF_HOST_MEMORY"));
+            KERROR("[VulkanFenceWait]: VK_ERROR_OUT_OF_HOST_MEMORY");
         } break;
         case VK_ERROR_OUT_OF_DEVICE_MEMORY:
         {
-            KERROR(TEXT("[VulkanFenceWait]: VK_ERROR_OUT_OF_DEVICE_MEMORY"));
+            KERROR("[VulkanFenceWait]: VK_ERROR_OUT_OF_DEVICE_MEMORY");
         } break;
         default:
         {
-            KERROR(TEXT("[VulkanFenceWait]: Unknown error %d"), result);
+            KERROR("[VulkanFenceWait]: Unknown error %d", result);
         }
     }
 

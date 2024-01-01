@@ -16,7 +16,7 @@ void RendererImGui::AddWidget(const TString& Name, ImGuiRenderCallback Callback)
     ImGuiWidget Widget(Name, Callback);
     Widgets.Push(Widget);
 
-    KINFO(TEXT("Added imgui widget %s"), *Name);
+    KINFO("Added imgui widget %s", *Name);
 }
 
 void RendererImGui::RenderWidgets()

@@ -58,7 +58,7 @@ Material* MaterialSystem::GetDefaultMaterial()
 {
     if (!State)
     {
-        KFATAL(TEXT("MaterialSystem not yet initialized!"));
+        KFATAL("MaterialSystem not yet initialized!");
         return nullptr;
     }
 
@@ -100,7 +100,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
 
     if (index == -1)
     {
-        KERROR(TEXT("[MaterialSystem::AcquireMaterialWithData]: Failed to find a free slot!"));
+        KERROR("[MaterialSystem::AcquireMaterialWithData]: Failed to find a free slot!");
         return NULL;
     }
 
@@ -126,7 +126,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
 
 void ReleaseMaterial(const TCHAR* name)
 {
-    KDEBUG(TEXT("[MaterialSystem::ReleaseMaterial]: Releasing material %s"), name);
+    KDEBUG("[MaterialSystem::ReleaseMaterial]: Releasing material %s", name);
 
     int index = -1;
     for (int i = 0; i < State->MaxMaterialCount; ++i)
@@ -140,7 +140,7 @@ void ReleaseMaterial(const TCHAR* name)
 
     if (index == -1)
     {
-        KERROR(TEXT("[MaterialSystem::ReleaseMaterial]: Unknown material %s"), name);
+        KERROR("[MaterialSystem::ReleaseMaterial]: Unknown material %s", name);
         return;
     }
 
@@ -156,7 +156,7 @@ void ReleaseMaterial(Material *material)
 
 void DestroyMaterial(Material *material)
 {
-    KDEBUG(TEXT("[MaterialSystem::DestroyMaterial]: Destroying material %s"), material->Name);
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", material->Name);
 
     if (material->DiffuseMap.Texture)
     {
@@ -174,7 +174,7 @@ static void _releaseMaterial(MaterialReference ref)
 {
     if (ref.RefCount == 0)
     {
-        KWARN(TEXT("[MaterialSystem::ReleaseMaterial]: Material %s already released!"), ref.Material.Name);
+        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", ref.Material.Name);
         return;
     }
 
@@ -199,7 +199,7 @@ static void _createDefaultMaterials()
         .Usage = TEXTURE_USE_MAP_DIFFUSE,
     };
 
-    StringNCopy(material->Name, TEXT("default-material"), sizeof(material->Name));
+    StringNCopy(material->Name, "default-material", sizeof(material->Name));
 }
 
 }

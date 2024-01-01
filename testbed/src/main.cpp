@@ -23,7 +23,7 @@
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
-    KINFO(TEXT("%s key pressed (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -31,7 +31,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
 bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
-    KINFO(TEXT("%s key released (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -40,7 +40,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 {
     // int x = data.Int32[0];
     // int y = data.Int32[1];
-    // KINFO(TEXT("Mouse moved = %d, %d"), x, y);
+    // KINFO("Mouse moved = %d, %d", x, y);
 
     return false;
 }
@@ -48,7 +48,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     int button = data.Int32[0];
-    KINFO(TEXT("%d mouse button pressed"), button);
+    KINFO("%d mouse button pressed", button);
 
     return false;
 }
@@ -56,18 +56,18 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     int button = data.Int32[0];
-    KINFO(TEXT("%d mouse button released"), button);
+    KINFO("%d mouse button released", button);
 
     return false;
 }
 
 bool Init()
 {
-    // KFATAL(TEXT("Fatal error"));
-    // KERROR(TEXT("Error"));
-    // KWARN(TEXT("Warning"));
-    // KINFO(TEXT("Info"));
-    // KSUCCESS(TEXT("Success"));
+    // KFATAL("Fatal error");
+    // KERROR("Error");
+    // KWARN("Warning");
+    // KINFO("Info");
+    // KSUCCESS("Success");
 
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
@@ -108,7 +108,7 @@ bool Init()
 
 void Update(float64 deltaTime)
 {
-    // KINFO(TEXT("%f ms"), kraft::Platform::GetElapsedTime());
+    // KINFO("%f ms", kraft::Platform::GetElapsedTime());
     kraft::SceneState* sceneState = kraft::GetSceneState();
     kraft::Camera *camera = &sceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
@@ -205,7 +205,7 @@ void Render(float64 deltaTime)
 
 void OnResize(size_t width, size_t height)
 {
-    KINFO(TEXT("Window size changed = %d, %d"), width, height);
+    KINFO("Window size changed = %d, %d", width, height);
 }
 
 void OnBackground()
@@ -226,8 +226,8 @@ bool Shutdown()
 
 bool CreateApplication(kraft::Application* app, int argc, char *argv[])
 {
-    app->Config.ApplicationName = TEXT("Kraft!");
-    app->Config.WindowTitle     = TEXT("Kraft! [VULKAN]");
+    app->Config.ApplicationName = "Kraft!";
+    app->Config.WindowTitle     = "Kraft! [VULKAN]";
     app->Config.WindowWidth     = 1280;
     app->Config.WindowHeight    = 800;
     app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;

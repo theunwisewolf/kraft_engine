@@ -30,8 +30,8 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
-static TCHAR TextureName[] = TEXT("res/textures/test-vert-image-2.jpg");
-static TCHAR TextureNameWide[] = TEXT("res/textures/test-wide-image-1.jpg");
+static TCHAR TextureName[] = "res/textures/test-vert-image-2.jpg";
+static TCHAR TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -54,7 +54,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
         }
     }
 
-    KINFO(TEXT("%s key pressed (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -103,7 +103,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     const TCHAR *filePath = ANSI_TO_TCHAR(paths[count - 1]);
     if (kraft::filesystem::FileExists(filePath))
     {
-        KINFO(TEXT("Loading texture from path %s"), filePath);
+        KINFO("Loading texture from path %s", filePath);
         Texture *oldTexture = ObjectState.Texture;
         ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
         ObjectState.Dirty = true;
@@ -119,7 +119,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     }
     else
     {
-        KWARN(TEXT("%s path does not exist"), filePath)
+        KWARN("%s path does not exist", filePath)
     }
 
     return false;
@@ -260,14 +260,14 @@ static void ImGuiWidgets(bool refresh)
         
         if (ImGui::DragFloat3("Scale", ObjectState.Scale._data))
         {
-            KINFO(TEXT("Scale - %f, %f, %f"), ObjectState.Scale.x, ObjectState.Scale.y, ObjectState.Scale.z);
+            KINFO("Scale - %f, %f, %f", ObjectState.Scale.x, ObjectState.Scale.y, ObjectState.Scale.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
         }
 
         if (ImGui::DragFloat3("Translation", ObjectState.Position._data))
         {
-            KINFO(TEXT("Translation - %f, %f, %f"), ObjectState.Position.x, ObjectState.Position.y, ObjectState.Position.z);
+            KINFO("Translation - %f, %f, %f", ObjectState.Position.x, ObjectState.Position.y, ObjectState.Position.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix *= TranslationMatrix(position);
         }
@@ -340,7 +340,7 @@ void InitTestScene(VulkanContext* context)
         TString FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
         if (kraft::filesystem::FileExists(FilePath))
         {
-            KINFO(TEXT("Loading texture from cli path %s"), FilePath.Data());
+            KINFO("Loading texture from cli path %s", FilePath.Data());
             ObjectState.Texture = TextureSystem::AcquireTexture(FilePath.Data());
         }
     }
@@ -371,15 +371,15 @@ void InitTestScene(VulkanContext* context)
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
-    Renderer->ImGuiRenderer.AddWidget(TEXT("Debug"), ImGuiWidgets);
+    Renderer->ImGuiRenderer.AddWidget("Debug", ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
     TCHAR filepath[256] = {};
-    kraft::StringFormat(filepath, sizeof(filepath), TEXT("%s/res/shaders/vertex.vert.spv"), kraft::Application::Get()->BasePath.Data());
+    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/vertex.vert.spv", kraft::Application::Get()->BasePath.Data());
     VulkanCreateShaderModule(context, filepath, &vertex);
     KASSERT(vertex);
 
-    kraft::StringFormat(filepath, sizeof(filepath), TEXT("%s/res/shaders/fragment.frag.spv"), kraft::Application::Get()->BasePath.Data());
+    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/fragment.frag.spv", kraft::Application::Get()->BasePath.Data());
     VulkanCreateShaderModule(context, filepath, &fragment);
     KASSERT(fragment);
 

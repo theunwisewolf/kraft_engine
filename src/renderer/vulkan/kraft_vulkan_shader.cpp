@@ -11,7 +11,7 @@ bool VulkanCreateShaderModule(VulkanContext* context, const TCHAR* path, VkShade
     FileHandle handle;
     if (!filesystem::OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
     {
-        KERROR(TEXT("Failed to open shader file %s"), path);
+        KERROR("Failed to open shader file %s", path);
         return false;
     }
 

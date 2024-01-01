@@ -14,7 +14,7 @@ bool InputSystem::Init()
 {
     if (Initialized)
     {
-        KERROR(TEXT("[InputSystem::Init]: Already initialized!"));
+        KERROR("[InputSystem::Init]: Already initialized!");
         return false;
     }
 

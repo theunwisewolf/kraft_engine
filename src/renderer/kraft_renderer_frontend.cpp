@@ -28,7 +28,7 @@ bool RendererFrontend::Init(ApplicationConfig* config)
 
     if (!Backend->Init(config))
     {
-        KERROR(TEXT("[RendererFrontend::Init]: Failed to initialize renderer backend!"));
+        KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return false;
     }
 
@@ -55,7 +55,7 @@ void RendererFrontend::OnResize(int width, int height)
     }
     else
     {
-        KERROR(TEXT("[RendererFrontend::OnResize]: No backend!"));
+        KERROR("[RendererFrontend::OnResize]: No backend!");
     }
 }
 
@@ -67,7 +67,7 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
 
         if (!Backend->EndFrame(packet->DeltaTime))
         {
-            KERROR(TEXT("[RendererFrontend::DrawFrame]: End frame failed!"));
+            KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
             return false;
         }
 

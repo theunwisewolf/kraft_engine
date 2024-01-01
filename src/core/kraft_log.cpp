@@ -19,12 +19,12 @@ void Logger::Log(LogLevel level, const TCHAR* message, ...)
 {
     const int BUFFER_SIZE = 32000;
     static const TCHAR* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
-        TEXT("[FATAL]:"), 
-        TEXT("[ERROR]:"), 
-        TEXT("[WARN]:"), 
-        TEXT("[INFO]:"), 
-        TEXT("[SUCCESS]:"),
-        TEXT("[DEBUG]:"),
+        "[FATAL]:", 
+        "[ERROR]:", 
+        "[WARN]:", 
+        "[INFO]:", 
+        "[SUCCESS]:",
+        "[DEBUG]:",
     };
 
     static int colors[LogLevel::LOG_LEVEL_NUM_COUNT] = { 

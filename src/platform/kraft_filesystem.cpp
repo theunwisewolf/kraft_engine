@@ -25,23 +25,23 @@ bool OpenFile(const TCHAR* path, int mode, bool binary, FileHandle* out)
     const TCHAR* modeString;
     if (mode & FILE_OPEN_MODE_APPEND)
     {
-        modeString = binary ? TEXT("a+b") : TEXT("a+");
+        modeString = binary ? "a+b" : "a+";
     }
     else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? TEXT("w+b") : TEXT("w+");
+        modeString = binary ? "w+b" : "w+";
     }
     else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0)
     {
-        modeString = binary ? TEXT("r+b") : TEXT("r");
+        modeString = binary ? "r+b" : "r";
     }
     else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? TEXT("wb") : TEXT("w");
+        modeString = binary ? "wb" : "w";
     }
     else
     {
-        KERROR(TEXT("[FileSystem::OpenFile] Invalid mode %d"), mode);
+        KERROR("[FileSystem::OpenFile] Invalid mode %d", mode);
         return false;
     }
 
@@ -62,7 +62,7 @@ bool OpenFile(const TCHAR* path, int mode, bool binary, FileHandle* out)
 #endif
     if (!out->Handle)
     {
-        KERROR(TEXT("[FileSystem::OpenFile]: Failed to open %s with error %s"), path, StrError(errno));
+        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", path, StrError(errno));
         return false;
     }
 

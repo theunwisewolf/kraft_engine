@@ -19,7 +19,7 @@ int Window::Init(const TCHAR* title, size_t width, size_t height, RendererBacken
 {
     if (!glfwInit())
     {
-        KERROR(TEXT("glfwInit() failed"));
+        KERROR("glfwInit() failed");
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
@@ -37,7 +37,7 @@ int Window::Init(const TCHAR* title, size_t width, size_t height, RendererBacken
     {
         glfwTerminate();
 
-        KERROR(TEXT("glfwCreateWindow() failed"));
+        KERROR("glfwCreateWindow() failed");
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
 
@@ -117,7 +117,7 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 
     for (int i = 0; i < count; i++)
     {
-        KINFO(TEXT("Dropped file %s"), ANSI_TO_TCHAR(((char**)data.Int64[1])[i]));
+        KINFO("Dropped file %s", ANSI_TO_TCHAR(((char**)data.Int64[1])[i]));
     }
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));

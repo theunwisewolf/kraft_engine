@@ -72,10 +72,10 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     arrput(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 
-    KINFO(TEXT("[VulkanRendererBackend::Init]: Loading the following debug extensions:"));
+    KINFO("[VulkanRendererBackend::Init]: Loading the following debug extensions:");
     for (int i = 0; i < arrlen(extensions); ++i)
     {
-        KINFO(TEXT("[VulkanRendererBackend::Init]: %s"), ANSI_TO_TCHAR(extensions[i]));
+        KINFO("[VulkanRendererBackend::Init]: %s", ANSI_TO_TCHAR(extensions[i]));
     }
 
     instanceCreateInfo.enabledExtensionCount = (uint32)arrlen(extensions);
@@ -103,7 +103,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         bool found = instanceLayerSupported(layers[i], availableLayerProperties, availableLayers);
         if (!found)
         {
-            KERROR(TEXT("[VulkanRendererBackend::Init]: %s layer not found"), ANSI_TO_TCHAR(layers[i]));
+            KERROR("[VulkanRendererBackend::Init]: %s layer not found", ANSI_TO_TCHAR(layers[i]));
             return false;
         }
     }
@@ -171,7 +171,7 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         s_Context.InFlightImageToFenceMap[i] = &s_Context.WaitFences[i];
     }
 
-    KSUCCESS(TEXT("[VulkanRendererBackend::Init]: Backend init success!"));
+    KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
 
     // Imgui
     VulkanImguiInit(&s_Context);
@@ -237,7 +237,7 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 
     // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
     // {
-    //     KERROR(TEXT("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed"));
+    //     KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
     //     return false;
     // }
 
@@ -250,7 +250,7 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     VulkanFence* fence = s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex];
     if (!VulkanWaitForFence(&s_Context, fence, UINT64_MAX))
     {
-        KERROR(TEXT("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed"));
+        KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
         return false;
     }
 
@@ -329,7 +329,7 @@ void VulkanRendererBackend::OnResize(int width, int height)
 
     if (width == 0 || height == 0)
     {
-        KERROR(TEXT("Cannot recreate swapchain because width/height is 0 | %d, %d"), width, height);
+        KERROR("Cannot recreate swapchain because width/height is 0 | %d, %d", width, height);
         return;
     }
 
@@ -375,22 +375,22 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
         {
-            KERROR(TEXT("%s"), ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KERROR("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
         {
-            KWARN(TEXT("%s"), ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KWARN("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
         {
-            KDEBUG(TEXT("%s"), ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KDEBUG("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
         {
-            KDEBUG(TEXT("%s"), ANSI_TO_TCHAR(pCallbackData->pMessage));
+            KDEBUG("%s", ANSI_TO_TCHAR(pCallbackData->pMessage));
         } break;
 
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT: break;
@@ -418,7 +418,7 @@ void createCommandBuffers()
         VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &s_Context.GraphicsCommandBuffers[i]);
     }
 
-    KDEBUG(TEXT("[VulkanRendererBackend::Init]: Graphics command buffers created"));
+    KDEBUG("[VulkanRendererBackend::Init]: Graphics command buffers created");
 }
 
 void destroyCommandBuffers()

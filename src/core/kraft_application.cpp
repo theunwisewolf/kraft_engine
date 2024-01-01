@@ -27,14 +27,14 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
 
     if (width == 0 && height == 0)
     {
-        KINFO(TEXT("[Application::WindowResizeListener]: Application suspended"));
+        KINFO("[Application::WindowResizeListener]: Application suspended");
         application->Suspended = true;   
     }
     else
     {
         if (application->Suspended)
         {
-            KINFO(TEXT("[Application::WindowResizeListener]: Application resumed"));
+            KINFO("[Application::WindowResizeListener]: Application resumed");
             application->Suspended = false;
         }
 
@@ -66,7 +66,7 @@ bool Application::Create(int argc, char *argv[])
 
     if (!State.Renderer.Init(&this->Config))
     {
-        KERROR(TEXT("[Application::Create]: Failed to initalize renderer!"));
+        KERROR("[Application::Create]: Failed to initalize renderer!");
         return false;
     }
 
@@ -122,16 +122,16 @@ bool Application::Run()
         {
             timeSinceLastSecond = 0.f;
 
-            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), TEXT("%s (%d fps | %f ms frametime)"), Config.WindowTitle, frames, deltaTime);
+            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime);
             Platform::GetWindow().SetWindowTitle(windowTitleBuffer);
             frames = 0;
         }
 
         if (deltaTime < targetFrameRate)
         {
-            // KINFO(TEXT("Before Sleep - %f ms | Sleep time = %f"), kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
+            // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
             Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
-            // KINFO(TEXT("After Sleep - %f ms"), kraft::Platform::GetAbsoluteTime());
+            // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
         }
 
         State.LastTime = currentTime;
@@ -144,7 +144,7 @@ bool Application::Run()
 
 void Application::Destroy()
 {
-    KINFO(TEXT("[Application::Destroy]: Shutting down..."));
+    KINFO("[Application::Destroy]: Shutting down...");
 
     InputSystem::Shutdown();
     EventSystem::Shutdown();
@@ -155,7 +155,7 @@ void Application::Destroy()
     this->Shutdown();
     Time::Stop();
 
-    KSUCCESS(TEXT("[Application::Destroy]: Application shutdown successfully!"));
+    KSUCCESS("[Application::Destroy]: Application shutdown successfully!");
 }
 
 }
