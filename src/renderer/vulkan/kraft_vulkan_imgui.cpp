@@ -9,16 +9,19 @@
 #include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_application.h"
+#include "renderer/kraft_renderer_types.h"
+#include "renderer/vulkan/kraft_vulkan_backend.h"
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_renderpass.h"
 
 namespace kraft
 {
 
+namespace VulkanImgui
+{
+
 // TODO: (amn) All of this code needs rework
 static VulkanCommandBuffer CommandBuffers[3];
-static bool Initialized = false;
-
 static VkDescriptorPool ImGuiDescriptorPool;
 
 // TODO (Amn): Improve this?
@@ -32,34 +35,9 @@ static void CheckVkResult(VkResult err)
         abort();
 }
 
-void VulkanImguiInit(VulkanContext* context)
+bool Init()
 {
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-
-    // TODO (amn): Free this
-    char *filepath = (char*)Malloc(256, MEMORY_TAG_STRING);
-    StringFormat((char*)filepath, 256, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
-    io.IniFilename = filepath;
-    
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-}
-
-void VulkanImguiPostAPIInit(VulkanContext* context)
-{
+    VulkanContext *context = VulkanRendererBackend::GetContext();
     VkDescriptorPoolSize poolSizes[] =
     {
         // { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -124,18 +102,21 @@ void VulkanImguiPostAPIInit(VulkanContext* context)
         // VulkanAllocateCommandBuffer(context, context->GraphicsCommandPool, false, &CommandBuffers[i]);
     }
 
-    Initialized = true;
+    return true;
 }
 
-void VulkanImguiBeginFrame(VulkanContext* context)
+bool BeginFrame(float64 deltaTime)
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    return true;
 }
 
-void VulkanImguiEndFrame(VulkanContext* context)
+bool EndFrame(float64 deltaTime)
 {
+    VulkanContext *context = VulkanRendererBackend::GetContext();
     ImGui::Render();
     ImDrawData* drawData = ImGui::GetDrawData();
     uint32 width = context->FramebufferWidth;
@@ -201,27 +182,28 @@ void VulkanImguiEndFrame(VulkanContext* context)
 
     // VulkanEndRenderPass(parentCommandBuffer, &context->MainRenderPass);
     // VulkanEndCommandBuffer(parentCommandBuffer);
+
+    return true;
 }
 
-void VulkanImguiDestroy(VulkanContext* context)
+void* AddTexture(Texture* Texture)
 {
+    VulkanTexture* BackendTexture = (VulkanTexture*)Texture->RendererData;
+    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->Image.View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+}
+
+bool Destroy()
+{
+    VulkanContext *context = VulkanRendererBackend::GetContext();
+
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
     vkDestroyDescriptorPool(context->LogicalDevice.Handle, ImGuiDescriptorPool, context->AllocationCallbacks);
+
+    return true;
 }
 
-// Only valid if multi-viewports is enabled
-void VulkanImguiEndFrameUpdatePlatformWindows(VulkanContext* context)
-{
-    // Update and Render additional Platform Windows
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-    }
 }
-
 }

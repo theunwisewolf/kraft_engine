@@ -5,6 +5,7 @@
 #include "core/kraft_application.h"
 #include "core/kraft_asserts.h"
 #include "renderer/kraft_renderer_backend.h"
+#include "renderer/kraft_renderer_imgui.h"
 
 namespace kraft
 {
@@ -17,7 +18,6 @@ bool RendererFrontend::Init(ApplicationConfig* config)
     Type = config->RendererBackend;
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
-    ImGuiRenderer.Init();
 
     KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
@@ -31,6 +31,8 @@ bool RendererFrontend::Init(ApplicationConfig* config)
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return false;
     }
+
+    ImGuiRenderer.Init(config);
 
     return true;
 }
@@ -63,7 +65,9 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
 {
     if (Backend->BeginFrame(packet->DeltaTime))
     {
+        ImGuiRenderer.Backend->BeginFrame(packet->DeltaTime);
         ImGuiRenderer.RenderWidgets();
+        ImGuiRenderer.Backend->EndFrame(packet->DeltaTime);
 
         if (!Backend->EndFrame(packet->DeltaTime))
         {
@@ -71,6 +75,7 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
             return false;
         }
 
+        ImGuiRenderer.EndFrameUpdatePlatformWindows();
         return true;
     }
 

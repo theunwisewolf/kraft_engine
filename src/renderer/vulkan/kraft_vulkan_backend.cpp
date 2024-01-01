@@ -18,7 +18,6 @@
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_index_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_imgui.h"
 #include "renderer/vulkan/kraft_vulkan_texture.h"
 
 // TODO: (amn) This is just temporary
@@ -28,6 +27,10 @@ namespace kraft
 {
 
 static VulkanContext s_Context;
+VulkanContext* VulkanRendererBackend::GetContext()
+{
+    return &s_Context;
+}
 
 static void createCommandBuffers();
 static void destroyCommandBuffers();
@@ -173,10 +176,6 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
 
-    // Imgui
-    VulkanImguiInit(&s_Context);
-    VulkanImguiPostAPIInit(&s_Context);
-
     return true;
 }
 
@@ -186,8 +185,6 @@ bool VulkanRendererBackend::Shutdown()
 
     // TODO: (amn) This is just temporary
     DestroyTestScene(&s_Context);
-
-    VulkanImguiDestroy(&s_Context);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -232,8 +229,6 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
         InitTestScene(&s_Context);
         initTestScene = true;
     }
-
-    VulkanImguiBeginFrame(&s_Context);
 
     // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
     // {
@@ -291,9 +286,6 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 {
     VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
-
-    VulkanImguiEndFrame(&s_Context);
-
     VulkanEndRenderPass(buffer, &s_Context.MainRenderPass);
     VulkanEndCommandBuffer(buffer);
 
@@ -311,8 +303,6 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex]->Handle));
     
     VulkanSetCommandBufferSubmitted(buffer);
-
-    VulkanImguiEndFrameUpdatePlatformWindows(&s_Context);
 
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
 

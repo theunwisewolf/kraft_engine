@@ -12,8 +12,8 @@ struct ApplicationConfig;
 
 struct RendererFrontend
 {
-    RendererBackend* Backend = nullptr;
     Block BackendMemory;
+    RendererBackend* Backend = nullptr;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     RendererImGui ImGuiRenderer;
 

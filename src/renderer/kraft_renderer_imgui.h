@@ -7,6 +7,8 @@
 namespace kraft
 {
 
+struct ApplicationConfig;
+
 // "refresh" is true whenever the window has been resized
 typedef void (*ImGuiRenderCallback)(bool refresh);
 
@@ -30,15 +32,23 @@ struct ImGuiWidget
     }
 };
 
+bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* backend);
+
 struct RendererImGui
 {
+    Block                   BackendMemory;
+    RendererImguiBackend*   Backend = nullptr;
+
+    String IniFilename;
     Array<ImGuiWidget> Widgets;
 
-    void Init();
+    bool Init(ApplicationConfig* config);
     void AddWidget(const String& Name, ImGuiRenderCallback Callback);
-    void OnResize(int width, int height);
+    void* AddTexture(Texture* Texture);
+    void OnResize(int Width, int Height);
     void RenderWidgets();
     void Destroy();
+    void EndFrameUpdatePlatformWindows();
 };
 
 }

@@ -95,6 +95,7 @@ bool Application::Run()
 
     kraft::PrintDebugMemoryInfo();
     char windowTitleBuffer[1024];
+
     while (this->Running)
     {
         kraft::Time::Update();

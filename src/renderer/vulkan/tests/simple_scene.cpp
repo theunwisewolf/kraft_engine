@@ -4,8 +4,11 @@
 #include "core/kraft_input.h"
 #include "core/kraft_string.h"
 #include "core/kraft_time.h"
+#include "core/kraft_application.h"
+#include "core/kraft_imgui.h"
 #include "platform/kraft_filesystem.h"
 
+#include "systems/kraft_texture_system.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
@@ -14,8 +17,6 @@
 #include "renderer/vulkan/kraft_vulkan_pipeline.h"
 #include "renderer/vulkan/kraft_vulkan_texture.h"
 #include "renderer/kraft_renderer_frontend.h"
-#include "systems/kraft_texture_system.h"
-#include "core/kraft_application.h"
 
 #include <imgui.h>
 
@@ -28,6 +29,7 @@ static VulkanBuffer VertexBuffer;
 static VulkanBuffer IndexBuffer;
 static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
+static void* TextureID;
 
 static SceneState TestSceneState = {};
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
@@ -287,6 +289,13 @@ static void ImGuiWidgets(bool refresh)
         ObjectState.ModelMatrix = ScaleMatrix(ObjectState.Scale) * RotationMatrixFromEulerAngles(ObjectState.Rotation) * TranslationMatrix(ObjectState.Position);
     }
 
+    ImVec2 ViewPortPanelSize = ImGui::GetContentRegionAvail();
+        //     {Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}},
+        // {Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}},
+        // {Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}},
+        // {Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}},
+    ImGui::Image(TextureID, ViewPortPanelSize, {0,1}, {1,0});
+
     ImGui::End();
 
     ObjectState.Dirty = false;
@@ -371,6 +380,7 @@ void InitTestScene(VulkanContext* context)
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
+    TextureID = Renderer->ImGuiRenderer.AddTexture(ObjectState.Texture);
     Renderer->ImGuiRenderer.AddWidget("Debug", ImGuiWidgets);
 
     VkShaderModule vertex, fragment;

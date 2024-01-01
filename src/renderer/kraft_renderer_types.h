@@ -35,6 +35,15 @@ struct RendererBackend
     void (*DestroyMaterial)(Material *material);
 };
 
+struct RendererImguiBackend
+{
+    bool (*Init)();
+    bool (*Destroy)();
+    bool (*BeginFrame)(float64 deltaTime);
+    bool (*EndFrame)(float64 deltaTime);
+    void* (*AddTexture)(Texture* Texture);
+};
+
 struct RenderPacket
 {
     float64 DeltaTime;

@@ -3,17 +3,18 @@
 #include <GLFW/glfw3.h>
 
 #include "renderer/vulkan/kraft_vulkan_types.h"
+#include "resources/kraft_resource_types.h"
 
 namespace kraft
 {
+namespace VulkanImgui
+{
 
-void VulkanImguiInit(VulkanContext* context);
-void VulkanImguiPostAPIInit(VulkanContext* context);
-void VulkanImguiBeginFrame(VulkanContext* context);
-void VulkanImguiEndFrame(VulkanContext* context);
-void VulkanImguiDestroy(VulkanContext* context);
+bool Init();
+bool BeginFrame(float64 deltaTime);
+bool EndFrame(float64 deltaTime);
+void* AddTexture(Texture* Texture);
+bool Destroy();
 
-// Only valid if multi-viewports is enabled
-void VulkanImguiEndFrameUpdatePlatformWindows(VulkanContext* context);
-
+}
 }
