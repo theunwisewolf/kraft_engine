@@ -9,26 +9,22 @@ static bool WidgetsNeedRefresh = false;
 
 void RendererImGui::Init()
 {
-    // CreateArray(this->Widgets, 128);
 }
 
-void RendererImGui::AddWidget(const TCHAR* name, ImGuiRenderCallback callback)
+void RendererImGui::AddWidget(const TString& Name, ImGuiRenderCallback Callback)
 {
-    ImGuiWidget widget;
-    MemCpy((void*)widget.Name, (void*)name, sizeof(ImGuiWidget::Name));
-    widget.Callback = callback;
+    ImGuiWidget Widget(Name, Callback);
+    Widgets.Push(Widget);
 
-    arrpush(this->Widgets, widget);
-
-    KINFO(TEXT("Added imgui widget %s"), name);
+    KINFO(TEXT("Added imgui widget %s"), *Name);
 }
 
 void RendererImGui::RenderWidgets()
 {
-    size_t size = arrlen(this->Widgets);
-    for (int i = 0; i < size; i++)
+    uint64 Size = Widgets.Length;
+    for (int i = 0; i < Size; i++)
     {
-        this->Widgets[i].Callback(WidgetsNeedRefresh);
+        Widgets[i].Callback(WidgetsNeedRefresh);
     }
 
     WidgetsNeedRefresh = false;
@@ -41,7 +37,6 @@ void RendererImGui::OnResize(int width, int height)
 
 void RendererImGui::Destroy()
 {
-    arrfree(this->Widgets);
 }
 
 }

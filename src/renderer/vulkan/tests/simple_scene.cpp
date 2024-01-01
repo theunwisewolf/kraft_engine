@@ -340,7 +340,7 @@ void InitTestScene(VulkanContext* context)
         TString FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
         if (kraft::filesystem::FileExists(FilePath))
         {
-            KINFO(TEXT("Loading texture from path %s"), FilePath.Data());
+            KINFO(TEXT("Loading texture from cli path %s"), FilePath.Data());
             ObjectState.Texture = TextureSystem::AcquireTexture(FilePath.Data());
         }
     }
@@ -371,7 +371,7 @@ void InitTestScene(VulkanContext* context)
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
-    Renderer->ImGuiRenderer.AddWidget(TEXT("demo window"), ImGuiWidgets);
+    Renderer->ImGuiRenderer.AddWidget(TEXT("Debug"), ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
     TCHAR filepath[256] = {};

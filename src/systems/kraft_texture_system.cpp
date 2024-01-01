@@ -179,7 +179,7 @@ bool TextureSystem::LoadTexture(const TString& TexturePath, Texture* texture)
 
 #if UNICODE
     char utf8Path[256];
-    stbi_convert_wchar_to_utf8(utf8Path, sizeof(utf8Path), name);
+    stbi_convert_wchar_to_utf8(utf8Path, sizeof(utf8Path), *TexturePath);
     path = utf8Path;
 #endif
 

@@ -42,59 +42,62 @@ KString
         ValueType*   HeapBuffer = nullptr;
     } Buffer;
 
-    // Length of the string
+    // Number of characters currently in the string
     SizeType     Length = 0;
 
-    // Allocated capacity of the buffer (if any)
+    // Number of character that can fit in the string
     SizeType     Allocated = 0;
 
 protected:
     static_assert(InternalBufferSize % KRAFT_STRING_SSO_ALIGNMENT == 0, "KString InternalBufferSize must be a multiple of 16");
 
-    constexpr inline static SizeType ChooseAllocationSize(SizeType Size)
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
     {
-        return (Size <= InternalBufferSize ? InternalBufferSize : math::Max(2 * Size + 1, 2 * InternalBufferSize + 1)) * sizeof(ValueType);
+        return Allocated * sizeof(ValueType);
+    }
+
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
+    {
+        return (Size <= InternalBufferSize ? InternalBufferSize : math::Max(2 * Size + 1, 2 * InternalBufferSize + 1));
     }
 
     KRAFT_INLINE void Alloc(SizeType Size)
     {
         if (Size > InternalBufferSize)
         {
-            Buffer.HeapBuffer = (ValueType*)Malloc(Allocated * sizeof(ValueType), MEMORY_TAG_STRING, true);
+            Buffer.HeapBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_STRING, true);
         }
     }
 
     // Does not take nullbyte into account
-    constexpr void ReallocIfRequired(SizeType CharCount)
+    constexpr void ReallocIfRequired(SizeType NewCharCount)
     {
-        SizeType BufferSizeRequired = CharCount * sizeof(ValueType);
-        if (BufferSizeRequired <= Allocated)
+        if (NewCharCount <= Allocated)
         {
             return;
         }
 
-        Free(Data(), Allocated, MEMORY_TAG_STRING);
+        Free(Data(), GetBufferSizeInBytes(), MEMORY_TAG_STRING);
 
-        Allocated = ChooseAllocationSize(BufferSizeRequired);
+        Allocated = ChooseAllocationSize(NewCharCount);
         Alloc(Allocated);
     }
 
-    constexpr void EnlargeBufferIfRequired(SizeType CharCount)
+    constexpr void EnlargeBufferIfRequired(SizeType NewCharCount)
     {
-        SizeType BufferSizeRequired = CharCount * sizeof(ValueType);
-        if (BufferSizeRequired <= Allocated)
+        if (NewCharCount <= Allocated)
         {
             return;
         }
 
         bool WasInHeap = InHeap();
         ValueType* OldBuffer = Data();
-        SizeType OldAllocationSize = Allocated;
-        Allocated = ChooseAllocationSize(BufferSizeRequired);
+        SizeType OldAllocationSize = GetBufferSizeInBytes();
+        Allocated = ChooseAllocationSize(NewCharCount);
         if (InHeap())
         {
-            ValueType* NewBuffer = (ValueType*)Malloc(Allocated * sizeof(ValueType), MEMORY_TAG_STRING, true);;
-            MemCpy(NewBuffer, OldBuffer, Length);
+            ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_STRING, true);
+            MemCpy(NewBuffer, OldBuffer, Length * sizeof(SizeType));
             Buffer.HeapBuffer = NewBuffer;
         }
 
@@ -178,12 +181,18 @@ public:
     // Move constructor
     constexpr KString(KString&& Str) noexcept
     {
+        SizeType _Length = Length;
+        SizeType _Allocated = Allocated;
+        BufferUnion _Buffer = Buffer;
+
+        // Swap!
         Length = Str.Length;
         Allocated = Str.Allocated;
         Buffer = Str.Buffer;
-        Str.Length = 0;
-        Str.Allocated = 0;
-        Str.Buffer = {};
+
+        Str.Length = _Length;
+        Str.Allocated = _Allocated;
+        Str.Buffer = _Buffer;
     }
 
     constexpr KString(const KString& Str, SizeType Position)
@@ -217,7 +226,7 @@ public:
 
     constexpr KString& operator=(const KString& Str)
     {
-        if (&Str == this || Str.Length == 0)
+        if (&Str == this)
         {
             return *this;
         }
@@ -225,7 +234,7 @@ public:
         Length = Str.Length;
         ReallocIfRequired(Length + 1);
 
-        MemCpy(Data(), Str.Data(), (Length + 1) * sizeof(ValueType));
+        MemCpy(Data(), Str.Data(), Length * sizeof(ValueType));
         Data()[Length] = 0;
         
         return *this;
@@ -272,6 +281,11 @@ public:
         return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
     }
 
+    constexpr const ValueType* operator*() const noexcept
+    {
+        return InStack() ? Buffer.StackBuffer : Buffer.HeapBuffer;
+    }
+
     KRAFT_INLINE constexpr SizeType Size() const noexcept
     {
         return Length;
@@ -281,17 +295,6 @@ public:
     {
         if (InHeap())
         {
-            if (sizeof(ValueType) == 1)
-            {
-                KSUCCESS(TEXT("Deallocating string %S"), Data());
-            }
-            else
-            {
-                KSUCCESS(TEXT("Deallocating wstring %s"), Data());
-            }
-
-            // KString::Format("Hello %s %d", "World", 47);
-
             Free(Data(), Allocated, MEMORY_TAG_STRING);
         }
     }
@@ -306,61 +309,7 @@ public:
         return Data()[Index];
     }
 
-    static KString Format(const char* Format, ...)
-    {
-        __builtin_va_list args;
-        va_start(args, Format);
-        KString Output = FormatV(Format, args);
-        va_end(args);
-        return Output;
-    }
-
-    static KString FormatV(const char* Format, va_list Args)
-    {
-        KString Output;
-        char* At = (char*)Format;
-        while (At)
-        {
-            if (At[0] == '%')
-            {
-                At++;
-                if (At[0] == 's')
-                {
-                    At++;
-                    char* String = va_arg(Args, char*);
-                    Output += String;
-                }
-                else if (At[0] == 'd')
-                {
-                    At++;
-                    int Value = va_arg(Args, int);
-                    // char* String = itoa(Value);
-                    Output += String;
-                }
-            }
-            else
-            {
-                Output += At[0];
-            }
-        }
-
-        return Output;
-    }
-
-    KString& Trim()
-    {
-        SizeType Start = 0;
-        SizeType End = Length - 1;
-
-        while (Start < Length && isspace(Data()[Start])) Start++;
-        while (End >= Start && isspace(Data()[End])) End--;
-
-        Length = End - Start + 1;
-        MemCpy(Data(), Data() + Start, Length * sizeof(ValueType));
-        Data()[Length] = 0;
-
-        return *this;
-    }
+    KString& Trim();
 
     constexpr int Compare(const ValueType* Str) const
     {
@@ -401,7 +350,7 @@ private:
 };
 
 typedef KString<char> String;
-// typedef KString<wchar_t> WString;
+typedef KString<wchar_t> WString;
 
 #ifdef UNICODE
 typedef WString TString;
@@ -409,23 +358,23 @@ typedef WString TString;
 typedef String TString;
 #endif
 
-// static WString CharToWChar(const String& Source)
-// {
-//     uint64 BufferSize = mbstowcs(nullptr, Source.Data(), 0);
-//     WString Output(BufferSize, 0);
-//     mbstowcs(Output.Data(), Source.Data(), BufferSize);
+static WString CharToWChar(const String& Source)
+{
+    uint64 BufferSize = mbstowcs(nullptr, Source.Data(), 0);
+    WString Output(BufferSize, 0);
+    mbstowcs(Output.Data(), Source.Data(), BufferSize);
 
-//     return Output;
-// }
+    return Output;
+}
 
-// static String WCharToChar(const WString& Source)
-// {
-//     uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
-//     String Output(BufferSize, 0);
-//     wcstombs(Output.Data(), Source.Data(), BufferSize);
+static String WCharToChar(const WString& Source)
+{
+    uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
+    String Output(BufferSize, 0);
+    wcstombs(Output.Data(), Source.Data(), BufferSize);
 
-//     return Output;
-// }
+    return Output;
+}
 
 struct StringView
 {
@@ -564,7 +513,28 @@ KRAFT_INLINE int32 StringFormatV(TCHAR* buffer, int n, const TCHAR* format, va_l
     {
         __builtin_va_list argPtr;
 #ifdef UNICODE
+    // #ifdef KRAFT_PLATFORM_WINDOWS
+    //     uint64 FormatStringLength = StringLength(format);
+    //     TCHAR _format[32000];
+    //     MemCpy(_format, format, FormatStringLength * sizeof(TCHAR));
+
+    //     for (int i = 0; i < FormatStringLength; i++)
+    //     {
+    //         if (_format[i] == '%' && _format[i+1] == 's')
+    //         {
+    //             _format[i+1] = 'S';
+    //         }
+    //         else if (format[i] == '%' && _format[i+1] == 'S')
+    //         {
+    //             _format[i+1] = 's';
+    //         }
+    //     }
+
+    //     _format[FormatStringLength] = 0;
+    //     int32 written = vswprintf(buffer, n, _format, args);
+    // #else
         int32 written = vswprintf(buffer, n, format, args);
+    // #endif
 #else
         int32 written = vsnprintf(buffer, n, format, args);
 #endif

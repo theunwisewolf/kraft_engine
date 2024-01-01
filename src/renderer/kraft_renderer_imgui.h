@@ -1,7 +1,8 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "containers/array.h"
+#include "core/kraft_string.h"
+#include "containers/kraft_array.h"
 
 namespace kraft
 {
@@ -11,13 +12,19 @@ typedef void (*ImGuiRenderCallback)(bool refresh);
 
 struct ImGuiWidget
 {
-    const char          Name[128] = "";
+    TString             Name;
     ImGuiRenderCallback Callback  = nullptr;
 
-    ImGuiWidget& operator=(const kraft::ImGuiWidget &widget)
+    ImGuiWidget(const TString& Name, ImGuiRenderCallback Callback) :
+        Name(Name),
+        Callback(Callback)
     {
-        MemCpy((void*)this->Name, (void*)widget.Name, sizeof(ImGuiWidget::Name));
-        this->Callback = widget.Callback;
+    }
+
+    ImGuiWidget& operator=(const kraft::ImGuiWidget &Widget)
+    {
+        Name = Widget.Name;
+        Callback = Widget.Callback;
 
         return *this;
     }
@@ -25,10 +32,10 @@ struct ImGuiWidget
 
 struct RendererImGui
 {
-    ImGuiWidget* Widgets = 0;
+    Array<ImGuiWidget> Widgets;
 
     void Init();
-    void AddWidget(const TCHAR* name, ImGuiRenderCallback callback);
+    void AddWidget(const TString& Name, ImGuiRenderCallback Callback);
     void OnResize(int width, int height);
     void RenderWidgets();
     void Destroy();
