@@ -3,14 +3,12 @@
 // #define GLAD_VULKAN_IMPLEMENTATION
 // #include <glad/vulkan.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "core/kraft_asserts.h"
 #include "core/kraft_main.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_string.h"
 #include "math/kraft_math.h"
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
@@ -25,7 +23,7 @@
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
-    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO(TEXT("%s key pressed (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -33,7 +31,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
 bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
-    KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO(TEXT("%s key released (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -42,7 +40,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 {
     // int x = data.Int32[0];
     // int y = data.Int32[1];
-    // KINFO("Mouse moved = %d, %d", x, y);
+    // KINFO(TEXT("Mouse moved = %d, %d"), x, y);
 
     return false;
 }
@@ -50,7 +48,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     int button = data.Int32[0];
-    KINFO("%d mouse button pressed", button);
+    KINFO(TEXT("%d mouse button pressed"), button);
 
     return false;
 }
@@ -58,18 +56,18 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
     int button = data.Int32[0];
-    KINFO("%d mouse button released", button);
+    KINFO(TEXT("%d mouse button released"), button);
 
     return false;
 }
 
 bool Init()
 {
-    // KFATAL("Fatal error");
-    // KERROR("Error");
-    // KWARN("Warning");
-    // KINFO("Info");
-    // KSUCCESS("Success");
+    // KFATAL(TEXT("Fatal error"));
+    // KERROR(TEXT("Error"));
+    // KWARN(TEXT("Warning"));
+    // KINFO(TEXT("Info"));
+    // KSUCCESS(TEXT("Success"));
 
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
@@ -99,12 +97,18 @@ bool Init()
     // // printf("%s\n", buffer);
     // kraft::Free(buffer);
 
+    kraft::StringView stra, strb;
+    if (stra == strb)
+    {
+        return true;
+    }
+
     return true;
 }
 
 void Update(float64 deltaTime)
 {
-    // KINFO("%f ms", kraft::Platform::GetElapsedTime());
+    // KINFO(TEXT("%f ms"), kraft::Platform::GetElapsedTime());
     kraft::SceneState* sceneState = kraft::GetSceneState();
     kraft::Camera *camera = &sceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
@@ -201,7 +205,7 @@ void Render(float64 deltaTime)
 
 void OnResize(size_t width, size_t height)
 {
-    KINFO("Window size changed = %d, %d", width, height);
+    KINFO(TEXT("Window size changed = %d, %d"), width, height);
 }
 
 void OnBackground()
@@ -222,8 +226,8 @@ bool Shutdown()
 
 bool CreateApplication(kraft::Application* app, int argc, char *argv[])
 {
-    app->Config.ApplicationName = "Kraft!";
-    app->Config.WindowTitle     = "Kraft! [VULKAN]";
+    app->Config.ApplicationName = TEXT("Kraft!");
+    app->Config.WindowTitle     = TEXT("Kraft! [VULKAN]");
     app->Config.WindowWidth     = 1280;
     app->Config.WindowHeight    = 800;
     app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;

@@ -32,7 +32,7 @@ struct KRAFT_API Platform
     static void *Realloc(void *region, uint64_t size, bool aligned);
     static void Free(void *region, bool aligned);
     static void *MemZero(void *region, uint64_t size);
-    static void *MemCpy(void *dst, void *src, uint64_t size);
+    static void *MemCpy(void *dst, const void *src, uint64_t size);
     static void *MemSet(void *region, int value, uint64_t size);
 
     // Console
@@ -70,8 +70,8 @@ struct KRAFT_API Platform
     static const int ConsoleColorBGLoMagenta;
     static const int ConsoleColorBGHiMagenta;
 
-    static void ConsoleOutputString(const char *str, int color);
-    static void ConsoleOutputStringError(const char *str, int color);
+    static void ConsoleOutputString(const TCHAR *str, int color);
+    static void ConsoleOutputStringError(const TCHAR *str, int color);
 
     // Time
     static float64 GetAbsoluteTime();
@@ -79,7 +79,7 @@ struct KRAFT_API Platform
 
     // Misc
     static void SleepMilliseconds(uint64_t msec);
-    static const char* GetKeyName(Keys key);
+    static const TCHAR* GetKeyName(Keys key);
     static Window& GetWindow()
     {
 #if defined(KRAFT_PLATFORM_WINDOWS)

@@ -19,8 +19,6 @@
 
 #include <imgui.h>
 
-#include "stb_image.h"
-
 #define MAX_OBJECT_COUNT 128
 
 namespace kraft
@@ -32,8 +30,8 @@ static uint32 IndexCount = 0;
 static SimpleObjectState ObjectState;
 
 static SceneState TestSceneState = {};
-static char TextureName[] = "res/textures/test-vert-image-2.jpg";
-static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
+static TCHAR TextureName[] = TEXT("res/textures/test-vert-image-2.jpg");
+static TCHAR TextureNameWide[] = TEXT("res/textures/test-wide-image-1.jpg");
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
@@ -56,7 +54,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
         }
     }
 
-    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+    KINFO(TEXT("%s key pressed (code = %d)"), kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -102,10 +100,10 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     const char **paths = (const char**)data.Int64[1];
 
     // Try loading the texture from the command line args
-    const char *filePath = paths[count - 1];
+    const TCHAR *filePath = ANSI_TO_TCHAR(paths[count - 1]);
     if (kraft::filesystem::FileExists(filePath))
     {
-        KINFO("Loading texture from path %s", filePath);
+        KINFO(TEXT("Loading texture from path %s"), filePath);
         Texture *oldTexture = ObjectState.Texture;
         ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
         ObjectState.Dirty = true;
@@ -121,7 +119,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     }
     else
     {
-        KWARN("%s path does not exist", filePath)
+        KWARN(TEXT("%s path does not exist"), filePath)
     }
 
     return false;
@@ -262,14 +260,14 @@ static void ImGuiWidgets(bool refresh)
         
         if (ImGui::DragFloat3("Scale", ObjectState.Scale._data))
         {
-            KINFO("Scale - %f, %f, %f", ObjectState.Scale.x, ObjectState.Scale.y, ObjectState.Scale.z);
+            KINFO(TEXT("Scale - %f, %f, %f"), ObjectState.Scale.x, ObjectState.Scale.y, ObjectState.Scale.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
         }
 
         if (ImGui::DragFloat3("Translation", ObjectState.Position._data))
         {
-            KINFO("Translation - %f, %f, %f", ObjectState.Position.x, ObjectState.Position.y, ObjectState.Position.z);
+            KINFO(TEXT("Translation - %f, %f, %f"), ObjectState.Position.x, ObjectState.Position.y, ObjectState.Position.z);
             ObjectState.Dirty = true;
             // ObjectState.ModelMatrix *= TranslationMatrix(position);
         }
@@ -339,11 +337,11 @@ void InitTestScene(VulkanContext* context)
     if (kraft::Application::Get()->CommandLineArgs.Count > 1)
     {
         // Try loading the texture from the command line args
-        char *filePath = kraft::Application::Get()->CommandLineArgs.RawArguments[1];
-        if (kraft::filesystem::FileExists(filePath))
+        TString FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
+        if (kraft::filesystem::FileExists(FilePath))
         {
-            KINFO("Loading texture from path %s", filePath);
-            ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
+            KINFO(TEXT("Loading texture from path %s"), FilePath.Data());
+            ObjectState.Texture = TextureSystem::AcquireTexture(FilePath.Data());
         }
     }
 
@@ -373,15 +371,15 @@ void InitTestScene(VulkanContext* context)
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
-    Renderer->ImGuiRenderer.AddWidget("demo window", ImGuiWidgets);
+    Renderer->ImGuiRenderer.AddWidget(TEXT("demo window"), ImGuiWidgets);
 
     VkShaderModule vertex, fragment;
-    char filepath[256] = {};
-    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/vertex.vert.spv", kraft::Application::Get()->BasePath);
+    TCHAR filepath[256] = {};
+    kraft::StringFormat(filepath, sizeof(filepath), TEXT("%s/res/shaders/vertex.vert.spv"), kraft::Application::Get()->BasePath.Data());
     VulkanCreateShaderModule(context, filepath, &vertex);
     KASSERT(vertex);
 
-    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/fragment.frag.spv", kraft::Application::Get()->BasePath);
+    kraft::StringFormat(filepath, sizeof(filepath), TEXT("%s/res/shaders/fragment.frag.spv"), kraft::Application::Get()->BasePath.Data());
     VulkanCreateShaderModule(context, filepath, &fragment);
     KASSERT(fragment);
 

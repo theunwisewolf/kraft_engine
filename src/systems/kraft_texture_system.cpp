@@ -6,9 +6,13 @@
 #include "renderer/kraft_renderer_frontend.h"
 
 #define STBI_FAILURE_USERMSG
+#ifdef UNICODE
+    #define STBI_WINDOWS_UTF8
+#endif
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME "default-diffuse"
+#define KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME TEXT("default-diffuse")
 
 namespace kraft
 {
@@ -55,12 +59,12 @@ void TextureSystem::Shutdown()
     uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * State->MaxTextureCount;
     kraft::Free(State, totalSize, MEMORY_TAG_TEXTURE_SYSTEM);
 
-    KINFO("[TextureSystem::Shutdown]: Shutting down texture system");
+    KINFO(TEXT("[TextureSystem::Shutdown]: Shutting down texture system"));
 }
 
-Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
+Texture* TextureSystem::AcquireTexture(const TCHAR* _name, bool autoRelease)
 {
-    const char* name = StringTrim(_name);
+    const TCHAR* name = StringTrim(_name);
     if (StringLength(name) == 0)
     {
         return NULL;
@@ -88,14 +92,14 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
     // Just increase the ref-count
     if (index > -1)
     {
-        KINFO("[TextureSystem::AcquireTexture]: Texture already acquired; Reusing!");
+        KINFO(TEXT("[TextureSystem::AcquireTexture]: Texture already acquired; Reusing!"));
         State->Textures[index].RefCount++;
     }
     else
     {
         if (freeIndex == -1)
         {
-            KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!");
+            KERROR(TEXT("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!"));
             return NULL;
         }
 
@@ -104,30 +108,30 @@ Texture* TextureSystem::AcquireTexture(const char* _name, bool autoRelease)
         reference->AutoRelease = autoRelease;
 
         uint64 length = StringLengthClamped(name, KRAFT_TEXTURE_NAME_MAX_LENGTH);
-        MemCpy(&(reference->Texture.Name[0]), (void*)name, length);
+        StringCopy(&(reference->Texture.Name[0]), (TCHAR*)name);
         if (!LoadTexture(name, &reference->Texture))
         {
-            KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed");
+            KERROR(TEXT("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed"));
             return NULL;
         }
 
         index = freeIndex;
     }
 
-    KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)", name, index);
+    KDEBUG(TEXT("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)"), name, index);
     kraft::Free((void*)name);
     return &State->Textures[index].Texture;
 }
 
-void TextureSystem::ReleaseTexture(const char* name)
+void TextureSystem::ReleaseTexture(const TCHAR* name)
 {
     if (StringEqual(name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME))
     {
-        KDEBUG("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!", name);
+        KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!"), name);
         return;
     }
 
-    KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture %s", name);
+    KDEBUG(TEXT("[TextureSystem::ReleaseTexture]: Releasing texture %s"), name);
 
     int index = -1;
     for (int i = 0; i < State->MaxTextureCount; ++i)
@@ -141,14 +145,14 @@ void TextureSystem::ReleaseTexture(const char* name)
 
     if (index == -1)
     {
-        KERROR("[TextureSystem::ReleaseTexture]: Called for unknown texture %s", name);
+        KERROR(TEXT("[TextureSystem::ReleaseTexture]: Called for unknown texture %s"), name);
         return;
     }
 
     TextureReference* ref = &State->Textures[index];
     if (ref->RefCount == 0)
     {
-        KWARN("[TextureSystem::ReleaseTexture]: Texture %s already released!", ref->Texture.Name);
+        KWARN(TEXT("[TextureSystem::ReleaseTexture]: Texture %s already released!"), ref->Texture.Name);
         return;
     }
 
@@ -165,13 +169,21 @@ void TextureSystem::ReleaseTexture(Texture* texture)
     TextureSystem::ReleaseTexture(texture->Name);
 }
 
-bool TextureSystem::LoadTexture(const char* name, Texture* texture)
+bool TextureSystem::LoadTexture(const TCHAR* name, Texture* texture)
 {
     // Load textures
     stbi_set_flip_vertically_on_load(1);
 
     int width, height, channels, desiredChannels = 4;
-    unsigned char *data = stbi_load(name, &width, &height, &channels, desiredChannels);
+    const char* path = (char*)name;
+
+#if UNICODE
+    char utf8Path[256];
+    stbi_convert_wchar_to_utf8(utf8Path, sizeof(utf8Path), name);
+    path = utf8Path;
+#endif
+
+    unsigned char *data = stbi_load(path, &width, &height, &channels, desiredChannels);
 
     if (data)
     {
@@ -187,8 +199,8 @@ bool TextureSystem::LoadTexture(const char* name, Texture* texture)
 
     if (const char* failureReason = stbi_failure_reason())
     {
-        KERROR("[TextureSystem::LoadTexture]: Failed to load image %s", name);
-        KERROR("[TextureSystem::LoadTexture]: Error %s", failureReason);
+        KERROR(TEXT("[TextureSystem::LoadTexture]: Failed to load image %s"), name);
+        KERROR(TEXT("[TextureSystem::LoadTexture]: Error %s"), failureReason);
     }
 
     return false;

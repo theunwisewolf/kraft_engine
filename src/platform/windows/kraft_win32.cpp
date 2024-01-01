@@ -13,6 +13,7 @@
 #include <GLFW/glfw3native.h>
 
 #include "core/kraft_log.h"
+#include "core/kraft_string.h"
 #include "core/kraft_application.h"
 #include "platform/kraft_platform.h"
 #include "renderer/vulkan/kraft_vulkan_types.h"
@@ -117,7 +118,7 @@ void *Platform::MemZero(void *region, uint64_t size)
     return memset(region, 0, size);
 }
 
-void *Platform::MemCpy(void *dst, void *src, uint64_t size)
+void *Platform::MemCpy(void *dst, const void *src, uint64_t size)
 {
     return memcpy(dst, src, size);
 }
@@ -132,21 +133,21 @@ void *Platform::MemSet(void *region, int value, uint64_t size)
 // ------------------------------------------ 
 
 // https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
-void Platform::ConsoleOutputString(const char* str, int color)
+void Platform::ConsoleOutputString(const TCHAR* str, int color)
 {
     SetConsoleTextAttribute(s_ConsoleOutputHandle, color);
     OutputDebugString(str);
-    WriteConsole(s_ConsoleOutputHandle, str, (DWORD)strlen(str), 0, NULL);
+    WriteConsole(s_ConsoleOutputHandle, str, (DWORD)StringLength(str), 0, NULL);
 
     // Reset console
     SetConsoleTextAttribute(s_ConsoleOutputHandle, s_ConsoleOutputScreenBufferInfo.wAttributes);
 }
 
-void Platform::ConsoleOutputStringError(const char* str, int color)
+void Platform::ConsoleOutputStringError(const TCHAR* str, int color)
 {
     SetConsoleTextAttribute(s_ConsoleErrorHandle, color);
     OutputDebugString(str);
-    WriteConsole(s_ConsoleErrorHandle, str, (DWORD)strlen(str), 0, NULL);
+    WriteConsole(s_ConsoleErrorHandle, str, (DWORD)StringLength(str), 0, NULL);
 
     // Reset console
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
@@ -177,10 +178,10 @@ void Platform::SleepMilliseconds(uint64_t msec)
     Sleep((DWORD)msec);
 }
 
-const char* Platform::GetKeyName(Keys key)
+const TCHAR* Platform::GetKeyName(Keys key)
 {
     int keycode = (int)key;
-    return glfwGetKeyName(keycode, glfwGetKeyScancode(keycode));
+    return ANSI_TO_TCHAR(glfwGetKeyName(keycode, glfwGetKeyScancode(keycode)));
 }
 
 }

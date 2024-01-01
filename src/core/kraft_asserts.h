@@ -1,13 +1,14 @@
 #pragma once
 
 #include "core/kraft_log.h"
+#include "core/kraft_string.h"
 
 namespace kraft
 {
 
 inline void LogAssert(const char* expression, const char* message, const char* file, int line)
 {
-    KFATAL("Assertion failure! Expression: '%s' | Message: '%s' | File: %s | Line: %d", expression, message, file, line);
+    KFATAL(TEXT("Assertion failure! Expression: '%s' | Message: '%s' | File: %s | Line: %d"), ANSI_TO_TCHAR(expression), ANSI_TO_TCHAR(message), ANSI_TO_TCHAR(file), line);
 }
 
 }

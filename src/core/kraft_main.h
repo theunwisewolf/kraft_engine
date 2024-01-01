@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     kraft::Application app;
     if (!CreateApplication(&app, argc, argv))
     {
-        KFATAL("Failed to create application!");
+        KFATAL(TEXT("Failed to create application!"));
         return -1;
     }
 
@@ -32,19 +32,19 @@ int main(int argc, char *argv[])
         !app.OnForeground ||
         !app.Shutdown)
     {
-        KFATAL("The application does not define all of the required methods!");
+        KFATAL(TEXT("The application does not define all of the required methods!"));
         return -2;
     }
 
     if (!app.Create(argc, argv))
     {
-        KFATAL("Application creation failed!");
+        KFATAL(TEXT("Application creation failed!"));
         return -3;
     }
 
     if (!app.Run())
     {
-        KFATAL("Application did not shutdown gracefully!");
+        KFATAL(TEXT("Application did not shutdown gracefully!"));
         return -4;
     }
 

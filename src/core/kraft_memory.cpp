@@ -62,15 +62,15 @@ KRAFT_API void PrintDebugMemoryInfo()
 
     if (g_MemoryStats.Allocated > gib)
     {
-        KINFO("Total memory usage - %d GB", g_MemoryStats.Allocated / (float) gib);
+        KINFO(TEXT("Total memory usage - %d GB"), g_MemoryStats.Allocated / (float) gib);
     }
     else if (g_MemoryStats.Allocated > mib)
     {
-        KINFO("Total memory usage - %d MB", g_MemoryStats.Allocated / (float) mib);
+        KINFO(TEXT("Total memory usage - %d MB"), g_MemoryStats.Allocated / (float) mib);
     }
     else
     {
-        KINFO("Total memory usage - %d KB", g_MemoryStats.Allocated / (float) kib);
+        KINFO(TEXT("Total memory usage - %d KB"), g_MemoryStats.Allocated / (float) kib);
     }
 
     // for (int i = 0; i < MemoryTag::MEMORY_TAG_NUM_COUNT; i++)

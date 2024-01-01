@@ -4,6 +4,7 @@
 #include "core/kraft_asserts.h"
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
+#include "core/kraft_string.h"
 #include "containers/array.h"
 
 namespace kraft
@@ -39,7 +40,7 @@ bool checkDepthFormatSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties
     }
 
     *out = VK_FORMAT_UNDEFINED;
-    KDEBUG("Skipping device %s because device does not support the required depth buffer format", properties.deviceName);
+    KDEBUG(TEXT("Skipping device %s because device does not support the required depth buffer format"), ANSI_TO_TCHAR(properties.deviceName));
     return false;
 }
 
@@ -47,13 +48,13 @@ bool checkSwapchainSupport(VkPhysicalDeviceProperties properties, VulkanSwapchai
 {
     if (info.FormatCount <= 0)
     {
-        KDEBUG("Skipping device %s because swapchain has no formats", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because swapchain has no formats"), ANSI_TO_TCHAR(properties.deviceName));
         return false;
     }
 
     if (info.PresentModeCount <= 0)
     {
-        KDEBUG("Skipping device %s because swapchain has no present modes", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because swapchain has no present modes"), ANSI_TO_TCHAR(properties.deviceName));
         return false;
     }
 
@@ -127,25 +128,25 @@ bool checkQueueSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties prope
     int failures = 0;
     if (requirements.Graphics && queueFamilyInfo->GraphicsQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because graphics queue is not supported and is required", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because graphics queue is not supported and is required"), ANSI_TO_TCHAR(properties.deviceName));
         failures++;
     }
 
     if (requirements.Compute && queueFamilyInfo->ComputeQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because compute queue is not supported and is required", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because compute queue is not supported and is required"), ANSI_TO_TCHAR(properties.deviceName));
         failures++;
     }
 
     if (requirements.Transfer && queueFamilyInfo->TransferQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because transfer queue is not supported and is required", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because transfer queue is not supported and is required"), ANSI_TO_TCHAR(properties.deviceName));
         failures++;
     }
 
     if (requirements.Present && queueFamilyInfo->PresentQueueIndex == -1)
     {
-        KDEBUG("Skipping device %s because no queue family supports presentation", properties.deviceName);
+        KDEBUG(TEXT("Skipping device %s because no queue family supports presentation"), ANSI_TO_TCHAR(properties.deviceName));
         failures++;
     }
 
@@ -162,7 +163,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
     size_t n = arrlen(requirements.DeviceExtensionNames);
     if (n == 0)
     {
-        KDEBUG("[checkExtensionsSupport]: No extensions requested", properties.deviceName);
+        KDEBUG(TEXT("[checkExtensionsSupport]: No extensions requested"), ANSI_TO_TCHAR(properties.deviceName));
         return true;
     }
 
@@ -171,7 +172,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
 
     if (availableExtensionsCount == 0)
     {
-        KDEBUG("[checkExtensionsSupport]: Skipping device %s because it has no extensions supported and some extensions are required", properties.deviceName);
+        KDEBUG(TEXT("[checkExtensionsSupport]: Skipping device %s because it has no extensions supported and some extensions are required"), ANSI_TO_TCHAR(properties.deviceName));
         return false;
     }
 
@@ -197,7 +198,7 @@ bool checkExtensionsSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties 
 
         if (!found)
         {
-            KDEBUG("Skipping device %s because required extension %s not available", properties.deviceName, requirements.DeviceExtensionNames[j]);
+            KDEBUG(TEXT("Skipping device %s because required extension %s not available"), ANSI_TO_TCHAR(properties.deviceName), ANSI_TO_TCHAR(requirements.DeviceExtensionNames[j]));
             failures++;
         }
     }
@@ -281,7 +282,7 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, nullptr));
     if (deviceCount <= 0)
     {
-        KERROR("[VulkanSelectPhysicalDevice]: No vulkan capable physical devices found!");
+        KERROR(TEXT("[VulkanSelectPhysicalDevice]: No vulkan capable physical devices found!"));
         return false;
     }
 
@@ -296,10 +297,10 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(device, &properties);
 
-        KDEBUG("[VulkanSelectPhysicalDevice]: Checking device %s", properties.deviceName);
+        KDEBUG(TEXT("[VulkanSelectPhysicalDevice]: Checking device %s"), ANSI_TO_TCHAR(properties.deviceName));
         if (requirements.DiscreteGPU && properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
-            KDEBUG("[VulkanSelectPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one", properties.deviceName);
+            KDEBUG(TEXT("[VulkanSelectPhysicalDevice]: Skipping device %s because device is not a discrete gpu and is required to be one"), ANSI_TO_TCHAR(properties.deviceName));
             continue;
         }
 
@@ -365,20 +366,20 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
 
     if (!context->PhysicalDevice.Handle)
     {
-        KERROR("[VulkanSelectPhysicalDevice]: Failed to find a suitable physical device!");
+        KERROR(TEXT("[VulkanSelectPhysicalDevice]: Failed to find a suitable physical device!"));
         return false;
     }
 
     // Print some nice info about our physical device
-    KINFO("Selected device: %s [Dedicated GPU = %s]", context->PhysicalDevice.Properties.deviceName, 
-        context->PhysicalDevice.Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? "true" : "false");
+    KINFO(TEXT("Selected device: %s [Dedicated GPU = %s]"), ANSI_TO_TCHAR(context->PhysicalDevice.Properties.deviceName), 
+        context->PhysicalDevice.Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? TEXT("true") : TEXT("false"));
 
-    KINFO("Driver version: %d.%d.%d", 
+    KINFO(TEXT("Driver version: %d.%d.%d"), 
         VK_VERSION_MAJOR(context->PhysicalDevice.Properties.driverVersion), 
         VK_VERSION_MINOR(context->PhysicalDevice.Properties.driverVersion), 
         VK_VERSION_PATCH(context->PhysicalDevice.Properties.driverVersion));
 
-    KINFO("Vulkan api version: %d.%d.%d", 
+    KINFO(TEXT("Vulkan api version: %d.%d.%d"), 
         VK_VERSION_MAJOR(context->PhysicalDevice.Properties.apiVersion), 
         VK_VERSION_MINOR(context->PhysicalDevice.Properties.apiVersion), 
         VK_VERSION_PATCH(context->PhysicalDevice.Properties.apiVersion));
@@ -390,11 +391,11 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
 
         if (context->PhysicalDevice.MemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
         {
-            KINFO("Local GPU memory: %.3f GiB", sizeInGiB);
+            KINFO(TEXT("Local GPU memory: %.3f GiB"), sizeInGiB);
         }
         else
         {
-            KINFO("Shared GPU memory: %.3f GiB", sizeInGiB);
+            KINFO(TEXT("Shared GPU memory: %.3f GiB"), sizeInGiB);
         }
     }
 
@@ -477,14 +478,14 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     );
 
     arrfree(createInfos);
-    KSUCCESS("[VulkanCreateLogicalDevice]: Successfully created VkDevice");
+    KSUCCESS(TEXT("[VulkanCreateLogicalDevice]: Successfully created VkDevice"));
 
     // Grab the queues
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.GraphicsQueueIndex, 0, &context->LogicalDevice.GraphicsQueue);
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.ComputeQueueIndex,  0, &context->LogicalDevice.ComputeQueue);
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.TransferQueueIndex, 0, &context->LogicalDevice.TransferQueue);
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.PresentQueueIndex, 0, &context->LogicalDevice.PresentQueue);
-    KDEBUG("[VulkanCreateLogicalDevice]: Required queues obtained");
+    KDEBUG(TEXT("[VulkanCreateLogicalDevice]: Required queues obtained"));
 
     VkCommandPoolCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -492,7 +493,7 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     KRAFT_VK_CHECK(vkCreateCommandPool(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->GraphicsCommandPool));
-    KDEBUG("[VulkanCreateLogicalDevice]: Graphics command pool created");
+    KDEBUG(TEXT("[VulkanCreateLogicalDevice]: Graphics command pool created"));
 
     if (out)    *out = context->LogicalDevice;
 }
@@ -508,7 +509,7 @@ void VulkanDestroyLogicalDevice(VulkanContext* context)
     context->LogicalDevice.Handle  = 0;
     context->PhysicalDevice.Handle = 0;
 
-    KDEBUG("[VulkanDestroyLogicalDevice]: Destroyed VkDevice");
+    KDEBUG(TEXT("[VulkanDestroyLogicalDevice]: Destroyed VkDevice"));
 }
 
 }

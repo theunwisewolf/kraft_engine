@@ -14,7 +14,7 @@ bool EventSystem::Init()
 {
     if (Initialized)
     {
-        KRAFT_LOG_ERROR("EventSystem already initialized!");
+        KERROR(TEXT("EventSystem already initialized!"));
         return false;
     }
 
@@ -46,7 +46,7 @@ bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
     {
         if (events[i].Listener == listener)
         {
-            KRAFT_LOG_ERROR("[EventSystem::Listen]: An event entry with the same listener already exists for event type %d", type);
+            KERROR(TEXT("[EventSystem::Listen]: An event entry with the same listener already exists for event type %d"), type);
             return false;
         }
     }

@@ -27,14 +27,14 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
 
     if (width == 0 && height == 0)
     {
-        KINFO("[Application::WindowResizeListener]: Application suspended");
+        KINFO(TEXT("[Application::WindowResizeListener]: Application suspended"));
         application->Suspended = true;   
     }
     else
     {
         if (application->Suspended)
         {
-            KINFO("[Application::WindowResizeListener]: Application resumed");
+            KINFO(TEXT("[Application::WindowResizeListener]: Application resumed"));
             application->Suspended = false;
         }
 
@@ -49,17 +49,15 @@ bool Application::Create(int argc, char *argv[])
 {
     CommandLineArgs = {};
     CommandLineArgs.Count = argc;
-    CreateArray(CommandLineArgs.RawArguments, argc);
+
+    CommandLineArgs.Arguments = Array<TString>(argc);
     for (int i = 0; i < argc; i++)
     {
-        CommandLineArgs.RawArguments[i] = (char*)Malloc(StringLength(argv[i] + 1), MEMORY_TAG_STRING);
-        StringCopy(CommandLineArgs.RawArguments[i], argv[i]);
+        CommandLineArgs.Arguments[i] = ANSI_TO_TCHAR(argv[i]);
     }
 
-    // TODO (amn): Free this
-    BasePath = (char*)kraft::Malloc(StringLength(CommandLineArgs.RawArguments[0]) + 1, MEMORY_TAG_STRING, true);
-    filesystem::Basename(CommandLineArgs.RawArguments[0], (char*)BasePath);
-    filesystem::CleanPath(BasePath, (char*)BasePath);
+    BasePath = filesystem::Basename(CommandLineArgs.Arguments[0]);
+    BasePath = filesystem::CleanPath(BasePath);
 
     I = this;
     Platform::Init(&this->Config);
@@ -68,7 +66,7 @@ bool Application::Create(int argc, char *argv[])
 
     if (!State.Renderer.Init(&this->Config))
     {
-        KERROR("[Application::Create]: Failed to initalize renderer!");
+        KERROR(TEXT("[Application::Create]: Failed to initalize renderer!"));
         return false;
     }
 
@@ -96,7 +94,7 @@ bool Application::Run()
     float64 timeSinceLastSecond = 0.f;
 
     kraft::PrintDebugMemoryInfo();
-    char windowTitleBuffer[1024];
+    TCHAR windowTitleBuffer[1024];
     while (this->Running)
     {
         kraft::Time::Update();
@@ -124,16 +122,16 @@ bool Application::Run()
         {
             timeSinceLastSecond = 0.f;
 
-            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime);
+            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), TEXT("%s (%d fps | %f ms frametime)"), Config.WindowTitle, frames, deltaTime);
             Platform::GetWindow().SetWindowTitle(windowTitleBuffer);
             frames = 0;
         }
 
         if (deltaTime < targetFrameRate)
         {
-            // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
+            // KINFO(TEXT("Before Sleep - %f ms | Sleep time = %f"), kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
             Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
-            // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
+            // KINFO(TEXT("After Sleep - %f ms"), kraft::Platform::GetAbsoluteTime());
         }
 
         State.LastTime = currentTime;
@@ -146,7 +144,7 @@ bool Application::Run()
 
 void Application::Destroy()
 {
-    KINFO("[Application::Destroy]: Shutting down...");
+    KINFO(TEXT("[Application::Destroy]: Shutting down..."));
 
     InputSystem::Shutdown();
     EventSystem::Shutdown();
@@ -157,7 +155,7 @@ void Application::Destroy()
     this->Shutdown();
     Time::Stop();
 
-    KSUCCESS("[Application::Destroy]: Application shutdown successfully!");
+    KSUCCESS(TEXT("[Application::Destroy]: Application shutdown successfully!"));
 }
 
 }

@@ -26,7 +26,7 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int3
     int32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
     if (memoryTypeIndex == -1)
     {
-        KERROR("[VulkanAllocateMemory]: Failed to find suitable memoryType");
+        KERROR(TEXT("[VulkanAllocateMemory]: Failed to find suitable memoryType"));
         return false;
     }
 

@@ -75,5 +75,20 @@ typedef uint16_t    uint16;
 typedef uint32_t    uint32;
 typedef uint64_t    uint64;
 
+// TODO (amn): Unicode
+#ifdef _UNICODE
+    typedef wchar_t TCHAR;
+    #define TEXT(str) L ## #str
+    #ifdef KRAFT_PLATFORM_WINDOWS
+        #define StrError _wcserror
+    #else
+        #define StrError strerror
+    #endif
+#else
+    typedef char TCHAR;
+    #define TEXT(str) str
+    #define StrError strerror
+#endif
+
 #define KRAFT_INVALID_ID        4294967295U
 #define KRAFT_INVALID_ID_UINT8  255U

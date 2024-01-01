@@ -14,7 +14,7 @@ bool InputSystem::Init()
 {
     if (Initialized)
     {
-        KRAFT_LOG_ERROR("[InputSystem::Init]: Already initialized!");
+        KERROR(TEXT("[InputSystem::Init]: Already initialized!"));
         return false;
     }
 

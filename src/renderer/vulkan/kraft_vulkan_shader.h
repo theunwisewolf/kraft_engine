@@ -5,7 +5,7 @@
 namespace kraft
 {
 
-bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShaderModule* out);
+bool VulkanCreateShaderModule(VulkanContext* context, const TCHAR* path, VkShaderModule* out);
 void VulkanDestroyShaderModule(VulkanContext* context, VkShaderModule* out);
 
 }

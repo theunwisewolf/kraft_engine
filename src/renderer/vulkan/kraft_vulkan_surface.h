@@ -25,7 +25,7 @@ void CreateVulkanSurface(VulkanContext* context)
     window = State->Window.PlatformWindowHandle;
     KRAFT_VK_CHECK(glfwCreateWindowSurface(context->Instance, window, context->AllocationCallbacks, &context->Surface));
 
-    KSUCCESS("[CreateVulkanSurface]: Successfully created VkSurface");
+    KSUCCESS(TEXT("[CreateVulkanSurface]: Successfully created VkSurface"));
 }
 
 }

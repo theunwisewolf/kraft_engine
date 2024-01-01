@@ -28,7 +28,7 @@ struct RendererImGui
     ImGuiWidget* Widgets = 0;
 
     void Init();
-    void AddWidget(const char* name, ImGuiRenderCallback callback);
+    void AddWidget(const TCHAR* name, ImGuiRenderCallback callback);
     void OnResize(int width, int height);
     void RenderWidgets();
     void Destroy();

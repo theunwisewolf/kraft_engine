@@ -15,8 +15,8 @@ struct MaterialSystemConfig
 struct MaterialData
 {
     bool AutoRelease;
-    char Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
-    char DiffuseTextureMapName[KRAFT_TEXTURE_NAME_MAX_LENGTH];
+    TCHAR Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
+    TCHAR DiffuseTextureMapName[KRAFT_TEXTURE_NAME_MAX_LENGTH];
     Vec4f DiffuseColor;
 };
 
@@ -26,9 +26,9 @@ struct MaterialSystem
     static void Shutdown();
 
     static Material* GetDefaultMaterial();
-    static Material* AcquireMaterial(const char* name);
+    static Material* AcquireMaterial(const TCHAR* name);
     static Material* AcquireMaterialWithData(MaterialData data);
-    static void ReleaseMaterial(const char* name);
+    static void ReleaseMaterial(const TCHAR* name);
     static void ReleaseMaterial(Material *material);
     static void DestroyMaterial(Material *material);
 };

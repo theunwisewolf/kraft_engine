@@ -2,6 +2,8 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_events.h"
+#include "core/kraft_string.h"
+#include "containers/kraft_array.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_frontend.h"
 
@@ -14,8 +16,8 @@ struct ApplicationConfig
 {
     uint32              WindowWidth;
     uint32              WindowHeight;
-    const char*         ApplicationName;
-    const char*         WindowTitle;
+    const TCHAR*        ApplicationName;
+    const TCHAR*        WindowTitle;
     RendererBackendType RendererBackend = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
 };
 
@@ -27,8 +29,8 @@ struct ApplicationState
 
 struct ApplicationCommandLineArgs
 {
-    int     Count;
-    char    **RawArguments;
+    int             Count;
+    Array<TString>   Arguments;
 };
 
 struct KRAFT_API Application
@@ -41,7 +43,7 @@ struct KRAFT_API Application
     ApplicationCommandLineArgs CommandLineArgs = {};
 
     // The location of the executable without a trailing slash
-    const char* BasePath;
+    TString BasePath;
     bool Running = false;
     bool Suspended = false;
 

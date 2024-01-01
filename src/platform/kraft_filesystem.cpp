@@ -13,37 +13,56 @@ namespace kraft
 namespace filesystem
 {
 
-bool OpenFile(const char* path, int mode, bool binary, FileHandle* out)
+bool OpenFile(const TString& Path, int Mode, bool Binary, FileHandle* Out)
+{
+    return OpenFile(Path.Data(), Mode, Binary, Out);
+}
+
+bool OpenFile(const TCHAR* path, int mode, bool binary, FileHandle* out)
 {
     out->Handle = {};
 
-    const char* modeString;
+    const TCHAR* modeString;
     if (mode & FILE_OPEN_MODE_APPEND)
     {
-        modeString = binary ? "a+b" : "a+";
+        modeString = binary ? TEXT("a+b") : TEXT("a+");
     }
     else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? "w+b" : "w+";
+        modeString = binary ? TEXT("w+b") : TEXT("w+");
     }
     else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0)
     {
-        modeString = binary ? "r+b" : "r";
+        modeString = binary ? TEXT("r+b") : TEXT("r");
     }
     else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE))
     {
-        modeString = binary ? "wb" : "w";
+        modeString = binary ? TEXT("wb") : TEXT("w");
     }
     else
     {
-        KERROR("[FileSystem::OpenFile] Invalid mode %d", mode);
+        KERROR(TEXT("[FileSystem::OpenFile] Invalid mode %d"), mode);
         return false;
     }
 
+#if UNICODE
+    #ifdef KRAFT_PLATFORM_WINDOWS
+        out->Handle = _wfopen(path, modeString);
+    #else
+        char mbstrPath[256];
+        wcstombs(mbstrPath, path, sizeof(mbstrPath));
+
+        char mbstrMode[32];
+        wcstombs(mbstrPath, modeString, sizeof(mbstrMode));
+        
+        out->Handle = fopen(mbstrPath, mbstrMode);
+    #endif
+#else
     out->Handle = fopen(path, modeString);
+#endif
     if (!out->Handle)
     {
-        KERROR("[FileSystem::OpenFile]: Failed with error %s", strerror(errno));
+        KERROR(TEXT("[FileSystem::OpenFile]: Failed to open %s with error %s"), path, StrError(errno));
         return false;
     }
 
@@ -70,7 +89,7 @@ void CloseFile(FileHandle* handle)
     }
 }
 
-bool FileExists(const char* path)
+bool FileExists(const TCHAR* path)
 {
     FileHandle temp;
     if (OpenFile(path, FILE_OPEN_MODE_READ, true, &temp))
@@ -80,6 +99,11 @@ bool FileExists(const char* path)
     }
 
     return false;
+}
+
+bool FileExists(const TString& Path)
+{
+    return FileExists(Path.Data());
 }
 
 // outBuffer, if null is allocated
@@ -111,7 +135,7 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     return true;
 }
 
-bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
+bool ReadAllBytes(const TCHAR* path, uint8** outBuffer, uint64* bytesRead)
 {
     FileHandle handle;
     if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
@@ -125,7 +149,7 @@ bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
     return retval;
 }
 
-void CleanPath(const char* path, char* out)
+void CleanPath(const TCHAR* path, TCHAR* out)
 {
     uint64 Length = StringLength(path);
     for (int i = 0; i < Length; i++)
@@ -141,7 +165,25 @@ void CleanPath(const char* path, char* out)
     }
 }
 
-void Basename(const char* path, char* out)
+TString CleanPath(const TString& Path)
+{
+    TString Output(Path.Length, 0);
+    for (int i = 0; i < Path.Length; i++)
+    {
+        if (Path[i] == '\\')
+        {
+            Output[i] = '/';
+        }
+        else
+        {
+            Output[i] = Path[i];
+        }
+    }
+
+    return Output;
+}
+
+void Basename(const TCHAR* path, TCHAR* out)
 {
     uint64 Length = StringLength(path);
     for (int i = Length - 1; i >= 0; i--)
@@ -152,6 +194,19 @@ void Basename(const char* path, char* out)
             return;
         }
     }
+}
+
+TString Basename(const TString& Path)
+{
+    for (int i = Path.Length - 1; i >= 0; i--)
+    {
+        if (Path[i] == '/' || Path[i] == '\\')
+        {
+            return TString(Path, 0, i);
+        }
+    }
+
+    return Path;
 }
 
 }

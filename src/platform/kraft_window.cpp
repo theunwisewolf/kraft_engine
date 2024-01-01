@@ -6,6 +6,7 @@
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "core/kraft_log.h"
+#include "core/kraft_string.h"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include <Windows.h>
@@ -14,11 +15,11 @@
 namespace kraft
 {
 
-int Window::Init(const char* title, size_t width, size_t height, RendererBackendType backendType)
+int Window::Init(const TCHAR* title, size_t width, size_t height, RendererBackendType backendType)
 {
     if (!glfwInit())
     {
-        KERROR("glfwInit() failed");
+        KERROR(TEXT("glfwInit() failed"));
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
@@ -31,12 +32,12 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
 
     }
 
-    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), title, NULL, NULL);
+    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), TCHAR_TO_ANSI(title), NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
 
-        KERROR("glfwCreateWindow() failed");
+        KERROR(TEXT("glfwCreateWindow() failed"));
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
 
@@ -71,9 +72,9 @@ bool Window::PollEvents()
     return !glfwWindowShouldClose(this->PlatformWindowHandle);
 }
 
-void Window::SetWindowTitle(const char* title)
+void Window::SetWindowTitle(const TCHAR* title)
 {
-    glfwSetWindowTitle(this->PlatformWindowHandle, title);
+    glfwSetWindowTitle(this->PlatformWindowHandle, TCHAR_TO_ANSI(title));
 }
 
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
@@ -116,7 +117,7 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 
     for (int i = 0; i < count; i++)
     {
-        KINFO("Dropped file %s", ((char**)data.Int64[1])[i]);
+        KINFO(TEXT("Dropped file %s"), ANSI_TO_TCHAR(((char**)data.Int64[1])[i]));
     }
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));

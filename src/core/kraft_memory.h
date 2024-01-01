@@ -92,7 +92,7 @@ KRAFT_INLINE void MemSet(Block block, int value)
     MemSet(block.Data, value, block.Size);
 }
 
-KRAFT_INLINE void MemCpy(void *dst, void *src, size_t size)
+KRAFT_INLINE void MemCpy(void *dst, void const* src, size_t size)
 {
     Platform::MemCpy(dst, src, size);
 }

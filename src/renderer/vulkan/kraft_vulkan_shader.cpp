@@ -6,12 +6,12 @@
 namespace kraft
 {
 
-bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShaderModule* out)
+bool VulkanCreateShaderModule(VulkanContext* context, const TCHAR* path, VkShaderModule* out)
 {
     FileHandle handle;
     if (!filesystem::OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
     {
-        KERROR("Failed to open shader file %s", path);
+        KERROR(TEXT("Failed to open shader file %s"), path);
         return false;
     }
 

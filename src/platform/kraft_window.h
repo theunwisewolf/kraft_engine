@@ -15,9 +15,9 @@ struct KRAFT_API Window
 {
     GLFWwindow* PlatformWindowHandle;
 
-    int Init(const char* title, size_t width, size_t height, RendererBackendType backendType);
+    int Init(const TCHAR* title, size_t width, size_t height, RendererBackendType backendType);
     bool PollEvents(); // Returns false if the window wants to close
-    void SetWindowTitle(const char* title);
+    void SetWindowTitle(const TCHAR* title);
     void Destroy();
     
     static void WindowSizeCallback(GLFWwindow* window, int width, int height);

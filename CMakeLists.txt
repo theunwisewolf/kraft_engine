@@ -35,12 +35,14 @@ endif()
 
 set(SRC_FILES 
     src/containers/array.cpp
+    src/containers/kraft_array.cpp
     src/core/kraft_log.cpp
     src/core/kraft_input.cpp
     src/core/kraft_events.cpp
     src/core/kraft_application.cpp
     src/core/kraft_time.cpp
     src/core/kraft_memory.cpp
+    src/core/kraft_string.cpp
     src/math/kraft_math.cpp
     src/platform/kraft_window.cpp
     src/platform/kraft_filesystem.cpp
@@ -127,6 +129,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE GLFW_INCLUDE_NONE)
 
 # If building a static lib
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)
+
+# Other definitions
+target_compile_definitions(${PROJECT_NAME} PUBLIC UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS)
 
 if (WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)

@@ -12,7 +12,7 @@ void RendererImGui::Init()
     // CreateArray(this->Widgets, 128);
 }
 
-void RendererImGui::AddWidget(const char* name, ImGuiRenderCallback callback)
+void RendererImGui::AddWidget(const TCHAR* name, ImGuiRenderCallback callback)
 {
     ImGuiWidget widget;
     MemCpy((void*)widget.Name, (void*)name, sizeof(ImGuiWidget::Name));
@@ -20,7 +20,7 @@ void RendererImGui::AddWidget(const char* name, ImGuiRenderCallback callback)
 
     arrpush(this->Widgets, widget);
 
-    KINFO("Added imgui widget %s", name);
+    KINFO(TEXT("Added imgui widget %s"), name);
 }
 
 void RendererImGui::RenderWidgets()
