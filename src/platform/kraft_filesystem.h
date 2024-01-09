@@ -45,6 +45,7 @@ KRAFT_API String Basename(const String& Path);
 // outBuffer, if null is allocated & must be freed by the caller
 KRAFT_API bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);
 KRAFT_API bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead = nullptr);
+KRAFT_API bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size);
 
 }
 

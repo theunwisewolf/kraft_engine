@@ -141,6 +141,15 @@ bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
     return retval;
 }
 
+bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
+{
+    if (!Handle->Handle) return false;
+
+    fwrite(Buffer, sizeof(uint8), Size, (FILE*)Handle->Handle);
+
+    return true;
+}
+
 void CleanPath(const char* path, char* out)
 {
     uint64 Length = StringLength(path);

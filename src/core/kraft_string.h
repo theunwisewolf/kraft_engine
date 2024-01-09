@@ -1,8 +1,9 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "math/kraft_math.h"
+#include "core/kraft_string_view.h"
 #include "core/kraft_memory.h"
+#include "math/kraft_math.h"
 
 /*
     Much of the inspiration for this class is taken from the excellent talk 
@@ -135,11 +136,19 @@ public:
 
     constexpr KString(const ValueType* Str)
     {
-        Length = _kstring_strlen(Str);
-        Allocated = ChooseAllocationSize(Length + 1);
-        Alloc(Allocated);
-        MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
-        Data()[Length] = 0;
+        if (Str)
+        {
+            Length = _kstring_strlen(Str);
+            Allocated = ChooseAllocationSize(Length + 1);
+            Alloc(Allocated);
+            MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
+            Data()[Length] = 0;
+        }
+    }
+
+    constexpr KString(KStringView<ValueType> View) :
+        KString(View.Buffer, View.Length) 
+    {
     }
 
     constexpr KString(const ValueType* Str, SizeType Count)
@@ -253,6 +262,35 @@ public:
         return *this;
     }
 
+    constexpr KRAFT_INLINE friend KString operator+(const KString& StrA, const KString& StrB)
+    {
+        KString Out;
+        Out.Length = StrA.Length + StrB.Length;
+        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Alloc(Out.Allocated);
+
+        MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
+        MemCpy(Out.Data() + StrA.Length, StrB.Data(), StrB.Length * sizeof(ValueType));
+        Out.Data()[Out.Length] = 0;
+
+        return Out;
+    }
+
+    constexpr KRAFT_INLINE friend KString operator+(const KString& StrA, const ValueType* StrB)
+    {
+        SizeType StrBLength = _kstring_strlen(StrB);
+        KString Out;
+        Out.Length = StrA.Length + StrBLength;
+        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Alloc(Out.Allocated);
+
+        MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
+        MemCpy(Out.Data() + StrA.Length, StrB, StrBLength * sizeof(ValueType));
+        Out.Data()[Out.Length] = 0;
+
+        return Out;
+    }
+
     constexpr KString& Append(const ValueType* Str)
     {
         return (*this += Str);
@@ -306,18 +344,19 @@ public:
         return Data()[Index];
     }
 
+    // In-place trim
     KString& Trim();
 
     constexpr int Compare(const ValueType* Str) const
     {
-        return _kstring_compare(Data(), Length, Str, _kstring_strlen(Str));
+        return (int)_kstring_compare(Data(), Length, Str, _kstring_strlen(Str));
     }
 
     constexpr int Compare(const KString& Str) const
     {
         if (Data() == Str.Data() && Length == Str.Length) return 0;
 
-        return _kstring_compare(Data(), Length, Str.Data(), Str.Length);
+        return (int)_kstring_compare(Data(), Length, Str.Data(), Str.Length);
     }
 
     constexpr KRAFT_INLINE bool operator==(const KString& Str) const
@@ -325,9 +364,19 @@ public:
         return !Compare(Str);
     }
 
+    constexpr KRAFT_INLINE bool operator!=(const KString& Str) const
+    {
+        return Compare(Str);
+    }
+
     constexpr KRAFT_INLINE bool operator==(const ValueType* Str) const
     {
         return !Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator!=(const ValueType* Str) const
+    {
+        return Compare(Str);
     }
 
     friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KString& b) 
@@ -336,7 +385,7 @@ public:
     }
 
 private:
-    SizeType _kstring_strlen(const ValueType* Str) const;
+    static SizeType _kstring_strlen(const ValueType* Str);
     
     constexpr KRAFT_INLINE SizeType _kstring_compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
     {
@@ -390,31 +439,6 @@ static WString MultiByteStringToWideCharString(const String& Source)
     return WideString;
 }
 
-struct StringView
-{
-    char       *Buffer;
-    uint64      Length;
-
-    bool operator==(const StringView& other)
-    {
-        // Fast pass
-        if (other.Length != Length)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < Length; i++)
-        {
-            if (other.Buffer[i] != Buffer[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-};
-
 KRAFT_INLINE uint64 StringLength(const char* in)
 {
     return strlen(in);
@@ -441,8 +465,10 @@ KRAFT_INLINE const char* StringTrim(const char* in)
     if (!in) return in;
     
     uint64 length = StringLength(in);
-    int start = 0;
-    int end = length - 1;
+    if (length == 0) return in;
+
+    uint64 start = 0;
+    uint64 end = length - 1;
 
     while (start < length && isspace(in[start])) start++;
     while (end >= start && isspace(in[end])) end--;
@@ -482,7 +508,11 @@ KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char*format, ...)
 {
     if (buffer) 
     {
+#ifdef KRAFT_COMPILER_MSVC
+        va_list args;
+#else
         __builtin_va_list args;
+#endif
         va_start(args, format);
         int32 written = StringFormatV(buffer, n, format, args);
         va_end(args);

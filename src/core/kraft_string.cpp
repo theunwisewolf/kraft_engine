@@ -5,7 +5,7 @@ namespace kraft
 
 // char
 template<>
-KString<char>::SizeType KString<char>::_kstring_strlen(const char* Str) const
+KString<char>::SizeType KString<char>::_kstring_strlen(const char* Str)
 {
     return strlen(Str);
 }
@@ -28,7 +28,7 @@ KString<char>& KString<char>::Trim()
 
 // wchar_t
 template<>
-KString<wchar_t>::SizeType KString<wchar_t>::_kstring_strlen(const wchar_t* Str) const
+KString<wchar_t>::SizeType KString<wchar_t>::_kstring_strlen(const wchar_t* Str)
 {
     return wcslen(Str);
 }

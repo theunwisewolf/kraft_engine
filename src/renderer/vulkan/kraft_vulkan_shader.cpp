@@ -21,13 +21,20 @@ bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShader
     filesystem::ReadAllBytes(&handle, &buffer, &size);
     filesystem::CloseFile(&handle);
 
-    VkShaderModuleCreateInfo shaderModuleCreateInfo = {};
-    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    shaderModuleCreateInfo.codeSize = bufferSize;
-    shaderModuleCreateInfo.pCode = (uint32*)buffer;
-
-    KRAFT_VK_CHECK(vkCreateShaderModule(context->LogicalDevice.Handle, &shaderModuleCreateInfo, context->AllocationCallbacks, out));
+    bool ret = VulkanCreateShaderModule(context, buffer, bufferSize, out);
     Free(buffer, bufferSize, MEMORY_TAG_RENDERER);
+
+    return ret;
+}
+
+bool VulkanCreateShaderModule(VulkanContext* Context, const uint8* Data, uint64 Size, VkShaderModule* Out)
+{
+    VkShaderModuleCreateInfo ShaderModuleCreateInfo = {};
+    ShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    ShaderModuleCreateInfo.codeSize = Size;
+    ShaderModuleCreateInfo.pCode = (uint32*)Data;
+
+    KRAFT_VK_CHECK(vkCreateShaderModule(Context->LogicalDevice.Handle, &ShaderModuleCreateInfo, Context->AllocationCallbacks, Out));
 
     return true;
 }
