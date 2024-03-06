@@ -9,12 +9,14 @@
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
 #include "core/kraft_string.h"
+#include "core/kraft_time.h"
 #include "math/kraft_math.h"
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_types.h"
 
 #include "renderer/vulkan/tests/simple_scene.h"
+#include "renderer/shaderfx/kraft_shaderfx.h"
 
 #include <imgui.h>
 
@@ -61,6 +63,62 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
     return false;
 }
 
+bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    int x = data.Int32[0];
+    int y = data.Int32[1];
+    // KINFO("Drag started = %d, %d", x, y);
+
+    return false;
+}
+
+bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    kraft::SceneState* sceneState = kraft::GetSceneState();
+    kraft::Camera *camera = &sceneState->SceneCamera;
+
+    float32 speed = 1.f;
+
+    kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
+    int x = data.Int32[0] - MousePositionPrev.x;
+    int y = data.Int32[1] - MousePositionPrev.y;
+    // int x = data.Int32[0];
+    // int y = data.Int32[1];
+
+    KINFO("Delta position (Screen) = %d, %d", x, y);
+
+    // kraft::Vec3f direction = kraft::Normalize(kraft::Vec3f(-x, y, 0.f));
+    // kraft::Vec4f direction = kraft::Vec4f(-x, y, 0.f, 0.f);
+    kraft::Vec4f screenPoint = kraft::Vec4f(data.Int32[0], data.Int32[1], 0.0f, 0.0f);
+    kraft::Vec4f screenPointNDC = kraft::Vec4f(data.Int32[0] / 1280.0f, data.Int32[1] / 800.0f, screenPoint.z, 0.0f) * 2.0f - 1.0f;
+
+    // Screen to world
+    kraft::Mat4f inverse = kraft::Inverse(sceneState->GlobalUBO.Projection * camera->ViewMatrix);
+    // kraft::Vec3f ndc = kraft::Vec3f(screenPoint.x / 1280.0f, 1.0f - screenPoint.y / 800.f, screenPoint.z) * 2.0f - 1.0f;
+    kraft::Vec4f worldPosition = (inverse * kraft::Vec4f(screenPointNDC.x, screenPointNDC.y, 0.0f, 1.0f));
+    KINFO("World position homogenous = %f, %f", worldPosition.x, worldPosition.y);
+    worldPosition = worldPosition / worldPosition.w;
+
+    KINFO("World position = %f, %f", worldPosition.x, worldPosition.y);
+
+    // kraft::Vec3f position = camera->Position;
+    // kraft::Vec3f change = direction * speed;// * (float32)kraft::Time::DeltaTime;
+    
+    // camera->SetPosition(camera->Position + position);
+    // camera->SetPosition(worldPosition.xyz);
+
+    return false;
+}
+
+bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    int x = data.Int32[0];
+    int y = data.Int32[1];
+    // KINFO("Drag ended at = %d, %d", x, y);
+
+    return false;
+}
+
 bool Init()
 {
     // KFATAL("Fatal error");
@@ -76,6 +134,11 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_UP, nullptr, MouseUpEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_MOVE, nullptr, MouseMoveEventListener);
 
+    // Drag events
+    EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_START, nullptr, MouseDragStartEventListener);
+    EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_DRAGGING, nullptr, MouseDragDraggingEventListener);
+    EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_END, nullptr, MouseDragEndEventListener);
+
     Mat4f a(Identity), b(Identity);
     a._data[5] = 9;
     a._data[7] = 8;
@@ -87,21 +150,8 @@ bool Init()
     PrintMatrix(b);
     PrintMatrix(a * b);
 
-    // kraft::FileHandle handle;
-    // uint8* buffer = 0;
-    // kraft::filesystem::OpenFile("res/shaders/combined.shader", kraft::FILE_OPEN_MODE_READ, true, &handle);
-    // buffer = (uint8*)kraft::Malloc(kraft::filesystem::GetFileSize(&handle) + 1, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
-    // kraft::filesystem::ReadAllBytes(&handle, &buffer);
-    // kraft::filesystem::CloseFile(&handle);
-
-    // // printf("%s\n", buffer);
-    // kraft::Free(buffer);
-
-    kraft::StringView stra, strb;
-    if (stra == strb)
-    {
-        return true;
-    }
+    kraft::renderer::ShaderEffect Output;
+    KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
 
     return true;
 }
@@ -119,8 +169,8 @@ void Update(float64 deltaTime)
         {
             if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
             {
-                kraft::Vec3f up = UpVector(camera->GetViewMatrix());
-                direction += up;
+                kraft::Vec3f upVector = UpVector(camera->GetViewMatrix());
+                direction += upVector;
             }
             else
             {
@@ -132,8 +182,8 @@ void Update(float64 deltaTime)
         {
             if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
             {
-                kraft::Vec3f down = DownVector(camera->GetViewMatrix());
-                direction += down;
+                kraft::Vec3f downVector = DownVector(camera->GetViewMatrix());
+                direction += downVector;
             }
             else
             {
@@ -141,6 +191,7 @@ void Update(float64 deltaTime)
                 direction += backwardVector;
             }
         }
+
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
         {
             kraft::Vec3f leftVector = LeftVector(camera->GetViewMatrix());
@@ -231,6 +282,7 @@ bool CreateApplication(kraft::Application* app, int argc, char *argv[])
     app->Config.WindowWidth     = 1280;
     app->Config.WindowHeight    = 800;
     app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
+    app->Config.ConsoleApp      = false;
 
     app->Init                   = Init;
     app->Update                 = Update;

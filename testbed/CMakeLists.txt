@@ -6,6 +6,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(${PROJECT_NAME})
 
+set(KRAFT_APP_TYPE "GUI")
+
+if (NOT KRAFT_BUILDING_BASE)
+    set(KRAFT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../kraft)
+    get_filename_component(KRAFT_PATH "${KRAFT_PATH}" ABSOLUTE)
+    add_subdirectory(${KRAFT_PATH} ${KRAFT_BINARY_DIR}/kraft/core)
+endif()
+
 set(SRC_FILES 
     src/scenes/test.cpp
     src/main.cpp
@@ -16,9 +24,6 @@ add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
 else()
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 endif()
-
-target_include_directories(${PROJECT_NAME} PRIVATE ../src)
-target_include_directories(${PROJECT_NAME} PRIVATE ../vendor/imgui)
 
 target_link_libraries(${PROJECT_NAME} Kraft)
 
