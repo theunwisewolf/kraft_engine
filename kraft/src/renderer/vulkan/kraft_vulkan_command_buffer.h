@@ -2,7 +2,7 @@
 
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 void VulkanAllocateCommandBuffer(VulkanContext* context, VkCommandPool pool, bool primary, VulkanCommandBuffer* out);

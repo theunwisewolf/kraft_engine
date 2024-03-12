@@ -9,6 +9,11 @@ namespace kraft
 
 struct ApplicationConfig;
 
+namespace renderer
+{
+
+struct ShaderEffect;
+
 namespace VulkanRendererBackend
 {
     bool Init(ApplicationConfig* config);
@@ -17,6 +22,8 @@ namespace VulkanRendererBackend
     bool EndFrame(float64 deltaTime);
     void OnResize(int width, int height);
 
+    RenderPipeline CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex);
+    void AllocateResources(RenderResource& RenderResources);
     void CreateTexture(uint8* data, Texture* texture);
     void DestroyTexture(Texture* texture);
 
@@ -32,5 +39,7 @@ namespace VulkanRendererBackend
         void*                                            pUserData);
 #endif
 };
+
+}
 
 }

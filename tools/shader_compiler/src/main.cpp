@@ -50,7 +50,7 @@ bool CreateApplication(kraft::Application* app, int argc, char *argv[])
     app->Config.WindowTitle     = "Kraft Shader Compiler";
     app->Config.WindowWidth     = 1280;
     app->Config.WindowHeight    = 800;
-    app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
+    app->Config.RendererBackend = kraft::renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
     app->Config.ConsoleApp      = true;
 
     app->Init                   = Init;

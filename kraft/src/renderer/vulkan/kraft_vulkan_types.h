@@ -13,7 +13,7 @@
 
 #define KRAFT_VULKAN_SHADER_MAX_BINDINGS 2
 
-namespace kraft
+namespace kraft::renderer
 {
 
 struct VulkanDescriptorSetState

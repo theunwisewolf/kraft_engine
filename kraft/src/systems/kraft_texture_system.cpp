@@ -17,6 +17,8 @@
 namespace kraft
 {
 
+using namespace renderer;
+
 struct TextureReference
 {
     uint32      RefCount;

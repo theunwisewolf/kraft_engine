@@ -4,18 +4,20 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_input.h"
-#include "platform/kraft_window.h"
-
-#if defined(KRAFT_PLATFORM_WINDOWS)
-#include "windows/kraft_win32.h"
-#elif defined(KRAFT_PLATFORM_MACOS)
-#include "macos/kraft_macos.h"
-#endif
 
 namespace kraft
 {
 
+struct Window;
 struct ApplicationConfig;
+
+// #if defined(KRAFT_PLATFORM_WINDOWS)
+// struct Win32PlatformState;
+// #elif defined(KRAFT_PLATFORM_MACOS)
+// struct MacOSPlatformState;
+// #elif defined(KRAFT_PLATFORM_LINUX)
+// struct LinuxPlatformState;
+// #endif
 
 struct KRAFT_API Platform
 {
@@ -81,18 +83,7 @@ struct KRAFT_API Platform
     // Misc
     static void SleepMilliseconds(uint64_t msec);
     static const char* GetKeyName(Keys key);
-    static Window& GetWindow()
-    {
-#if defined(KRAFT_PLATFORM_WINDOWS)
-        Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_MACOS)
-        MacOSPlatformState* State = (MacOSPlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_LINUX)
-        LinuxPlatformState* State = (LinuxPlatformState*)Platform::InternalState;
-#endif
-
-        return State->Window;
-    }
+    static Window& GetWindow();
 
     static const char* GetEnv(const char* Key);
     static bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);

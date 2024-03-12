@@ -3,13 +3,6 @@
 namespace kraft
 {
 
-// char
-template<>
-KString<char>::SizeType KString<char>::_kstring_strlen(const char* Str)
-{
-    return strlen(Str);
-}
-
 template<>
 KString<char>& KString<char>::Trim()
 {
@@ -24,13 +17,6 @@ KString<char>& KString<char>::Trim()
     Data()[Length] = 0;
 
     return *this;
-}
-
-// wchar_t
-template<>
-KString<wchar_t>::SizeType KString<wchar_t>::_kstring_strlen(const wchar_t* Str)
-{
-    return wcslen(Str);
 }
 
 template<>
@@ -49,5 +35,25 @@ KString<wchar_t>& KString<wchar_t>::Trim()
     return *this;
 }
 
+#if defined(KRAFT_PLATFORM_WINDOWS)
+#define WIN32_LEAN_AND_MEAN
+#include "Windows.h"
+WString MultiByteStringToWideCharString(const String& Source)
+{
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, *Source, -1, NULL, 0);
+    if (!CharacterCount)
+    {
+        return {};
+    }
+
+    WString WideString(CharacterCount, 0);
+    if (!MultiByteToWideChar(CP_UTF8, 0, *Source, -1, *WideString, CharacterCount))
+    {
+        return {};
+    }
+
+    return WideString;
+}
+#endif
 
 }

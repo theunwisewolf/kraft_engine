@@ -74,7 +74,7 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::SceneState* sceneState = kraft::GetSceneState();
+    kraft::renderer::SceneState* sceneState = kraft::renderer::GetSceneState();
     kraft::Camera *camera = &sceneState->SceneCamera;
 
     float32 speed = 1.f;
@@ -150,8 +150,10 @@ bool Init()
     PrintMatrix(b);
     PrintMatrix(a * b);
 
-    kraft::renderer::ShaderEffect Output;
-    KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
+    // kraft::renderer::ShaderEffect Output;
+    // KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
+
+    // RenderPipeline Pipeline = renderer::Renderer->CreateRenderPipeline(Output, 0);
 
     return true;
 }
@@ -159,7 +161,7 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
-    kraft::SceneState* sceneState = kraft::GetSceneState();
+    kraft::renderer::SceneState* sceneState = kraft::renderer::GetSceneState();
     kraft::Camera *camera = &sceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
@@ -167,7 +169,7 @@ void Update(float64 deltaTime)
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
-            if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
+            if (sceneState->Projection == kraft::renderer::SceneState::ProjectionType::Orthographic)
             {
                 kraft::Vec3f upVector = UpVector(camera->GetViewMatrix());
                 direction += upVector;
@@ -180,7 +182,7 @@ void Update(float64 deltaTime)
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
         {
-            if (sceneState->Projection == kraft::SceneState::ProjectionType::Orthographic)
+            if (sceneState->Projection == kraft::renderer::SceneState::ProjectionType::Orthographic)
             {
                 kraft::Vec3f downVector = DownVector(camera->GetViewMatrix());
                 direction += downVector;
@@ -281,7 +283,7 @@ bool CreateApplication(kraft::Application* app, int argc, char *argv[])
     app->Config.WindowTitle     = "Kraft! [VULKAN]";
     app->Config.WindowWidth     = 1280;
     app->Config.WindowHeight    = 800;
-    app->Config.RendererBackend = kraft::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
+    app->Config.RendererBackend = kraft::renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
     app->Config.ConsoleApp      = false;
 
     app->Init                   = Init;

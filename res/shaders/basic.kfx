@@ -8,7 +8,14 @@ Shader Basic
             Attribute   float3 Position 0 0 0
             Attribute   float2 UV 0 1 12
         }
+
+        Resource Main
+        {
+            UniformBuffer DiffuseColor      Stage(Fragment) Binding(0);
+            Sampler       DiffuseSampler    Stage(Fragment) Binding(1);
+        }
     }
+
 
     GLSL ToScreen
     {
@@ -61,11 +68,11 @@ Shader Basic
             vec4 DiffuseColor;
         } localUniformObject;
 
-        layout(set = 1, binding = 1) uniform sampler2D diffuseSampler;
+        layout(set = 1, binding = 1) uniform sampler2D DiffuseSampler;
 
         void main() 
         {
-            outColor = localUniformObject.DiffuseColor * texture(diffuseSampler, inDTO.UV);
+            outColor = localUniformObject.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
         }
 
         #endif // FRAGMENT
@@ -74,12 +81,14 @@ Shader Basic
     RenderState
     {
         State Default
-        {
-            Cull    Back
-            ZTest   Less
-            ZWrite  On
-            Blend   SrcColor OneMinusSrcColor, SrcAlpha OneMinusSrcAlpha
-            BlendOp Add, Add
+        {       
+            Cull            Back
+            ZTest           Less
+            ZWrite          On
+            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+            BlendOp         Add, Add
+            PolygonMode     Fill
+            LineWidth       1.0   
         }
     }
 
@@ -87,6 +96,7 @@ Shader Basic
     {
         RenderState     Default
         VertexLayout    Main
+        Resources       Main
         VertexShader    ToScreen
         FragmentShader  ToScreen
     }

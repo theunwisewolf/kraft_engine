@@ -4,15 +4,19 @@
 #include "core/kraft_memory.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_imgui.h"
+#include "renderer/shaderfx/kraft_shaderfx.h"
 
 namespace kraft
 {
 
 struct ApplicationConfig;
 
+namespace renderer
+{
+
 struct RendererFrontend
 {
-    Block BackendMemory;
+    kraft::Block BackendMemory;
     RendererBackend* Backend = nullptr;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     RendererImGui ImGuiRenderer;
@@ -23,6 +27,7 @@ struct RendererFrontend
     bool DrawFrame(RenderPacket* packet);
 
     // API
+    RenderPipeline CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex);
     void CreateTexture(uint8* data, Texture* out);
     void DestroyTexture(Texture* texture);
     void CreateMaterial(Material* material);
@@ -30,5 +35,7 @@ struct RendererFrontend
 };
 
 extern RendererFrontend* Renderer;
+
+}
 
 }

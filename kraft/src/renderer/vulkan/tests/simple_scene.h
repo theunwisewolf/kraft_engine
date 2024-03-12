@@ -5,7 +5,7 @@
 #include "renderer/kraft_camera.h"
 #include "resources/kraft_resource_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 struct GlobalUniformBuffer
@@ -39,7 +39,7 @@ struct ObjectUniformBuffer
 
 struct SimpleObjectState
 {
-    VulkanPipeline          Pipeline;
+    RenderPipeline          Pipeline;
     ObjectUniformBuffer     UBO;
     Mat4f                   ModelMatrix;
     Vec3f                   Scale = Vec3fZero;
@@ -59,7 +59,6 @@ struct SceneState
 {
     GlobalUniformBuffer      GlobalUBO;
     VkDescriptorSetLayout    GlobalDescriptorSetLayout;
-    VkDescriptorSetLayout    LocalDescriptorSetLayout;
     VulkanBuffer             GlobalUniformBuffer;
     VulkanBuffer             LocalUniformBuffer;
     VkDescriptorPool         GlobalDescriptorPool;

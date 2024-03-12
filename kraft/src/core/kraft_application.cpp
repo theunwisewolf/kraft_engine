@@ -6,6 +6,7 @@
 #include "core/kraft_time.h"
 #include "core/kraft_string.h"
 #include "containers/array.h"
+#include "platform/kraft_window.h"
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
 
@@ -153,7 +154,7 @@ bool Application::Run()
             this->Update(deltaTime);
             this->Render(deltaTime);
 
-            RenderPacket packet;
+            renderer::RenderPacket packet;
             packet.DeltaTime = deltaTime;
             State.Renderer.DrawFrame(&packet);
 

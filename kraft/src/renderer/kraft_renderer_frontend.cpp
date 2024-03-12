@@ -7,7 +7,7 @@
 #include "renderer/kraft_renderer_backend.h"
 #include "renderer/kraft_renderer_imgui.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 RendererFrontend* Renderer = nullptr;
@@ -21,7 +21,7 @@ bool RendererFrontend::Init(ApplicationConfig* config)
 
     KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
-    if (!RendererCreateBackend(Type, Backend))
+    if (!CreateBackend(Type, Backend))
     {
         return false;
     }
@@ -85,6 +85,12 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
 // 
 // API
 //
+
+RenderPipeline RendererFrontend::CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex)
+{
+    return Backend->CreateRenderPipeline(Effect, PassIndex);
+}
+
 void RendererFrontend::CreateTexture(uint8* data, Texture* out)
 {
     Backend->CreateTexture(data, out);

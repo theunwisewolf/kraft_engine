@@ -2,7 +2,7 @@
 
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateGraphicsPipeline(VulkanContext* context, VulkanRenderPass* pass, VulkanPipelineDescription desc, VulkanPipeline* out);

@@ -5,7 +5,7 @@
 
 #include <vulkan/vulkan.h>
 
-namespace kraft
+namespace kraft::renderer
 {
 
 VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount);

@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_string_view.h"
+#include "core/kraft_string_utils.h"
 #include "core/kraft_memory.h"
 #include "math/kraft_math.h"
 
@@ -138,7 +139,7 @@ public:
     {
         if (Str)
         {
-            Length = _kstring_strlen(Str);
+            Length = Strlen(Str);
             Allocated = ChooseAllocationSize(Length + 1);
             Alloc(Allocated);
             MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
@@ -216,7 +217,7 @@ public:
 
     constexpr KString& operator=(const ValueType* Str)
     {
-        Length = _kstring_strlen(Str);
+        Length = Strlen(Str);
         ReallocIfRequired(Length + 1);
 
         MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
@@ -243,7 +244,7 @@ public:
 
     constexpr KString& operator+=(const ValueType* Str)
     {
-        SizeType StrLength = _kstring_strlen(Str);
+        SizeType StrLength = Strlen(Str);
         EnlargeBufferIfRequired(Length + StrLength + 1);
         MemCpy(Data() + Length, Str, StrLength + 1);
         Length += StrLength;
@@ -276,9 +277,23 @@ public:
         return Out;
     }
 
+    constexpr KRAFT_INLINE friend KString operator+(const KString& StrA, KStringView<ValueType> StrB)
+    {
+        KString Out;
+        Out.Length = StrA.Length + StrB.Length;
+        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Alloc(Out.Allocated);
+
+        MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
+        MemCpy(Out.Data() + StrA.Length, StrB.Buffer, StrB.Length * sizeof(ValueType));
+        Out.Data()[Out.Length] = 0;
+
+        return Out;
+    }
+
     constexpr KRAFT_INLINE friend KString operator+(const KString& StrA, const ValueType* StrB)
     {
-        SizeType StrBLength = _kstring_strlen(StrB);
+        SizeType StrBLength = Strlen(StrB);
         KString Out;
         Out.Length = StrA.Length + StrBLength;
         Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
@@ -349,14 +364,21 @@ public:
 
     constexpr int Compare(const ValueType* Str) const
     {
-        return (int)_kstring_compare(Data(), Length, Str, _kstring_strlen(Str));
+        return (int)Compare(Data(), Length, Str, Strlen(Str));
     }
 
     constexpr int Compare(const KString& Str) const
     {
         if (Data() == Str.Data() && Length == Str.Length) return 0;
 
-        return (int)_kstring_compare(Data(), Length, Str.Data(), Str.Length);
+        return (int)Compare(Data(), Length, Str.Data(), Str.Length);
+    }
+
+    constexpr KRAFT_INLINE SizeType Compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
+    {
+        const SizeType Count = math::Min(aLen, bLen);
+        SizeType Result = MemCmp(a, b, Count);
+        return Result ? Result : aLen - bLen;
     }
 
     constexpr KRAFT_INLINE bool operator==(const KString& Str) const
@@ -388,16 +410,6 @@ public:
     {
         return this->Length * sizeof(ValueType);
     }
-
-private:
-    static SizeType _kstring_strlen(const ValueType* Str);
-    
-    constexpr KRAFT_INLINE SizeType _kstring_compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
-    {
-        const SizeType Count = math::Min(aLen, bLen);
-        SizeType Result = MemCmp(a, b, Count);
-        return Result ? Result : aLen - bLen;
-    }
 };
 
 typedef KString<char> String;
@@ -427,22 +439,9 @@ static String WCharToChar(const WString& Source)
     return Output;
 }
 
-static WString MultiByteStringToWideCharString(const String& Source)
-{
-    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, *Source, -1, NULL, 0);
-    if (!CharacterCount)
-    {
-        return {};
-    }
-
-    WString WideString(CharacterCount, 0);
-    if (!MultiByteToWideChar(CP_UTF8, 0, *Source, -1, *WideString, CharacterCount))
-    {
-        return {};
-    }
-
-    return WideString;
-}
+#if defined(KRAFT_PLATFORM_WINDOWS)
+static WString MultiByteStringToWideCharString(const String& Source);
+#endif
 
 KRAFT_INLINE uint64 StringLength(const char* in)
 {
@@ -479,8 +478,8 @@ KRAFT_INLINE const char* StringTrim(const char* in)
     while (end >= start && isspace(in[end])) end--;
 
     length = end - start + 1;
-    char* out = (char*)kraft::Malloc((length + 1) * sizeof(TCHAR), MEMORY_TAG_STRING, true);
-    kraft::MemCpy(out, (void*)(in+start), length * sizeof(TCHAR));
+    char* out = (char*)kraft::Malloc((length + 1) * sizeof(char), MEMORY_TAG_STRING, true);
+    kraft::MemCpy(out, (void*)(in+start), length * sizeof(char));
 
     return (const char*)out;
 }

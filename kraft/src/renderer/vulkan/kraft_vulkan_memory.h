@@ -4,7 +4,7 @@
 #include "core/kraft_log.h"
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 static int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)

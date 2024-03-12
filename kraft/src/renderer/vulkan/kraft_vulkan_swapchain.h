@@ -3,7 +3,7 @@
 #include "core/kraft_core.h"
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, VulkanSwapchain* out = 0);

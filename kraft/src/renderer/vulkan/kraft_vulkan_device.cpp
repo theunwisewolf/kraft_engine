@@ -7,7 +7,7 @@
 #include "core/kraft_string.h"
 #include "containers/array.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool checkDepthFormatSupport(VkPhysicalDevice device, VkPhysicalDeviceProperties properties, VulkanPhysicalDeviceRequirements requirements, VkFormat* out)

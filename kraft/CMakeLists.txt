@@ -26,6 +26,7 @@ set(SRC_FILES
     src/core/kraft_lexer.cpp
     src/math/kraft_math.cpp
     src/platform/kraft_filesystem.cpp
+    src/platform/kraft_platform_common.cpp
     src/platform/windows/kraft_win32.cpp
 
     src/renderer/shaderfx/kraft_shaderfx.cpp
@@ -69,6 +70,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/vulkan/kraft_vulkan_vertex_buffer.cpp
         src/renderer/vulkan/kraft_vulkan_imgui.cpp
         src/renderer/vulkan/kraft_vulkan_texture.cpp
+        src/renderer/vulkan/kraft_vulkan_surface.cpp
 
         # Systems
         src/systems/kraft_texture_system.cpp

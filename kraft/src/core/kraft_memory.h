@@ -22,7 +22,8 @@ enum MemoryTag
     MEMORY_TAG_NUM_COUNT
 };
 
-static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][255] = {
+static const char g_TagStrings[MEMORY_TAG_NUM_COUNT][255] = 
+{
     "UNKNOWN        ",
     "STRING         ",
     "ARRAY          ",

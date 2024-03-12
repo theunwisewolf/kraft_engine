@@ -15,7 +15,7 @@
 namespace kraft
 {
 
-int Window::Init(const char* title, size_t width, size_t height, RendererBackendType backendType)
+int Window::Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType)
 {
     if (!glfwInit())
     {
@@ -23,11 +23,11 @@ int Window::Init(const char* title, size_t width, size_t height, RendererBackend
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
-    if (backendType == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
+    if (backendType == renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     }
-    else if (backendType == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
+    else if (backendType == renderer::RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
     {
 
     }

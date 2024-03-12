@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_string.h"
+#include "core/kraft_string_view.h"
 
 // Much of this code and inspiration has been taken from the excellent article
 // by Gabriel Sassone at https://jorenjoestar.github.io/
@@ -48,6 +49,16 @@ struct Token
     {
         if (this->Length != ExpectedKeyword.Length) return false;
         return MemCmp(this->Text, *ExpectedKeyword, this->Length) == 0;
+    }
+
+    KRAFT_INLINE kraft::String String()
+    {
+        return kraft::String(Text, Length);
+    }
+
+    KRAFT_INLINE kraft::StringView StringView()
+    {
+        return kraft::StringView(Text, Length);
     }
 };
 

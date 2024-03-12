@@ -3,7 +3,7 @@
 #include "containers/array.h"
 #include "renderer/kraft_renderer_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateGraphicsPipeline(VulkanContext* context, VulkanRenderPass* pass, VulkanPipelineDescription desc, VulkanPipeline* out)
@@ -25,7 +25,7 @@ bool VulkanCreateGraphicsPipeline(VulkanContext* context, VulkanRenderPass* pass
     rasterizationStateCreateInfo.polygonMode = desc.IsWireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizationStateCreateInfo.lineWidth = 1.0f;
     rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    // If culling is eanbled & counter-clockwise is specified, the vertices
+    // If culling is enabled & counter-clockwise is specified, the vertices
     // for any triangle must be specified in a counter-clockwise fashion. 
     // Vice-versa for clockwise.
     rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;

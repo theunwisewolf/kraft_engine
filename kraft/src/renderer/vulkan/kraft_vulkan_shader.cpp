@@ -3,7 +3,7 @@
 #include "platform/kraft_filesystem.h"
 #include "core/kraft_memory.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShaderModule* out)
@@ -21,13 +21,13 @@ bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShader
     filesystem::ReadAllBytes(&handle, &buffer, &size);
     filesystem::CloseFile(&handle);
 
-    bool ret = VulkanCreateShaderModule(context, buffer, bufferSize, out);
+    bool ret = VulkanCreateShaderModule(context, (const char*)buffer, bufferSize, out);
     Free(buffer, bufferSize, MEMORY_TAG_RENDERER);
 
     return ret;
 }
 
-bool VulkanCreateShaderModule(VulkanContext* Context, const uint8* Data, uint64 Size, VkShaderModule* Out)
+bool VulkanCreateShaderModule(VulkanContext* Context, const char* Data, uint64 Size, VkShaderModule* Out)
 {
     VkShaderModuleCreateInfo ShaderModuleCreateInfo = {};
     ShaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

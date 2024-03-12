@@ -7,7 +7,7 @@
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 #include "resources/kraft_resource_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)

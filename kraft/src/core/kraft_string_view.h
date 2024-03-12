@@ -1,6 +1,9 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "core/kraft_memory.h"
+#include "math/kraft_math.h"
+#include "core/kraft_string_utils.h"
 
 namespace kraft
 {
@@ -39,6 +42,50 @@ struct KStringView
         other.Length = 0;
     }
 
+    constexpr int Compare(const ValueType* Str) const
+    {
+        return (int)Compare(Buffer, Length, Str, Strlen(Str));
+    }
+
+    constexpr int Compare(const KStringView& Str) const
+    {
+        if (Buffer == Str.Buffer && Length == Str.Length) return 0;
+
+        return (int)Compare(Buffer, Length, Str.Buffer, Str.Length);
+    }
+
+    constexpr KRAFT_INLINE SizeType Compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
+    {
+        const SizeType Count = math::Min(aLen, bLen);
+        SizeType Result = MemCmp(a, b, Count);
+        return Result ? Result : aLen - bLen;
+    }
+
+    constexpr KRAFT_INLINE bool operator==(const KStringView& Str) const
+    {
+        return !Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator!=(const KStringView& Str) const
+    {
+        return Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator==(const ValueType* Str) const
+    {
+        return !Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator!=(const ValueType* Str) const
+    {
+        return Compare(Str);
+    }
+
+    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KStringView& b) 
+    {
+        return b == a;
+    }
+
     KStringView& operator=(const KStringView& other)
     {
         this->Buffer = other.Buffer;
@@ -47,36 +94,12 @@ struct KStringView
         return *this;
     }
 
-    bool operator==(const KStringView& other) const
-    {
-        // Fast pass
-        if (other.Length != Length)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < Length; i++)
-        {
-            if (other.Buffer[i] != Buffer[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool operator!=(const KStringView& other) const
-    {
-        return !operator==(other);
-    }
-
     constexpr const ValueType* operator*() const noexcept
     {
         return Buffer;
     }
 
-    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept
+    KRAFT_INLINE SizeType GetLengthInBytes() const noexcept
     {
         return this->Length * sizeof(ValueType);
     }

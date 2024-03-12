@@ -50,6 +50,48 @@ struct VertexLayoutDefinition
     }
 };
 
+struct ResourceBinding
+{
+    String             Name;
+    uint16             Binding;
+    ResourceType::Enum Type;
+    ShaderStage::Enum  Stage;
+
+    void WriteTo(Buffer* Out)
+    {
+        Out->Write(Name);
+        Out->Write(Binding);
+        Out->Write(Type);
+        Out->Write(Stage);
+    }
+
+    void ReadFrom(Buffer* In)
+    {
+        In->Read(&Name);
+        In->Read(&Binding);
+        In->Read(&Type);
+        In->Read(&Stage);
+    }
+};
+
+struct ResourceBindingsDefinition
+{
+    String                 Name;
+    Array<ResourceBinding> ResourceBindings;
+
+    void WriteTo(Buffer* Out)
+    {
+        Out->Write(Name);
+        Out->Write(ResourceBindings);
+    }
+
+    void ReadFrom(Buffer* In)
+    {
+        In->Read(&Name);
+        In->Read(&ResourceBindings);
+    }
+};
+
 struct ShaderCodeFragment
 {
     String                          Name;
@@ -70,11 +112,13 @@ struct ShaderCodeFragment
 
 struct RenderStateDefinition
 {
-    String                          Name;
-    renderer::CullMode              CullMode;
-    renderer::ZTestOp               ZTestOperation;
-    bool                            ZWriteEnable;
-    renderer::BlendState            BlendMode;
+    String             Name;
+    CullMode::Enum     CullMode;
+    CompareOp::Enum    ZTestOperation;
+    bool               ZWriteEnable;
+    BlendState         BlendMode;
+    PolygonMode::Enum  PolygonMode;
+    float              LineWidth;
 
     void WriteTo(Buffer* Out)
     {
@@ -99,8 +143,8 @@ struct RenderPassDefinition
 {
     struct ShaderDefinition
     {
-        renderer::ShaderStage::Enum   Stage;
-        ShaderCodeFragment            CodeFragment;
+        ShaderStage::Enum   Stage;
+        ShaderCodeFragment  CodeFragment;
 
         void WriteTo(Buffer* Out)
         {
@@ -115,20 +159,22 @@ struct RenderPassDefinition
         }
     };
 
-    String                          Name;
-    const RenderStateDefinition*    RenderState;
-    const VertexLayoutDefinition*   VertexLayout;
-    Array<ShaderDefinition>         ShaderStages;
+    String                            Name;
+    const RenderStateDefinition*      RenderState;
+    const VertexLayoutDefinition*     VertexLayout;
+    const ResourceBindingsDefinition* Resources;
+    Array<ShaderDefinition>           ShaderStages;
 };
 
 struct ShaderEffect
 {
-    String                          Name;
-    String                          ResourcePath;
-    Array<VertexLayoutDefinition>   VertexLayouts;
-    Array<RenderStateDefinition>    RenderStates;
-    Array<ShaderCodeFragment>       CodeFragments;
-    Array<RenderPassDefinition>     RenderPasses;
+    String                            Name;
+    String                            ResourcePath;
+    Array<VertexLayoutDefinition>     VertexLayouts;
+    Array<ResourceBindingsDefinition> Resources;
+    Array<RenderStateDefinition>      RenderStates;
+    Array<ShaderCodeFragment>         CodeFragments;
+    Array<RenderPassDefinition>       RenderPasses;
 
     ShaderEffect() {}
     ShaderEffect(ShaderEffect& Other)
@@ -138,6 +184,7 @@ struct ShaderEffect
         VertexLayouts = Other.VertexLayouts;
         RenderStates = Other.RenderStates;
         CodeFragments = Other.CodeFragments;
+        Resources = Other.Resources;
         RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
         
         for (int i = 0; i < Other.RenderPasses.Length; i++)
@@ -148,9 +195,11 @@ struct ShaderEffect
             // Correctly assign the offsets
             RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
             RenderPasses[i].VertexLayout = &VertexLayouts[(Other.RenderPasses[i].VertexLayout - &Other.VertexLayouts[0])];
+            RenderPasses[i].Resources = &Resources[(Other.RenderPasses[i].Resources - &Other.Resources[0])];
         }
     }
 };
+
 
 struct ShaderFXParser
 {
@@ -161,21 +210,29 @@ struct ShaderFXParser
     bool            Error;
     String          ErrorString;
 
+    struct NamedToken
+    {
+        StringView Key;
+        Token      Value;
+    };
+
     void Create(const String& SourceFilePath, kraft::Lexer* Lexer);
     void Destroy();
 
     void GenerateAST();
     void ParseIdentifier(Token Token);
+    NamedToken ParseNamedToken(Token Token);
     void ParseShaderDeclaration();
     void ParseLayoutBlock();
     void ParseVertexLayout(VertexLayoutDefinition& Layout);
     void ParseVertexAttribute(VertexLayoutDefinition& Layout);
     void ParseVertexInputBinding(VertexLayoutDefinition& Layout);
+    void ParseResourceBindings(ResourceBindingsDefinition& ResourceBindings);
     void ParseGLSLBlock();
     void ParseRenderStateBlock();
     void ParseRenderState(RenderStateDefinition& State);
-    bool ParseBlendFactor(Token Token, BlendFactor& Factor);
-    bool ParseBlendOp(Token Token, BlendOp& Factor);
+    bool ParseBlendFactor(Token Token, BlendFactor::Enum& Factor);
+    bool ParseBlendOp(Token Token, BlendOp::Enum& Factor);
 
     void ParseRenderPassBlock();
     bool ParseRenderPassShaderStage(RenderPassDefinition& Pass, renderer::ShaderStage::Enum ShaderStage);

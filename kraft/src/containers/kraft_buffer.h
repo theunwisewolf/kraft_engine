@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_string.h"
+#include "core/kraft_memory.h"
 #include "core/kraft_string_view.h"
 #include "containers/kraft_array.h"
 
@@ -175,7 +176,7 @@ public:
         MemCpy(Data() + Length, &Value.Length, sizeof(uint64));
         Length += sizeof(uint64);
 
-        MemCpy(Data() + Length, *Value, Value.GetLengthInBytes());
+        MemCpy(Data() + Length, &Value[0], Value.GetLengthInBytes());
         Length += Value.GetLengthInBytes();
     }
 

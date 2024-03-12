@@ -74,6 +74,8 @@ public:
         Allocated = 0;
     }
 
+    // Creates an array with the provided size
+    // All the elements are default initialized
     Array(SizeType Size)
     {
         Length = Size;
@@ -149,15 +151,15 @@ public:
         return InternalBuffer;
     }
 
-    constexpr const ValueType* operator*() const noexcept
-    {
-        return InternalBuffer;
-    }
+    // constexpr const ValueType* operator*() const noexcept
+    // {
+    //     return InternalBuffer;
+    // }
 
-    constexpr ValueType* operator*()
-    {
-        return InternalBuffer;
-    }
+    // constexpr ValueType* operator*()
+    // {
+    //     return InternalBuffer;
+    // }
 
     constexpr ValueType& operator[](SizeType Index)
     {

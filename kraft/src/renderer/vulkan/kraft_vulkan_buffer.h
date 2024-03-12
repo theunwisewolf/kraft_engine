@@ -2,7 +2,7 @@
 
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateBuffer(VulkanContext* context, uint64 size, VkSharingMode sharingMode, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryProperties, bool bind, VulkanBuffer* out);

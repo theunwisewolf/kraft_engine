@@ -6,7 +6,7 @@
 
 #include <imgui/imgui.h>
 
-namespace kraft
+namespace kraft::renderer
 {
 
 static bool WidgetsNeedRefresh = false;

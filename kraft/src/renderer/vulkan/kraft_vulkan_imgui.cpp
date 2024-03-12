@@ -9,12 +9,14 @@
 #include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_application.h"
+#include "platform/kraft_platform.h"
+#include "platform/kraft_window.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_backend.h"
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_renderpass.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 namespace VulkanImgui

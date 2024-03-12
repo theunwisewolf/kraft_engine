@@ -22,7 +22,7 @@
 
 #define MAX_OBJECT_COUNT 128
 
-namespace kraft
+namespace kraft::renderer
 {
 
 static VulkanBuffer VertexBuffer;
@@ -333,9 +333,9 @@ void SimpleObjectState::AcquireResources(VulkanContext *context)
 {
     VkDescriptorSetLayout descriptorSets[] = 
     {
-        TestSceneState.LocalDescriptorSetLayout,
-        TestSceneState.LocalDescriptorSetLayout,
-        TestSceneState.LocalDescriptorSetLayout,
+        (VkDescriptorSetLayout)ObjectState.Pipeline.Resources.VulkanDescriptorSetLayout,
+        (VkDescriptorSetLayout)ObjectState.Pipeline.Resources.VulkanDescriptorSetLayout,
+        (VkDescriptorSetLayout)ObjectState.Pipeline.Resources.VulkanDescriptorSetLayout,
     };
 
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
@@ -419,55 +419,6 @@ void InitTestScene(VulkanContext* context)
     TextureID = Renderer->ImGuiRenderer.AddTexture(ObjectState.Texture);
     Renderer->ImGuiRenderer.AddWidget("Debug", ImGuiWidgets);
 
-    VkShaderModule vertex, fragment;
-    char filepath[256] = {};
-    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/basic.kfx.vert.spv", kraft::Application::Get()->BasePath.Data());
-    VulkanCreateShaderModule(context, filepath, &vertex);
-    KASSERT(vertex);
-
-    kraft::StringFormat(filepath, sizeof(filepath), "%s/res/shaders/basic.kfx.frag.spv", kraft::Application::Get()->BasePath.Data());
-    VulkanCreateShaderModule(context, filepath, &fragment);
-    KASSERT(fragment);
-
-    VkPipelineShaderStageCreateInfo vertexShaderStage = {};
-    vertexShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertexShaderStage.module = vertex;
-    vertexShaderStage.pName = "main";
-    vertexShaderStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
-
-    VkPipelineShaderStageCreateInfo fragmentShaderStage = {};
-    fragmentShaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragmentShaderStage.module = fragment;
-    fragmentShaderStage.pName = "main";
-    fragmentShaderStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    VkPipelineShaderStageCreateInfo stages[] = {
-        vertexShaderStage,
-        fragmentShaderStage
-    };
-
-    VkViewport viewport;
-    viewport.x = 0;
-    viewport.y = (float32)context->FramebufferHeight;
-    viewport.width = (float32)context->FramebufferWidth;
-    viewport.height = -(float32)context->FramebufferHeight;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = {};
-    scissor.extent = {context->FramebufferWidth, context->FramebufferHeight};
-    
-    VkVertexInputAttributeDescription inputAttributeDesc[2];
-    inputAttributeDesc[0].location = 0;
-    inputAttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    inputAttributeDesc[0].binding = 0;
-    inputAttributeDesc[0].offset = offsetof(Vertex3D, Position);
-
-    inputAttributeDesc[1].location = 1;
-    inputAttributeDesc[1].format = VK_FORMAT_R32G32_SFLOAT;
-    inputAttributeDesc[1].binding = 0;
-    inputAttributeDesc[1].offset = offsetof(Vertex3D, UV);
-
     // Global Descriptor Sets
     {
         // globalUniformObject
@@ -485,56 +436,10 @@ void InitTestScene(VulkanContext* context)
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(context->LogicalDevice.Handle, &globalDescriptorSetLayoutCreateInfo, context->AllocationCallbacks, &TestSceneState.GlobalDescriptorSetLayout));
     }
 
-    // Local Descriptor Sets
-    {
-        VkDescriptorSetLayoutBinding objectDescriptorSetLayoutBinding[2] = {};
-        
-        // Material data
-        // LocalUniformObject
-        // Currently only diffuse color
-        objectDescriptorSetLayoutBinding[0].binding = 0;
-        objectDescriptorSetLayoutBinding[0].descriptorCount = 1;
-        objectDescriptorSetLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        objectDescriptorSetLayoutBinding[0].pImmutableSamplers = 0;
-        objectDescriptorSetLayoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    kraft::renderer::ShaderEffect Output;
+    KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
 
-        // diffuseSampler
-        objectDescriptorSetLayoutBinding[1].binding = 1;
-        objectDescriptorSetLayoutBinding[1].descriptorCount = 1;
-        objectDescriptorSetLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        objectDescriptorSetLayoutBinding[1].pImmutableSamplers = 0;
-        objectDescriptorSetLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        VkDescriptorSetLayoutCreateInfo localDescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        localDescriptorSetLayoutCreateInfo.bindingCount = sizeof(objectDescriptorSetLayoutBinding) / sizeof(objectDescriptorSetLayoutBinding[0]);
-        localDescriptorSetLayoutCreateInfo.pBindings = objectDescriptorSetLayoutBinding;
-
-        KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(context->LogicalDevice.Handle, &localDescriptorSetLayoutCreateInfo, context->AllocationCallbacks, &TestSceneState.LocalDescriptorSetLayout));
-    }
-
-    VkDescriptorSetLayout descriptorSetLayouts[] = 
-    {
-        TestSceneState.GlobalDescriptorSetLayout,
-        TestSceneState.LocalDescriptorSetLayout
-    };
-
-    VulkanPipelineDescription pipelineDesc = {};
-    pipelineDesc.IsWireframe = false;
-    pipelineDesc.ShaderStageCount = sizeof(stages) / sizeof(stages[0]);
-    pipelineDesc.ShaderStages = stages;
-    pipelineDesc.Viewport = viewport;
-    pipelineDesc.Scissor = scissor;
-    pipelineDesc.Attributes = inputAttributeDesc;
-    pipelineDesc.AttributeCount = sizeof(inputAttributeDesc) / sizeof(inputAttributeDesc[0]);
-    pipelineDesc.DescriptorSetLayoutCount = sizeof(descriptorSetLayouts) / sizeof(descriptorSetLayouts[0]);
-    pipelineDesc.DescriptorSetLayouts = descriptorSetLayouts;
-
-    ObjectState.Pipeline = {};
-    VulkanCreateGraphicsPipeline(context, &context->MainRenderPass, pipelineDesc, &ObjectState.Pipeline);
-    KASSERT(ObjectState.Pipeline.Handle);
-
-    VulkanDestroyShaderModule(context, &vertex);
-    VulkanDestroyShaderModule(context, &fragment);
+    ObjectState.Pipeline = renderer::Renderer->CreateRenderPipeline(Output, 0);
 
     // Create a buffer where we can push camera data
     // As per https://community.arm.com/arm-community-blogs/b/graphics-gaming-and-vr-blog/posts/vulkan-descriptor-and-buffer-management
@@ -593,7 +498,7 @@ void InitTestScene(VulkanContext* context)
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
         descriptorPoolCreateInfo.poolSizeCount = sizeof(descriptorPoolSizes) / sizeof(descriptorPoolSizes[0]);
         descriptorPoolCreateInfo.pPoolSizes = descriptorPoolSizes;
-        descriptorPoolCreateInfo.maxSets = context->Swapchain.ImageCount;
+        descriptorPoolCreateInfo.maxSets = sizeof(descriptorPoolSizes) / sizeof(descriptorPoolSizes[0]) * context->Swapchain.ImageCount * MAX_OBJECT_COUNT;
 
         vkCreateDescriptorPool(context->LogicalDevice.Handle, &descriptorPoolCreateInfo, context->AllocationCallbacks, &TestSceneState.LocalDescriptorPool);
 
@@ -649,9 +554,12 @@ void UpdateDescriptorSets(VulkanContext *context)
 
 void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 {
-    VulkanBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, &ObjectState.Pipeline);
+    // VulkanBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, &ObjectState.Pipeline);
+    CommandBuffer CmdBuffer = { buffer };
+    ObjectState.Pipeline.Bind(CmdBuffer);
     
-    vkCmdPushConstants(buffer->Handle, ObjectState.Pipeline.Layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ObjectState.ModelMatrix), &ObjectState.ModelMatrix);
+    // vkCmdPushConstants(buffer->Handle, ObjectState.Pipeline.Layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ObjectState.ModelMatrix), &ObjectState.ModelMatrix);
+    vkCmdPushConstants(buffer->Handle, (VkPipelineLayout)ObjectState.Pipeline.PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(ObjectState.ModelMatrix), &ObjectState.ModelMatrix);
 
     VkDeviceSize offsets[1] = {0};
     vkCmdBindVertexBuffers(buffer->Handle, 0, 1, &VertexBuffer.Handle, offsets);
@@ -660,7 +568,8 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
     TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
     VulkanLoadDataInBuffer(context, &TestSceneState.GlobalUniformBuffer, &TestSceneState.GlobalUBO, sizeof(GlobalUniformBuffer), sizeof(GlobalUniformBuffer) * context->CurrentSwapchainImageIndex);
 
-    vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 0, 1, &TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
+    // vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 0, 1, &TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
+    vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)ObjectState.Pipeline.PipelineLayout, 0, 1, &TestSceneState.GlobalDescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
     
     // Update objects
     {
@@ -727,7 +636,8 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
 
         // Since this descriptor set is at index 1 in the pipeline layout,
         // firstSet is 1
-        vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 1, 1, &ObjectState.DescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
+        // vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, ObjectState.Pipeline.Layout, 1, 1, &ObjectState.DescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
+        vkCmdBindDescriptorSets(buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipelineLayout)ObjectState.Pipeline.PipelineLayout, 1, 1, &ObjectState.DescriptorSets[context->CurrentSwapchainImageIndex], 0, 0);
     }
 
     // vkCmdDraw(buffer->Handle, 3, 1, 0, 0);
@@ -771,11 +681,10 @@ void DestroyTestScene(VulkanContext* context)
     VulkanDestroyBuffer(context, &VertexBuffer);
     VulkanDestroyBuffer(context, &IndexBuffer);
 
-    VulkanDestroyPipeline(context, &ObjectState.Pipeline);
-    ObjectState.Pipeline = {};
+    ObjectState.Pipeline.Destroy();
 
     vkDestroyDescriptorPool(context->LogicalDevice.Handle, TestSceneState.LocalDescriptorPool, context->AllocationCallbacks);
-    vkDestroyDescriptorSetLayout(context->LogicalDevice.Handle, TestSceneState.LocalDescriptorSetLayout, context->AllocationCallbacks);
+    vkDestroyDescriptorSetLayout(context->LogicalDevice.Handle, (VkDescriptorSetLayout)ObjectState.Pipeline.Resources.VulkanDescriptorSetLayout, context->AllocationCallbacks);
 
     vkDestroyDescriptorPool(context->LogicalDevice.Handle, TestSceneState.GlobalDescriptorPool, context->AllocationCallbacks);
     vkDestroyDescriptorSetLayout(context->LogicalDevice.Handle, TestSceneState.GlobalDescriptorSetLayout, context->AllocationCallbacks);

@@ -3,7 +3,7 @@
 #include "core/kraft_asserts.h"
 #include "renderer/vulkan/kraft_vulkan_memory.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateImage(

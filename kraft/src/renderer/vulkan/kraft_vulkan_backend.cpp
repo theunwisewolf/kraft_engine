@@ -6,6 +6,7 @@
 #include "core/kraft_string.h"
 #include "containers/array.h"
 #include "renderer/kraft_renderer_types.h"
+#include "renderer/shaderfx/kraft_shaderfx.h"
 #include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_surface.h"
 #include "renderer/vulkan/kraft_vulkan_swapchain.h"
@@ -19,14 +20,19 @@
 #include "renderer/vulkan/kraft_vulkan_index_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_texture.h"
+#include "renderer/vulkan/kraft_vulkan_helpers.h"
 
 // TODO: (amn) This is just temporary
 #include "renderer/vulkan/tests/simple_scene.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 static VulkanContext s_Context;
+static VkDescriptorPool GlobalDescriptorPool;
+static VkDescriptorSetLayout GlobalDescriptorSetLayout;
+static VkDescriptorSet GlobalDesscriptorSet;
+
 VulkanContext* VulkanRendererBackend::GetContext()
 {
     return &s_Context;
@@ -174,6 +180,61 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         s_Context.InFlightImageToFenceMap[i] = &s_Context.WaitFences[i];
     }
 
+    // Global Descriptor Sets
+    {
+        // globalUniformObject
+        VkDescriptorSetLayoutBinding GlobalDescriptorSetLayoutBinding = {};
+        GlobalDescriptorSetLayoutBinding.binding = 0;
+        GlobalDescriptorSetLayoutBinding.descriptorCount = 1;
+        GlobalDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        GlobalDescriptorSetLayoutBinding.pImmutableSamplers = 0;
+        GlobalDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo GlobalDescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        GlobalDescriptorSetLayoutCreateInfo.bindingCount = 1;
+        GlobalDescriptorSetLayoutCreateInfo.pBindings = &GlobalDescriptorSetLayoutBinding;
+
+        KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
+            s_Context.LogicalDevice.Handle, 
+            &GlobalDescriptorSetLayoutCreateInfo, 
+            s_Context.AllocationCallbacks, 
+            &GlobalDescriptorSetLayout
+        ));
+
+        const uint32 GlobalPoolSize = 128 * s_Context.Swapchain.ImageCount;
+        VkDescriptorPoolSize PoolSizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, GlobalPoolSize },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, GlobalPoolSize },
+        };
+
+        VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+        DescriptorPoolCreateInfo.poolSizeCount = sizeof(PoolSizes) / sizeof(PoolSizes[0]);
+        DescriptorPoolCreateInfo.pPoolSizes = &PoolSizes[0];
+        DescriptorPoolCreateInfo.maxSets = GlobalPoolSize * sizeof(PoolSizes) / sizeof(PoolSizes[0]);
+
+        vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &DescriptorPoolCreateInfo, s_Context.AllocationCallbacks, &GlobalDescriptorPool);
+
+        // Allocate enough descriptor sets (= number of swapchain images)
+        Array<VkDescriptorSetLayout> DescriptorSets = Array<VkDescriptorSetLayout>(s_Context.Swapchain.ImageCount, GlobalDescriptorSetLayout);
+
+        VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        DescriptorSetAllocateInfo.descriptorPool = GlobalDescriptorPool;
+        DescriptorSetAllocateInfo.descriptorSetCount = DescriptorSets.Length;
+        DescriptorSetAllocateInfo.pSetLayouts = &DescriptorSets[0];
+
+        KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, &GlobalDesscriptorSet));
+    }
+
     KSUCCESS("[VulkanRendererBackend::Init]: Backend init success!");
 
     return true;
@@ -185,6 +246,9 @@ bool VulkanRendererBackend::Shutdown()
 
     // TODO: (amn) This is just temporary
     DestroyTestScene(&s_Context);
+
+    vkDestroyDescriptorPool(s_Context.LogicalDevice.Handle, GlobalDescriptorPool, s_Context.AllocationCallbacks);
+    vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, GlobalDescriptorSetLayout, s_Context.AllocationCallbacks);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -334,6 +398,253 @@ void VulkanRendererBackend::OnResize(int width, int height)
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
 }
 
+VkDescriptorSetLayout LocalDescriptorSetLayout;
+RenderPipeline VulkanRendererBackend::CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex)
+{
+    RenderPipeline Output;
+    int RenderPassesCount = Effect.RenderPasses.Length;
+
+    const RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
+    VkGraphicsPipelineCreateInfo PipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    
+    // Shader stages
+    int ShaderStagesCount = Pass.ShaderStages.Length;
+    auto PipelineShaderStageCreateInfos = Array<VkPipelineShaderStageCreateInfo>(ShaderStagesCount);
+    Array<VkShaderModule> ShaderModules(ShaderStagesCount); 
+    for (int j = 0; j < ShaderStagesCount; j++)
+    {
+        const RenderPassDefinition::ShaderDefinition& Shader = Pass.ShaderStages[j];
+        VkShaderModule ShaderModule;
+        VulkanCreateShaderModule(&s_Context, Shader.CodeFragment.Code.Buffer, Shader.CodeFragment.Code.Length, &ShaderModule);
+        KASSERT(ShaderModule);
+
+        VkPipelineShaderStageCreateInfo ShaderStageInfo = {};
+        ShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        ShaderStageInfo.module = ShaderModule;
+        ShaderStageInfo.pName = "main";
+        ShaderStageInfo.stage = ToVulkanShaderStage(Shader.Stage);
+
+        PipelineShaderStageCreateInfos[j] = ShaderStageInfo;
+        ShaderModules[j] = ShaderModule;
+    }
+
+    // Viewport info
+    VkViewport Viewport;
+    Viewport.x = 0;
+    Viewport.y = (float32)s_Context.FramebufferHeight;
+    Viewport.width = (float32)s_Context.FramebufferWidth;
+    Viewport.height = -(float32)s_Context.FramebufferHeight;
+    Viewport.minDepth = 0.0f;
+    Viewport.maxDepth = 1.0f;
+
+    VkRect2D Scissor = {};
+    Scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
+
+    // Input bindings and attributes
+    int InputBindingsCount = Pass.VertexLayout->InputBindings.Length;
+    auto InputBindingsDesc = Array<VkVertexInputBindingDescription>(InputBindingsCount);
+    for (int j = 0; j < InputBindingsCount; j++)
+    {
+        const VertexInputBinding& InputBinding = Pass.VertexLayout->InputBindings[j];
+        InputBindingsDesc[j].binding = InputBinding.Binding;
+        InputBindingsDesc[j].inputRate = InputBinding.InputRate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+        InputBindingsDesc[j].stride = InputBinding.Stride;
+    }
+
+    int AttributesCount = Pass.VertexLayout->Attributes.Length;
+    auto AttributesDesc = Array<VkVertexInputAttributeDescription>(AttributesCount);
+    for (int j = 0; j < AttributesCount; j++)
+    {
+        const VertexAttribute& VertexAttribute = Pass.VertexLayout->Attributes[j];
+        AttributesDesc[j].location = VertexAttribute.Location;
+        AttributesDesc[j].format = ToVulkanFormat(VertexAttribute.Format);
+        AttributesDesc[j].binding = VertexAttribute.Binding;
+        AttributesDesc[j].offset = VertexAttribute.Offset;
+    }
+
+    // Shader resources
+    int ResourceBindingsCount = Pass.Resources->ResourceBindings.Length;
+    auto DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
+    for (int j = 0; j < ResourceBindingsCount; j++)
+    {
+        const ResourceBinding& Binding = Pass.Resources->ResourceBindings[j];
+        DescriptorSetLayoutBindings[j].binding = Binding.Binding;
+        DescriptorSetLayoutBindings[j].descriptorCount = 1;
+        DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
+        DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
+        DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStage(Binding.Stage);
+    }
+
+    VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    DescriptorSetLayoutCreateInfo.bindingCount = DescriptorSetLayoutBindings.Length;
+    DescriptorSetLayoutCreateInfo.pBindings = &DescriptorSetLayoutBindings[0];
+
+    KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(s_Context.LogicalDevice.Handle, &DescriptorSetLayoutCreateInfo, s_Context.AllocationCallbacks, &LocalDescriptorSetLayout));
+
+    VkPipelineViewportStateCreateInfo ViewportStateCreateInfo = {};
+    ViewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    ViewportStateCreateInfo.pViewports = &Viewport;
+    ViewportStateCreateInfo.viewportCount = 1;
+    ViewportStateCreateInfo.pScissors = &Scissor;
+    ViewportStateCreateInfo.scissorCount = 1;
+    PipelineCreateInfo.pViewportState = &ViewportStateCreateInfo;
+
+    VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo = {};
+    RasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    RasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+    RasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+    RasterizationStateCreateInfo.polygonMode = ToVulkanPolygonMode(Pass.RenderState->PolygonMode);
+    RasterizationStateCreateInfo.lineWidth = Pass.RenderState->LineWidth;
+    RasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    // If culling is eanbled & counter-clockwise is specified, the vertices
+    // for any triangle must be specified in a counter-clockwise fashion. 
+    // Vice-versa for clockwise.
+    RasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    RasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
+    RasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+    RasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+    RasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+    PipelineCreateInfo.pRasterizationState = &RasterizationStateCreateInfo;
+
+    VkPipelineMultisampleStateCreateInfo MultisampleStateCreateInfo = {};
+    MultisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    MultisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+    MultisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    MultisampleStateCreateInfo.minSampleShading = 1.0f;
+    MultisampleStateCreateInfo.pSampleMask = 0;
+    MultisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
+    MultisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
+    PipelineCreateInfo.pMultisampleState = &MultisampleStateCreateInfo;
+
+    VkPipelineDepthStencilStateCreateInfo DepthStencilStateCreateInfo = {};
+    DepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    DepthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+    DepthStencilStateCreateInfo.depthWriteEnable = Pass.RenderState->ZWriteEnable;
+    DepthStencilStateCreateInfo.depthCompareOp = ToVulkanCompareOp(Pass.RenderState->ZTestOperation);
+    DepthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+    DepthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
+    PipelineCreateInfo.pDepthStencilState = &DepthStencilStateCreateInfo;
+
+    VkPipelineColorBlendAttachmentState ColorBlendAttachmentState = {};
+    ColorBlendAttachmentState.blendEnable = VK_TRUE;
+    ColorBlendAttachmentState.srcColorBlendFactor = ToVulkanBlendFactor(Pass.RenderState->BlendMode.SrcColorBlendFactor);
+    ColorBlendAttachmentState.dstColorBlendFactor = ToVulkanBlendFactor(Pass.RenderState->BlendMode.DstColorBlendFactor);
+    ColorBlendAttachmentState.colorBlendOp = ToVulkanBlendOp(Pass.RenderState->BlendMode.ColorBlendOperation);
+    ColorBlendAttachmentState.srcAlphaBlendFactor = ToVulkanBlendFactor(Pass.RenderState->BlendMode.SrcAlphaBlendFactor);
+    ColorBlendAttachmentState.dstAlphaBlendFactor = ToVulkanBlendFactor(Pass.RenderState->BlendMode.DstAlphaBlendFactor);
+    ColorBlendAttachmentState.alphaBlendOp = ToVulkanBlendOp(Pass.RenderState->BlendMode.AlphaBlendOperation);
+    ColorBlendAttachmentState.colorWriteMask = 
+        VK_COLOR_COMPONENT_R_BIT | 
+        VK_COLOR_COMPONENT_G_BIT | 
+        VK_COLOR_COMPONENT_B_BIT | 
+        VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo ColorBlendStateCreateInfo = {};
+    ColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    ColorBlendStateCreateInfo.attachmentCount = 1;
+    ColorBlendStateCreateInfo.pAttachments = &ColorBlendAttachmentState;
+    ColorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+    ColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+    PipelineCreateInfo.pColorBlendState = &ColorBlendStateCreateInfo;
+
+    VkDynamicState DynamicStates[] = 
+    {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+        VK_DYNAMIC_STATE_LINE_WIDTH,
+    };
+
+    VkPipelineDynamicStateCreateInfo DynamicStateCreateInfo = {};
+    DynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    DynamicStateCreateInfo.pDynamicStates = DynamicStates;
+    DynamicStateCreateInfo.dynamicStateCount = sizeof(DynamicStates) / sizeof(DynamicStates[0]);
+    PipelineCreateInfo.pDynamicState = &DynamicStateCreateInfo;
+
+    VkPipelineVertexInputStateCreateInfo VertexInputStateCreateInfo = {};
+    VertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VertexInputStateCreateInfo.pVertexBindingDescriptions = &InputBindingsDesc[0];
+    VertexInputStateCreateInfo.vertexBindingDescriptionCount = InputBindingsDesc.Length;
+    VertexInputStateCreateInfo.pVertexAttributeDescriptions = &AttributesDesc[0];
+    VertexInputStateCreateInfo.vertexAttributeDescriptionCount = AttributesDesc.Length;
+    PipelineCreateInfo.pVertexInputState = &VertexInputStateCreateInfo;
+
+    VkPipelineInputAssemblyStateCreateInfo InputAssemblyStateCreateInfo = {};
+    InputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    InputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
+    InputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    PipelineCreateInfo.pInputAssemblyState = &InputAssemblyStateCreateInfo;
+
+    VkPushConstantRange PushConstantsRange = {};
+    PushConstantsRange.size = 128; // TODO: (amn) Hardcode or no? No idea :(
+    PushConstantsRange.offset = 0;
+    PushConstantsRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayout DescriptorSetLayouts[] = 
+    {
+        GlobalDescriptorSetLayout,
+        LocalDescriptorSetLayout
+    };
+
+    VkPipelineLayoutCreateInfo LayoutCreateInfo = {};
+    LayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    LayoutCreateInfo.setLayoutCount = sizeof(DescriptorSetLayouts) / sizeof(DescriptorSetLayouts[0]);
+    LayoutCreateInfo.pSetLayouts = &DescriptorSetLayouts[0];
+    LayoutCreateInfo.pushConstantRangeCount = 1;
+    LayoutCreateInfo.pPushConstantRanges = &PushConstantsRange;
+
+    VkPipelineLayout PipelineLayout;
+    KRAFT_VK_CHECK(vkCreatePipelineLayout(s_Context.LogicalDevice.Handle, &LayoutCreateInfo, s_Context.AllocationCallbacks, &PipelineLayout));
+    KASSERT(PipelineLayout);
+    PipelineCreateInfo.layout = PipelineLayout;
+
+    PipelineCreateInfo.stageCount = PipelineShaderStageCreateInfos.Length;
+    PipelineCreateInfo.pStages = &PipelineShaderStageCreateInfos[0];
+    PipelineCreateInfo.pTessellationState = 0;
+
+    PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
+    PipelineCreateInfo.subpass = 0;
+    PipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+    PipelineCreateInfo.basePipelineIndex = -1;
+
+    VkPipeline Result;
+    KRAFT_VK_CHECK(vkCreateGraphicsPipelines(
+        s_Context.LogicalDevice.Handle, 
+        VK_NULL_HANDLE, 1, &PipelineCreateInfo, 
+        s_Context.AllocationCallbacks, 
+        &Result));
+
+    KASSERT(Result);
+
+    RenderResource LocalRenderResources;
+    LocalRenderResources.Name = Pass.Resources->Name;
+    LocalRenderResources.VulkanDescriptorSetLayout = LocalDescriptorSetLayout;
+    Output.Pipeline = Result;
+    Output.Resources = LocalRenderResources;
+    Output.PipelineLayout = PipelineLayout;
+
+    // Release resources
+    for (int j = 0; j < ShaderModules.Length; j++)
+    {
+        VulkanDestroyShaderModule(&s_Context, &ShaderModules[j]);
+    }
+
+    return Output;
+}
+
+void VulkanRendererBackend::AllocateResources(RenderResource& Resource)
+{
+    auto Layout = (VkDescriptorSetLayout)Resource.VulkanDescriptorSetLayout;
+    Array<VkDescriptorSetLayout> DescriptorSetLayouts = Array<VkDescriptorSetLayout>(s_Context.Swapchain.ImageCount, Layout); 
+    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    DescriptorSetAllocateInfo.descriptorPool = GlobalDescriptorPool;
+    DescriptorSetAllocateInfo.descriptorSetCount = DescriptorSetLayouts.Length;
+    DescriptorSetAllocateInfo.pSetLayouts = &DescriptorSetLayouts[0];
+
+    VkDescriptorSet VulkanDescriptorSets[3] = {};
+    KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, VulkanDescriptorSets));
+    // Resource.VulkanDescriptorSet = VulkanDescriptorSet;
+}
+
 void VulkanRendererBackend::CreateTexture(uint8* data, Texture* texture)
 {
     VulkanCreateTexture(&s_Context, data, texture);
@@ -477,6 +788,39 @@ bool instanceLayerSupported(const char* layer, VkLayerProperties* layerPropertie
     }
 
     return false;
+}
+
+}
+
+namespace kraft
+{
+
+using namespace renderer;
+
+// Resources
+void RenderPipeline::Bind(CommandBuffer CommandBuffer)
+{
+    VkPipeline Pipeline = (VkPipeline)this->Pipeline;
+    VulkanCommandBuffer* Buffer = (VulkanCommandBuffer*)CommandBuffer.Handle;
+    vkCmdBindPipeline(Buffer->Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
+}
+
+void RenderPipeline::Destroy()
+{
+    VkPipeline Pipeline = (VkPipeline)this->Pipeline;
+    VkPipelineLayout PipelineLayout = (VkPipelineLayout)this->PipelineLayout;
+
+    if (this->Pipeline)
+    {
+        vkDestroyPipeline(s_Context.LogicalDevice.Handle, Pipeline, s_Context.AllocationCallbacks);
+        this->Pipeline = 0;
+    }
+
+    if (this->PipelineLayout)
+    {
+        vkDestroyPipelineLayout(s_Context.LogicalDevice.Handle, PipelineLayout, s_Context.AllocationCallbacks);
+        this->PipelineLayout = 0;
+    }
 }
 
 }

@@ -5,7 +5,7 @@
 #include "renderer/vulkan/kraft_vulkan_types.h"
 #include "resources/kraft_resource_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 namespace VulkanImgui
 {

@@ -117,7 +117,115 @@ void ShaderFXParser::ParseLayoutBlock()
 
             this->Shader.VertexLayouts.Push(Layout);
         }
+        else if (Token.MatchesKeyword("Resource"))
+        {
+            // Consume "Resource"
+            Token = this->Lexer->NextToken();
+
+            ResourceBindingsDefinition ResourceBindings;
+            ResourceBindings.Name = String(Token.Text, Token.Length);
+
+            this->ParseResourceBindings(ResourceBindings);
+
+            this->Shader.Resources.Push(ResourceBindings);
+        }
     }
+}
+
+void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition& ResourceBindings)
+{
+    Token Token;
+    if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_OPEN_BRACE))
+    {
+        return;
+    }
+
+    while (!this->Lexer->EqualsToken(Token, TOKEN_TYPE_CLOSE_BRACE))
+    {
+        // TODO: Errors when something other than an identifier is found
+        if (Token.Type != TOKEN_TYPE_IDENTIFIER) continue;
+
+        ResourceBinding Binding;
+        if (Token.MatchesKeyword("UniformBuffer"))
+        {
+            Binding.Type = ResourceType::UniformBuffer;
+        }
+        else if (Token.MatchesKeyword("Sampler"))
+        {
+            Binding.Type = ResourceType::Sampler;
+        }
+        else
+        {
+            this->Error = true;
+            this->ErrorLine = this->Lexer->Line;
+            this->ErrorString = "Invalid binding type '" + String(Token.Text, Token.Length) + "'";
+
+            return;
+        }
+
+        // Parse the name of the binding
+        Token = this->Lexer->NextToken();
+        Binding.Name = String(Token.Text, Token.Length);
+
+        while (!this->Lexer->EqualsToken(Token, TOKEN_TYPE_SEMICOLON))
+        {
+            auto NamedToken = this->ParseNamedToken(Token);
+            if (NamedToken.Key == "Stage")
+            {
+                bool Valid = false;
+                for (int i = 0; i < ShaderStage::Count; i++)
+                {
+                    if (NamedToken.Value.StringView() == ShaderStage::Strings[i])
+                    {
+                        Binding.Stage = (ShaderStage::Enum)i;
+                        Valid = true;
+                        break;
+                    }
+                }
+
+                if (!Valid)
+                {
+                    this->Error = true;
+                    this->ErrorLine = this->Lexer->Line;
+                    this->ErrorString = "Invalid shader stage '" + NamedToken.Value.String() + "'";
+
+                    return;
+                }
+            }
+            else if (NamedToken.Key == "Binding")
+            {
+                Binding.Binding = NamedToken.Value.FloatValue;
+            }
+        }
+
+        ResourceBindings.ResourceBindings.Push(Binding);
+    }
+}
+
+ShaderFXParser::NamedToken ShaderFXParser::ParseNamedToken(Token Token)
+{
+    ShaderFXParser::NamedToken Result = {};
+    if (Token.Type != TOKEN_TYPE_IDENTIFIER)
+    {
+        return Result;
+    }
+
+    Result.Key = StringView(Token.Text, Token.Length);
+
+    if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_OPEN_PARENTHESIS))
+    {
+        return Result;
+    }
+
+    // Skip past the parenthesis
+    Token = this->Lexer->NextToken();
+    Result.Value = Token;
+    if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_CLOSE_PARENTHESIS))
+    {
+        return Result;
+    }
+
+    return Result;
 }
 
 void ShaderFXParser::ParseVertexLayout(VertexLayoutDefinition& Layout)
@@ -453,22 +561,22 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
             {
                 return;
             }
-
+            
             if (Token.MatchesKeyword("Back"))
             {
-                State.CullMode = renderer::CULL_MODE_BACK;
+                State.CullMode = CullMode::Back;
             }
             else if (Token.MatchesKeyword("Front"))
             {
-                State.CullMode = renderer::CULL_MODE_FRONT;
+                State.CullMode = CullMode::Front;
             }
             else if (Token.MatchesKeyword("FrontAndBack"))
             {
-                State.CullMode = renderer::CULL_MODE_FRONT_AND_BACK;
+                State.CullMode = CullMode::FrontAndBack;
             }
             else if (Token.MatchesKeyword("Off"))
             {
-                State.CullMode = renderer::CULL_MODE_NONE;
+                State.CullMode = CullMode::None;
             }
             else
             {
@@ -486,39 +594,18 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
                 return;
             }
 
-            if (Token.MatchesKeyword("Never"))
+            bool Valid = false;
+            for (int i = 0; i < CompareOp::Count; i++)
             {
-                State.ZTestOperation = renderer::ZTEST_OP_NEVER;
+                if (Token.MatchesKeyword(CompareOp::Strings[i]))
+                {
+                    State.ZTestOperation = (CompareOp::Enum)i;
+                    Valid = true;
+                    break;
+                }
             }
-            else if (Token.MatchesKeyword("Less"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_LESS;
-            }
-            else if (Token.MatchesKeyword("Equal"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_EQUAL;
-            }
-            else if (Token.MatchesKeyword("LessOrEqual"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_LESS_OR_EQUAL;
-            }
-            else if (Token.MatchesKeyword("Greater"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_GREATER;
-            }
-            else if (Token.MatchesKeyword("NotEqual"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_NOT_EQUAL;
-            }
-            else if (Token.MatchesKeyword("GreaterOrEqual"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_GREATER_OR_EQUAL;
-            }
-            else if (Token.MatchesKeyword("Never"))
-            {
-                State.ZTestOperation = renderer::ZTEST_OP_NEVER;
-            }
-            else
+
+            if (!Valid)
             {
                 this->Error = true;
                 this->ErrorLine = this->Lexer->Line;
@@ -635,52 +722,48 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
                 return;
             }
         }
+        else if (Token.MatchesKeyword("PolygonMode"))
+        {
+            if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_IDENTIFIER))
+            {
+                return;
+            }
+
+            for (int i = 0; i < PolygonMode::Count; i++)
+            {
+                if (Token.String() == PolygonMode::Strings[i])
+                {
+                    State.PolygonMode = (PolygonMode::Enum)i;
+                    break;
+                }
+            }
+        }
+        else if (Token.MatchesKeyword("LineWidth"))
+        {
+            if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_NUMBER))
+            {
+                return;
+            }
+            
+            State.LineWidth = Token.FloatValue;
+        }
     }
 }
 
-bool ShaderFXParser::ParseBlendFactor(Token Token, BlendFactor& Factor)
+bool ShaderFXParser::ParseBlendFactor(Token Token, BlendFactor::Enum& Factor)
 {
-    if (Token.MatchesKeyword("Zero"))
+    bool Valid = false;
+    for (int i = 0; i < BlendFactor::Count; i++)
     {
-        Factor = renderer::BLEND_FACTOR_ZERO;
+        if (Token.MatchesKeyword(BlendFactor::Strings[i]))
+        {
+            Factor = (BlendFactor::Enum)i;
+            Valid = true;
+            break;
+        }
     }
-    else if (Token.MatchesKeyword("One"))
-    {
-        Factor = renderer::BLEND_FACTOR_ONE;
-    }
-    else if (Token.MatchesKeyword("SrcColor"))
-    {
-        Factor = renderer::BLEND_FACTOR_SRC_COLOR;
-    }
-    else if (Token.MatchesKeyword("OneMinusSrcColor"))
-    {
-        Factor = renderer::BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
-    }
-    else if (Token.MatchesKeyword("DstColor"))
-    {
-        Factor = renderer::BLEND_FACTOR_DST_COLOR;
-    }
-    else if (Token.MatchesKeyword("OneMinusDstColor"))
-    {
-        Factor = renderer::BLEND_FACTOR_ONE_MINUS_DST_COLOR;
-    }
-    else if (Token.MatchesKeyword("SrcAlpha"))
-    {
-        Factor = renderer::BLEND_FACTOR_SRC_ALPHA;
-    }
-    else if (Token.MatchesKeyword("OneMinusSrcAlpha"))
-    {
-        Factor = renderer::BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    }
-    else if (Token.MatchesKeyword("DstAlpha"))
-    {
-        Factor = renderer::BLEND_FACTOR_DST_ALPHA;
-    }
-    else if (Token.MatchesKeyword("OneMinusDstAlpha"))
-    {
-        Factor = renderer::BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
-    }
-    else
+
+    if (!Valid)
     {
         this->Error = true;
         this->ErrorLine = this->Lexer->Line;
@@ -692,33 +775,24 @@ bool ShaderFXParser::ParseBlendFactor(Token Token, BlendFactor& Factor)
     return true;
 }
 
-bool ShaderFXParser::ParseBlendOp(Token Token, BlendOp& Op)
+bool ShaderFXParser::ParseBlendOp(Token Token, BlendOp::Enum& Op)
 {
-    if (Token.MatchesKeyword("Add"))
+    bool Valid = false;
+    for (int i = 0; i < BlendOp::Count; i++)
     {
-        Op = renderer::BlendOp::BLEND_OP_ADD;
+        if (Token.MatchesKeyword(BlendOp::Strings[i]))
+        {
+            Op = (BlendOp::Enum)i;
+            Valid = true;
+            break;
+        }
     }
-    else if (Token.MatchesKeyword("Subtract"))
-    {
-        Op = renderer::BlendOp::BLEND_OP_SUBTRACT;
-    }
-    else if (Token.MatchesKeyword("ReverseSubtract"))
-    {
-        Op = renderer::BlendOp::BLEND_OP_REVERSE_SUBTRACT;
-    }
-    else if (Token.MatchesKeyword("Min"))
-    {
-        Op = renderer::BlendOp::BLEND_OP_MIN;
-    }
-    else if (Token.MatchesKeyword("Min"))
-    {
-        Op = renderer::BlendOp::BLEND_OP_MAX;
-    }
-    else
+
+    if (!Valid)
     {
         this->Error = true;
         this->ErrorLine = this->Lexer->Line;
-        this->ErrorString = "Invalid value for BlendOp";
+        this->ErrorString = "Invalid value " + Token.String() + " for BlendOp";
 
         return false;
     }
@@ -778,11 +852,12 @@ void ShaderFXParser::ParseRenderPassBlock()
         else if (Token.MatchesKeyword("VertexLayout"))
         {
             if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_IDENTIFIER)) return;
-
+            
+            StringView Name = Token.StringView();
             bool Valid = false;
             for (int i = 0; i < this->Shader.VertexLayouts.Length; i++)
             {
-                if (this->Shader.VertexLayouts[i].Name == StringView(Token.Text, Token.Length))
+                if (this->Shader.VertexLayouts[i].Name == Name)
                 {
                     Pass.VertexLayout = &this->Shader.VertexLayouts[i];
                     Valid = true;
@@ -799,16 +874,41 @@ void ShaderFXParser::ParseRenderPassBlock()
                 return;
             }
         }
+        else if (Token.MatchesKeyword("Resources"))
+        {
+            if (!this->Lexer->ExpectToken(Token, TOKEN_TYPE_IDENTIFIER)) return;
+
+            StringView Name = Token.StringView();
+            bool Valid = false;
+            for (int i = 0; i < this->Shader.Resources.Length; i++)
+            {
+                if (this->Shader.Resources[i].Name == Name)
+                {
+                    Pass.Resources = &this->Shader.Resources[i];
+                    Valid = true;
+                    break;
+                } 
+            }
+
+            if (!Valid)
+            {
+                this->Error = true;
+                this->ErrorLine = this->Lexer->Line;
+                this->ErrorString = "Unknown resource block";
+
+                return;
+            }
+        }
         else if (Token.MatchesKeyword("VertexShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Pass, renderer::ShaderStage::SHADER_STAGE_VERTEX))
+            if (!this->ParseRenderPassShaderStage(Pass, ShaderStage::Vertex))
             {
                 return;
             }
         }
         else if (Token.MatchesKeyword("FragmentShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Pass, renderer::ShaderStage::SHADER_STAGE_FRAGMENT))
+            if (!this->ParseRenderPassShaderStage(Pass, ShaderStage::Fragment))
             {
                 return;
             }
@@ -894,6 +994,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
     BinaryOutput.Write(Shader.Name);
     BinaryOutput.Write(Shader.ResourcePath);
     BinaryOutput.Write(Shader.VertexLayouts);
+    BinaryOutput.Write(Shader.Resources);
     BinaryOutput.Write(Shader.RenderStates);
     BinaryOutput.Write(Shader.RenderPasses.Length);
 
@@ -906,6 +1007,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
 
         // Write the vertex layout & render state offsets
         BinaryOutput.Write((uint64)(Pass.VertexLayout - &Shader.VertexLayouts[0]));
+        BinaryOutput.Write((uint64)(Pass.Resources - &Shader.Resources[0]));
         BinaryOutput.Write((uint64)(Pass.RenderState - &Shader.RenderStates[0]));
 
         // Manually write the shader code fragments to the buffer
@@ -923,28 +1025,28 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
             shaderc_shader_kind ShaderKind;
             switch (Stage.Stage)
             {
-                case renderer::ShaderStage::SHADER_STAGE_VERTEX: 
+                case ShaderStage::Vertex: 
                 {
                     ShaderKind = shaderc_vertex_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case renderer::ShaderStage::SHADER_STAGE_GEOMETRY: 
+                case ShaderStage::Geometry: 
                 {
                     ShaderKind = shaderc_geometry_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case renderer::ShaderStage::SHADER_STAGE_FRAGMENT: 
+                case ShaderStage::Fragment: 
                 {
                     ShaderKind = shaderc_fragment_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case renderer::ShaderStage::SHADER_STAGE_COMPUTE:
+                case ShaderStage::Compute:
                 {
                     ShaderKind = shaderc_compute_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
@@ -1012,6 +1114,7 @@ bool LoadShaderFX(const String& Path, ShaderEffect& Shader)
     Reader.Read(&Shader.Name);
     Reader.Read(&Shader.ResourcePath);
     Reader.Read(&Shader.VertexLayouts);
+    Reader.Read(&Shader.Resources);
     Reader.Read(&Shader.RenderStates);
 
     uint64 RenderPassesCount;
@@ -1026,6 +1129,10 @@ bool LoadShaderFX(const String& Path, ShaderEffect& Shader)
         uint64 VertexLayoutOffset;
         Reader.Read(&VertexLayoutOffset);
         Pass.VertexLayout = &Shader.VertexLayouts[VertexLayoutOffset];
+
+        uint64 ResourcesOffset;
+        Reader.Read(&ResourcesOffset);
+        Pass.Resources = &Shader.Resources[ResourcesOffset];
 
         uint64 RenderStateOffset;
         Reader.Read(&RenderStateOffset);

@@ -5,7 +5,7 @@
 #include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_image.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 #define KRAFT_CLAMP(value, min, max) (value < min) ? value = min : (value > max ? max : value);

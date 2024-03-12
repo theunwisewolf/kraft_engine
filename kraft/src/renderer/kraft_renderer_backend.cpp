@@ -2,10 +2,10 @@
 
 #include "renderer/vulkan/kraft_vulkan_backend.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
-bool RendererCreateBackend(RendererBackendType type, RendererBackend* backend)
+bool CreateBackend(RendererBackendType type, RendererBackend* backend)
 {
     if (type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
@@ -15,6 +15,7 @@ bool RendererCreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->EndFrame   = VulkanRendererBackend::EndFrame;
         backend->OnResize   = VulkanRendererBackend::OnResize;
         
+        backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
         backend->CreateTexture  = VulkanRendererBackend::CreateTexture;
         backend->DestroyTexture = VulkanRendererBackend::DestroyTexture;
         backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
@@ -29,7 +30,7 @@ bool RendererCreateBackend(RendererBackendType type, RendererBackend* backend)
     return false;
 }
 
-void RendererDestroyBackend(RendererBackend* backend)
+void DestroyBackend(RendererBackend* backend)
 {
     backend->Init       = 0;
     backend->Shutdown   = 0;

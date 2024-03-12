@@ -14,17 +14,17 @@ struct Window;
 
 struct ApplicationConfig
 {
-    uint32              WindowWidth;
-    uint32              WindowHeight;
-    const char*         ApplicationName;
-    const char*         WindowTitle;
-    RendererBackendType RendererBackend = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
-    bool                ConsoleApp;
+    uint32                          WindowWidth;
+    uint32                          WindowHeight;
+    const char*                     ApplicationName;
+    const char*                     WindowTitle;
+    renderer::RendererBackendType   RendererBackend = renderer::RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
+    bool                            ConsoleApp;
 };
 
 struct ApplicationState
 {
-    RendererFrontend Renderer;
+    renderer::RendererFrontend Renderer;
     float64          LastTime;
 };
 

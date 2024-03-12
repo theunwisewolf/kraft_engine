@@ -3,11 +3,15 @@
 #include "core/kraft_core.h"
 #include "core/kraft_string.h"
 #include "containers/kraft_array.h"
+#include "renderer/kraft_renderer_types.h"
 
 namespace kraft
 {
 
 struct ApplicationConfig;
+
+namespace renderer
+{
 
 // "refresh" is true whenever the window has been resized
 typedef void (*ImGuiRenderCallback)(bool refresh);
@@ -23,7 +27,7 @@ struct ImGuiWidget
     {
     }
 
-    ImGuiWidget& operator=(const kraft::ImGuiWidget &Widget)
+    ImGuiWidget& operator=(const ImGuiWidget &Widget)
     {
         Name = Widget.Name;
         Callback = Widget.Callback;
@@ -50,5 +54,7 @@ struct RendererImGui
     void Destroy();
     void EndFrameUpdatePlatformWindows();
 };
+
+}
 
 }

@@ -4,7 +4,7 @@
 #include "renderer/vulkan/kraft_vulkan_memory.h"
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateBuffer(VulkanContext* context, uint64 size, VkSharingMode sharingMode, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryProperties, bool bind, VulkanBuffer* out)

@@ -4,7 +4,7 @@
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 bool VulkanCreateVertexBuffer(VulkanContext* context, const void* data, uint64 size, VulkanBuffer* out)

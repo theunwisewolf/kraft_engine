@@ -3,10 +3,10 @@
 #include "core/kraft_core.h"
 #include "renderer/kraft_renderer_types.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
-bool RendererCreateBackend(RendererBackendType type, RendererBackend* out);
-void RendererDestroyBackend(RendererBackend* backend);
+bool CreateBackend(RendererBackendType type, RendererBackend* out);
+void DestroyBackend(RendererBackend* backend);
 
 }

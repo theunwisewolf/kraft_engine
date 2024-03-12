@@ -1,6 +1,6 @@
 #include "kraft_vulkan_fence.h"
 
-namespace kraft
+namespace kraft::renderer
 {
 
 void VulkanCreateFence(VulkanContext* context, bool signalled, VulkanFence* out)

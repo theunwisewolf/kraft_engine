@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "core/kraft_string.h"
 #include "math/kraft_math.h"
 
 #define KRAFT_TEXTURE_NAME_MAX_LENGTH 512
@@ -39,6 +40,31 @@ struct Material
     char       Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
     TextureMap  DiffuseMap;
     Vec4f       DiffuseColor;
+};
+
+struct RenderResource
+{
+    String Name;
+
+    // Backend-specific layout
+    void* VulkanDescriptorSetLayout;
+    void* VulkanDescriptorSet;
+};
+
+struct CommandBuffer
+{
+    void *Handle;
+};
+
+struct RenderPipeline
+{
+    // Backend-specific pipeline
+    void*            Pipeline;
+    void*            PipelineLayout;
+    RenderResource   Resources;
+
+    void Bind(CommandBuffer CommandBuffer);
+    void Destroy();
 };
 
 }
