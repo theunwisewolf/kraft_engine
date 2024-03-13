@@ -8,6 +8,9 @@
 namespace kraft
 {
 
+template<typename ValueType, uint64 InternalBufferSize>
+struct KString;
+
 template <typename ValueType>
 struct KStringView
 {
@@ -20,6 +23,12 @@ struct KStringView
     {
         this->Buffer = nullptr;
         this->Length = 0;
+    }
+
+    KStringView(const KString<ValueType, 128>& Str)
+    {
+        this->Buffer = Str.Data();
+        this->Length = Str.Length;
     }
 
     KStringView(const ValueType *Buffer, SizeType Length)

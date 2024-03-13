@@ -410,6 +410,53 @@ public:
     {
         return this->Length * sizeof(ValueType);
     }
+
+    bool EndsWith(const KString& Suffix)
+    {
+        if (Length < Suffix.Length)
+        {
+            return false;
+        }
+
+        int Start = Length - Suffix.Length;
+        for (int i = Start, j = 0; i < Suffix.Length; i++, j++)
+        {
+            if (Data()[i] != Suffix.Data()[j])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    KRAFT_INLINE bool HasSuffix(const KString& Suffix)
+    {
+        return EndsWith(Suffix);
+    }
+
+    bool StartsWith(const KString& Prefix)
+    {
+        if (Length < Prefix.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < Prefix.Length; i++)
+        {
+            if (Data()[i] != Prefix.Data()[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    KRAFT_INLINE bool HasPrefix(const KString& Prefix)
+    {
+        return StartsWith(Prefix);
+    }
 };
 
 typedef KString<char> String;

@@ -48,7 +48,7 @@ struct SimpleObjectState
 
     VkDescriptorSet          DescriptorSets[3]; // Per frame
     VulkanDescriptorSetState DescriptorSetStates[KRAFT_VULKAN_SHADER_MAX_BINDINGS];
-    Texture*                 Texture = NULL;
+    Material*                Material = NULL;
     bool                     Dirty;
 
     void AcquireResources(VulkanContext *context);

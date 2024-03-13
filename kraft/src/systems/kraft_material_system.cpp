@@ -3,6 +3,7 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
+#include "platform/kraft_filesystem.h"
 #include "math/kraft_math.h"
 #include "systems/kraft_texture_system.h"
 #include "renderer/kraft_renderer_frontend.h"
@@ -27,6 +28,7 @@ static MaterialSystemState* State = 0;
 
 static void _releaseMaterial(MaterialReference ref);
 static void _createDefaultMaterials();
+static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data);
 
 void MaterialSystem::Init(MaterialSystemConfig config)
 {
@@ -65,66 +67,109 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->MaterialReferences[0].Material;
 }
 
-Material* MaterialSystem::AcquireMaterial(const char* name)
-{
-    // TODO: Read from file
-    return nullptr;
-}
-
-Material* MaterialSystem::AcquireMaterialWithData(MaterialData data)
+Material* MaterialSystem::AcquireMaterial(const char* Name)
 {
     int index = -1;
 
     // Look for an already acquired material
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (StringEqual(State->MaterialReferences[i].Material.Name, data.Name))
+        if (StringEqual(State->MaterialReferences[i].Material.Name, Name))
         {
             index = i;
             break;
         }
     }
 
-    // Otherwise find a free slot
-    if (index == -1)
+    // Material already exists in the cache
+    // Just increase the ref-count
+    if (index > -1)
     {
-        for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
+        KINFO("[MaterialSystem::AcquireMaterial]: Material already acquired; Reusing!");
+        State->MaterialReferences[index].RefCount++;
+    }
+    else
+    {
+        String FilePath = Name;
+        if (!FilePath.EndsWith(".kmt"))
         {
-            if (State->MaterialReferences[i].RefCount == 0)
-            {
-                index = i;
-                break;
-            }
+            FilePath = FilePath + ".kmt";
+        }
+
+        MaterialData Data;
+        if (!_loadMaterialFromFile(FilePath, &Data))
+        {
+            KINFO("[MaterialSystem::AcquireMaterial]: Failed to parse material %s", *FilePath);
+            return nullptr;
+        }
+
+        return AcquireMaterialWithData(Data);
+    }
+
+    return &State->MaterialReferences[index].Material;
+}
+
+Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
+{
+    int freeIndex = -1;
+    int index = -1;
+
+    // Look for an already acquired material
+    for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
+    {
+        if (StringEqual(State->MaterialReferences[i].Material.Name, Data.Name))
+        {
+            index = i;
+            break;
+        }
+
+        if (freeIndex == -1 && State->MaterialReferences[i].RefCount == 0)
+        {
+            freeIndex = i;
         }
     }
 
-    if (index == -1)
+    // Material already exists in the cache
+    // Just increase the ref-count
+    if (index > -1)
     {
-        KERROR("[MaterialSystem::AcquireMaterialWithData]: Failed to find a free slot!");
-        return NULL;
+        KINFO("[MaterialSystem::AcquireMaterialWithData]: Material already acquired; Reusing!");
+        State->MaterialReferences[index].RefCount++;
+    }
+    else
+    {
+        if (freeIndex == -1)
+        {
+            KERROR("[MaterialSystem::AcquireMaterialWithData]: Failed to find a free slot; Out-of-memory!");
+            return NULL;
+        }
+
+        MaterialReference* Reference = &State->MaterialReferences[freeIndex];
+        Reference->RefCount++;
+        Reference->AutoRelease = Data.AutoRelease;
+        Texture* Texture = TextureSystem::AcquireTexture(Data.DiffuseTextureMapName, Data.AutoRelease);
+        if (!Texture)
+        {
+            Texture = TextureSystem::GetDefaultDiffuseTexture();
+        }
+
+        Reference->Material.ID = freeIndex;
+        Reference->Material.DiffuseColor = Data.DiffuseColor;
+        Reference->Material.DiffuseMap = TextureMap
+        {
+            Texture,
+            TEXTURE_USE_MAP_DIFFUSE,
+        };
+
+        StringNCopy(Reference->Material.Name, Data.Name, sizeof(Reference->Material.Name));
+        index = freeIndex;
     }
 
-    Material *material = &State->MaterialReferences[index].Material;
-    Texture* texture = TextureSystem::AcquireTexture(data.DiffuseTextureMapName);
-    if (!texture)
-    {
-        texture = TextureSystem::GetDefaultDiffuseTexture();
-    }
-
-    material->ID = index;
-    material->DiffuseColor = data.DiffuseColor;
-    material->DiffuseMap = TextureMap
-    {
-        texture,
-        TEXTURE_USE_MAP_DIFFUSE,
-    };
-
-    StringNCopy(material->Name, data.Name, sizeof(material->Name));
-
-    return material;
+    KDEBUG("[MaterialSystem::AcquireMaterialWithData]: Acquired material %s (index = %d)", Data.Name, index);
+    return &State->MaterialReferences[index].Material;
 }
 
-void ReleaseMaterial(const char* name)
+void MaterialSystem::ReleaseMaterial(const char* name)
 {
     KDEBUG("[MaterialSystem::ReleaseMaterial]: Releasing material %s", name);
 
@@ -147,14 +192,14 @@ void ReleaseMaterial(const char* name)
     _releaseMaterial(State->MaterialReferences[index]);
 }
 
-void ReleaseMaterial(Material *material)
+void MaterialSystem::ReleaseMaterial(Material *material)
 {
     KASSERTM(material, "[MaterialSystem::ReleaseMaterial]: Material is null");
 
     ReleaseMaterial(material->Name);
 }
 
-void DestroyMaterial(Material *material)
+void MaterialSystem::DestroyMaterial(Material *material)
 {
     KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", material->Name);
 
@@ -181,7 +226,7 @@ static void _releaseMaterial(MaterialReference ref)
     ref.RefCount--;
     if (ref.RefCount == 0 && ref.AutoRelease)
     {
-        DestroyMaterial(&ref.Material);
+        MaterialSystem::DestroyMaterial(&ref.Material);
     }
 }
 
@@ -200,6 +245,105 @@ static void _createDefaultMaterials()
     };
 
     StringNCopy(material->Name, "default-material", sizeof(material->Name));
+}
+
+static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data)
+{
+    FileHandle Handle;
+    bool Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
+    if (!Result)
+    {
+        return false;
+    }
+
+    uint64 BufferSize = kraft::filesystem::GetFileSize(&Handle) + 1;
+    uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
+    filesystem::ReadAllBytes(&Handle, &FileDataBuffer);
+    filesystem::CloseFile(&Handle);
+
+    Lexer Lexer;
+    Lexer.Create((char*)FileDataBuffer);
+
+    while (true)
+    {
+        Token Token = Lexer.NextToken();
+        if (Token.Type == TOKEN_TYPE_IDENTIFIER)
+        {
+            if (Token.MatchesKeyword("Material"))
+            {
+                if (!Lexer.ExpectToken(Token, TOKEN_TYPE_IDENTIFIER))
+                {
+                    return false;
+                }
+
+                StringNCopy(Data->Name, Token.Text, Token.Length);
+
+                if (!Lexer.ExpectToken(Token, TOKEN_TYPE_OPEN_BRACE))
+                {
+                    return false;
+                }
+
+                // Parse material block
+                while (!Lexer.EqualsToken(Token, TOKEN_TYPE_CLOSE_BRACE))
+                {
+                    if (Token.MatchesKeyword("DiffuseColor"))
+                    {
+                        if (!Lexer.ExpectToken(Token, TOKEN_TYPE_IDENTIFIER))
+                        {
+                            return false;
+                        }
+
+                        if (Token.MatchesKeyword("vec4"))
+                        {
+                            if (!Lexer.ExpectToken(Token, TOKEN_TYPE_OPEN_PARENTHESIS))
+                            {
+                                return false;
+                            }
+
+                            float DiffuseColor[4];
+                            int Index = 0;
+                            while (!Lexer.EqualsToken(Token, TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            {
+                                if (Token.Type == TOKEN_TYPE_COMMA)
+                                {
+                                    continue;
+                                }
+                                else if (Token.Type == TOKEN_TYPE_NUMBER)
+                                {
+                                    DiffuseColor[Index++] = Token.FloatValue;
+                                }
+                                else
+                                {
+                                    return false;
+                                }
+                            }
+
+                            Data->DiffuseColor = Vec4f(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2], DiffuseColor[3]);
+                        }
+                    }
+                    else if (Token.MatchesKeyword("DiffuseMapName"))
+                    {
+                        if (!Lexer.ExpectToken(Token, TOKEN_TYPE_STRING))
+                        {
+                            return false;
+                        }
+
+                        StringNCopy(Data->DiffuseTextureMapName, Token.Text, Token.Length);
+                    }
+                    else
+                    {
+                        KERROR("Material has an invalid field %s", *Token.String());
+                    }
+                }
+            }
+        }
+        else if (Token.Type == TOKEN_TYPE_END_OF_STREAM)
+        {
+            break;
+        }
+    }
+
+    return true;
 }
 
 }

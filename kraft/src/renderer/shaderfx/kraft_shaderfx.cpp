@@ -955,9 +955,9 @@ bool ShaderFXParser::ParseRenderPassShaderStage(RenderPassDefinition& Pass, rend
 bool CompileShaderFX(const String& InputPath, const String& OutputPath)
 {
     KINFO("Compiling shaderfx %s", *InputPath);
+    
     FileHandle Handle;
     bool Result = filesystem::OpenFile(InputPath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
-
     if (!Result)
     {
         return false;

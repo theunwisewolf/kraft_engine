@@ -32,6 +32,9 @@ struct RendererFrontend
     void DestroyTexture(Texture* texture);
     void CreateMaterial(Material* material);
     void DestroyMaterial(Material* material);
+    void DrawGeometry(GeometryRenderData Data);
+    bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices);
+    void DestroyGeometry(Geometry* Geometry);
 };
 
 extern RendererFrontend* Renderer;

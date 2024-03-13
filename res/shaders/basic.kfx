@@ -16,7 +16,6 @@ Shader Basic
         }
     }
 
-
     GLSL ToScreen
     {
         #version 450

@@ -106,6 +106,7 @@ Token Lexer::NextToken()
             }
 
             Token.Length = this->Text + this->Position - Token.Text;
+            this->Position++; // Skip the end quote
         } break;
 
         default:

@@ -2,6 +2,7 @@
 
 #include "core/kraft_core.h"
 #include "math/kraft_math.h"
+#include "containers/kraft_array.h"
 #include "resources/kraft_resource_types.h"
 
 namespace kraft
@@ -13,6 +14,12 @@ namespace renderer
 {
 
 struct ShaderEffect;
+
+struct GeometryRenderData
+{
+    Mat4f       ModelMatrix;
+    Geometry*   Geometry;
+};
 
 enum RendererBackendType
 {
@@ -39,6 +46,11 @@ struct RendererBackend
     RenderPipeline (*CreateRenderPipeline)(const ShaderEffect& Effect, int PassIndex);
     void (*CreateMaterial)(Material *material);
     void (*DestroyMaterial)(Material *material);
+
+    // Geometry
+    void (*DrawGeometryData)(GeometryRenderData Data);
+    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices);
+    void (*DestroyGeometry)(Geometry* Geometry);
 };
 
 struct RendererImguiBackend
@@ -53,6 +65,7 @@ struct RendererImguiBackend
 struct RenderPacket
 {
     float64 DeltaTime;
+    Array<GeometryRenderData> Geometries;
 };
 
 struct Vertex3D

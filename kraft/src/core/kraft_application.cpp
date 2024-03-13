@@ -12,6 +12,7 @@
 
 #if defined(KRAFT_GUI_APP)
 #include "systems/kraft_texture_system.h"
+#include "systems/kraft_material_system.h"
 #include "renderer/kraft_renderer_frontend.h"
 #endif
 
@@ -79,6 +80,7 @@ bool Application::Create(int argc, char *argv[])
     }
     
     TextureSystem::Init(256);
+    MaterialSystem::Init(MaterialSystemConfig{256});
 #endif
 
     if (!this->Init())
@@ -196,6 +198,7 @@ void Application::Destroy()
     Platform::Shutdown();
 
 #if defined(KRAFT_GUI_APP)
+    MaterialSystem::Shutdown();
     TextureSystem::Shutdown();
     State.Renderer.Shutdown();
 #endif

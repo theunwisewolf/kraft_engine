@@ -12,6 +12,7 @@
     } while (0)
 
 #define KRAFT_VULKAN_SHADER_MAX_BINDINGS 2
+#define KRAFT_VULKAN_MAX_GEOMETRIES 1024
 
 namespace kraft::renderer
 {
@@ -164,6 +165,31 @@ struct VulkanSwapchain
     VulkanFramebuffer*  Framebuffers;
 };
 
+//
+// Resources
+//
+
+struct VulkanTexture
+{
+    VulkanImage Image;
+    VkSampler   Sampler;
+};
+
+struct VulkanGeometryData
+{
+    uint32 ID;
+    uint32 IndicesSize;
+    uint32 IndicesCount;
+    uint32 IndexBufferOffset;
+    uint32 VertexSize;
+    uint32 VertexCount;
+    uint32 VertexBufferOffset;
+};
+
+//
+// End resources
+//
+
 struct VulkanContext
 {
     VkInstance               Instance;
@@ -193,12 +219,8 @@ struct VulkanContext
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
 #endif
-};
 
-struct VulkanTexture
-{
-    VulkanImage Image;
-    VkSampler   Sampler;
+    VulkanGeometryData       Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
 };
 
 struct VulkanPhysicalDeviceRequirements

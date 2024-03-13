@@ -10,6 +10,8 @@
 namespace kraft
 {
 
+typedef uint32 ResourceID;
+
 struct Texture
 {
     uint32 ID;
@@ -36,10 +38,21 @@ struct TextureMap
 
 struct Material
 {
-    uint32      ID;
-    char       Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
+    ResourceID  ID;
+    char        Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
     TextureMap  DiffuseMap;
     Vec4f       DiffuseColor;
+};
+
+struct Geometry
+{
+    ResourceID  ID;
+
+    // For backend mapping
+    ResourceID  InternalID;
+
+    String      Name;
+    Material*   Material;
 };
 
 struct RenderResource

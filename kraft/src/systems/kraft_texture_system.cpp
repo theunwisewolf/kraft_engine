@@ -88,7 +88,7 @@ Texture* TextureSystem::AcquireTexture(const String& name, bool autoRelease)
         if (freeIndex == -1 && State->Textures[i].RefCount == 0)
         {
             freeIndex = i;
-        }        
+        }
     }
 
     // Texture already exists in the cache

@@ -9,6 +9,7 @@
 #include "platform/kraft_filesystem.h"
 
 #include "systems/kraft_texture_system.h"
+#include "systems/kraft_material_system.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
 #include "renderer/vulkan/kraft_vulkan_buffer.h"
@@ -41,10 +42,16 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
     kraft::Keys keycode = (kraft::Keys)data.Int32[0];
     if (keycode == kraft::KEY_C)
     {
-        Texture *oldTexture = ObjectState.Texture;
-        ObjectState.Texture = defaultTexture ? TextureSystem::AcquireTexture(TextureName) : TextureSystem::AcquireTexture(TextureNameWide);
-        ObjectState.Dirty = true;
-        TextureSystem::ReleaseTexture(oldTexture);
+        MaterialSystem::DestroyMaterial(ObjectState.Material);
+
+        String TexturePath = defaultTexture ? TextureName : TextureNameWide;
+        MaterialData MaterialConfig;
+        StringCopy(MaterialConfig.Name, "simple_2d");
+        MaterialConfig.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+        MaterialConfig.AutoRelease = true;
+        StringCopy(MaterialConfig.DiffuseTextureMapName, *TexturePath);
+
+        ObjectState.Material = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
 
         defaultTexture = !defaultTexture;
         for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
@@ -106,10 +113,17 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     if (kraft::filesystem::FileExists(filePath))
     {
         KINFO("Loading texture from path %s", filePath);
-        Texture *oldTexture = ObjectState.Texture;
-        ObjectState.Texture = TextureSystem::AcquireTexture(filePath);
-        ObjectState.Dirty = true;
-        TextureSystem::ReleaseTexture(oldTexture);
+
+        MaterialSystem::DestroyMaterial(ObjectState.Material);
+
+        String TexturePath = filePath;
+        MaterialData MaterialConfig;
+        StringCopy(MaterialConfig.Name, "simple_2d");
+        MaterialConfig.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+        MaterialConfig.AutoRelease = true;
+        StringCopy(MaterialConfig.DiffuseTextureMapName, *TexturePath);
+
+        ObjectState.Material = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
 
         for (int i = 0; i < KRAFT_VULKAN_SHADER_MAX_BINDINGS; ++i)
         {
@@ -179,7 +193,8 @@ static void ImGuiWidgets(bool refresh)
     static float farClipP = 1000.f;
 
     // To preserve the aspect ratio of the texture
-    kraft::Vec2f ratio = { (float)ObjectState.Texture->Width / Application::Get()->Config.WindowWidth, (float)ObjectState.Texture->Height / Application::Get()->Config.WindowHeight };
+    kraft::Texture* Texture = ObjectState.Material->DiffuseMap.Texture;
+    kraft::Vec2f ratio = { (float)Texture->Width / Application::Get()->Config.WindowWidth, (float)Texture->Height / Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
     static Vec3f rotationDeg = Vec3fZero;
@@ -191,7 +206,7 @@ static void ImGuiWidgets(bool refresh)
         usePerspectiveProjection = true;
         SetProjection(SceneState::ProjectionType::Perspective);
 
-        ObjectState.Scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+        ObjectState.Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
         ObjectState.Dirty = true;
     }
 
@@ -200,7 +215,7 @@ static void ImGuiWidgets(bool refresh)
         usePerspectiveProjection = false;
         SetProjection(SceneState::ProjectionType::Orthographic);
 
-        ObjectState.Scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
+        ObjectState.Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
         ObjectState.Dirty = true;
     }
 
@@ -364,11 +379,6 @@ void SimpleObjectState::ReleaseResources(VulkanContext *context)
     }
 }
 
-struct OffscreenRenderPass
-{
-
-};
-
 void InitTestScene(VulkanContext* context)
 {
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, &TestSceneState, KeyDownEventListener);
@@ -379,6 +389,7 @@ void InitTestScene(VulkanContext* context)
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_END, &TestSceneState, MouseDragEndEventListener);
 
     // Load textures
+    String TexturePath;
     if (kraft::Application::Get()->CommandLineArgs.Count > 1)
     {
         // Try loading the texture from the command line args
@@ -386,37 +397,48 @@ void InitTestScene(VulkanContext* context)
         if (kraft::filesystem::FileExists(FilePath))
         {
             KINFO("Loading texture from cli path %s", FilePath.Data());
-            ObjectState.Texture = TextureSystem::AcquireTexture(FilePath.Data());
+            TexturePath = FilePath;
         }
     }
 
-    if (!ObjectState.Texture)
-        ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    MaterialData MaterialConfig;
+    StringCopy(MaterialConfig.Name, "simple_2d");
+    MaterialConfig.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+    MaterialConfig.AutoRelease = true;
+    StringCopy(MaterialConfig.DiffuseTextureMapName, *TexturePath);
+
+    
+    ObjectState.Material = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
+    ObjectState.Material = kraft::MaterialSystem::AcquireMaterial("res/materials/simple_2d.kmt");
+
+    // if (!ObjectState.Texture)
+    //     ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
     // ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
     SetProjection(SceneState::ProjectionType::Orthographic);
     
     // To preserve the aspect ratio of the texture
-    kraft::Vec2f ratio = { (float)ObjectState.Texture->Width / Application::Get()->Config.WindowWidth, (float)ObjectState.Texture->Height / Application::Get()->Config.WindowHeight };
+    kraft::Texture* Texture = ObjectState.Material->DiffuseMap.Texture; 
+    kraft::Vec2f ratio = { (float)Texture->Width / Application::Get()->Config.WindowWidth, (float)Texture->Height / Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
     if (TestSceneState.Projection == SceneState::ProjectionType::Orthographic)
     {
-        ObjectState.Scale = {(float)ObjectState.Texture->Width / downScale, (float)ObjectState.Texture->Height / downScale, 1.0f};
+        ObjectState.Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
     }
     else
     {
-        ObjectState.Scale = {(float)ObjectState.Texture->Width / 20.f / downScale, (float)ObjectState.Texture->Height / 20.f / downScale, 1.0f};
+        ObjectState.Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
     }
 
     ObjectState.ModelMatrix = ScaleMatrix(ObjectState.Scale);
-    ObjectState.UBO.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+    ObjectState.UBO.DiffuseColor = ObjectState.Material->DiffuseColor;
     TestSceneState.GlobalUBO.View = TestSceneState.SceneCamera.GetViewMatrix();
     TestSceneState.SceneCamera.Dirty = true;
     ObjectState.Dirty = true;
 
     // VulkanCreateDefaultTexture(context, 256, 256, 4, &ObjectState.Texture);
 
-    TextureID = Renderer->ImGuiRenderer.AddTexture(ObjectState.Texture);
+    TextureID = Renderer->ImGuiRenderer.AddTexture(TextureSystem::AcquireTexture(Texture->Name));
     Renderer->ImGuiRenderer.AddWidget("Debug", ImGuiWidgets);
 
     // Global Descriptor Sets
@@ -606,13 +628,14 @@ void RenderTestScene(VulkanContext* context, VulkanCommandBuffer* buffer)
         // Sampler
         if (ObjectState.DescriptorSetStates[bindingIndex].Generations[context->CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
         {
-            VulkanTexture* texture = (VulkanTexture*)ObjectState.Texture->RendererData;
-            assert(texture->Image.Handle);
-            assert(texture->Image.View);
+            kraft::Texture* Texture = ObjectState.Material->DiffuseMap.Texture;
+            VulkanTexture* VkTexture = (VulkanTexture*)Texture->RendererData;
+            assert(VkTexture->Image.Handle);
+            assert(VkTexture->Image.View);
 
             descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            descriptorImageInfo.imageView = ((VulkanTexture*)ObjectState.Texture->RendererData)->Image.View;
-            descriptorImageInfo.sampler = texture->Sampler;
+            descriptorImageInfo.imageView = VkTexture->Image.View;
+            descriptorImageInfo.sampler = VkTexture->Sampler;
 
             descriptorWriteInfo = {};
             descriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

@@ -665,6 +665,21 @@ void VulkanRendererBackend::DestroyMaterial(Material* material)
 
 }
 
+void VulkanRendererBackend::DrawGeometryData(GeometryRenderData Data)
+{
+
+}
+
+bool VulkanRendererBackend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices)
+{
+
+}
+
+void VulkanRendererBackend::DestroyGeometry(Geometry* Geometry)
+{
+
+}
+
 #ifdef KRAFT_RENDERER_DEBUG
 VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,

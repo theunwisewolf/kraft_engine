@@ -1,0 +1,5 @@
+Material Simple2D
+{
+    DiffuseColor    vec4(1.0, 1.0, 1.0, 1.0)
+    DiffuseMapName  "res/textures/test-vert-image-3.jpg"
+}
