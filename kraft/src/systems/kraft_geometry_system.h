@@ -18,10 +18,11 @@ struct GeometryData
 {
     uint32  VertexCount;
     uint32  IndexCount;
+    uint32  VertexSize; // Size of a single vertex
+    uint32  IndexSize; // Size of a single index
     void*   Vertices;
-    uint32* Indices;
-    char    Name[KRAFT_GEOMETRY_NAME_MAX_LENGTH];
-    char    MaterialName[KRAFT_TEXTURE_NAME_MAX_LENGTH];
+    void*   Indices;
+    String  Name;
 };
 
 struct GeometrySystem
@@ -32,6 +33,7 @@ struct GeometrySystem
     static Geometry* GetDefaultGeometry();
     static Geometry* AcquireGeometry(uint32 ID);
     static Geometry* AcquireGeometryWithData(GeometryData Data, bool AutoRelease = true);
+    static void ReleaseGeometry(Geometry* Geometry);
     static void ReleaseGeometry(uint32 ID);
     static void DestroyGeometry(Geometry* Geometry);
 };

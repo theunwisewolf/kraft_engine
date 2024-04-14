@@ -26,6 +26,32 @@ namespace kraft
         Length += sizeof(Type);                             \
     }
 
+#define KRAFT_BUFFER_SERIALIZE_START void WriteTo(Buffer* Out) {
+#define KRAFT_BUFFER_SERIALIZE_ADD(Field) Out->Write(Field)
+#define KRAFT_BUFFER_SERIALIZE_END }
+
+#define KRAFT_BUFFER_DESERIALIZE_START void ReadFrom(const Buffer* In) {
+#define KRAFT_BUFFER_DESERIALIZE_ADD(Field) In->Read(&Field)
+#define KRAFT_BUFFER_DESERIALIZE_END }
+
+#define KRAFT_BUFFER_SERIALIZE_1(_1) \
+    KRAFT_BUFFER_SERIALIZE_START \
+        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
+    KRAFT_BUFFER_SERIALIZE_END
+
+#define KRAFT_BUFFER_SERIALIZE_2(_1, _2) \
+    KRAFT_BUFFER_SERIALIZE_START \
+        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
+        KRAFT_BUFFER_SERIALIZE_ADD(_2); \
+    KRAFT_BUFFER_SERIALIZE_END
+
+#define KRAFT_BUFFER_SERIALIZE_3(_1, _2, _3) \
+    KRAFT_BUFFER_SERIALIZE_START \
+        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
+        KRAFT_BUFFER_SERIALIZE_ADD(_2); \
+        KRAFT_BUFFER_SERIALIZE_ADD(_3); \
+    KRAFT_BUFFER_SERIALIZE_END
+
 struct Buffer
 {
     using SizeType  = uint64;
@@ -287,5 +313,11 @@ public:
 
 #undef WRITE_TYPE
 #undef READ_TYPE
+
+struct BufferView
+{
+    const char* Memory;
+    uint64      Size;
+};
 
 }

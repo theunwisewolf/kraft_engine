@@ -3,6 +3,7 @@
 #include "core/kraft_core.h"
 #include "core/kraft_asserts.h"
 #include "math/kraft_math.h"
+#include "containers/kraft_array.h"
 
 #include <vulkan/vulkan.h>
 
@@ -11,16 +12,11 @@
         KRAFT_ASSERT(expression == VK_SUCCESS) \
     } while (0)
 
-#define KRAFT_VULKAN_SHADER_MAX_BINDINGS 2
-#define KRAFT_VULKAN_MAX_GEOMETRIES 1024
+#define KRAFT_VULKAN_MAX_GEOMETRIES         1024
+#define KRAFT_VULKAN_MAX_BINDINGS           32
 
 namespace kraft::renderer
 {
-
-struct VulkanDescriptorSetState
-{
-    uint8 Generations[3];
-};
 
 struct VulkanBuffer
 {
@@ -178,8 +174,8 @@ struct VulkanTexture
 struct VulkanGeometryData
 {
     uint32 ID;
-    uint32 IndicesSize;
-    uint32 IndicesCount;
+    uint32 IndexSize;
+    uint32 IndexCount;
     uint32 IndexBufferOffset;
     uint32 VertexSize;
     uint32 VertexCount;
@@ -220,6 +216,10 @@ struct VulkanContext
     VkDebugUtilsMessengerEXT DebugMessenger;
 #endif
 
+    VulkanBuffer             VertexBuffer;
+    VulkanBuffer             IndexBuffer;
+    uint32                   CurrentVertexBufferOffset;
+    uint32                   CurrentIndexBufferOffset;
     VulkanGeometryData       Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
 };
 
@@ -233,6 +233,27 @@ struct VulkanPhysicalDeviceRequirements
     bool DepthBuffer;
 
     const char** DeviceExtensionNames;
+};
+
+struct VulkanDescriptorState
+{
+    uint8 Generations[3];
+};
+
+struct VulkanShaderResources
+{
+    Array<VkDescriptorSetLayout> DescriptorSetLayouts;
+    Array<VkDescriptorSet>       DescriptorSets;
+    VulkanDescriptorState        DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
+    VulkanBuffer                 UniformBuffer;
+    void*                        UniformBufferMemory;
+};
+
+struct VulkanShader
+{
+    VkPipeline             Pipeline;
+    VkPipelineLayout       PipelineLayout;
+    VulkanShaderResources  ShaderResources;
 };
 
 }

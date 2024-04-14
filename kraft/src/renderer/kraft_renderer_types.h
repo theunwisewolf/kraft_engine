@@ -1,24 +1,52 @@
 #pragma once
 
 #include "core/kraft_core.h"
+#include "core/kraft_string.h"
 #include "math/kraft_math.h"
 #include "containers/kraft_array.h"
-#include "resources/kraft_resource_types.h"
 
 namespace kraft
 {
 
 struct ApplicationConfig;
+struct Texture;
+struct Material;
+struct Geometry;
+struct Shader;
+struct ShaderUniform;
 
 namespace renderer
 {
 
 struct ShaderEffect;
 
+struct GlobalUniformData
+{
+    union
+    {
+        struct
+        {
+            Mat4f Projection;
+            Mat4f View;
+        };
+
+        char _[256];
+    };
+
+    GlobalUniformData() {}
+};
+
 struct GeometryRenderData
 {
     Mat4f       ModelMatrix;
     Geometry*   Geometry;
+};
+
+struct RenderPacket
+{
+    float64 DeltaTime;
+    Array<Material*>          MaterialInstances;
+    Array<GeometryRenderData> Geometries;
 };
 
 enum RendererBackendType
@@ -28,6 +56,14 @@ enum RendererBackendType
     RENDERER_BACKEND_TYPE_OPENGL,
 
     RENDERER_BACKEND_TYPE_NUM_COUNT
+};
+
+struct RenderResource
+{
+    String Name;
+
+    // Backend-specific layout
+    // VulkanShaderResource for Vulkan
 };
 
 struct RendererBackend
@@ -43,13 +79,18 @@ struct RendererBackend
     void (*DestroyTexture)(Texture* texture);
 
     // Shader
-    RenderPipeline (*CreateRenderPipeline)(const ShaderEffect& Effect, int PassIndex);
+    void (*UseShader)(const Shader* Shader);
+    void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    void (*ApplyGlobalShaderProperties)(Shader* Shader);
+    void (*ApplyInstanceShaderProperties)(Shader* Shader);
+    void (*CreateRenderPipeline)(Shader* Shader, int PassIndex);
+    void (*DestroyRenderPipeline)(Shader* Shader);
     void (*CreateMaterial)(Material *material);
     void (*DestroyMaterial)(Material *material);
 
     // Geometry
     void (*DrawGeometryData)(GeometryRenderData Data);
-    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices);
+    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void (*DestroyGeometry)(Geometry* Geometry);
 };
 
@@ -62,19 +103,13 @@ struct RendererImguiBackend
     void* (*AddTexture)(Texture* Texture);
 };
 
-struct RenderPacket
-{
-    float64 DeltaTime;
-    Array<GeometryRenderData> Geometries;
-};
-
 struct Vertex3D
 {
     Vec3f Position;
     Vec2f UV;
 };
 
-namespace VertexAttributeFormat
+namespace ShaderDataType
 {
     enum Enum
     {
@@ -89,6 +124,32 @@ namespace VertexAttributeFormat
     static const char* String(Enum Value)
     {
         return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    }
+
+    static uint64 SizeOf(Enum Value)
+    {
+        switch (Value)
+        {
+            case Float:  return 1 * sizeof(float32);
+            case Float2: return 2 * sizeof(float32);
+            case Float3: return 3 * sizeof(float32);
+            case Float4: return 4 * sizeof(float32);
+            case Mat4:   return 16 * sizeof(float32);
+            case Byte:   return 1 * sizeof(byte);
+            case Byte4N: return 4 * sizeof(byte);
+            case UByte:  return 4 * sizeof(byte);
+            case UByte4N:return 4 * sizeof(byte);
+            case Short2: return 2 * sizeof(int16);
+            case Short2N:return 2 * sizeof(int16);
+            case Short4: return 4 * sizeof(int16);
+            case Short4N:return 4 * sizeof(int16);
+            case UInt:   return 1 * sizeof(uint32);
+            case UInt2:  return 2 * sizeof(uint32);
+            case UInt4:  return 4 * sizeof(uint32);
+            case Count:  return 0;
+        }
+
+        return 0;
     }
 }
 
@@ -114,12 +175,12 @@ namespace ResourceType
 {
     enum Enum
     {
-        Sampler, UniformBuffer, Count
+        Sampler, UniformBuffer, ConstantBuffer, Count
     };
 
     static const char* Strings[] =
     {
-        "Sampler", "UniformBuffer", "Count"
+        "Sampler", "UniformBuffer", "ConstantBuffer", "Count"
     };
 
     static const char* String(Enum Value)
@@ -241,6 +302,24 @@ namespace ShaderStage
     static const char* Strings[] = 
     {
         "Vertex", "Geometry", "Fragment", "Compute", "Count"
+    };
+
+    static const char* String(Enum Value)
+    {
+        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    }
+};
+
+namespace ShaderUniformScope
+{
+    enum Enum
+    {
+        Global, Instance, Local, Count
+    };
+
+    static const char* Strings[] =
+    {
+        "Global", "Instance", "Local", "Count"  
     };
 
     static const char* String(Enum Value)

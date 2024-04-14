@@ -12,35 +12,68 @@
 namespace kraft
 {
 
-enum TokenType
+namespace TokenType
 {
-    TOKEN_TYPE_UNKNOWN,
+    enum Enum 
+    {
+        TOKEN_TYPE_UNKNOWN,
 
-    // Symbols
-    TOKEN_TYPE_OPEN_PARENTHESIS,            // (
-    TOKEN_TYPE_CLOSE_PARENTHESIS,           // )
-    TOKEN_TYPE_OPEN_BRACE,                  // {
-    TOKEN_TYPE_CLOSE_BRACE,                 // }
-    TOKEN_TYPE_OPEN_BRACKET,                // [
-    TOKEN_TYPE_CLOSE_BRACKET,               // ]
-    TOKEN_TYPE_OPEN_ANGLE_BRACKET,          // <
-    TOKEN_TYPE_CLOSE_ANGLE_BRACKET,         // >
-    TOKEN_TYPE_EQUALS,                      // =
-    TOKEN_TYPE_HASH,                        // #
-    TOKEN_TYPE_COMMA,                       // ,
-    TOKEN_TYPE_COLON,                       // :
-    TOKEN_TYPE_SEMICOLON,                   // ;
-    TOKEN_TYPE_ASTERISK,                    // *
+        // Symbols
+        TOKEN_TYPE_OPEN_PARENTHESIS,            // (
+        TOKEN_TYPE_CLOSE_PARENTHESIS,           // )
+        TOKEN_TYPE_OPEN_BRACE,                  // {
+        TOKEN_TYPE_CLOSE_BRACE,                 // }
+        TOKEN_TYPE_OPEN_BRACKET,                // [
+        TOKEN_TYPE_CLOSE_BRACKET,               // ]
+        TOKEN_TYPE_OPEN_ANGLE_BRACKET,          // <
+        TOKEN_TYPE_CLOSE_ANGLE_BRACKET,         // >
+        TOKEN_TYPE_EQUALS,                      // =
+        TOKEN_TYPE_HASH,                        // #
+        TOKEN_TYPE_COMMA,                       // ,
+        TOKEN_TYPE_COLON,                       // :
+        TOKEN_TYPE_SEMICOLON,                   // ;
+        TOKEN_TYPE_ASTERISK,                    // *
 
-    TOKEN_TYPE_STRING,
-    TOKEN_TYPE_IDENTIFIER,
-    TOKEN_TYPE_NUMBER,
-    TOKEN_TYPE_END_OF_STREAM,
-};
+        TOKEN_TYPE_STRING,
+        TOKEN_TYPE_IDENTIFIER,
+        TOKEN_TYPE_NUMBER,
+        TOKEN_TYPE_END_OF_STREAM,
+
+        TOKEN_TYPE_COUNT
+    };
+
+    static const char* Strings[] = 
+    {
+        "TOKEN_TYPE_UNKNOWN",
+        "TOKEN_TYPE_OPEN_PARENTHESIS",
+        "TOKEN_TYPE_CLOSE_PARENTHESIS",
+        "TOKEN_TYPE_OPEN_BRACE",
+        "TOKEN_TYPE_CLOSE_BRACE",
+        "TOKEN_TYPE_OPEN_BRACKET",
+        "TOKEN_TYPE_CLOSE_BRACKET",
+        "TOKEN_TYPE_OPEN_ANGLE_BRACKET",
+        "TOKEN_TYPE_CLOSE_ANGLE_BRACKET",
+        "TOKEN_TYPE_EQUALS",
+        "TOKEN_TYPE_HASH",
+        "TOKEN_TYPE_COMMA",
+        "TOKEN_TYPE_COLON",
+        "TOKEN_TYPE_SEMICOLON",
+        "TOKEN_TYPE_ASTERISK",
+        "TOKEN_TYPE_STRING",
+        "TOKEN_TYPE_IDENTIFIER",
+        "TOKEN_TYPE_NUMBER",
+        "TOKEN_TYPE_END_OF_STREAM",
+    };
+
+    static const char* String(Enum Value)
+    {
+        return (Value < Enum::TOKEN_TYPE_COUNT ? Strings[(int)Value] : "Unknown");
+    }
+}
 
 struct Token
 {
-    TokenType Type;
+    TokenType::Enum Type;
     char*     Text;
     uint64    Length;
     double    FloatValue;
@@ -80,14 +113,14 @@ struct Lexer
 
     // Expect the token to be of the given type
     // Sets an error if types do not match
-    bool ExpectToken(Token& Token, TokenType ExpectedType);
-    bool ExpectToken(Token& Token, TokenType ExpectedType, const String& ExpectedKeyword);
+    bool ExpectToken(Token& Token, TokenType::Enum ExpectedType);
+    bool ExpectToken(Token& Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword);
 
     // Check if the token is of the given type
-    bool EqualsToken(Token& Token, TokenType ExpectedType);
+    bool EqualsToken(Token& Token, TokenType::Enum ExpectedType);
 
     // Check the current token for errors
-    bool CheckToken(Token& Token, TokenType ExpectedType);
+    bool CheckToken(Token& Token, TokenType::Enum ExpectedType);
 
     // Checks if the provided token matches the expected keyword
     bool ExpectKeyword(Token Token, String ExpectedKeyword)

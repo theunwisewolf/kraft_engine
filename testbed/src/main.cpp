@@ -14,6 +14,9 @@
 #include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_types.h"
+#include "systems/kraft_material_system.h"
+#include "systems/kraft_texture_system.h"
+#include "systems/kraft_geometry_system.h"
 
 #include "renderer/vulkan/tests/simple_scene.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
@@ -21,11 +24,48 @@
 #include <imgui.h>
 
 #include "scenes/test.cpp"
+#include "widgets.h"
+#include "utils.h"
+
+static char TextureName[] = "res/textures/test-vert-image-2.jpg";
+static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
+
+bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
+    int count = (int)data.Int64[0];
+    const char **paths = (const char**)data.Int64[1];
+
+    // Try loading the texture from the command line args
+    const char *TexturePath = paths[count - 1];
+    if (kraft::filesystem::FileExists(TexturePath))
+    {
+        KINFO("Loading texture from path %s", TexturePath);
+        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.Material, "DiffuseSampler", TexturePath);
+        UpdateObjectScale();
+    }
+    else
+    {
+        KWARN("%s path does not exist", TexturePath)
+    }
+
+    return false;
+}
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::Keys keycode = (kraft::Keys)data.Int32[0];
-    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
+    kraft::Keys KeyCode = (kraft::Keys)data.Int32[0];
+    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
+
+    static bool DefaultTexture = false;
+    if (KeyCode == kraft::KEY_C)
+    {
+        kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
+        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.Material, "DiffuseSampler", TexturePath);
+        DefaultTexture = !DefaultTexture;
+        UpdateObjectScale();
+    }
 
     return false;
 }
@@ -93,7 +133,7 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
     kraft::Vec4f screenPointNDC = kraft::Vec4f(data.Int32[0] / 1280.0f, data.Int32[1] / 800.0f, screenPoint.z, 0.0f) * 2.0f - 1.0f;
 
     // Screen to world
-    kraft::Mat4f inverse = kraft::Inverse(sceneState->GlobalUBO.Projection * camera->ViewMatrix);
+    kraft::Mat4f inverse = kraft::Inverse(sceneState->ProjectionMatrix * camera->ViewMatrix);
     // kraft::Vec3f ndc = kraft::Vec3f(screenPoint.x / 1280.0f, 1.0f - screenPoint.y / 800.f, screenPoint.z) * 2.0f - 1.0f;
     kraft::Vec4f worldPosition = (inverse * kraft::Vec4f(screenPointNDC.x, screenPointNDC.y, 0.0f, 1.0f));
     KINFO("World position homogenous = %f, %f", worldPosition.x, worldPosition.y);
@@ -119,6 +159,43 @@ bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listen
     return false;
 }
 
+bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+{
+    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
+    kraft::Camera& Camera = TestSceneState->SceneCamera;
+
+    float y = data.Float64[1];
+    float32 speed = 50.f;
+
+    if (TestSceneState->Projection == kraft::SceneState::ProjectionType::Perspective)
+    {
+        kraft::Vec3f direction = kraft::ForwardVector(Camera.ViewMatrix);
+        direction = direction * y;
+
+        kraft::Vec3f position = Camera.Position;
+        kraft::Vec3f change = direction * speed * (float32)kraft::Time::DeltaTime;
+        Camera.SetPosition(position + change);
+        Camera.Dirty = true;
+    }
+    else
+    {
+        float zoom = 1.f;
+        if (y >= 0)
+        {
+            zoom *= 1.1f;
+        }
+        else
+        {
+            zoom /= 1.1f;
+        }
+
+        TestSceneState->ObjectState.Scale *= zoom;
+        TestSceneState->ObjectState.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->ObjectState.Rotation) * kraft::TranslationMatrix(TestSceneState->ObjectState.Position);
+    }
+
+    return false;
+}
+
 bool Init()
 {
     // KFATAL("Fatal error");
@@ -133,6 +210,8 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_DOWN, nullptr, MouseDownEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_UP, nullptr, MouseUpEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_MOVE, nullptr, MouseMoveEventListener);
+    EventSystem::Listen(EVENT_TYPE_SCROLL, nullptr, ScrollEventListener);
+    EventSystem::Listen(EVENT_TYPE_WINDOW_DRAG_DROP, nullptr, OnDragDrop);
 
     // Drag events
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_START, nullptr, MouseDragStartEventListener);
@@ -154,6 +233,74 @@ bool Init()
     // KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
 
     // RenderPipeline Pipeline = renderer::Renderer->CreateRenderPipeline(Output, 0);
+
+    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
+
+    // Load textures
+    String TexturePath;
+    if (kraft::Application::Get()->CommandLineArgs.Count > 1)
+    {
+        // Try loading the texture from the command line args
+        String FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
+        if (kraft::filesystem::FileExists(FilePath))
+        {
+            KINFO("Loading texture from cli path %s", FilePath.Data());
+            TexturePath = FilePath;
+        }
+    }
+
+    MaterialData MaterialConfig;
+    MaterialConfig.Name = "simple_2d";
+    MaterialConfig.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
+    MaterialConfig.AutoRelease = true;
+    MaterialConfig.DiffuseTextureMapName = TexturePath;
+    MaterialConfig.ShaderAsset = "res/shaders/basic.kfx.bkfx";
+
+    TestSceneState->ObjectState.Material = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
+    TestSceneState->ObjectState.Material = kraft::MaterialSystem::AcquireMaterial("res/materials/simple_2d.kmt");
+
+    // if (!TestSceneState.ObjectState.Texture)
+    //     TestSceneState.ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
+    // TestSceneState.ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
+
+    SetProjection(SceneState::ProjectionType::Orthographic);
+    
+    // To preserve the aspect ratio of the texture
+    kraft::Texture* Texture = TestSceneState->ObjectState.Material->DiffuseMap.Texture; 
+    UpdateObjectScale();
+
+    TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
+    TestSceneState->SceneCamera.Dirty = true;
+    TestSceneState->ObjectState.Dirty = true;
+
+    InitImguiWidgets(Texture->Name);
+
+    // #5865f2
+    // Vec3f color = Vec3f(0x58 / 255.0f, 0x65 / 255.0f, 0xf2 / 255.0f);
+    Vec4f color = KRGBA(0x58, 0x65, 0xf2, 0x1f);
+    Vec4f colorB = KRGBA(0xff, 0x6b, 0x6b, 0xff);
+    // Vertex and index buffers
+    Vertex3D verts[] = {
+        {Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}},
+        {Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}},
+        {Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}},
+        {Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}},
+    };
+
+    uint32 indices[] = {0, 1, 2, 3, 1, 0};
+
+    kraft::GeometryData GeometryData;
+    GeometryData.Indices = indices;
+    GeometryData.IndexSize = sizeof(uint32);
+    GeometryData.IndexCount = sizeof(indices) / sizeof(indices[0]);
+    GeometryData.Vertices = verts;
+    GeometryData.VertexSize = sizeof(Vertex3D);
+    GeometryData.VertexCount = 4;
+    GeometryData.Name = "test-geometry";
+    TestSceneState->ObjectState.Geometry = kraft::GeometrySystem::AcquireGeometryWithData(GeometryData);
+    TestSceneState->ObjectState.Geometry = kraft::GeometrySystem::GetDefaultGeometry();
+
+    TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
 
     return true;
 }
@@ -248,6 +395,11 @@ void Update(float64 deltaTime)
         {
             camera->SetYaw(camera->Yaw - 1.f * deltaTime);
         }
+    }
+
+    if (camera->Dirty)
+    {
+        sceneState->ViewMatrix = sceneState->SceneCamera.GetViewMatrix();
     }
 }
 

@@ -30,7 +30,7 @@ protected:
         return Allocated * sizeof(ValueType);
     }
 
-    constexpr void EnlargeBufferIfRequired(SizeType NewSize)
+    constexpr void EnlargeBufferIfRequired(SizeType NewSize, bool ExactFit = false)
     {
         if (NewSize <= Allocated)
         {
@@ -40,12 +40,17 @@ protected:
         ValueType* OldBuffer = Data();
         SizeType OldAllocationSize = GetBufferSizeInBytes();
         
-        Allocated = ChooseAllocationSize(NewSize);
+        Allocated = ExactFit ? NewSize : ChooseAllocationSize(NewSize);
         ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
-        MemCpy(NewBuffer, OldBuffer, Length * sizeof(ValueType));
-        InternalBuffer = NewBuffer;
+        
+        // If we had any data, copy over
+        if (OldBuffer)
+        {
+            MemCpy(NewBuffer, OldBuffer, Length * sizeof(ValueType));
+            Free(OldBuffer, OldAllocationSize, MEMORY_TAG_ARRAY);
+        }
 
-        Free(OldBuffer, OldAllocationSize, MEMORY_TAG_ARRAY);
+        InternalBuffer = NewBuffer;
     }
 
     constexpr void ReallocIfRequired(SizeType NewSize)
@@ -56,9 +61,7 @@ protected:
         }
 
         Free(Data(), GetBufferSizeInBytes(), MEMORY_TAG_ARRAY);
-
-        Allocated = ChooseAllocationSize(NewSize);
-        Alloc(Allocated);
+        Alloc(ChooseAllocationSize(NewSize));
     }
 
 public:
@@ -79,8 +82,7 @@ public:
     Array(SizeType Size)
     {
         Length = Size;
-        Allocated = Size;
-        Alloc(Allocated);
+        Alloc(Size);
         for (int i = 0; i < Length; i++)
         {
             InternalBuffer[i] = ValueType();
@@ -90,8 +92,7 @@ public:
     Array(SizeType Size, ValueType Value)
     {
         Length = Size;
-        Allocated = Size;
-        Alloc(Allocated);
+        Alloc(Size);
         for (int i = 0; i < Length; i++)
         {
             InternalBuffer[i] = Value;
@@ -178,7 +179,16 @@ public:
 
     KRAFT_INLINE void Alloc(SizeType Size)
     {
-        InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+        if (Size > Allocated)
+        {
+            Allocated = Size;
+            InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+        }
+    }
+
+    KRAFT_INLINE void Reserve(SizeType Size)
+    {
+        EnlargeBufferIfRequired(Size, true);
     }
 
     void Push(const ValueType& Value)

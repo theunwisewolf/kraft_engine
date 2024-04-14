@@ -6,6 +6,7 @@
 #include "platform/kraft_filesystem.h"
 #include "math/kraft_math.h"
 #include "systems/kraft_texture_system.h"
+#include "systems/kraft_shader_system.h"
 #include "renderer/kraft_renderer_frontend.h"
 
 namespace kraft
@@ -26,9 +27,9 @@ struct MaterialSystemState
 
 static MaterialSystemState* State = 0;
 
-static void _releaseMaterial(MaterialReference ref);
-static void _createDefaultMaterials();
-static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data);
+static void ReleaseMaterialInternal(uint32 Index);
+static void CreateDefaultMaterialsInternal();
+static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data);
 
 void MaterialSystem::Init(MaterialSystemConfig config)
 {
@@ -38,12 +39,15 @@ void MaterialSystem::Init(MaterialSystemConfig config)
     State->MaxMaterialCount = config.MaxMaterialsCount;
     State->MaterialReferences = (MaterialReference*)(State + sizeof(MaterialSystemState));
 
-    _createDefaultMaterials();
+    CreateDefaultMaterialsInternal();
 }
 
 void MaterialSystem::Shutdown()
 {
-    for (int i = 0; i < State->MaxMaterialCount; ++i)
+    // Free the default material
+    ReleaseMaterialInternal(0);
+
+    for (int i = 1; i < State->MaxMaterialCount; ++i)
     {
         MaterialReference* ref = &State->MaterialReferences[i];
         if (ref->RefCount > 0)
@@ -65,6 +69,11 @@ Material* MaterialSystem::GetDefaultMaterial()
     }
 
     return &State->MaterialReferences[0].Material;
+}
+
+Material* MaterialSystem::AcquireMaterial(const String& Name)
+{
+    return AcquireMaterial(*Name);
 }
 
 Material* MaterialSystem::AcquireMaterial(const char* Name)
@@ -97,7 +106,7 @@ Material* MaterialSystem::AcquireMaterial(const char* Name)
         }
 
         MaterialData Data;
-        if (!_loadMaterialFromFile(FilePath, &Data))
+        if (!LoadMaterialFromFileInternal(FilePath, &Data))
         {
             KINFO("[MaterialSystem::AcquireMaterial]: Failed to parse material %s", *FilePath);
             return nullptr;
@@ -117,7 +126,7 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
     // Look for an already acquired material
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (StringEqual(State->MaterialReferences[i].Material.Name, Data.Name))
+        if (Data.Name == State->MaterialReferences[i].Material.Name)
         {
             index = i;
             break;
@@ -134,7 +143,11 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
     if (index > -1)
     {
         KINFO("[MaterialSystem::AcquireMaterialWithData]: Material already acquired; Reusing!");
-        State->MaterialReferences[index].RefCount++;
+        // Default material's refcount always stays at 1
+        if (index > 0)
+        {
+            State->MaterialReferences[index].RefCount++;
+        }
     }
     else
     {
@@ -154,6 +167,16 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
         }
 
         Reference->Material.ID = freeIndex;
+
+        // Load the shader
+        Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset);
+        if (!Shader)
+        {
+            Shader = ShaderSystem::GetDefaultShader();
+        }
+
+        Reference->Material.Shader = Shader;
+        Reference->Material.Dirty = false;
         Reference->Material.DiffuseColor = Data.DiffuseColor;
         Reference->Material.DiffuseMap = TextureMap
         {
@@ -161,11 +184,11 @@ Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
             TEXTURE_USE_MAP_DIFFUSE,
         };
 
-        StringNCopy(Reference->Material.Name, Data.Name, sizeof(Reference->Material.Name));
+        StringNCopy(Reference->Material.Name, Data.Name.Data(), sizeof(Reference->Material.Name));
         index = freeIndex;
     }
 
-    KDEBUG("[MaterialSystem::AcquireMaterialWithData]: Acquired material %s (index = %d)", Data.Name, index);
+    KDEBUG("[MaterialSystem::AcquireMaterialWithData]: Acquired material %s (index = %d)", *Data.Name, index);
     return &State->MaterialReferences[index].Material;
 }
 
@@ -189,7 +212,13 @@ void MaterialSystem::ReleaseMaterial(const char* name)
         return;
     }
 
-    _releaseMaterial(State->MaterialReferences[index]);
+    if (index == 0)
+    {
+        KWARN("[MaterialSystem::ReleaseMaterial]: Default material cannot be released!");
+        return;
+    }
+
+    ReleaseMaterialInternal(index);
 }
 
 void MaterialSystem::ReleaseMaterial(Material *material)
@@ -208,29 +237,104 @@ void MaterialSystem::DestroyMaterial(Material *material)
         TextureSystem::ReleaseTexture(material->DiffuseMap.Texture->Name);
     }
 
+    if (material->Shader)
+    {
+        ShaderSystem::ReleaseShader(material->Shader);
+        material->Shader = 0;
+    }
+
     MemZero(material, sizeof(Material));
+}
+
+void MaterialSystem::ApplyGlobalProperties(Material* Material, const Mat4f& Projection, const Mat4f& View)
+{
+    ShaderSystem::SetUniformByIndex(0, Projection);
+    ShaderSystem::SetUniformByIndex(1, View);
+
+    ShaderSystem::ApplyGlobalProperties();
+}
+
+void MaterialSystem::ApplyInstanceProperties(Material* Material)
+{
+    ShaderSystem::SetUniform("DiffuseColor", Material->DiffuseColor, Material->Dirty);
+    ShaderSystem::SetUniform("DiffuseSampler", Material->DiffuseMap.Texture, Material->Dirty);
+
+    ShaderSystem::ApplyInstanceProperties();
+    Material->Dirty = false;
+}
+
+void MaterialSystem::ApplyLocalProperties(Material* Material, const Mat4f& Model)
+{
+    ShaderSystem::SetUniform("Model", Model);
+}
+
+bool MaterialSystem::SetTexture(Material* Material, const String& Key, const String& TexturePath)
+{
+    Texture* Texture = TextureSystem::AcquireTexture(TexturePath, true);
+    if (!Texture)
+    {
+        return false;
+    }
+
+    // Release the old texture
+    TextureSystem::ReleaseTexture(Material->DiffuseMap.Texture);
+    
+    return SetTexture(Material, Key, Texture);
+}
+
+bool MaterialSystem::SetTexture(Material* Material, const String& Key, Texture* Texture)
+{
+    KASSERT(Texture);
+    return SetProperty(Material, Key, Texture);
+}
+
+template<>
+bool MaterialSystem::SetProperty(Material* Material, const String& Name, BufferView Value)
+{
+    return SetProperty(Material, Name, (void*)Value.Memory, Value.Size);
+}
+
+bool MaterialSystem::SetProperty(Material* Material, const String& Name, void* Value, uint64 Size)
+{
+    if (Name == "DiffuseSampler")
+    {
+        Material->DiffuseMap.Texture = (Texture*)Value;
+    }
+    else if (Name == "DiffuseColor")
+    {
+        Vec4f* Color = (Vec4f*)Value;
+        Material->DiffuseColor = *Color;
+    }
+    else
+    {
+        return false;
+    }
+
+    Material->Dirty = true;
+    return true;
 }
 
 //
 // Internal private methods
 //
 
-static void _releaseMaterial(MaterialReference ref)
+static void ReleaseMaterialInternal(uint32 Index)
 {
-    if (ref.RefCount == 0)
+    MaterialReference Reference = State->MaterialReferences[Index];
+    if (Reference.RefCount == 0)
     {
-        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", ref.Material.Name);
+        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", Reference.Material.Name);
         return;
     }
 
-    ref.RefCount--;
-    if (ref.RefCount == 0 && ref.AutoRelease)
+    Reference.RefCount--;
+    if (Reference.RefCount == 0 && Reference.AutoRelease)
     {
-        MaterialSystem::DestroyMaterial(&ref.Material);
+        MaterialSystem::DestroyMaterial(&Reference.Material);
     }
 }
 
-static void _createDefaultMaterials()
+static void CreateDefaultMaterialsInternal()
 {
     MaterialReference* ref = &State->MaterialReferences[0];
     ref->RefCount = 1;
@@ -247,7 +351,7 @@ static void _createDefaultMaterials()
     StringNCopy(material->Name, "default-material", sizeof(material->Name));
 }
 
-static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data)
+static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
 {
     FileHandle Handle;
     bool Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
@@ -267,48 +371,47 @@ static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data)
     while (true)
     {
         Token Token = Lexer.NextToken();
-        if (Token.Type == TOKEN_TYPE_IDENTIFIER)
+        if (Token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
         {
             if (Token.MatchesKeyword("Material"))
             {
-                if (!Lexer.ExpectToken(Token, TOKEN_TYPE_IDENTIFIER))
+                if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 {
                     return false;
                 }
 
-                StringNCopy(Data->Name, Token.Text, Token.Length);
-
-                if (!Lexer.ExpectToken(Token, TOKEN_TYPE_OPEN_BRACE))
+                Data->Name = Token.String();
+                if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
                 {
                     return false;
                 }
 
                 // Parse material block
-                while (!Lexer.EqualsToken(Token, TOKEN_TYPE_CLOSE_BRACE))
+                while (!Lexer.EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
                     if (Token.MatchesKeyword("DiffuseColor"))
                     {
-                        if (!Lexer.ExpectToken(Token, TOKEN_TYPE_IDENTIFIER))
+                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
                             return false;
                         }
 
                         if (Token.MatchesKeyword("vec4"))
                         {
-                            if (!Lexer.ExpectToken(Token, TOKEN_TYPE_OPEN_PARENTHESIS))
+                            if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
                                 return false;
                             }
 
                             float DiffuseColor[4];
                             int Index = 0;
-                            while (!Lexer.EqualsToken(Token, TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            while (!Lexer.EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
-                                if (Token.Type == TOKEN_TYPE_COMMA)
+                                if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
                                 {
                                     continue;
                                 }
-                                else if (Token.Type == TOKEN_TYPE_NUMBER)
+                                else if (Token.Type == TokenType::TOKEN_TYPE_NUMBER)
                                 {
                                     DiffuseColor[Index++] = Token.FloatValue;
                                 }
@@ -323,12 +426,21 @@ static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data)
                     }
                     else if (Token.MatchesKeyword("DiffuseMapName"))
                     {
-                        if (!Lexer.ExpectToken(Token, TOKEN_TYPE_STRING))
+                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        StringNCopy(Data->DiffuseTextureMapName, Token.Text, Token.Length);
+                        Data->DiffuseTextureMapName = Token.String();
+                    }
+                    else if (Token.MatchesKeyword("Shader"))
+                    {
+                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_STRING))
+                        {
+                            return false;
+                        }
+
+                        Data->ShaderAsset = Token.String();
                     }
                     else
                     {
@@ -337,7 +449,7 @@ static bool _loadMaterialFromFile(const String& FilePath, MaterialData* Data)
                 }
             }
         }
-        else if (Token.Type == TOKEN_TYPE_END_OF_STREAM)
+        else if (Token.Type == TokenType::TOKEN_TYPE_END_OF_STREAM)
         {
             break;
         }

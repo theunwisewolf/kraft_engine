@@ -63,6 +63,8 @@ protected:
         }
     }
 
+    // ReallocIfRequired will simply allocates enough memory to accomodate
+    // NewCharCount bytes. It does not preserve the old memory.
     // Does not take nullbyte into account
     constexpr void ReallocIfRequired(SizeType NewCharCount)
     {
@@ -71,7 +73,10 @@ protected:
             return;
         }
 
-        Free(Data(), GetBufferSizeInBytes(), MEMORY_TAG_STRING);
+        if (InHeap())
+        {
+            Free(Data(), GetBufferSizeInBytes(), MEMORY_TAG_STRING);
+        }
 
         Allocated = ChooseAllocationSize(NewCharCount);
         Alloc(Allocated);
@@ -115,14 +120,14 @@ public:
     KString(std::nullptr_t)
     {
         Buffer.StackBuffer[0] = 0;
-        Allocated = 0;
+        Allocated = InternalBufferSize;
         Length = 0;
     }
 
     KRAFT_INLINE constexpr KString()
     {
         Buffer.StackBuffer[0] = 0;
-        Allocated = 0;
+        Allocated = InternalBufferSize;
         Length = 0;
     }
 
@@ -457,10 +462,15 @@ public:
     {
         return StartsWith(Prefix);
     }
+
+    KRAFT_INLINE constexpr bool Empty() const
+    {
+        return Length == 0;
+    }
 };
 
-typedef KString<char> String;
-typedef KString<wchar_t> WString;
+typedef KString<char, 128> String;
+typedef KString<wchar_t, 128> WString;
 
 #ifdef UNICODE
 typedef WString TString;
@@ -501,7 +511,7 @@ KRAFT_INLINE uint64 StringLengthClamped(const char* in, uint64 max)
     return length > max ? max : length;
 }
 
-KRAFT_INLINE char* StringCopy(char* dst, char* src)
+KRAFT_INLINE char* StringCopy(char* dst, const char* src)
 {
     return strcpy(dst, src);
 }

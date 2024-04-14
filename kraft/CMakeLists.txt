@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_NAME "Kraft")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -72,10 +72,13 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/vulkan/kraft_vulkan_texture.cpp
         src/renderer/vulkan/kraft_vulkan_surface.cpp
 
+        src/renderer/renderables/kraft_gameobject.cpp
+
         # Systems
         src/systems/kraft_texture_system.cpp
         src/systems/kraft_material_system.cpp
         src/systems/kraft_geometry_system.cpp
+        src/systems/kraft_shader_system.cpp
 
         # imgui
         vendor/imgui/imgui.cpp
@@ -111,6 +114,9 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC ${KRAFT_STATIC_LIBS_COMPILE_DE
 # Libraries
 target_link_libraries(${PROJECT_NAME} ${KRAFT_STATIC_LIBS})
 
+# Disable warnings from linking shaderc
+set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")
+
 # If building a shared lib
 # target_compile_definitions(${PROJECT_NAME} PRIVATE KRAFT_SHARED)
 
@@ -125,8 +131,6 @@ set(KRAFT_LIBRARY_FOLDER_NAME ${KRAFT_LIBRARY_OS_PREFIX}-${KRAFT_LIBRARY_BUILD_T
 # set_property(TARGET shaderc_combined PROPERTY IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/vendor/shaderc/build/${KRAFT_LIBRARY_FOLDER_NAME}/shaderc_combined.lib")
 
 # ShaderC
-message("Linking ${CMAKE_SOURCE_DIR}/vendor/shaderc/build/${KRAFT_LIBRARY_FOLDER_NAME}/shaderc_combined.lib")
-message(${Vulkan_shaderc_combined_LIBRARY})
 # target_link_libraries(${PROJECT_NAME} C:/VulkanSDK/1.3.268.0/Lib/shaderc_combinedd.lib)
 # target_include_directories(${PROJECT_NAME} PUBLIC vendor/shaderc/src/libshaderc/include)
 

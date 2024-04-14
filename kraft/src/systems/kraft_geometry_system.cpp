@@ -23,6 +23,8 @@ struct GeometrySystemState
 
 GeometrySystemState* State = nullptr;
 
+static void _createDefaultGeometries();
+
 void GeometrySystem::Init(GeometrySystemConfig Config)
 {
     uint32 TotalSize = sizeof(GeometrySystemState) + sizeof(GeometryReference) * Config.MaxGeometriesCount;
@@ -31,7 +33,7 @@ void GeometrySystem::Init(GeometrySystemConfig Config)
     State->MaxGeometriesCount = Config.MaxGeometriesCount;
     State->Geometries = (GeometryReference*)(State + sizeof(GeometrySystemState));
 
-    // _createDefaultGeometries();
+    _createDefaultGeometries();
 }
 
 void GeometrySystem::Shutdown()
@@ -51,7 +53,7 @@ void GeometrySystem::Shutdown()
 
 Geometry* GeometrySystem::GetDefaultGeometry()
 {
-
+    return &State->Geometries[0].Geometry;
 }
 
 Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
@@ -95,27 +97,24 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     Reference->AutoRelease = AutoRelease;
     Reference->Geometry.ID = Index;
     
-    if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.IndexCount, Data.Indices))
+    if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
         Reference->Geometry.InternalID = State->MaxGeometriesCount;
+        StringCopy(Reference->Geometry.Name, *Data.Name);
 
         KERROR("[GeometrySystem::AcquireGeometryWithData]: Failed to create geometry!");
         return nullptr;
     }
-
-    if (!StringEqual(Data.MaterialName, ""))
-    {
-        Reference->Geometry.Material = MaterialSystem::AcquireMaterial(Data.MaterialName);
-        if (Reference->Geometry.Material == nullptr)
-        {
-            KWARN("[GeometrySystem::AcquireGeometryWithData]: Failed to acquire material");
-            Reference->Geometry.Material = MaterialSystem::GetDefaultMaterial();
-        }
-    }
     
     return &Reference->Geometry;
+}
+
+void GeometrySystem::ReleaseGeometry(Geometry* Geometry)
+{
+    uint32 ID = Geometry->ID;
+    ReleaseGeometry(ID);
 }
 
 void GeometrySystem::ReleaseGeometry(uint32 ID)
@@ -142,6 +141,33 @@ void GeometrySystem::ReleaseGeometry(uint32 ID)
 void GeometrySystem::DestroyGeometry(Geometry* Geometry)
 {
     Renderer->DestroyGeometry(Geometry);
+    Geometry->ID = State->MaxGeometriesCount;
+    Geometry->InternalID = State->MaxGeometriesCount;
+    StringCopy(Geometry->Name, "");
+}
+
+void _createDefaultGeometries()
+{
+    GeometryReference* Ref = &State->Geometries[0];
+    Vertex3D Vertices[] = 
+    {
+        { Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f} },
+        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f} },
+        { Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f} },
+        { Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f} },
+    };
+
+    uint32 Indices[] = {0, 1, 2, 3, 1, 0};
+    
+    Ref->Geometry.ID = 0;
+    Ref->AutoRelease = false;
+    Ref->ReferenceCount = 1;
+    StringCopy(Ref->Geometry.Name, "default-geometry");
+    if (!Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex3D), 6, Indices, sizeof(Indices[0])))
+    {
+        KFATAL("[GeometrySystem]: Failed to create default geometries");
+        return;
+    }
 }
 
 }

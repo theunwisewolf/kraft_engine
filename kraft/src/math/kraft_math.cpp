@@ -143,5 +143,4 @@ Mat4f RotationMatrixFromEulerAngles(float32 rotationXRadians, float32 rotationYR
     return out;
 }
 
-
 }

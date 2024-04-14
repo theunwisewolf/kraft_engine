@@ -6,9 +6,9 @@
 namespace kraft::renderer
 {
 
-VkFormat ToVulkanFormat(VertexAttributeFormat::Enum Format)
+VkFormat ToVulkanFormat(ShaderDataType::Enum Format)
 {
-    static VkFormat Mapping[VertexAttributeFormat::Count] = 
+    static VkFormat Mapping[ShaderDataType::Count] = 
     {
         VK_FORMAT_R32_SFLOAT, 
         VK_FORMAT_R32G32_SFLOAT, 

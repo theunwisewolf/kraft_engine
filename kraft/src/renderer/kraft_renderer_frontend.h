@@ -4,7 +4,6 @@
 #include "core/kraft_memory.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_imgui.h"
-#include "renderer/shaderfx/kraft_shaderfx.h"
 
 namespace kraft
 {
@@ -13,6 +12,8 @@ struct ApplicationConfig;
 
 namespace renderer
 {
+
+struct ShaderEffect;
 
 struct RendererFrontend
 {
@@ -27,13 +28,18 @@ struct RendererFrontend
     bool DrawFrame(RenderPacket* packet);
 
     // API
-    RenderPipeline CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex);
+    void CreateRenderPipeline(Shader* Shader, int PassIndex);
+    void DestroyRenderPipeline(Shader* Shader);
     void CreateTexture(uint8* data, Texture* out);
     void DestroyTexture(Texture* texture);
     void CreateMaterial(Material* material);
     void DestroyMaterial(Material* material);
+    void UseShader(const Shader* Shader);
+    void SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    void ApplyGlobalShaderProperties(Shader* Shader);
+    void ApplyInstanceShaderProperties(Shader* Shader);
     void DrawGeometry(GeometryRenderData Data);
-    bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices);
+    bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);
 };
 

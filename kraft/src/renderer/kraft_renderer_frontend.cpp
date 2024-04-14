@@ -6,6 +6,7 @@
 #include "core/kraft_asserts.h"
 #include "renderer/kraft_renderer_backend.h"
 #include "renderer/kraft_renderer_imgui.h"
+#include "renderer/shaderfx/kraft_shaderfx_types.h"
 
 namespace kraft::renderer
 {
@@ -61,15 +62,23 @@ void RendererFrontend::OnResize(int width, int height)
     }
 }
 
-bool RendererFrontend::DrawFrame(RenderPacket* packet)
+bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 {
-    if (Backend->BeginFrame(packet->DeltaTime))
+    if (Backend->BeginFrame(Packet->DeltaTime))
     {
-        ImGuiRenderer.Backend->BeginFrame(packet->DeltaTime);
+        ImGuiRenderer.Backend->BeginFrame(Packet->DeltaTime);
         ImGuiRenderer.RenderWidgets();
-        ImGuiRenderer.Backend->EndFrame(packet->DeltaTime);
+        ImGuiRenderer.Backend->EndFrame(Packet->DeltaTime);
 
-        if (!Backend->EndFrame(packet->DeltaTime))
+        // Array<GeometryRenderData>& Geometries = Packet->Geometries;
+        // Array<Material*>& MaterialInstances = Packet->MaterialInstances;
+        // uint64 Count = Geometries.Length;
+        // for (int i = 0; i < Count; i++)
+        // {
+
+        // }
+
+        if (!Backend->EndFrame(Packet->DeltaTime))
         {
             KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
             return false;
@@ -86,9 +95,14 @@ bool RendererFrontend::DrawFrame(RenderPacket* packet)
 // API
 //
 
-RenderPipeline RendererFrontend::CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex)
+void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 {
-    return Backend->CreateRenderPipeline(Effect, PassIndex);
+    Backend->CreateRenderPipeline(Shader, PassIndex);
+}
+
+void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
+{
+    Backend->DestroyRenderPipeline(Shader);
 }
 
 void RendererFrontend::CreateTexture(uint8* data, Texture* out)
@@ -109,6 +123,41 @@ void RendererFrontend::CreateMaterial(Material* material)
 void RendererFrontend::DestroyMaterial(Material* material)
 {
     Backend->DestroyMaterial(material);
+}
+
+void RendererFrontend::UseShader(const Shader* Shader)
+{
+    Backend->UseShader(Shader);
+}
+
+void RendererFrontend::SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
+{
+    Backend->SetUniform(Shader, Uniform, Value, Invalidate);
+}
+
+void RendererFrontend::DrawGeometry(GeometryRenderData Data)
+{
+    Backend->DrawGeometryData(Data);
+}
+
+void RendererFrontend::ApplyGlobalShaderProperties(Shader* Shader)
+{
+    Backend->ApplyGlobalShaderProperties(Shader);
+}
+
+void RendererFrontend::ApplyInstanceShaderProperties(Shader* Shader)
+{
+    Backend->ApplyInstanceShaderProperties(Shader);
+}
+
+bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
+{
+    return Backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
+}
+
+void RendererFrontend::DestroyGeometry(Geometry* Geometry)
+{
+    Backend->DestroyGeometry(Geometry);
 }
 
 }

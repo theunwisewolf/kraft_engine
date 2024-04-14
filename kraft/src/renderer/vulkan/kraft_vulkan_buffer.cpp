@@ -53,7 +53,7 @@ void* VulkanMapBufferMemory(VulkanContext* context, VulkanBuffer* buffer, uint64
     return data;
 }
 
-void VulkanLoadDataInBuffer(VulkanContext* context, VulkanBuffer* buffer, void* in, uint64 size, uint64 offset)
+void VulkanLoadDataInBuffer(VulkanContext* context, VulkanBuffer* buffer, const void* in, uint64 size, uint64 offset)
 {
     void *out = VulkanMapBufferMemory(context, buffer, size, offset);
     MemCpy(out, in, size);

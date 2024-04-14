@@ -2,6 +2,7 @@ Shader Basic
 {
     Layout
     {
+        // Vertex layouts
         Vertex Main
         {
             Binding     0 20 vertex
@@ -9,10 +10,17 @@ Shader Basic
             Attribute   float2 UV 0 1 12
         }
 
+        // Uniform buffers
         Resource Main
         {
-            UniformBuffer DiffuseColor      Stage(Fragment) Binding(0);
+            UniformBuffer DiffuseColor      Stage(Fragment) Binding(0) Size(16);
             Sampler       DiffuseSampler    Stage(Fragment) Binding(1);
+        }
+
+        // Constant buffers/Push constants
+        ConstantBuffer Main
+        {
+            mat4    Model Stage(Vertex);
         }
     }
 
@@ -26,7 +34,7 @@ Shader Basic
         layout (location = 1) in vec2 inUV;
 
         // Written to; using descriptor sets
-        layout (set = 0, binding = 0) uniform globalUniformObject
+        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
         {
             mat4 Projection;
             mat4 View;
@@ -62,16 +70,16 @@ Shader Basic
         layout (location = 0) out vec4 outColor;
 
         // Written to; using descriptor sets
-        layout(set = 1, binding = 0) uniform LocalUniformObject 
+        layout(set = 1, binding = 0) uniform LocalUniformBuffer 
         {
             vec4 DiffuseColor;
-        } localUniformObject;
+        } localUniformBuffer;
 
         layout(set = 1, binding = 1) uniform sampler2D DiffuseSampler;
 
         void main() 
         {
-            outColor = localUniformObject.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+            outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
         }
 
         #endif // FRAGMENT
@@ -96,6 +104,7 @@ Shader Basic
         RenderState     Default
         VertexLayout    Main
         Resources       Main
+        ConstantBuffer  Main
         VertexShader    ToScreen
         FragmentShader  ToScreen
     }

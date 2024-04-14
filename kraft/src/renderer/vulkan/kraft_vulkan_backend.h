@@ -23,20 +23,21 @@ namespace VulkanRendererBackend
     bool EndFrame(float64 deltaTime);
     void OnResize(int width, int height);
 
-    RenderPipeline CreateRenderPipeline(const ShaderEffect& Effect, int PassIndex);
-    void AllocateResources(RenderResource& RenderResources);
+    void CreateRenderPipeline(Shader* Shader, int PassIndex);
+    void DestroyRenderPipeline(Shader* Shader);
 
     // Textures
     void CreateTexture(uint8* data, Texture* texture);
     void DestroyTexture(Texture* texture);
 
-    // Materials
-    void CreateMaterial(Material* material);
-    void DestroyMaterial(Material* material);
+    void UseShader(const Shader* Shader);
+    void SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    void ApplyGlobalShaderProperties(Shader* Shader);
+    void ApplyInstanceShaderProperties(Shader* Shader);
 
     // Geometry
     void DrawGeometryData(GeometryRenderData Data);
-    bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 IndexCount, const void* Indices);
+    bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);
 
     VulkanContext* GetContext();

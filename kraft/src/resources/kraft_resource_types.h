@@ -2,15 +2,49 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_string.h"
+#include "containers/kraft_buffer.h"
+#include "containers/kraft_hashmap.h"
 #include "math/kraft_math.h"
+#include "renderer/shaderfx/kraft_shaderfx_types.h"
+#include "renderer/kraft_renderer_types.h"
 
-#define KRAFT_TEXTURE_NAME_MAX_LENGTH 512
-#define KRAFT_MATERIAL_NAME_MAX_LENGTH 512
+#define KRAFT_TEXTURE_NAME_MAX_LENGTH 256
+#define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
+#define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
 
 namespace kraft
 {
 
 typedef uint32 ResourceID;
+
+using namespace renderer;
+
+struct ShaderUniform
+{
+    uint32                   Location;
+    uint32                   Offset;
+    uint32                   Stride;
+    ResourceType::Enum       Type;
+    ShaderUniformScope::Enum Scope;
+};
+
+struct Shader
+{
+    ResourceID                      ID;
+    String                          Path;
+    renderer::ShaderEffect          ShaderEffect;
+    Array<ShaderUniform>            UniformCache;
+    Array<Texture*>                 Textures;
+    HashMap<String, uint32>         UniformCacheMapping;
+    uint32                          InstanceUniformsOffset;
+    uint32                          InstanceUniformsCount;
+    uint32                          InstanceUBOOffset;
+    uint32                          GlobalUBOOffset;
+    uint64                          InstanceUBOStride;
+    uint64                          GlobalUBOStride;
+
+    void*                           RendererData;
+};
 
 struct Texture
 {
@@ -36,12 +70,21 @@ struct TextureMap
     TextureUse  Usage;
 };
 
+struct MaterialInternalData
+{
+    HashMap<String, uint32> ResourceMapping;
+};
+
 struct Material
 {
-    ResourceID  ID;
-    char        Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
-    TextureMap  DiffuseMap;
-    Vec4f       DiffuseColor;
+    ResourceID      ID;
+    char            Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
+    TextureMap      DiffuseMap;
+    Vec4f           DiffuseColor;
+    bool            Dirty;
+
+    // Reference to the underlying shader
+    Shader*         Shader;
 };
 
 struct Geometry
@@ -51,33 +94,7 @@ struct Geometry
     // For backend mapping
     ResourceID  InternalID;
 
-    String      Name;
-    Material*   Material;
-};
-
-struct RenderResource
-{
-    String Name;
-
-    // Backend-specific layout
-    void* VulkanDescriptorSetLayout;
-    void* VulkanDescriptorSet;
-};
-
-struct CommandBuffer
-{
-    void *Handle;
-};
-
-struct RenderPipeline
-{
-    // Backend-specific pipeline
-    void*            Pipeline;
-    void*            PipelineLayout;
-    RenderResource   Resources;
-
-    void Bind(CommandBuffer CommandBuffer);
-    void Destroy();
+    char        Name[KRAFT_GEOMETRY_NAME_MAX_LENGTH];
 };
 
 }

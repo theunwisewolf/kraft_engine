@@ -19,7 +19,7 @@ Token Lexer::NextToken()
     this->ConsumeWhitespaces();
 
     Token Token;
-    Token.Type = TOKEN_TYPE_UNKNOWN;
+    Token.Type = TokenType::TOKEN_TYPE_UNKNOWN;
 
     char Char = this->Text[this->Position];
     Token.Text = this->Text + this->Position;
@@ -31,70 +31,70 @@ Token Lexer::NextToken()
     {
         case 0:
         {
-            Token.Type = TOKEN_TYPE_END_OF_STREAM;
+            Token.Type = TokenType::TOKEN_TYPE_END_OF_STREAM;
         } break;
 
         // Symbols
         case '(':
         {
-            Token.Type = TOKEN_TYPE_OPEN_PARENTHESIS;
+            Token.Type = TokenType::TOKEN_TYPE_OPEN_PARENTHESIS;
         } break;
         case ')':
         {
-            Token.Type = TOKEN_TYPE_CLOSE_PARENTHESIS;
+            Token.Type = TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS;
         } break;
         case '{':
         {
-            Token.Type = TOKEN_TYPE_OPEN_BRACE;
+            Token.Type = TokenType::TOKEN_TYPE_OPEN_BRACE;
         } break;
         case '}':
         {
-            Token.Type = TOKEN_TYPE_CLOSE_BRACE;
+            Token.Type = TokenType::TOKEN_TYPE_CLOSE_BRACE;
         } break;
         case '[':
         {
-            Token.Type = TOKEN_TYPE_OPEN_BRACKET;
+            Token.Type = TokenType::TOKEN_TYPE_OPEN_BRACKET;
         } break;
         case ']':
         {
-            Token.Type = TOKEN_TYPE_CLOSE_BRACKET;
+            Token.Type = TokenType::TOKEN_TYPE_CLOSE_BRACKET;
         } break;
         case '<':
         {
-            Token.Type = TOKEN_TYPE_OPEN_ANGLE_BRACKET;
+            Token.Type = TokenType::TOKEN_TYPE_OPEN_ANGLE_BRACKET;
         } break;
         case '>':
         {
-            Token.Type = TOKEN_TYPE_CLOSE_ANGLE_BRACKET;
+            Token.Type = TokenType::TOKEN_TYPE_CLOSE_ANGLE_BRACKET;
         } break;
         case '=':
         {
-            Token.Type = TOKEN_TYPE_EQUALS;
+            Token.Type = TokenType::TOKEN_TYPE_EQUALS;
         } break;
         case '#':
         {
-            Token.Type = TOKEN_TYPE_HASH;
+            Token.Type = TokenType::TOKEN_TYPE_HASH;
         } break;
         case ',':
         {
-            Token.Type = TOKEN_TYPE_COMMA;
+            Token.Type = TokenType::TOKEN_TYPE_COMMA;
         } break;
         case ':':
         {
-            Token.Type = TOKEN_TYPE_COLON;
+            Token.Type = TokenType::TOKEN_TYPE_COLON;
         } break;
         case ';':
         {
-            Token.Type = TOKEN_TYPE_SEMICOLON;
+            Token.Type = TokenType::TOKEN_TYPE_SEMICOLON;
         } break;
         case '*':
         {
-            Token.Type = TOKEN_TYPE_ASTERISK;
+            Token.Type = TokenType::TOKEN_TYPE_ASTERISK;
         } break;
 
         case '"':
         {
-            Token.Type = TOKEN_TYPE_STRING;
+            Token.Type = TokenType::TOKEN_TYPE_STRING;
             Token.Text = this->Text + this->Position; // To skip the starting quote
             while (this->Text[this->Position] && Text[this->Position] != '"')
             {
@@ -113,7 +113,7 @@ Token Lexer::NextToken()
         {
             if (IsAlpha(Char))
             {
-                Token.Type = TOKEN_TYPE_IDENTIFIER;
+                Token.Type = TokenType::TOKEN_TYPE_IDENTIFIER;
                 while (IsAlpha(Text[this->Position]) || IsNumber(Text[this->Position]) || Text[this->Position] == '_')
                 {
                     Position++;
@@ -123,7 +123,7 @@ Token Lexer::NextToken()
             }
             else if (IsNumber(Char) || Char == '-')
             {
-                Token.Type = TOKEN_TYPE_NUMBER;
+                Token.Type = TokenType::TOKEN_TYPE_NUMBER;
                 this->Position--;
 
                 Token.FloatValue = ParseNumber(Token);
@@ -229,7 +229,7 @@ void Lexer::ConsumeWhitespaces()
 
 // Expect the token to be of the given type
 // Sets an error if types do not match
-bool Lexer::ExpectToken(Token& Token, TokenType ExpectedType)
+bool Lexer::ExpectToken(Token& Token, TokenType::Enum ExpectedType)
 {
     Token = this->NextToken();
     if (Token.Type != ExpectedType)
@@ -242,13 +242,13 @@ bool Lexer::ExpectToken(Token& Token, TokenType ExpectedType)
     return true;
 }
 
-bool Lexer::ExpectToken(Token& Token, TokenType ExpectedType, const String& ExpectedKeyword)
+bool Lexer::ExpectToken(Token& Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword)
 {
     return ExpectToken(Token, ExpectedType) && Token.MatchesKeyword(ExpectedKeyword);
 }
 
 // Check if the token is of the given type
-bool Lexer::EqualsToken(Token& Token, TokenType ExpectedType)
+bool Lexer::EqualsToken(Token& Token, TokenType::Enum ExpectedType)
 {
     Token = this->NextToken();
     if (Token.Type != ExpectedType)
@@ -260,9 +260,10 @@ bool Lexer::EqualsToken(Token& Token, TokenType ExpectedType)
 }
 
 // Check the current token for errors
-bool Lexer::CheckToken(Token& Token, TokenType ExpectedType)
+bool Lexer::CheckToken(Token& Token, TokenType::Enum ExpectedType)
 {
-    
+	// TODO:
+	return true;
 }
 
 }

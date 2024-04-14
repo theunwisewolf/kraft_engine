@@ -99,3 +99,8 @@ typedef uint64_t    uint64;
 
 #define KRAFT_INVALID_ID        4294967295U
 #define KRAFT_INVALID_ID_UINT8  255U
+
+KRAFT_INLINE uint64 GetAligned(uint64 UnalignedValue, uint64 Granularity) 
+{
+    return ((UnalignedValue + (Granularity - 1)) & ~(Granularity - 1));
+}
