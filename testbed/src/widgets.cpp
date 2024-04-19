@@ -5,6 +5,7 @@
 #include "renderer/kraft_renderer_frontend.h"
 #include "renderer/vulkan/tests/simple_scene.h"
 #include "systems/kraft_texture_system.h"
+#include "systems/kraft_material_system.h"
 
 #include "utils.h"
 
@@ -66,6 +67,11 @@ void DrawImGuiWidgets(bool refresh)
 
         TestSceneState->ObjectState.Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
         TestSceneState->ObjectState.Dirty = true;
+    }
+
+    if (ImGui::ColorEdit4("Diffuse Color", TestSceneState->ObjectState.Material->DiffuseColor._data))
+    {
+        kraft::MaterialSystem::SetProperty(TestSceneState->ObjectState.Material, "DiffuseColor", TestSceneState->ObjectState.Material->DiffuseColor);
     }
 
     if (usePerspectiveProjection)
