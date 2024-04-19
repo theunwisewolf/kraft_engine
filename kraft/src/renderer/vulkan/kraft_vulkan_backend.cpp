@@ -299,19 +299,7 @@ bool VulkanRendererBackend::Shutdown()
 
 bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 {
-    // if (!VulkanWaitForFence(&s_Context, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame], UINT64_MAX))
-    // {
-    //     KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
-    //     return false;
-    // }
-
-    // Acquire the next image
-    if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
-    {
-        return false;
-    }
-
-    VulkanFence* fence = s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex];
+    VulkanFence* fence = s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame];
     if (!VulkanWaitForFence(&s_Context, fence, UINT64_MAX))
     {
         KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
@@ -319,6 +307,12 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     }
 
     VulkanResetFence(&s_Context, fence);
+
+    // Acquire the next image
+    if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
+    {
+        return false;
+    }
 
     // Record commands
     VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
@@ -369,15 +363,11 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
     info.pWaitDstStageMask = &waitStageMask;
 
-    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.CurrentSwapchainImageIndex]->Handle));
+    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame]->Handle));
     
     VulkanSetCommandBufferSubmitted(buffer);
 
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
-
-    // To make sure that the next frame which we will render to is finished
-    // s_Context.Swapchain.CurrentFrame is incremented in VulkanPresentSwapchain()
-    // vkWaitForFences(s_Context.LogicalDevice.Handle, 1, &s_Context.WaitFences[s_Context.Swapchain.CurrentFrame].Handle, true, UINT64_MAX);
 
     return true;
 }
