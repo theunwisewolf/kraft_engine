@@ -84,8 +84,9 @@ bool Init()
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo.Allocator = context->AllocationCallbacks;
     initInfo.CheckVkResultFn = CheckVkResult;
+    initInfo.RenderPass = context->MainRenderPass.Handle;
 
-    ImGui_ImplVulkan_Init(&initInfo, context->MainRenderPass.Handle);
+    ImGui_ImplVulkan_Init(&initInfo);
 
     // Upload Fonts
     {
