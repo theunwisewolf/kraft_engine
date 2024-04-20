@@ -42,11 +42,17 @@ struct GeometryRenderData
     Geometry*   Geometry;
 };
 
+struct Renderable
+{
+    Material*          MaterialInstance;
+    GeometryRenderData Geometry;
+};
+
 struct RenderPacket
 {
-    float64 DeltaTime;
-    Array<Material*>          MaterialInstances;
-    Array<GeometryRenderData> Geometries;
+    float64           DeltaTime;
+    Mat4f             ProjectionMatrix;
+    Mat4f             ViewMatrix;
 };
 
 enum RendererBackendType

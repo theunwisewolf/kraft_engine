@@ -202,6 +202,15 @@ public:
     {
         return Length * sizeof(ValueType);
     }
+
+    /**
+     * Sets the length of the array to Zero
+     * Does not release the memory
+     */
+    KRAFT_INLINE void Clear() noexcept
+    {
+        Length = 0;
+    }
 };
 
 }

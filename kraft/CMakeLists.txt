@@ -88,9 +88,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         vendor/imgui/imgui_widgets.cpp
         vendor/imgui/imgui_tables.cpp
         vendor/imgui/imgui_demo.cpp
-
-        # test stuff
-        src/renderer/vulkan/tests/simple_scene.cpp
     )
 endif()
 

@@ -17,13 +17,11 @@
 #include "systems/kraft_material_system.h"
 #include "systems/kraft_texture_system.h"
 #include "systems/kraft_geometry_system.h"
-
-#include "renderer/vulkan/tests/simple_scene.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
 
 #include <imgui.h>
 
-#include "scenes/test.cpp"
+#include "scenes/simple_scene.h"
 #include "widgets.h"
 #include "utils.h"
 
@@ -32,7 +30,6 @@ static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
     int count = (int)data.Int64[0];
     const char **paths = (const char**)data.Int64[1];
 
@@ -54,7 +51,6 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
     kraft::Keys KeyCode = (kraft::Keys)data.Int32[0];
     KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
 
@@ -114,8 +110,7 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::renderer::SceneState* sceneState = kraft::renderer::GetSceneState();
-    kraft::Camera *camera = &sceneState->SceneCamera;
+    kraft::Camera *camera = &TestSceneState->SceneCamera;
 
     float32 speed = 1.f;
 
@@ -133,7 +128,7 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
     kraft::Vec4f screenPointNDC = kraft::Vec4f(data.Int32[0] / 1280.0f, data.Int32[1] / 800.0f, screenPoint.z, 0.0f) * 2.0f - 1.0f;
 
     // Screen to world
-    kraft::Mat4f inverse = kraft::Inverse(sceneState->ProjectionMatrix * camera->ViewMatrix);
+    kraft::Mat4f inverse = kraft::Inverse(TestSceneState->ProjectionMatrix * camera->ViewMatrix);
     // kraft::Vec3f ndc = kraft::Vec3f(screenPoint.x / 1280.0f, 1.0f - screenPoint.y / 800.f, screenPoint.z) * 2.0f - 1.0f;
     kraft::Vec4f worldPosition = (inverse * kraft::Vec4f(screenPointNDC.x, screenPointNDC.y, 0.0f, 1.0f));
     KINFO("World position homogenous = %f, %f", worldPosition.x, worldPosition.y);
@@ -161,13 +156,12 @@ bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listen
 
 bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
     kraft::Camera& Camera = TestSceneState->SceneCamera;
 
     float y = data.Float64[1];
     float32 speed = 50.f;
 
-    if (TestSceneState->Projection == kraft::SceneState::ProjectionType::Perspective)
+    if (TestSceneState->Projection == ProjectionType::Perspective)
     {
         kraft::Vec3f direction = kraft::ForwardVector(Camera.ViewMatrix);
         direction = direction * y;
@@ -234,7 +228,7 @@ bool Init()
 
     // RenderPipeline Pipeline = renderer::Renderer->CreateRenderPipeline(Output, 0);
 
-    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
+    SetupScene();
 
     // Load textures
     String TexturePath;
@@ -263,7 +257,7 @@ bool Init()
     //     TestSceneState.ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
     // TestSceneState.ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
 
-    SetProjection(SceneState::ProjectionType::Orthographic);
+    SetProjection(ProjectionType::Orthographic);
     
     // To preserve the aspect ratio of the texture
     kraft::Texture* Texture = TestSceneState->ObjectState.Material->DiffuseMap.Texture; 
@@ -308,15 +302,14 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
-    kraft::renderer::SceneState* sceneState = kraft::renderer::GetSceneState();
-    kraft::Camera *camera = &sceneState->SceneCamera;
+    kraft::Camera *camera = &TestSceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         float32 speed = 50.f;
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
-            if (sceneState->Projection == kraft::renderer::SceneState::ProjectionType::Orthographic)
+            if (TestSceneState->Projection == ProjectionType::Orthographic)
             {
                 kraft::Vec3f upVector = UpVector(camera->GetViewMatrix());
                 direction += upVector;
@@ -329,7 +322,7 @@ void Update(float64 deltaTime)
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
         {
-            if (sceneState->Projection == kraft::renderer::SceneState::ProjectionType::Orthographic)
+            if (TestSceneState->Projection == ProjectionType::Orthographic)
             {
                 kraft::Vec3f downVector = DownVector(camera->GetViewMatrix());
                 direction += downVector;
@@ -399,13 +392,20 @@ void Update(float64 deltaTime)
 
     if (camera->Dirty)
     {
-        sceneState->ViewMatrix = sceneState->SceneCamera.GetViewMatrix();
+        TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
     }
 }
 
-void Render(float64 deltaTime)
+void Render(float64 deltaTime, kraft::renderer::RenderPacket& RenderPacket)
 {
+    RenderPacket.ProjectionMatrix = TestSceneState->ProjectionMatrix;
+    RenderPacket.ViewMatrix = TestSceneState->ViewMatrix;
 
+    kraft::Renderable Object;
+    Object.Geometry.Geometry = TestSceneState->ObjectState.Geometry;
+    Object.Geometry.ModelMatrix = TestSceneState->ObjectState.ModelMatrix;
+    Object.MaterialInstance = TestSceneState->ObjectState.Material;
+    kraft::Renderer->AddRenderable(Object);
 }
 
 void OnResize(size_t width, size_t height)
@@ -425,6 +425,8 @@ void OnForeground()
 
 bool Shutdown()
 {
+    DestroyScene();
+
     return true;
 }
 

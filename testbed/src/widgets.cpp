@@ -3,7 +3,6 @@
 #include "core/kraft_application.h"
 #include "math/kraft_math.h"
 #include "renderer/kraft_renderer_frontend.h"
-#include "renderer/vulkan/tests/simple_scene.h"
 #include "systems/kraft_texture_system.h"
 #include "systems/kraft_material_system.h"
 
@@ -13,8 +12,6 @@
 
 static void* TextureID;
 
-void SetProjection(kraft::SceneState::ProjectionType Type);
-
 void InitImguiWidgets(const kraft::String& TexturePath)
 {
     TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::TextureSystem::AcquireTexture(TexturePath));
@@ -23,7 +20,6 @@ void InitImguiWidgets(const kraft::String& TexturePath)
 
 void DrawImGuiWidgets(bool refresh)
 {
-    kraft::renderer::SceneState* TestSceneState = kraft::renderer::GetSceneState();
     kraft::Camera& Camera = TestSceneState->SceneCamera;
 
     ImGui::Begin("Debug");
@@ -48,13 +44,13 @@ void DrawImGuiWidgets(bool refresh)
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
     static kraft::Vec3f rotationDeg = kraft::Vec3fZero;
-    static bool usePerspectiveProjection = TestSceneState->Projection == kraft::SceneState::ProjectionType::Perspective;
+    static bool usePerspectiveProjection = TestSceneState->Projection == ProjectionType::Perspective;
 
     kraft::Camera& camera = TestSceneState->SceneCamera;
     if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true) || (TestSceneState->ObjectState.Dirty && usePerspectiveProjection))
     {
         usePerspectiveProjection = true;
-        SetProjection(kraft::SceneState::ProjectionType::Perspective);
+        SetProjection(ProjectionType::Perspective);
 
         TestSceneState->ObjectState.Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
         TestSceneState->ObjectState.Dirty = true;
@@ -63,7 +59,7 @@ void DrawImGuiWidgets(bool refresh)
     if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false) || (TestSceneState->ObjectState.Dirty && !usePerspectiveProjection))
     {
         usePerspectiveProjection = false;
-        SetProjection(kraft::SceneState::ProjectionType::Orthographic);
+        SetProjection(ProjectionType::Orthographic);
 
         TestSceneState->ObjectState.Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
         TestSceneState->ObjectState.Dirty = true;
@@ -195,6 +191,9 @@ void DrawImGuiWidgets(bool refresh)
     ImGui::Image(TextureID, ViewPortPanelSize, {0,1}, {1,0});
 
     ImGui::End();
+
+    // static bool ShowDemoWindow = true;
+    // ImGui::ShowDemoWindow(&ShowDemoWindow);
 
     TestSceneState->ObjectState.Dirty = false;
 }

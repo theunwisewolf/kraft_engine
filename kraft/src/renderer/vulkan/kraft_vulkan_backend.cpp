@@ -22,9 +22,6 @@
 #include "renderer/vulkan/kraft_vulkan_texture.h"
 #include "renderer/vulkan/kraft_vulkan_helpers.h"
 
-// TODO: (amn) This is just temporary
-#include "renderer/vulkan/tests/simple_scene.h"
-
 namespace kraft::renderer
 {
 
@@ -340,9 +337,6 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
 
-    // Debug Stuff
-    RenderTestScene(&s_Context, buffer);
-
     return true;
 }
 
@@ -458,14 +452,15 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 
     // Shader resources
     // Both global and instance ubos will be written separately, so the offsets must be aligned
-    uint64 UBOSize = GetAligned(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    uint64 GlobalUBOSize = GetAligned(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     Shader->GlobalUBOOffset = 0;
-    Shader->GlobalUBOStride = UBOSize;
-    Shader->InstanceUBOOffset = UBOSize;
+    Shader->GlobalUBOStride = GlobalUBOSize;
+    Shader->InstanceUBOOffset = GlobalUBOSize;
 
     int ResourceBindingsCount = Pass.Resources->ResourceBindings.Length;
     int ConstantBuffersCount = Pass.ConstantBuffers->Fields.Length;
 
+    uint64 InstanceUBOSize = 0;
     auto DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
     for (int j = 0; j < ResourceBindingsCount; j++)
     {
@@ -483,11 +478,12 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 
         if (Binding.Type == ResourceType::UniformBuffer)
         {
-            UBOSize += Binding.Size;
+            InstanceUBOSize += Binding.Size;
         }
     }
 
-    UBOSize = GetAligned(UBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    KDEBUG("Instance UBO Size = %d", InstanceUBOSize);
+    uint64 UBOSize = GetAligned(InstanceUBOSize + GlobalUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     Shader->InstanceUBOStride = UBOSize - Shader->GlobalUBOStride;
 
     // Constant Buffers
@@ -690,10 +686,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         }
     }
 
-    Shader->RendererData = VulkanShaderData;
     VulkanShaderData->Pipeline = Pipeline;
     VulkanShaderData->PipelineLayout = PipelineLayout;
-    VulkanShaderData->ShaderResources = VulkanShaderData->ShaderResources;
+    Shader->RendererData = VulkanShaderData;
 
     // Release shader modules
     for (int j = 0; j < ShaderModules.Length; j++)
@@ -812,17 +807,20 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
 void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
     uint32 WriteCount = 0;
+    KDEBUG("WriteCount = %d", WriteCount);
     VkWriteDescriptorSet WriteInfos[32] = {};
     VkWriteDescriptorSet DescriptorWriteInfo = {};
 
     VulkanShader* ShaderData = (VulkanShader*)Shader->RendererData;
     VulkanShaderResources* ShaderResources = &ShaderData->ShaderResources;
-    
+
+    VkDescriptorBufferInfo DescriptorBufferInfo = {};
+    VkDescriptorImageInfo DescriptorImageInfo[32] = {};
+
     uint32 BindingIndex = 0;
     // Material data
     if (ShaderResources->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        VkDescriptorBufferInfo DescriptorBufferInfo = {};
         DescriptorBufferInfo.buffer = ShaderResources->UniformBuffer.Handle;
         DescriptorBufferInfo.offset = Shader->InstanceUBOOffset;
         DescriptorBufferInfo.range = Shader->InstanceUBOStride;
@@ -846,7 +844,6 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Sampler
     if (ShaderResources->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        VkDescriptorImageInfo DescriptorImageInfo[32] = {};
         for (int i = 0; i < Shader->Textures.Length; i++)
         {
             kraft::Texture* Texture = Shader->Textures[i];
@@ -875,8 +872,11 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     }
     
     BindingIndex++;
+
     if (WriteCount > 0)
     {
+        KDEBUG("Range = %d", WriteInfos[0].pBufferInfo->offset);
+        KDEBUG("Offset = %d", WriteInfos[0].pBufferInfo->range);
         vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, WriteCount, WriteInfos, 0, 0);
     }
 
@@ -892,7 +892,14 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
 void VulkanRendererBackend::DrawGeometryData(GeometryRenderData Data)
 {
+    VulkanCommandBuffer CommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
+    VulkanGeometryData GeometryData = s_Context.Geometries[Data.Geometry->InternalID];
+    VkDeviceSize Offsets[1] = { GeometryData.VertexBufferOffset };
     
+    vkCmdBindVertexBuffers(CommandBuffer.Handle, 0, 1, &s_Context.VertexBuffer.Handle, Offsets);
+    vkCmdBindIndexBuffer(CommandBuffer.Handle, s_Context.IndexBuffer.Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(CommandBuffer.Handle, GeometryData.IndexCount, 1, 0, 0, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* Context, VulkanBuffer DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)

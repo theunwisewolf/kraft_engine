@@ -8,6 +8,11 @@
 #include "renderer/kraft_renderer_imgui.h"
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
 
+#include "systems/kraft_shader_system.h"
+#include "systems/kraft_material_system.h"
+
+#define KRAFT_IMGUI_ENABLED 1
+
 namespace kraft::renderer
 {
 
@@ -19,6 +24,7 @@ bool RendererFrontend::Init(ApplicationConfig* config)
     Type = config->RendererBackend;
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
+    this->Renderables.Reserve(1024);
 
     KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
@@ -66,17 +72,26 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 {
     if (Backend->BeginFrame(Packet->DeltaTime))
     {
+        uint64 Count = this->Renderables.Length;
+        for (int i = 0; i < Count; i++)
+        {
+            Renderable Object = this->Renderables[i];
+            ShaderSystem::Bind(Object.MaterialInstance->Shader);
+
+            MaterialSystem::ApplyGlobalProperties(Object.MaterialInstance, Packet->ProjectionMatrix, Packet->ViewMatrix);
+            MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
+            MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.Geometry.ModelMatrix);
+
+            Backend->DrawGeometryData(Object.Geometry);
+
+            ShaderSystem::Unbind();
+        }
+
+#if KRAFT_IMGUI_ENABLED
         ImGuiRenderer.Backend->BeginFrame(Packet->DeltaTime);
         ImGuiRenderer.RenderWidgets();
         ImGuiRenderer.Backend->EndFrame(Packet->DeltaTime);
-
-        // Array<GeometryRenderData>& Geometries = Packet->Geometries;
-        // Array<Material*>& MaterialInstances = Packet->MaterialInstances;
-        // uint64 Count = Geometries.Length;
-        // for (int i = 0; i < Count; i++)
-        // {
-
-        // }
+#endif
 
         if (!Backend->EndFrame(Packet->DeltaTime))
         {
@@ -84,11 +99,22 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
             return false;
         }
 
+#if KRAFT_IMGUI_ENABLED
         ImGuiRenderer.EndFrameUpdatePlatformWindows();
+#endif
+
+        this->Renderables.Clear();
         return true;
     }
 
     return false;
+}
+
+bool RendererFrontend::AddRenderable(Renderable Object)
+{
+    this->Renderables.Push(Object);
+
+    return true;
 }
 
 // 

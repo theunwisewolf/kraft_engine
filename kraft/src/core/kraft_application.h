@@ -50,9 +50,9 @@ struct KRAFT_API Application
 
     // These methods must be implemented by the application itself
     bool (*Init)();
-    void (*Update)(float64 deltaTime);
-    void (*Render)(float64 deltaTime);
-    void (*OnResize)(size_t width, size_t height);
+    void (*Update)(float64 DeltaTime);
+    void (*Render)(float64 DeltaTime, renderer::RenderPacket& RenderPacket);
+    void (*OnResize)(size_t Width, size_t Height);
     void (*OnBackground)();
     void (*OnForeground)();
     bool (*Shutdown)();

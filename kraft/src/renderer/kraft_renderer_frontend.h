@@ -21,11 +21,13 @@ struct RendererFrontend
     RendererBackend* Backend = nullptr;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     RendererImGui ImGuiRenderer;
+    Array<Renderable> Renderables;
 
     bool Init(ApplicationConfig* config);
     bool Shutdown();
     void OnResize(int width, int height);
     bool DrawFrame(RenderPacket* packet);
+    bool AddRenderable(Renderable Object);
 
     // API
     void CreateRenderPipeline(Shader* Shader, int PassIndex);

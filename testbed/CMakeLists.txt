@@ -15,7 +15,7 @@ if (NOT KRAFT_BUILDING_BASE)
 endif()
 
 set(SRC_FILES 
-    src/scenes/test.cpp
+    src/scenes/simple_scene.cpp
     src/widgets.cpp
     src/main.cpp
 )

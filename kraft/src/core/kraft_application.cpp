@@ -157,12 +157,13 @@ bool Application::Run()
         // If the app is not suspended, update & render
         if (!this->Suspended)
         {
-            this->Update(deltaTime);
-            this->Render(deltaTime);
+            renderer::RenderPacket Packet;
+            Packet.DeltaTime = deltaTime;
 
-            renderer::RenderPacket packet;
-            packet.DeltaTime = deltaTime;
-            State.Renderer.DrawFrame(&packet);
+            this->Update(deltaTime);
+            this->Render(deltaTime, Packet);
+
+            State.Renderer.DrawFrame(&Packet);
 
             InputSystem::Update(deltaTime);
         }

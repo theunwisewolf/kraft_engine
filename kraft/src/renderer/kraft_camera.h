@@ -8,7 +8,7 @@ namespace kraft
 
 struct Camera
 {
-    Vec3f   Position;
+    Vec3f Position;
 
     union
     {
@@ -36,7 +36,5 @@ struct Camera
 
     Mat4f& GetViewMatrix();
 };
-
-
 
 }
