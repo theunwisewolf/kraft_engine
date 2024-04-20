@@ -39,7 +39,7 @@ void DrawImGuiWidgets(bool refresh)
     static float farClipP = 1000.f;
 
     // To preserve the aspect ratio of the texture
-    kraft::Texture* Texture = TestSceneState->ObjectState.Material->DiffuseMap.Texture;
+    kraft::Texture* Texture = TestSceneState->ObjectState.MaterialInstance->DiffuseMap.Texture;
     kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
@@ -65,9 +65,9 @@ void DrawImGuiWidgets(bool refresh)
         TestSceneState->ObjectState.Dirty = true;
     }
 
-    if (ImGui::ColorEdit4("Diffuse Color", TestSceneState->ObjectState.Material->DiffuseColor._data))
+    if (ImGui::ColorEdit4("Diffuse Color", TestSceneState->ObjectState.MaterialInstance->DiffuseColor._data))
     {
-        kraft::MaterialSystem::SetProperty(TestSceneState->ObjectState.Material, "DiffuseColor", TestSceneState->ObjectState.Material->DiffuseColor);
+        kraft::MaterialSystem::SetProperty(TestSceneState->ObjectState.MaterialInstance, "DiffuseColor", TestSceneState->ObjectState.MaterialInstance->DiffuseColor);
     }
 
     if (usePerspectiveProjection)

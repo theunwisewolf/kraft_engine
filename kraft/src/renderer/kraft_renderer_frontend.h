@@ -40,7 +40,7 @@ struct RendererFrontend
     void SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
     void ApplyGlobalShaderProperties(Shader* Shader);
     void ApplyInstanceShaderProperties(Shader* Shader);
-    void DrawGeometry(GeometryRenderData Data);
+    void DrawGeometry(uint32 GeometryID);
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);
 };

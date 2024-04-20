@@ -34,7 +34,7 @@ static void SetProjection(ProjectionType Type)
 
 static void UpdateObjectScale()
 {
-    kraft::Texture* Texture = TestSceneState->ObjectState.Material->DiffuseMap.Texture; 
+    kraft::Texture* Texture = TestSceneState->ObjectState.MaterialInstance->DiffuseMap.Texture; 
     kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
     if (TestSceneState->Projection == ProjectionType::Orthographic)

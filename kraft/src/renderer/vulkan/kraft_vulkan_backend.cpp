@@ -807,7 +807,6 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
 void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
     uint32 WriteCount = 0;
-    KDEBUG("WriteCount = %d", WriteCount);
     VkWriteDescriptorSet WriteInfos[32] = {};
     VkWriteDescriptorSet DescriptorWriteInfo = {};
 
@@ -875,8 +874,6 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
     if (WriteCount > 0)
     {
-        KDEBUG("Range = %d", WriteInfos[0].pBufferInfo->offset);
-        KDEBUG("Offset = %d", WriteInfos[0].pBufferInfo->range);
         vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, WriteCount, WriteInfos, 0, 0);
     }
 
@@ -890,10 +887,10 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     );
 }
 
-void VulkanRendererBackend::DrawGeometryData(GeometryRenderData Data)
+void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 {
     VulkanCommandBuffer CommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
-    VulkanGeometryData GeometryData = s_Context.Geometries[Data.Geometry->InternalID];
+    VulkanGeometryData GeometryData = s_Context.Geometries[GeometryID];
     VkDeviceSize Offsets[1] = { GeometryData.VertexBufferOffset };
     
     vkCmdBindVertexBuffers(CommandBuffer.Handle, 0, 1, &s_Context.VertexBuffer.Handle, Offsets);

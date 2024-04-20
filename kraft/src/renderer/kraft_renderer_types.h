@@ -36,16 +36,11 @@ struct GlobalUniformData
     GlobalUniformData() {}
 };
 
-struct GeometryRenderData
-{
-    Mat4f       ModelMatrix;
-    Geometry*   Geometry;
-};
-
 struct Renderable
 {
-    Material*          MaterialInstance;
-    GeometryRenderData Geometry;
+    kraft::Mat4f ModelMatrix;
+    Material*    MaterialInstance;
+    uint32       GeometryID;
 };
 
 struct RenderPacket
@@ -95,7 +90,7 @@ struct RendererBackend
     void (*DestroyMaterial)(Material *material);
 
     // Geometry
-    void (*DrawGeometryData)(GeometryRenderData Data);
+    void (*DrawGeometryData)(uint32 GeometryID);
     bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void (*DestroyGeometry)(Geometry* Geometry);
 };

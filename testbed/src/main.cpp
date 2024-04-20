@@ -38,7 +38,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     if (kraft::filesystem::FileExists(TexturePath))
     {
         KINFO("Loading texture from path %s", TexturePath);
-        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.Material, "DiffuseSampler", TexturePath);
+        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.MaterialInstance, "DiffuseSampler", TexturePath);
         UpdateObjectScale();
     }
     else
@@ -58,7 +58,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
     if (KeyCode == kraft::KEY_C)
     {
         kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
-        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.Material, "DiffuseSampler", TexturePath);
+        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.MaterialInstance, "DiffuseSampler", TexturePath);
         DefaultTexture = !DefaultTexture;
         UpdateObjectScale();
     }
@@ -110,8 +110,21 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::Camera *camera = &TestSceneState->SceneCamera;
+    kraft::ApplicationConfig Config = kraft::Application::Get()->Config;
+    float x = 2.0f * data.Int32[0] / (float)Config.WindowWidth - 1.0f;
+    float y = 2.0f * data.Int32[1] / (float)Config.WindowHeight - 1.0f;
 
+    kraft::Camera& Camera = TestSceneState->SceneCamera;
+    kraft::Mat4f ViewProjectionInverse = kraft::Inverse(TestSceneState->ProjectionMatrix * Camera.ViewMatrix);
+    kraft::Vec4f ScreenPointNDC = kraft::Vec4f(x, y, 0.0f, 1.0f);
+    kraft::Vec4f WorldSpacePosition = ViewProjectionInverse * ScreenPointNDC;
+    WorldSpacePosition /= WorldSpacePosition.w;
+
+    TestSceneState->ObjectState.Position.x = WorldSpacePosition.x;
+    TestSceneState->ObjectState.Position.y = -WorldSpacePosition.y;
+    TestSceneState->ObjectState.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->ObjectState.Rotation) * kraft::TranslationMatrix(TestSceneState->ObjectState.Position);
+
+#if 0
     float32 speed = 1.f;
 
     kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
@@ -141,6 +154,7 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
     
     // camera->SetPosition(camera->Position + position);
     // camera->SetPosition(worldPosition.xyz);
+#endif
 
     return false;
 }
@@ -250,8 +264,8 @@ bool Init()
     MaterialConfig.DiffuseTextureMapName = TexturePath;
     MaterialConfig.ShaderAsset = "res/shaders/basic.kfx.bkfx";
 
-    TestSceneState->ObjectState.Material = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
-    TestSceneState->ObjectState.Material = kraft::MaterialSystem::AcquireMaterial("res/materials/simple_2d.kmt");
+    TestSceneState->ObjectState.MaterialInstance = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
+    TestSceneState->ObjectState.MaterialInstance = kraft::MaterialSystem::AcquireMaterial("res/materials/simple_2d.kmt");
 
     // if (!TestSceneState.ObjectState.Texture)
     //     TestSceneState.ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
@@ -260,7 +274,7 @@ bool Init()
     SetProjection(ProjectionType::Orthographic);
     
     // To preserve the aspect ratio of the texture
-    kraft::Texture* Texture = TestSceneState->ObjectState.Material->DiffuseMap.Texture; 
+    kraft::Texture* Texture = TestSceneState->ObjectState.MaterialInstance->DiffuseMap.Texture; 
     UpdateObjectScale();
 
     TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
@@ -291,8 +305,8 @@ bool Init()
     GeometryData.VertexSize = sizeof(Vertex3D);
     GeometryData.VertexCount = 4;
     GeometryData.Name = "test-geometry";
-    TestSceneState->ObjectState.Geometry = kraft::GeometrySystem::AcquireGeometryWithData(GeometryData);
-    TestSceneState->ObjectState.Geometry = kraft::GeometrySystem::GetDefaultGeometry();
+    TestSceneState->ObjectState.GeometryID = kraft::GeometrySystem::AcquireGeometryWithData(GeometryData)->InternalID;
+    TestSceneState->ObjectState.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
 
     TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
 
@@ -401,11 +415,13 @@ void Render(float64 deltaTime, kraft::renderer::RenderPacket& RenderPacket)
     RenderPacket.ProjectionMatrix = TestSceneState->ProjectionMatrix;
     RenderPacket.ViewMatrix = TestSceneState->ViewMatrix;
 
-    kraft::Renderable Object;
-    Object.Geometry.Geometry = TestSceneState->ObjectState.Geometry;
-    Object.Geometry.ModelMatrix = TestSceneState->ObjectState.ModelMatrix;
-    Object.MaterialInstance = TestSceneState->ObjectState.Material;
-    kraft::Renderer->AddRenderable(Object);
+    kraft::Renderer->AddRenderable(TestSceneState->ObjectState);
+
+    // kraft::Renderable Object2;
+    // Object2.Geometry.Geometry = TestSceneState->ObjectState.Geometry;
+    // Object2.Geometry.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale / 3.0f) * kraft::TranslationMatrix(kraft::Vec3f(500.0f, 0, 0));
+    // Object2.MaterialInstance = TestSceneState->ObjectState.Material;
+    // kraft::Renderer->AddRenderable(Object2);
 }
 
 void OnResize(size_t width, size_t height)

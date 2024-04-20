@@ -10,15 +10,11 @@ enum ProjectionType
     Orthographic
 };
 
-struct SimpleObjectState
+struct SimpleObjectState : public kraft::Renderable
 {
-    kraft::Mat4f             ModelMatrix;
     kraft::Vec3f             Scale = kraft::Vec3fZero;
     kraft::Vec3f             Position = kraft::Vec3fZero;
     kraft::Vec3f             Rotation = kraft::Vec3fZero;
-
-    kraft::Material*         Material = nullptr;
-    kraft::Geometry*         Geometry = nullptr;
     bool                     Dirty;
 };
 

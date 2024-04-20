@@ -80,9 +80,9 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 
             MaterialSystem::ApplyGlobalProperties(Object.MaterialInstance, Packet->ProjectionMatrix, Packet->ViewMatrix);
             MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
-            MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.Geometry.ModelMatrix);
+            MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
 
-            Backend->DrawGeometryData(Object.Geometry);
+            Backend->DrawGeometryData(Object.GeometryID);
 
             ShaderSystem::Unbind();
         }
@@ -161,9 +161,9 @@ void RendererFrontend::SetUniform(Shader* Shader, const ShaderUniform& Uniform, 
     Backend->SetUniform(Shader, Uniform, Value, Invalidate);
 }
 
-void RendererFrontend::DrawGeometry(GeometryRenderData Data)
+void RendererFrontend::DrawGeometry(uint32 GeometryID)
 {
-    Backend->DrawGeometryData(Data);
+    Backend->DrawGeometryData(GeometryID);
 }
 
 void RendererFrontend::ApplyGlobalShaderProperties(Shader* Shader)
