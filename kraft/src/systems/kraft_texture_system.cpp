@@ -39,9 +39,10 @@ static void _createDefaultTextures();
 void TextureSystem::Init(uint32 maxTextureCount)
 {
     uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * maxTextureCount;
-    
-    State = (TextureSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
-    State->Textures = (TextureReference*)(State + sizeof(TextureSystemState));
+    char* RawMemory = (char*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
+
+    State = (TextureSystemState*)RawMemory;
+    State->Textures = (TextureReference*)(RawMemory + sizeof(TextureSystemState));
     State->MaxTextureCount = maxTextureCount;
 
     _createDefaultTextures();
