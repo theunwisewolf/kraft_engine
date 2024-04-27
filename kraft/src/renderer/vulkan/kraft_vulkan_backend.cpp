@@ -28,7 +28,6 @@ namespace kraft::renderer
 static VulkanContext s_Context = {};
 static VkDescriptorPool GlobalDescriptorPool;
 static VkDescriptorSetLayout GlobalDescriptorSetLayout;
-static VkDescriptorSet GlobalDescriptorSet[3];
 
 VulkanContext* VulkanRendererBackend::GetContext()
 {
@@ -226,16 +225,6 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
         DescriptorPoolCreateInfo.maxSets = GlobalPoolSize * sizeof(PoolSizes) / sizeof(PoolSizes[0]);
 
         vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &DescriptorPoolCreateInfo, s_Context.AllocationCallbacks, &GlobalDescriptorPool);
-
-        // Allocate enough descriptor sets (= number of swapchain images)
-        Array<VkDescriptorSetLayout> DescriptorSets = Array<VkDescriptorSetLayout>(s_Context.Swapchain.ImageCount, GlobalDescriptorSetLayout);
-
-        VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        DescriptorSetAllocateInfo.descriptorPool = GlobalDescriptorPool;
-        DescriptorSetAllocateInfo.descriptorSetCount = DescriptorSets.Length;
-        DescriptorSetAllocateInfo.pSetLayouts = &DescriptorSets[0];
-
-        KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, GlobalDescriptorSet));
     }
 
     // Create vertex and index buffers
@@ -650,6 +639,22 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | ExtraMemoryFlags,
         true, &VulkanShaderData->ShaderResources.UniformBuffer);
 
+    // Create global descriptor sets
+    const uint32 MaxSwapchainImages = 3;
+    uint32 SwapchainImageCount = s_Context.Swapchain.ImageCount;
+    VkDescriptorSetLayout GlobalDescriptorSets[MaxSwapchainImages] = {
+        GlobalDescriptorSetLayout,
+        GlobalDescriptorSetLayout,
+        GlobalDescriptorSetLayout
+    };
+
+    VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    DescriptorSetAllocateInfo.descriptorPool = GlobalDescriptorPool;
+    DescriptorSetAllocateInfo.descriptorSetCount = SwapchainImageCount;
+    DescriptorSetAllocateInfo.pSetLayouts = &GlobalDescriptorSets[0];
+
+    KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, VulkanShaderData->ShaderResources.GlobalDescriptorSets));
+
     // Map the buffer memory
     VulkanShaderData->ShaderResources.UniformBufferMemory = VulkanMapBufferMemory(&s_Context, &VulkanShaderData->ShaderResources.UniformBuffer, VK_WHOLE_SIZE, 0);
     VulkanShaderData->Pipeline = Pipeline;
@@ -850,7 +855,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
     DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     DescriptorWriteInfo.descriptorCount = 1;
     DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    DescriptorWriteInfo.dstSet = GlobalDescriptorSet[s_Context.CurrentSwapchainImageIndex];
+    DescriptorWriteInfo.dstSet = ShaderData->ShaderResources.GlobalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
     DescriptorWriteInfo.dstBinding = 0;
     DescriptorWriteInfo.dstArrayElement = 0;
     DescriptorWriteInfo.pBufferInfo = &DescriptorBufferInfo;
@@ -861,7 +866,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
         ShaderData->PipelineLayout, 
         0, 1,
-        &GlobalDescriptorSet[s_Context.CurrentSwapchainImageIndex], 
+        &ShaderData->ShaderResources.GlobalDescriptorSets[s_Context.CurrentSwapchainImageIndex], 
         0, 0
     );
 }

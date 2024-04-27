@@ -181,6 +181,7 @@ Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
         }
     }
 
+    KDEBUG("[MaterialSystem::CreateMaterial]: Created %s", *Data.Name);
     return Instance;
 }
 

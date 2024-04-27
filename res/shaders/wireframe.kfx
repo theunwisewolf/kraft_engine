@@ -1,0 +1,111 @@
+Shader Basic
+{
+    Layout
+    {
+        // Vertex layouts
+        Vertex Main
+        {
+            Binding     0 20 vertex
+            Attribute   float3 Position 0 0 0
+            Attribute   float2 UV 0 1 12
+        }
+
+        // Uniform buffers
+        Resource Main
+        {
+            UniformBuffer DiffuseColor      Stage(Fragment) Binding(0) Size(16);
+            Sampler       DiffuseSampler    Stage(Fragment) Binding(1);
+        }
+
+        // Constant buffers/Push constants
+        ConstantBuffer Main
+        {
+            mat4    Model Stage(Vertex);
+        }
+    }
+
+    GLSL ToScreen
+    {
+        #version 450
+        #if defined VERTEX
+
+        // Inputs
+        layout (location = 0) in vec3 inPosition;
+        layout (location = 1) in vec2 inUV;
+
+        // Written to; using descriptor sets
+        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
+        {
+            mat4 Projection;
+            mat4 View;
+        } globalState;
+
+        layout (push_constant) uniform pushConstants
+        {
+            mat4 Model;
+        } variableState;
+
+        // Output from the vertex shader to the fragment shader
+        layout(location = 0) out struct DataTransferObject 
+        {
+            vec2 UV;
+        } outDTO;
+
+        void main()
+        {
+            outDTO.UV = inUV;
+            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+        }
+
+        #endif // VERTEX
+
+        #if defined FRAGMENT
+
+        layout (location = 0) in struct DataTransferObject 
+        {
+            vec2 UV;
+        } inDTO;
+
+        // Outputs
+        layout (location = 0) out vec4 outColor;
+
+        // Written to; using descriptor sets
+        layout(set = 1, binding = 0) uniform LocalUniformBuffer 
+        {
+            vec4 DiffuseColor;
+        } localUniformBuffer;
+
+        layout(set = 1, binding = 1) uniform sampler2D DiffuseSampler;
+
+        void main() 
+        {
+            outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+        }
+
+        #endif // FRAGMENT
+    }
+
+    RenderState
+    {
+        State Default
+        {       
+            Cull            Back
+            ZTest           Less
+            ZWrite          On
+            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+            BlendOp         Add, Add
+            PolygonMode     Line
+            LineWidth       2.0   
+        }
+    }
+
+    Pass ToScreen
+    {
+        RenderState     Default
+        VertexLayout    Main
+        Resources       Main
+        ConstantBuffer  Main
+        VertexShader    ToScreen
+        FragmentShader  ToScreen
+    }
+}

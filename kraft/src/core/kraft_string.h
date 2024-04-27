@@ -424,7 +424,7 @@ public:
         }
 
         int Start = Length - Suffix.Length;
-        for (int i = Start, j = 0; i < Suffix.Length; i++, j++)
+        for (int i = Start, j = 0; j < Suffix.Length; i++, j++)
         {
             if (Data()[i] != Suffix.Data()[j])
             {

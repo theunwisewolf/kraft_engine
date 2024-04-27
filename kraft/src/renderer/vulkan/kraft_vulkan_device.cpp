@@ -453,7 +453,11 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     }
 
     // Device features to be requested
-    VkPhysicalDeviceFeatures featureRequests = {};
+    VkPhysicalDeviceFeatures FeatureRequests = 
+    {
+        .fillModeNonSolid = VK_TRUE,
+        .wideLines = VK_TRUE,
+    };
 
     // As per the vulkan spec, if the device supports VK_KHR_portability_subset
     // then the extension must be included
@@ -465,7 +469,7 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     VkDeviceCreateInfo deviceCreateInfo      = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount    = queueCreateInfoCount;
     deviceCreateInfo.pQueueCreateInfos       = createInfos;
-    deviceCreateInfo.pEnabledFeatures        = &featureRequests;
+    deviceCreateInfo.pEnabledFeatures        = &FeatureRequests;
     deviceCreateInfo.enabledExtensionCount   = (uint32)arrlen(requirements.DeviceExtensionNames);
     deviceCreateInfo.ppEnabledExtensionNames = requirements.DeviceExtensionNames;
 

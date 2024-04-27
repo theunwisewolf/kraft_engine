@@ -243,6 +243,7 @@ struct VulkanDescriptorState
 struct VulkanShaderResources
 {
     Array<VkDescriptorSetLayout> DescriptorSetLayouts;
+    VkDescriptorSet              GlobalDescriptorSets[3];
     VulkanBuffer                 UniformBuffer;
     void*                        UniformBufferMemory;
     

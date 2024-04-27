@@ -88,7 +88,6 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
                 MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
 
                 Backend->DrawGeometryData(Object.GeometryID);
-
             }
             ShaderSystem::Unbind();
 

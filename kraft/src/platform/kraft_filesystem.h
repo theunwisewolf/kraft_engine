@@ -24,6 +24,12 @@ enum FileOpenMode
 namespace filesystem
 {
 
+struct FileInfo
+{
+    String Name;
+    uint64 FileSize;
+};
+
 // File helpers
 KRAFT_API bool OpenFile(const char* path, int mode, bool binary, FileHandle* out);
 KRAFT_API bool OpenFile(const String& Path, int Mode, bool Binary, FileHandle* Out);
@@ -49,6 +55,9 @@ KRAFT_API bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRe
 KRAFT_API bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size);
 KRAFT_API bool WriteFile(FileHandle* Handle, const Buffer& Buffer);
 
-}
+// Platform dependent APIs
+KRAFT_API bool ReadDir(const String& Path, Array<FileInfo>& OutFiles);
 
 }
+
+};

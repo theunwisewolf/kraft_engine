@@ -124,6 +124,8 @@ struct RenderStateDefinition
         Out->Write(ZTestOperation);
         Out->Write(ZWriteEnable);
         Out->Write(BlendMode);
+        Out->Write(PolygonMode);
+        Out->Write(LineWidth);
     }
 
     void ReadFrom(Buffer* In)
@@ -133,6 +135,9 @@ struct RenderStateDefinition
         In->Read(&ZTestOperation);
         In->Read(&ZWriteEnable);
         In->Read(&BlendMode);
+        In->Read(&PolygonMode);
+        In->Read(&LineWidth);
+        
     }
 };
 

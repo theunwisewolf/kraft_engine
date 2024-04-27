@@ -248,19 +248,19 @@ bool Init()
     SimpleObjectState EntityA;
     EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
     EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityA.SetTransform(kraft::Vec3fZero, kraft::Vec3fZero, kraft::Vec3fOne);
+    EntityA.SetTransform({-105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
     TestSceneState->AddEntity(EntityA);
 
     SimpleObjectState EntityB;
-    EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d_wireframe.kmt");
     EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityB.SetTransform({5.0f, 0.0f, 0.0f}, kraft::Vec3fZero, kraft::Vec3fOne);
+    EntityB.SetTransform({105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
     TestSceneState->AddEntity(EntityB);
 
-    MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
+    // MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
     TestSceneState->SelectedObjectIndex = 0;
 
-    SetProjection(kraft::CameraProjectionType::Perspective);
+    SetProjection(kraft::CameraProjectionType::Orthographic);
     
     // To preserve the aspect ratio of the texture
     // UpdateObjectScale();
