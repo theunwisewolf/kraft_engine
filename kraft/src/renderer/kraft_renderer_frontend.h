@@ -4,6 +4,8 @@
 #include "core/kraft_memory.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_imgui.h"
+#include "containers/kraft_hashmap.h"
+#include "resources/kraft_resource_types.h"
 
 namespace kraft
 {
@@ -21,7 +23,7 @@ struct RendererFrontend
     RendererBackend* Backend = nullptr;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     RendererImGui ImGuiRenderer;
-    Array<Renderable> Renderables;
+    HashMap<ResourceID, Array<Renderable>> Renderables;
 
     bool Init(ApplicationConfig* config);
     bool Shutdown();
@@ -32,14 +34,14 @@ struct RendererFrontend
     // API
     void CreateRenderPipeline(Shader* Shader, int PassIndex);
     void DestroyRenderPipeline(Shader* Shader);
-    void CreateTexture(uint8* data, Texture* out);
+    void CreateTexture(uint8* Data, Texture* Out);
     void DestroyTexture(Texture* texture);
-    void CreateMaterial(Material* material);
-    void DestroyMaterial(Material* material);
+    void CreateMaterial(Material* Material);
+    void DestroyMaterial(Material* Material);
     void UseShader(const Shader* Shader);
-    void SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void ApplyGlobalShaderProperties(Shader* Shader);
-    void ApplyInstanceShaderProperties(Shader* Shader);
+    void SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    void ApplyGlobalShaderProperties(Shader* ActiveShader);
+    void ApplyInstanceShaderProperties(Shader* ActiveShader);
     void DrawGeometry(uint32 GeometryID);
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);

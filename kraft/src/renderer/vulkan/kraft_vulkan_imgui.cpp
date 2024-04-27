@@ -112,20 +112,14 @@ bool BeginFrame(float64 deltaTime)
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
 
     return true;
 }
 
-bool EndFrame(float64 deltaTime)
+bool EndFrame(ImDrawData* DrawData)
 {
-    VulkanContext *context = VulkanRendererBackend::GetContext();
-    ImGui::Render();
-    ImDrawData* drawData = ImGui::GetDrawData();
-    uint32 width = context->FramebufferWidth;
-    uint32 height = context->FramebufferHeight;
-
-    VulkanCommandBuffer* parentCommandBuffer = &context->GraphicsCommandBuffers[context->CurrentSwapchainImageIndex];
+    VulkanContext *Context = VulkanRendererBackend::GetContext();
+    VulkanCommandBuffer* parentCommandBuffer = &Context->GraphicsCommandBuffers[Context->CurrentSwapchainImageIndex];
     // VulkanBeginCommandBuffer(parentCommandBuffer, true, false, false);
     // VulkanBeginRenderPass(parentCommandBuffer, &context->MainRenderPass, context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
@@ -176,7 +170,7 @@ bool EndFrame(float64 deltaTime)
 		// vkCmdSetScissor(commandBuffer->Handle, 0, 1, &scissor);
 
         // Record dear imgui primitives into command buffer
-        ImGui_ImplVulkan_RenderDrawData(drawData, parentCommandBuffer->Handle);
+        ImGui_ImplVulkan_RenderDrawData(DrawData, parentCommandBuffer->Handle);
 
         // KRAFT_VK_CHECK(vkEndCommandBuffer(commandBuffer->Handle));
 

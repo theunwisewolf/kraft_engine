@@ -23,6 +23,8 @@ bool CreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
         backend->CreateTexture  = VulkanRendererBackend::CreateTexture;
         backend->DestroyTexture = VulkanRendererBackend::DestroyTexture;
+        backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
+        backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
         backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
         backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
         backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;

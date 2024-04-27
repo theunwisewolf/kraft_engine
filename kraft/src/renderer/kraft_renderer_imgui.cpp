@@ -5,11 +5,13 @@
 #include "renderer/vulkan/kraft_vulkan_imgui.h"
 
 #include <imgui/imgui.h>
+#include <imgui/extensions/imguizmo/ImGuizmo.h>
 
 namespace kraft::renderer
 {
 
 static bool WidgetsNeedRefresh = false;
+static RendererImguiBackend* Backend = nullptr;
 
 bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* backend)
 {
@@ -111,6 +113,23 @@ void RendererImGui::EndFrameUpdatePlatformWindows()
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
+}
+
+void RendererImGui::BeginFrame(float64 DeltaTime)
+{
+    Backend->BeginFrame(DeltaTime);
+    ImGui::NewFrame();
+
+    // Extensions
+    ImGuizmo::BeginFrame();
+}
+
+void RendererImGui::EndFrame()
+{
+    ImGui::Render();
+    ImDrawData* DrawData = ImGui::GetDrawData();
+
+    Backend->EndFrame(DrawData);
 }
 
 }

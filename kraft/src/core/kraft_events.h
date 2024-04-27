@@ -31,19 +31,19 @@ struct EventData
     // a 128 bit struct
     union
     {
-        char    Char[16];
-        int8    Int8[16];
-        int16   Int16[8];
-        int32   Int32[4];
-        int64   Int64[2];
+        char    CharValue[16];
+        int8    Int8Value[16];
+        int16   Int16Value[8];
+        int32   Int32Value[4];
+        int64   Int64Value[2];
 
-        uint8   UInt8[16];
-        uint16  UInt16[8];
-        uint32  UInt32[4];
-        uint64  UInt64[2];
+        uint8   UInt8Value[16];
+        uint16  UInt16Value[8];
+        uint32  UInt32Value[4];
+        uint64  UInt64Value[2];
 
-        float32 Float32[4];
-        float64 Float64[2];
+        float32 Float32Value[4];
+        float64 Float64Value[2];
     };
 };
 

@@ -3,6 +3,8 @@
 #include "core/kraft_core.h"
 #include "core/kraft_memory.h"
 
+#include <initializer_list>
+
 namespace kraft
 {
 
@@ -77,12 +79,20 @@ public:
         Allocated = 0;
     }
 
+    Array(std::initializer_list<ValueType> List)
+    {
+        Length = List.size();
+        Alloc(Length);
+
+        MemCpy(InternalBuffer, List.begin(), sizeof(ValueType) * Length);
+    }
+
     // Creates an array with the provided size
     // All the elements are default initialized
     Array(SizeType Size)
     {
         Length = Size;
-        Alloc(Size);
+        Alloc(Length);
         for (int i = 0; i < Length; i++)
         {
             InternalBuffer[i] = ValueType();
@@ -92,7 +102,8 @@ public:
     Array(SizeType Size, ValueType Value)
     {
         Length = Size;
-        Alloc(Size);
+        Alloc(Length);
+
         for (int i = 0; i < Length; i++)
         {
             InternalBuffer[i] = Value;

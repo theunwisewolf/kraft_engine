@@ -166,9 +166,12 @@ void TextureSystem::ReleaseTexture(const String& TextureName)
     }
 }
 
-void TextureSystem::ReleaseTexture(Texture* texture)
+void TextureSystem::ReleaseTexture(Texture* Texture)
 {
-    TextureSystem::ReleaseTexture(texture->Name);
+    if (Texture)
+    {
+        TextureSystem::ReleaseTexture(Texture->Name);
+    }
 }
 
 bool TextureSystem::LoadTexture(const String& TexturePath, Texture* texture)

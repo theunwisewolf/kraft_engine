@@ -5,7 +5,6 @@
 #include "renderer/kraft_renderer_frontend.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
-
 #include "containers/kraft_hashmap.h"
 #include "containers/kraft_buffer.h"
 
@@ -36,8 +35,10 @@ struct ShaderSystemState
 void ShaderSystem::Init(uint32 MaxShaderCount)
 {
     uint32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * MaxShaderCount;
-    State = (ShaderSystemState*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
-    State->Shaders = (ShaderReference*)(State + sizeof(ShaderSystemState));
+    char* RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
+
+    State = (ShaderSystemState*)RawMemory;
+    State->Shaders = (ShaderReference*)(RawMemory + sizeof(ShaderSystemState));
     State->MaxShaderCount = MaxShaderCount;
     State->IndexMapping = HashMap<String, uint32>();
     State->CurrentShaderID = KRAFT_INVALID_ID;
@@ -63,7 +64,7 @@ void ShaderSystem::Shutdown()
 Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
 {
     auto It = State->IndexMapping.find(ShaderPath);
-    if (It != State->IndexMapping.end())
+    if (It != State->IndexMapping.iend())
     {
         uint32 Index = It->second;
         if (Index > 0)
@@ -120,8 +121,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     AddUniform(&Reference->Shader, "Projection", 0, 0, sizeof(Mat4f), ResourceType::UniformBuffer, ShaderUniformScope::Global);
     AddUniform(&Reference->Shader, "View", 1, sizeof(Mat4f), sizeof(Mat4f), ResourceType::UniformBuffer, ShaderUniformScope::Global);
 
-    Reference->Shader.InstanceUniformsOffset = Reference->Shader.UniformCache.Size();
-    uint32 Offset = sizeof(GlobalUniformData);
+    uint32 Offset = 0;
     uint32 TextureCount = 0;
     for (int i = 0; i < Pass.Resources->ResourceBindings.Length; i++)
     {
@@ -138,7 +138,9 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
 
         Offset += ResourceBinding.Size;
     }
+    
     Reference->Shader.InstanceUniformsCount = Reference->Shader.UniformCache.Size();
+    Reference->Shader.TextureCount = TextureCount;
 
     // Cache constant buffers as local uniforms
     Offset = 0;
@@ -152,8 +154,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
 
         Offset += AlignedSize;
     }
-    
-    Reference->Shader.Textures =  Array<Texture*>(TextureCount);
+
     return &State->Shaders[FreeIndex].Shader;
 }
 
@@ -193,7 +194,7 @@ static void ReleaseShaderInternal(uint32 Index)
 void ShaderSystem::ReleaseShader(Shader* Shader)
 {
     auto It = State->IndexMapping.find(Shader->Path);
-    if (It == State->IndexMapping.end())
+    if (It == State->IndexMapping.iend())
     {
         KWARN("[ShaderSystem::ReleaseShader]: Shader not found %s", *Shader->Path);
         return;
@@ -219,6 +220,7 @@ void ShaderSystem::Bind(Shader* Shader)
     if (State->CurrentShaderID != Shader->ID)
     {
         renderer::Renderer->UseShader(Shader);
+
         State->CurrentShaderID = Shader->ID;
         State->CurrentShader = Shader;
     }
@@ -232,47 +234,64 @@ void ShaderSystem::BindByID(uint32 ShaderID)
     ShaderSystem::Bind(&Reference->Shader);
 }
 
-void ShaderSystem::Unbind()
+void ShaderSystem::SetMaterialInstance(Material* Instance)
 {
-    State->CurrentShaderID = KRAFT_INVALID_ID;
-    State->CurrentShader = nullptr;
+    KASSERT(Instance);
+    KASSERT(State->CurrentShader);
+
+    State->CurrentShader->ActiveMaterial = Instance;
 }
 
-// template<>
-// bool ShaderSystem::SetUniform(const String& Name, uint32 Value)
-// {
-//     if (State->CurrentShaderID == KRAFT_INVALID_ID) return false;
-// }
+void ShaderSystem::Unbind()
+{
+    if (State->CurrentShader)
+    {
+        State->CurrentShader->ActiveMaterial = nullptr;
+        State->CurrentShaderID = KRAFT_INVALID_ID;
+        State->CurrentShader = nullptr;
+    }
+}
 
-// template<>
-// bool ShaderSystem::SetUniform(const String& Name, Mat4f Value)
-// {
-    
-// }
+bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUniform& Uniform)
+{
+    auto It = Shader->UniformCacheMapping.find(Name);
+    if (It == Shader->UniformCacheMapping.iend()) return false;
+
+    return GetUniformByIndex(Shader, It->second.get(), Uniform);
+}
+
+bool ShaderSystem::GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform& Uniform)
+{
+    KASSERT(Index < Shader->UniformCache.Length);
+    if (Index >= Shader->UniformCache.Length) return false;
+
+    Uniform = Shader->UniformCache[Index];
+    return true;
+}
 
 template<>
 bool ShaderSystem::SetUniform(const String& Name, BufferView Value, bool Invalidate)
 {
-    return ShaderSystem::SetUniform(Name, (void*)Value.Memory, Value.Size, Invalidate);
+    return ShaderSystem::SetUniform(Name, (void*)Value.Memory, Invalidate);
 }
 
 template<>
 bool ShaderSystem::SetUniformByIndex(uint32 Index, BufferView Value, bool Invalidate)
 {
-    return ShaderSystem::SetUniformByIndex(Index, (void*)Value.Memory, Value.Size, Invalidate);
+    return ShaderSystem::SetUniformByIndex(Index, (void*)Value.Memory, Invalidate);
 }
 
-bool ShaderSystem::SetUniform(const String& Name, void* Value, uint64 Size, bool Invalidate)
+bool ShaderSystem::SetUniform(const String& Name, void* Value, bool Invalidate)
 {
     if (State->CurrentShaderID == KRAFT_INVALID_ID) return false;
 
     auto It = State->CurrentShader->UniformCacheMapping.find(Name);
-    if (It == State->CurrentShader->UniformCacheMapping.end()) return false;
+    if (It == State->CurrentShader->UniformCacheMapping.iend()) return false;
 
-    return SetUniformByIndex(It->second, Value, Size, Invalidate);
+    return SetUniformByIndex(It->second, Value, Invalidate);
 }
 
-bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, uint64 Size, bool Invalidate)
+bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
 {
     KASSERT(Index < State->CurrentShader->UniformCache.Length);
 
@@ -282,13 +301,18 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, uint64 Size, boo
     return true;
 }
 
-void ShaderSystem::ApplyGlobalProperties()
+void ShaderSystem::ApplyGlobalProperties(const Mat4f& Projection, const Mat4f& View)
 {
+    KASSERT(State->CurrentShader);
+
+    SetUniformByIndex(0, Projection);
+    SetUniformByIndex(1, View);
     Renderer->ApplyGlobalShaderProperties(State->CurrentShader);
 }
 
 void ShaderSystem::ApplyInstanceProperties()
 {
+    KASSERT(State->CurrentShader);
     Renderer->ApplyInstanceShaderProperties(State->CurrentShader);
 }
 

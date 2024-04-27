@@ -7,6 +7,7 @@
 #include "systems/kraft_material_system.h"
 
 #include "utils.h"
+#include "editor/gizmos.h"
 
 #include <imgui/imgui.h>
 
@@ -16,6 +17,8 @@ void InitImguiWidgets(const kraft::String& TexturePath)
 {
     TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::TextureSystem::AcquireTexture(TexturePath));
     kraft::Renderer->ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
+
+    InitGizmos();
 }
 
 void DrawImGuiWidgets(bool refresh)
@@ -23,7 +26,6 @@ void DrawImGuiWidgets(bool refresh)
     kraft::Camera& Camera = TestSceneState->SceneCamera;
 
     ImGui::Begin("Debug");
-    TestSceneState->ObjectState.Dirty |= refresh;
 
     static float    left   = -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
                     right  = (float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
@@ -39,35 +41,38 @@ void DrawImGuiWidgets(bool refresh)
     static float farClipP = 1000.f;
 
     // To preserve the aspect ratio of the texture
-    kraft::Texture* Texture = TestSceneState->ObjectState.MaterialInstance->DiffuseMap.Texture;
+    kraft::Texture* Texture = TestSceneState->GetSelectedEntity().MaterialInstance->GetUniform<kraft::Texture*>("DiffuseSampler");
     kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 
     static kraft::Vec3f rotationDeg = kraft::Vec3fZero;
-    static bool usePerspectiveProjection = TestSceneState->Projection == ProjectionType::Perspective;
+    static bool usePerspectiveProjection = Camera.ProjectionType == kraft::CameraProjectionType::Perspective;
 
-    kraft::Camera& camera = TestSceneState->SceneCamera;
-    if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true) || (TestSceneState->ObjectState.Dirty && usePerspectiveProjection))
+    kraft::Vec3f Translation = TestSceneState->GetSelectedEntity().Position;
+    kraft::Vec3f Rotation = TestSceneState->GetSelectedEntity().Rotation;
+    kraft::Vec3f Scale = TestSceneState->GetSelectedEntity().Scale;
+
+    if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true))
     {
         usePerspectiveProjection = true;
-        SetProjection(ProjectionType::Perspective);
+        SetProjection(kraft::CameraProjectionType::Perspective);
 
-        TestSceneState->ObjectState.Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
-        TestSceneState->ObjectState.Dirty = true;
+        Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
     }
 
-    if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false) || (TestSceneState->ObjectState.Dirty && !usePerspectiveProjection))
+    if (ImGui::RadioButton("Orthographic Projection", usePerspectiveProjection == false))
     {
         usePerspectiveProjection = false;
-        SetProjection(ProjectionType::Orthographic);
+        SetProjection(kraft::CameraProjectionType::Orthographic);
 
-        TestSceneState->ObjectState.Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
-        TestSceneState->ObjectState.Dirty = true;
+        Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
     }
 
-    if (ImGui::ColorEdit4("Diffuse Color", TestSceneState->ObjectState.MaterialInstance->DiffuseColor._data))
+    auto Instance = TestSceneState->GetSelectedEntity().MaterialInstance;
+    static kraft::Vec4f DiffuseColor = Instance->GetUniform<kraft::Vec4f>("DiffuseColor");
+    if (ImGui::ColorEdit4("Diffuse Color", DiffuseColor))
     {
-        kraft::MaterialSystem::SetProperty(TestSceneState->ObjectState.MaterialInstance, "DiffuseColor", TestSceneState->ObjectState.MaterialInstance->DiffuseColor);
+        kraft::MaterialSystem::SetProperty(Instance, "DiffuseColor", DiffuseColor);
     }
 
     if (usePerspectiveProjection)
@@ -77,27 +82,27 @@ void DrawImGuiWidgets(bool refresh)
 
         if (ImGui::DragFloat("FOV", &fov))
         {
-            TestSceneState->ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
+            Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Width", &width))
         {
-            TestSceneState->ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
+            Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Height", &height))
         {
-            TestSceneState->ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
+            Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Near clip", &nearClipP))
         {
-            TestSceneState->ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
+            Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
         }
 
         if (ImGui::DragFloat("Far clip", &farClipP))
         {
-            TestSceneState->ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
+            Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(fov), width / height, nearClipP, farClipP);
         }
     }
     else
@@ -107,32 +112,32 @@ void DrawImGuiWidgets(bool refresh)
 
         if (ImGui::DragFloat("Left", &left))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
 
         if (ImGui::DragFloat("Right", &right))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
 
         if (ImGui::DragFloat("Top", &top))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
 
         if (ImGui::DragFloat("Bottom", &bottom))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
 
         if (ImGui::DragFloat("Near", &nearClip))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
 
         if (ImGui::DragFloat("Far", &farClip))
         {
-            TestSceneState->ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
+            Camera.ProjectionMatrix = kraft::OrthographicMatrix(left, right, top, bottom, nearClip, farClip);
         }
     }
 
@@ -141,9 +146,9 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::Separator();
         ImGui::Text("Camera Transform");
         ImGui::Separator();
-        if (ImGui::DragFloat4("Translation", camera.Position))
+        if (ImGui::DragFloat4("Translation", Camera.Position))
         {
-            camera.Dirty = true;
+            Camera.Dirty = true;
         }
     }
     ImGui::PopID();
@@ -154,40 +159,26 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::Text("Transform");
         ImGui::Separator();
         
-        if (ImGui::DragFloat3("Scale", TestSceneState->ObjectState.Scale._data))
+        if (ImGui::DragFloat3("Translation", Translation._data))
         {
-            KINFO("Scale - %f, %f, %f", TestSceneState->ObjectState.Scale.x, TestSceneState->ObjectState.Scale.y, TestSceneState->ObjectState.Scale.z);
-            TestSceneState->ObjectState.Dirty = true;
-            // TestSceneState->ObjectState.ModelMatrix = ScaleMatrix(Vec3f{scale.x, scale.y, scale.z});
+            KINFO("Translation - %f, %f, %f", Translation.x, Translation.y, Translation.z);
         }
 
-        if (ImGui::DragFloat3("Translation", TestSceneState->ObjectState.Position._data))
+        if (ImGui::DragFloat3("Rotation", rotationDeg._data))
         {
-            KINFO("Translation - %f, %f, %f", TestSceneState->ObjectState.Position.x, TestSceneState->ObjectState.Position.y, TestSceneState->ObjectState.Position.z);
-            TestSceneState->ObjectState.Dirty = true;
-            // TestSceneState->ObjectState.ModelMatrix *= TranslationMatrix(position);
+            Rotation.x = kraft::DegToRadians(rotationDeg.x);
+            Rotation.y = kraft::DegToRadians(rotationDeg.y);
+            Rotation.z = kraft::DegToRadians(rotationDeg.z);
         }
 
-        if (ImGui::DragFloat3("Rotation Degrees", rotationDeg._data))
+        if (ImGui::DragFloat3("Scale", Scale._data))
         {
-            TestSceneState->ObjectState.Rotation.x = kraft::DegToRadians(rotationDeg.x);
-            TestSceneState->ObjectState.Rotation.y = kraft::DegToRadians(rotationDeg.y);
-            TestSceneState->ObjectState.Rotation.z = kraft::DegToRadians(rotationDeg.z);
-            TestSceneState->ObjectState.Dirty = true;
+            KINFO("Scale - %f, %f, %f", Scale.x, Scale.y, Scale.z);
         }
     }
     ImGui::PopID();
 
-    if (TestSceneState->ObjectState.Dirty)
-    {
-        TestSceneState->ObjectState.ModelMatrix = ScaleMatrix(TestSceneState->ObjectState.Scale) * RotationMatrixFromEulerAngles(TestSceneState->ObjectState.Rotation) * TranslationMatrix(TestSceneState->ObjectState.Position);
-    }
-
     ImVec2 ViewPortPanelSize = ImGui::GetContentRegionAvail();
-        //     {Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}},
-        // {Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}},
-        // {Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}},
-        // {Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}},
     ImGui::Image(TextureID, ViewPortPanelSize, {0,1}, {1,0});
 
     ImGui::End();
@@ -195,5 +186,7 @@ void DrawImGuiWidgets(bool refresh)
     // static bool ShowDemoWindow = true;
     // ImGui::ShowDemoWindow(&ShowDemoWindow);
 
-    TestSceneState->ObjectState.Dirty = false;
+    TestSceneState->GetSelectedEntity().SetTransform(Translation, Rotation, Scale);
+
+    EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
 }

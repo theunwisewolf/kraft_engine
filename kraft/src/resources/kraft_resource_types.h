@@ -11,6 +11,7 @@
 #define KRAFT_TEXTURE_NAME_MAX_LENGTH 256
 #define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
+#define KRAFT_MATERIAL_MAX_INSTANCES 128
 
 namespace kraft
 {
@@ -18,6 +19,8 @@ namespace kraft
 typedef uint32 ResourceID;
 
 using namespace renderer;
+
+struct Material;
 
 struct ShaderUniform
 {
@@ -34,15 +37,14 @@ struct Shader
     String                          Path;
     renderer::ShaderEffect          ShaderEffect;
     Array<ShaderUniform>            UniformCache;
-    Array<Texture*>                 Textures;
     HashMap<String, uint32>         UniformCacheMapping;
-    uint32                          InstanceUniformsOffset;
-    uint32                          InstanceUniformsCount;
-    uint32                          InstanceUBOOffset;
+    uint32                          TextureCount;
     uint32                          GlobalUBOOffset;
-    uint64                          InstanceUBOStride;
-    uint64                          GlobalUBOStride;
+    uint32                          GlobalUBOStride;
+    uint32                          InstanceUniformsCount;
+    uint32                          InstanceUBOStride; // The stride will be same for all material instances
 
+    Material*                       ActiveMaterial; // The shader will read instance properties from this material when bound
     void*                           RendererData;
 };
 
@@ -53,9 +55,9 @@ struct Texture
     uint32 Height;
     uint8  Channels;
     uint32 Generation;
-    char  Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
+    char   Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
 
-    void *RendererData; // Renderer specific data
+    void*  RendererData; // Renderer specific data
 };
 
 enum TextureUse
@@ -70,21 +72,90 @@ struct TextureMap
     TextureUse  Usage;
 };
 
-struct MaterialInternalData
+#define MATERIAL_PROPERTY_SET(Type) KRAFT_INLINE void Set(Type Val) { MemCpy(this->Memory, (void*)&Val, sizeof(Type));  }
+#define MATERIAL_PROPERTY_CONSTRUCTOR(Type) KRAFT_INLINE MaterialProperty(uint32 Index, Type Val) { this->UniformIndex = Index; MemCpy(this->Memory, (void*)&Val, sizeof(Type));  }
+#define MATERIAL_PROPERTY_OPERATOR(Type) KRAFT_INLINE MaterialProperty* operator=(Type Val) { MemCpy(this->Memory, (void*)&Val, sizeof(Type)); return this; }
+#define MATERIAL_PROPERTY_SETTERS(Type) \
+    MATERIAL_PROPERTY_CONSTRUCTOR(Type) \
+    MATERIAL_PROPERTY_OPERATOR(Type) \
+    MATERIAL_PROPERTY_SET(Type)
+
+struct MaterialProperty
 {
-    HashMap<String, uint32> ResourceMapping;
+    union
+    {
+        Mat4f    Mat4fValue;
+        Vec4f    Vec4fValue;
+        Vec3f    Vec3fValue;
+        Vec2f    Vec2fValue;
+        Float32  Float32Value;
+        Float64  Float64Value;
+        UInt8    UInt8Value;
+        UInt16   UInt16Value;
+        UInt32   UInt32Value;
+        UInt64   UInt64Value;
+        Texture* TextureValue;
+
+        char    Memory[128];
+    };
+
+    // Index of the uniform in the shader uniform cache
+    uint32 UniformIndex;
+    
+    MaterialProperty()
+    {
+        MemSet(Memory, 0, sizeof(Memory));
+    }
+
+    MATERIAL_PROPERTY_SETTERS(Mat4f);
+    MATERIAL_PROPERTY_SETTERS(Vec4f);
+    MATERIAL_PROPERTY_SETTERS(Vec3f);
+    MATERIAL_PROPERTY_SETTERS(Vec2f);
+    MATERIAL_PROPERTY_SETTERS(Float32);
+    MATERIAL_PROPERTY_SETTERS(Float64);
+    MATERIAL_PROPERTY_SETTERS(UInt8);
+    MATERIAL_PROPERTY_SETTERS(UInt16);
+    MATERIAL_PROPERTY_SETTERS(UInt32);
+    MATERIAL_PROPERTY_SETTERS(UInt64);
+    MATERIAL_PROPERTY_SETTERS(Texture*);
+
+    template<typename T>
+    T Get() const
+    {
+        return *((T*)(&Memory[0]));
+    }
 };
+
+#undef MATERIAL_PROPERTY_SET
+#undef MATERIAL_PROPERTY_CONSTRUCTOR
+#undef MATERIAL_PROPERTY_OPERATOR
+#undef MATERIAL_PROPERTY_SETTERS
 
 struct Material
 {
     ResourceID      ID;
-    char            Name[KRAFT_MATERIAL_NAME_MAX_LENGTH];
-    TextureMap      DiffuseMap;
-    Vec4f           DiffuseColor;
+    String          Name;
+    String          AssetPath;
     bool            Dirty;
 
     // Reference to the underlying shader
     Shader*         Shader;
+
+    // List of textures of this material instance
+    Array<Texture*> Textures;
+
+    // All the material properties
+    // The indices match to the material's properties hashmap
+    HashMap<String, MaterialProperty> Properties;
+
+    // Holds the backend renderer data such as descriptor sets
+    void*           RendererData;
+
+    template<typename T>
+    T GetUniform(const String& Name) const
+    {
+        return Properties.find(Name).value().Get<T>();
+    }
 };
 
 struct Geometry

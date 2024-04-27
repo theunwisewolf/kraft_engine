@@ -25,8 +25,8 @@ Application* Application::I = nullptr;
 
 bool Application::WindowResizeListener(EventType type, void* sender, void* listener, EventData data)
 {
-    uint32 width = data.UInt32[0];
-    uint32 height = data.UInt32[1];
+    uint32 width = data.UInt32Value[0];
+    uint32 height = data.UInt32Value[1];
 
     Application* application = (Application*)listener;
     application->Config.WindowWidth = width;

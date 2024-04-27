@@ -315,8 +315,8 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
         {
             MATCH_FORMAT("mat4", ShaderDataType::Mat4);
             MATCH_FORMAT("Mat4", ShaderDataType::Mat4);
-        case 'b': // "Byte", "Byte4N"
         }
+        case 'b': // "Byte", "Byte4N"
         case 'B': // "Byte", "Byte4N"
         {
             MATCH_FORMAT("byte", ShaderDataType::Byte);

@@ -50,7 +50,7 @@ void Camera::SetRoll(float32 roll)
     this->Roll = roll;
 }
 
-Mat4f& Camera::GetViewMatrix()
+void Camera::UpdateViewMatrix()
 {
     if (this->Dirty)
     {
@@ -61,8 +61,6 @@ Mat4f& Camera::GetViewMatrix()
         this->ViewMatrix = rotation * translation;
         this->ViewMatrix = Inverse(this->ViewMatrix);
     }
-
-    return this->ViewMatrix;
 }
 
 }

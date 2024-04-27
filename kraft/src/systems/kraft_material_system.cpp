@@ -15,14 +15,14 @@ namespace kraft
 struct MaterialReference
 {
     uint32   RefCount;
-    bool     AutoRelease;
     Material Material;
 };
 
 struct MaterialSystemState
 {
-    uint32             MaxMaterialCount;
-    MaterialReference *MaterialReferences;
+    uint32               MaxMaterialCount;
+    HashMap<String, int> IndexMapping;
+    MaterialReference*   MaterialReferences;
 };
 
 static MaterialSystemState* State = 0;
@@ -31,15 +31,32 @@ static void ReleaseMaterialInternal(uint32 Index);
 static void CreateDefaultMaterialsInternal();
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data);
 
-void MaterialSystem::Init(MaterialSystemConfig config)
+KRAFT_INLINE Material* GetMaterialByName(const String& Name)
 {
-    uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * config.MaxMaterialsCount;
+    auto It = State->IndexMapping.find(Name);
+    if (It == State->IndexMapping.iend())
+    {
+        return nullptr;
+    }
+    
+    return &State->MaterialReferences[It->second.get()].Material;
+}
 
-    State = (MaterialSystemState*)kraft::Malloc(totalSize, MEMORY_TAG_MATERIAL_SYSTEM, true);
-    State->MaxMaterialCount = config.MaxMaterialsCount;
-    State->MaterialReferences = (MaterialReference*)(State + sizeof(MaterialSystemState));
+void MaterialSystem::Init(MaterialSystemConfig Config)
+{
+    uint32 StateSize = sizeof(MaterialSystemState);
+    uint32 ArraySize = sizeof(MaterialReference) * Config.MaxMaterialsCount;
+    uint32 TotalSize = StateSize + ArraySize;
 
-    CreateDefaultMaterialsInternal();
+    char* RawMemory = (char*)kraft::Malloc(TotalSize, MEMORY_TAG_MATERIAL_SYSTEM, true);
+
+    State = (MaterialSystemState*)RawMemory;
+    State->MaxMaterialCount = Config.MaxMaterialsCount;
+    State->MaterialReferences = (MaterialReference*)(RawMemory + StateSize);
+    State->IndexMapping = HashMap<String, int>();
+    State->IndexMapping.reserve(Config.MaxMaterialsCount);
+
+    // CreateDefaultMaterialsInternal();
 }
 
 void MaterialSystem::Shutdown()
@@ -49,11 +66,9 @@ void MaterialSystem::Shutdown()
 
     for (int i = 1; i < State->MaxMaterialCount; ++i)
     {
-        MaterialReference* ref = &State->MaterialReferences[i];
-        if (ref->RefCount > 0)
-        {
-            MaterialSystem::DestroyMaterial(&ref->Material);
-        }
+        MaterialReference* Ref = &State->MaterialReferences[i];
+        if (Ref->RefCount)
+            MaterialSystem::DestroyMaterial(&Ref->Material);
     }
 
     uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * State->MaxMaterialCount;
@@ -71,196 +86,159 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->MaterialReferences[0].Material;
 }
 
-Material* MaterialSystem::AcquireMaterial(const String& Name)
+Material* MaterialSystem::CreateMaterialFromFile(const String& Path)
 {
-    return AcquireMaterial(*Name);
+    String FilePath = Path;
+    if (!FilePath.EndsWith(".kmt"))
+    {
+        FilePath = FilePath + ".kmt";
+    }
+
+    MaterialData Data;
+    Data.FilePath = FilePath;
+    if (!LoadMaterialFromFileInternal(FilePath, &Data))
+    {
+        KINFO("[MaterialSystem::AcquireMaterial]: Failed to parse material %s", *FilePath);
+        return nullptr;
+    }
+
+    return CreateMaterialWithData(Data);
 }
 
-Material* MaterialSystem::AcquireMaterial(const char* Name)
+Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
 {
-    int index = -1;
-
-    // Look for an already acquired material
+    int FreeIndex = -1; 
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
     {
-        if (StringEqual(State->MaterialReferences[i].Material.Name, Name))
+        if (State->MaterialReferences[i].RefCount == 0)
         {
-            index = i;
+            FreeIndex = i;
             break;
         }
     }
 
-    // Material already exists in the cache
-    // Just increase the ref-count
-    if (index > -1)
+    if (FreeIndex == -1)
     {
-        KINFO("[MaterialSystem::AcquireMaterial]: Material already acquired; Reusing!");
-        State->MaterialReferences[index].RefCount++;
-    }
-    else
-    {
-        String FilePath = Name;
-        if (!FilePath.EndsWith(".kmt"))
-        {
-            FilePath = FilePath + ".kmt";
-        }
-
-        MaterialData Data;
-        if (!LoadMaterialFromFileInternal(FilePath, &Data))
-        {
-            KINFO("[MaterialSystem::AcquireMaterial]: Failed to parse material %s", *FilePath);
-            return nullptr;
-        }
-
-        return AcquireMaterialWithData(Data);
+        KERROR("[MaterialSystem::CreateMaterialWithData]: Max number of materials reached!");
+        return nullptr;
     }
 
-    return &State->MaterialReferences[index].Material;
+    State->IndexMapping[Data.Name] = FreeIndex;
+    MaterialReference* Reference = &State->MaterialReferences[FreeIndex];
+    Reference->RefCount = 1;
+
+    // Load the shader
+    Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset);
+    if (!Shader)
+    {
+        KERROR("[MaterialSystem::CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name);
+        Shader = ShaderSystem::GetDefaultShader();
+    }
+
+    Material* Instance = &Reference->Material;
+    Instance->ID = FreeIndex;
+    Instance->Name = Data.Name;
+    Instance->AssetPath = Data.FilePath;
+    Instance->Shader = Shader;
+    Instance->Textures = Array<Texture*>(Shader->TextureCount);
+    Instance->Properties = HashMap<String, MaterialProperty>();
+    Instance->Properties.reserve(Shader->InstanceUniformsCount);
+    Instance->Dirty = true;
+
+    // Create backend data such has descriptor sets
+    Renderer->CreateMaterial(Instance);
+
+    // Cache the uniforms for this material
+    for (auto It = Shader->UniformCacheMapping.ibegin(); It != Shader->UniformCacheMapping.iend(); It++)
+    {
+        ShaderUniform Uniform = Shader->UniformCache[It->second];
+        if (Uniform.Scope == ShaderUniformScope::Instance)
+        {
+            const String& UniformName = It->first;
+            
+            Instance->Properties[UniformName] = MaterialProperty();
+
+            // Look to see if this property is present in the material
+            auto _MaterialIt = Data.Properties.find(UniformName);
+            if (_MaterialIt == Data.Properties.iend())
+            {
+                KWARN("[MaterialSystem::CreateMaterialWithData]: Material %s does not contain shader uniform %s", *Data.Name, *UniformName);
+            }
+            else
+            {
+                // Copy over the value
+                if (Uniform.Type == ResourceType::Sampler)
+                {
+                    MemCpy(Instance->Properties[UniformName].Memory, Data.Properties[UniformName].Memory, sizeof(Texture));
+                }
+                else
+                {
+                    MemCpy(Instance->Properties[UniformName].Memory, Data.Properties[UniformName].Memory, Uniform.Stride);
+                }
+
+                Instance->Properties[UniformName].UniformIndex = It->second;
+            }
+        }
+    }
+
+    return Instance;
 }
 
-Material* MaterialSystem::AcquireMaterialWithData(MaterialData Data)
+void MaterialSystem::DestroyMaterial(const String& Name)
 {
-    int freeIndex = -1;
-    int index = -1;
+    Material* Instance = GetMaterialByName(Name);
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Releasing material %s", *Name);
 
-    // Look for an already acquired material
-    for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
+    if (Instance == nullptr)
     {
-        if (Data.Name == State->MaterialReferences[i].Material.Name)
-        {
-            index = i;
-            break;
-        }
-
-        if (freeIndex == -1 && State->MaterialReferences[i].RefCount == 0)
-        {
-            freeIndex = i;
-        }
-    }
-
-    // Material already exists in the cache
-    // Just increase the ref-count
-    if (index > -1)
-    {
-        KINFO("[MaterialSystem::AcquireMaterialWithData]: Material already acquired; Reusing!");
-        // Default material's refcount always stays at 1
-        if (index > 0)
-        {
-            State->MaterialReferences[index].RefCount++;
-        }
-    }
-    else
-    {
-        if (freeIndex == -1)
-        {
-            KERROR("[MaterialSystem::AcquireMaterialWithData]: Failed to find a free slot; Out-of-memory!");
-            return NULL;
-        }
-
-        MaterialReference* Reference = &State->MaterialReferences[freeIndex];
-        Reference->RefCount++;
-        Reference->AutoRelease = Data.AutoRelease;
-        Texture* Texture = TextureSystem::AcquireTexture(Data.DiffuseTextureMapName, Data.AutoRelease);
-        if (!Texture)
-        {
-            Texture = TextureSystem::GetDefaultDiffuseTexture();
-        }
-
-        Reference->Material.ID = freeIndex;
-
-        // Load the shader
-        Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset);
-        if (!Shader)
-        {
-            Shader = ShaderSystem::GetDefaultShader();
-        }
-
-        Reference->Material.Shader = Shader;
-        Reference->Material.Dirty = false;
-        Reference->Material.DiffuseColor = Data.DiffuseColor;
-        Reference->Material.DiffuseMap = TextureMap
-        {
-            Texture,
-            TEXTURE_USE_MAP_DIFFUSE,
-        };
-
-        StringNCopy(Reference->Material.Name, Data.Name.Data(), sizeof(Reference->Material.Name));
-        index = freeIndex;
-    }
-
-    KDEBUG("[MaterialSystem::AcquireMaterialWithData]: Acquired material %s (index = %d)", *Data.Name, index);
-    return &State->MaterialReferences[index].Material;
-}
-
-void MaterialSystem::ReleaseMaterial(const char* name)
-{
-    KDEBUG("[MaterialSystem::ReleaseMaterial]: Releasing material %s", name);
-
-    int index = -1;
-    for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
-    {
-        if (StringEqual(State->MaterialReferences[i].Material.Name, name))
-        {
-            index = i;
-            break;
-        }
-    }
-
-    if (index == -1)
-    {
-        KERROR("[MaterialSystem::ReleaseMaterial]: Unknown material %s", name);
+        KERROR("[MaterialSystem::DestroyMaterial]: Unknown material %s", *Name);
         return;
     }
 
-    if (index == 0)
+    if (Instance->ID == 0)
     {
-        KWARN("[MaterialSystem::ReleaseMaterial]: Default material cannot be released!");
+        KWARN("[MaterialSystem::DestroyMaterial]: Default material cannot be released!");
         return;
     }
 
-    ReleaseMaterialInternal(index);
+    ReleaseMaterialInternal(Instance->ID);
 }
 
-void MaterialSystem::ReleaseMaterial(Material *material)
+void MaterialSystem::DestroyMaterial(Material* Instance)
 {
-    KASSERTM(material, "[MaterialSystem::ReleaseMaterial]: Material is null");
+    KASSERT(Instance->ID < State->MaxMaterialCount);
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", *Instance->Name);
+    MaterialReference* Reference = &State->MaterialReferences[Instance->ID];
 
-    ReleaseMaterial(material->Name);
-}
-
-void MaterialSystem::DestroyMaterial(Material *material)
-{
-    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", material->Name);
-
-    if (material->DiffuseMap.Texture)
+    if (!Reference)
     {
-        TextureSystem::ReleaseTexture(material->DiffuseMap.Texture->Name);
+        KERROR("Invalid material %s", *Instance->Name);
     }
 
-    if (material->Shader)
+    for (uint32 i = 0; i < Instance->Textures.Length; i++)
     {
-        ShaderSystem::ReleaseShader(material->Shader);
-        material->Shader = 0;
+        TextureSystem::ReleaseTexture(Instance->Textures[i]);
     }
 
-    MemZero(material, sizeof(Material));
+    ShaderSystem::ReleaseShader(Instance->Shader);
+
+    MemZero(Instance, sizeof(Material));
 }
 
-void MaterialSystem::ApplyGlobalProperties(Material* Material, const Mat4f& Projection, const Mat4f& View)
+void MaterialSystem::ApplyInstanceProperties(Material* Instance)
 {
-    ShaderSystem::SetUniformByIndex(0, Projection);
-    ShaderSystem::SetUniformByIndex(1, View);
+    // Copy over all the properties from the material to the shader's uniform buffer
+    if (Instance->Dirty)
+    {
+        for (auto It = Instance->Properties.vbegin(); It != Instance->Properties.vend(); It++)
+        {
+            MaterialProperty& Property = *It;
+            ShaderSystem::SetUniformByIndex(It->UniformIndex, (void*)(&Property.Memory[0]), Instance->Dirty);
+        }
 
-    ShaderSystem::ApplyGlobalProperties();
-}
-
-void MaterialSystem::ApplyInstanceProperties(Material* Material)
-{
-    ShaderSystem::SetUniform("DiffuseColor", Material->DiffuseColor, Material->Dirty);
-    ShaderSystem::SetUniform("DiffuseSampler", Material->DiffuseMap.Texture, Material->Dirty);
-
+        Instance->Dirty = false;
+    }
     ShaderSystem::ApplyInstanceProperties();
-    Material->Dirty = false;
 }
 
 void MaterialSystem::ApplyLocalProperties(Material* Material, const Mat4f& Model)
@@ -268,49 +246,49 @@ void MaterialSystem::ApplyLocalProperties(Material* Material, const Mat4f& Model
     ShaderSystem::SetUniform("Model", Model);
 }
 
-bool MaterialSystem::SetTexture(Material* Material, const String& Key, const String& TexturePath)
+bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const String& TexturePath)
 {
-    Texture* Texture = TextureSystem::AcquireTexture(TexturePath, true);
-    if (!Texture)
+    Texture* NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
+    if (!NewTexture)
     {
         return false;
     }
+
+    return SetTexture(Instance, Key, NewTexture);
+}
+
+bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Texture* NewTexture)
+{
+    KASSERT(NewTexture);
+    if (!NewTexture)
+    {
+        return false;
+    }
+
+    auto It = Instance->Properties.find(Key);
+    if (It == Instance->Properties.iend())
+    {
+        KERROR("[MaterialSystem::SetTexture]: Unknown key %s", *Key);
+        return false;
+    }
+
+    MaterialProperty& Property = It->second;
+
+    // Validate the Uniform
+    Shader* Shader = Instance->Shader;
+    ShaderUniform Uniform;
+    if (!ShaderSystem::GetUniform(Shader, Key, Uniform)) return false;
+
+    KDEBUG("Uniform offset %d", Uniform.Offset);
 
     // Release the old texture
-    TextureSystem::ReleaseTexture(Material->DiffuseMap.Texture);
-    
-    return SetTexture(Material, Key, Texture);
-}
+    Texture* OldTexture = Instance->Textures[Uniform.Offset];
+    TextureSystem::ReleaseTexture(OldTexture);
 
-bool MaterialSystem::SetTexture(Material* Material, const String& Key, Texture* Texture)
-{
-    KASSERT(Texture);
-    return SetProperty(Material, Key, Texture);
-}
+    Property.Set(NewTexture);
+    // Instance->Textures[Uniform.Offset] = NewTexture;
+    Instance->Dirty = true;
 
-template<>
-bool MaterialSystem::SetProperty(Material* Material, const String& Name, BufferView Value)
-{
-    return SetProperty(Material, Name, (void*)Value.Memory, Value.Size);
-}
-
-bool MaterialSystem::SetProperty(Material* Material, const String& Name, void* Value, uint64 Size)
-{
-    if (Name == "DiffuseSampler")
-    {
-        Material->DiffuseMap.Texture = (Texture*)Value;
-    }
-    else if (Name == "DiffuseColor")
-    {
-        Vec4f* Color = (Vec4f*)Value;
-        Material->DiffuseColor = *Color;
-    }
-    else
-    {
-        return false;
-    }
-
-    Material->Dirty = true;
     return true;
 }
 
@@ -323,12 +301,12 @@ static void ReleaseMaterialInternal(uint32 Index)
     MaterialReference Reference = State->MaterialReferences[Index];
     if (Reference.RefCount == 0)
     {
-        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", Reference.Material.Name);
+        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", *Reference.Material.Name);
         return;
     }
 
     Reference.RefCount--;
-    if (Reference.RefCount == 0 && Reference.AutoRelease)
+    if (Reference.RefCount == 0)
     {
         MaterialSystem::DestroyMaterial(&Reference.Material);
     }
@@ -336,19 +314,14 @@ static void ReleaseMaterialInternal(uint32 Index)
 
 static void CreateDefaultMaterialsInternal()
 {
-    MaterialReference* ref = &State->MaterialReferences[0];
-    ref->RefCount = 1;
-    
-    Material* material = &ref->Material;
-    material->ID = 0;
-    material->DiffuseColor = Vec4fOne;
-    material->DiffuseMap = TextureMap
-    {
-        TextureSystem::GetDefaultDiffuseTexture(),
-        TEXTURE_USE_MAP_DIFFUSE,
-    };
+    MaterialData Data;
+    Data.Name = "Materials.Default";
+    Data.FilePath = "Material.Default.kmt";
+    Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
+    Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
+    Data.Properties["DiffuseSampler"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
 
-    StringNCopy(material->Name, "default-material", sizeof(material->Name));
+    KASSERT(MaterialSystem::CreateMaterialWithData(Data));
 }
 
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
@@ -421,7 +394,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                                 }
                             }
 
-                            Data->DiffuseColor = Vec4f(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2], DiffuseColor[3]);
+                            Data->Properties["DiffuseColor"] = Vec4f(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2], DiffuseColor[3]);
                         }
                     }
                     else if (Token.MatchesKeyword("DiffuseMapName"))
@@ -431,7 +404,15 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                             return false;
                         }
 
-                        Data->DiffuseTextureMapName = Token.String();
+                        const String& TexturePath = Token.String();
+                        Texture* Texture = TextureSystem::AcquireTexture(TexturePath);
+                        if (!Texture)
+                        {
+                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.", *TexturePath, *FilePath);
+                            Texture = TextureSystem::GetDefaultDiffuseTexture();
+                        }
+
+                        Data->Properties["DiffuseSampler"] = Texture;
                     }
                     else if (Token.MatchesKeyword("Shader"))
                     {

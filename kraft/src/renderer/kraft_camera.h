@@ -6,6 +6,12 @@
 namespace kraft
 {
 
+enum CameraProjectionType
+{
+    Perspective,
+    Orthographic
+};
+
 struct Camera
 {
     Vec3f Position;
@@ -22,8 +28,10 @@ struct Camera
         Vec3f Euler;
     };
     
-    Mat4f    ViewMatrix; // Computed matrix
-    bool     Dirty = true;
+    CameraProjectionType ProjectionType;
+    Mat4f                ProjectionMatrix; // Computed matrix
+    Mat4f                ViewMatrix; // Computed matrix
+    bool                 Dirty = true;
 
     Camera();
 
@@ -34,7 +42,13 @@ struct Camera
     void SetYaw(float32 yaw);
     void SetRoll(float32 roll);
 
-    Mat4f& GetViewMatrix();
+    KRAFT_INLINE Mat4f& GetViewMatrix()
+    {
+        UpdateViewMatrix();
+        return this->ViewMatrix;
+    }
+
+    void UpdateViewMatrix();
 };
 
 }

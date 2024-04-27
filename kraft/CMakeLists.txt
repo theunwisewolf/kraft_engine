@@ -88,6 +88,9 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         vendor/imgui/imgui_widgets.cpp
         vendor/imgui/imgui_tables.cpp
         vendor/imgui/imgui_demo.cpp
+
+        # imgui extensions
+        vendor/imgui/extensions/imguizmo/ImGuizmo.cpp
     )
 endif()
 

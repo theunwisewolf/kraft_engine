@@ -243,10 +243,13 @@ struct VulkanDescriptorState
 struct VulkanShaderResources
 {
     Array<VkDescriptorSetLayout> DescriptorSetLayouts;
-    Array<VkDescriptorSet>       DescriptorSets;
-    VulkanDescriptorState        DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
     VulkanBuffer                 UniformBuffer;
     void*                        UniformBufferMemory;
+    
+    // This is used to figure out where in memory the next material
+    // uniform data will be stored
+    struct Slot { bool Used; };
+    Slot                         UsedSlots[128];
 };
 
 struct VulkanShader
@@ -254,6 +257,13 @@ struct VulkanShader
     VkPipeline             Pipeline;
     VkPipelineLayout       PipelineLayout;
     VulkanShaderResources  ShaderResources;
+};
+
+struct VulkanMaterialData
+{
+    uint64                 InstanceUBOOffset;
+    Array<VkDescriptorSet> DescriptorSets;
+    VulkanDescriptorState  DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
 };
 
 }

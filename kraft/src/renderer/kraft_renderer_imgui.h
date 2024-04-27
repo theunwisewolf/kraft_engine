@@ -41,7 +41,6 @@ bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* 
 struct RendererImGui
 {
     Block                   BackendMemory;
-    RendererImguiBackend*   Backend = nullptr;
 
     String IniFilename;
     Array<ImGuiWidget> Widgets;
@@ -53,6 +52,9 @@ struct RendererImGui
     void RenderWidgets();
     void Destroy();
     void EndFrameUpdatePlatformWindows();
+
+    void BeginFrame(float64 DeltaTime);
+    void EndFrame();
 };
 
 }

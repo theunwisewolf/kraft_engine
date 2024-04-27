@@ -30,15 +30,15 @@ static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int count = (int)data.Int64[0];
-    const char **paths = (const char**)data.Int64[1];
+    int count = (int)data.Int64Value[0];
+    const char **paths = (const char**)data.Int64Value[1];
 
     // Try loading the texture from the command line args
     const char *TexturePath = paths[count - 1];
     if (kraft::filesystem::FileExists(TexturePath))
     {
         KINFO("Loading texture from path %s", TexturePath);
-        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.MaterialInstance, "DiffuseSampler", TexturePath);
+        kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
         UpdateObjectScale();
     }
     else
@@ -51,14 +51,14 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::Keys KeyCode = (kraft::Keys)data.Int32[0];
+    kraft::Keys KeyCode = (kraft::Keys)data.Int32Value[0];
     KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
 
     static bool DefaultTexture = false;
     if (KeyCode == kraft::KEY_C)
     {
         kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
-        kraft::MaterialSystem::SetTexture(TestSceneState->ObjectState.MaterialInstance, "DiffuseSampler", TexturePath);
+        kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
         DefaultTexture = !DefaultTexture;
         UpdateObjectScale();
     }
@@ -68,7 +68,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
 
 bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::Keys keycode = (kraft::Keys)data.Int32[0];
+    kraft::Keys keycode = (kraft::Keys)data.Int32Value[0];
     KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
@@ -85,7 +85,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 
 bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int button = data.Int32[0];
+    int button = data.Int32Value[0];
     KINFO("%d mouse button pressed", button);
 
     return false;
@@ -93,7 +93,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
 
 bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int button = data.Int32[0];
+    int button = data.Int32Value[0];
     KINFO("%d mouse button released", button);
 
     return false;
@@ -101,8 +101,8 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
 
 bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int x = data.Int32[0];
-    int y = data.Int32[1];
+    int x = data.Int32Value[0];
+    int y = data.Int32Value[1];
     // KINFO("Drag started = %d, %d", x, y);
 
     return false;
@@ -110,20 +110,30 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    kraft::ApplicationConfig Config = kraft::Application::Get()->Config;
-    float x = 2.0f * data.Int32[0] / (float)Config.WindowWidth - 1.0f;
-    float y = 2.0f * data.Int32[1] / (float)Config.WindowHeight - 1.0f;
-
+    return false;
     kraft::Camera& Camera = TestSceneState->SceneCamera;
-    kraft::Mat4f ViewProjectionInverse = kraft::Inverse(TestSceneState->ProjectionMatrix * Camera.ViewMatrix);
-    kraft::Vec4f ScreenPointNDC = kraft::Vec4f(x, y, 0.0f, 1.0f);
-    kraft::Vec4f WorldSpacePosition = ViewProjectionInverse * ScreenPointNDC;
-    WorldSpacePosition /= WorldSpacePosition.w;
+    if (kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_LEFT))
+    {
+        kraft::ApplicationConfig Config = kraft::Application::Get()->Config;
+        float x = 2.0f * data.Int32Value[0] / (float)Config.WindowWidth - 1.0f;
+        float y = 2.0f * data.Int32Value[1] / (float)Config.WindowHeight - 1.0f;
 
-    TestSceneState->ObjectState.Position.x = WorldSpacePosition.x;
-    TestSceneState->ObjectState.Position.y = -WorldSpacePosition.y;
-    TestSceneState->ObjectState.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->ObjectState.Rotation) * kraft::TranslationMatrix(TestSceneState->ObjectState.Position);
+        kraft::Mat4f ViewProjectionInverse = kraft::Inverse(Camera.ProjectionMatrix * Camera.ViewMatrix);
+        kraft::Vec4f ScreenPointNDC = kraft::Vec4f(x, y, 0.0f, 1.0f);
+        kraft::Vec4f WorldSpacePosition = ViewProjectionInverse * ScreenPointNDC;
+        WorldSpacePosition /= WorldSpacePosition.w;
 
+        TestSceneState->GetSelectedEntity().Position.x = WorldSpacePosition.x;
+        TestSceneState->GetSelectedEntity().Position.y = -WorldSpacePosition.y;
+        TestSceneState->GetSelectedEntity().ModelMatrix = kraft::ScaleMatrix(TestSceneState->GetSelectedEntity().Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->GetSelectedEntity().Rotation) * kraft::TranslationMatrix(TestSceneState->GetSelectedEntity().Position);
+    }
+    else if (kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
+    {
+        // KDEBUG("Pitch = %f", Camera.Pitch - (float)data.Int32[0] / 200.0f * kraft::Time::DeltaTime);
+        KDEBUG("Y = %d | Yaw = %f", data.Int32Value[0], Camera.Yaw + (float)data.Int32Value[0] / 200.0f * kraft::Time::DeltaTime);
+        // Camera.SetPitch(Camera.Pitch - (float)data.Int32[0] / 200.0f * kraft::Time::DeltaTime);
+        Camera.SetYaw(Camera.Yaw + (float)data.Int32Value[0] / 200.0f * kraft::Time::DeltaTime);
+    }
 #if 0
     float32 speed = 1.f;
 
@@ -161,8 +171,8 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
 
 bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
 {
-    int x = data.Int32[0];
-    int y = data.Int32[1];
+    int x = data.Int32Value[0];
+    int y = data.Int32Value[1];
     // KINFO("Drag ended at = %d, %d", x, y);
 
     return false;
@@ -172,10 +182,10 @@ bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kr
 {
     kraft::Camera& Camera = TestSceneState->SceneCamera;
 
-    float y = data.Float64[1];
+    float y = data.Float64Value[1];
     float32 speed = 50.f;
 
-    if (TestSceneState->Projection == ProjectionType::Perspective)
+    if (Camera.ProjectionType == kraft::CameraProjectionType::Perspective)
     {
         kraft::Vec3f direction = kraft::ForwardVector(Camera.ViewMatrix);
         direction = direction * y;
@@ -197,8 +207,8 @@ bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kr
             zoom /= 1.1f;
         }
 
-        TestSceneState->ObjectState.Scale *= zoom;
-        TestSceneState->ObjectState.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->ObjectState.Rotation) * kraft::TranslationMatrix(TestSceneState->ObjectState.Position);
+        TestSceneState->GetSelectedEntity().Scale *= zoom;
+        TestSceneState->GetSelectedEntity().ModelMatrix = kraft::ScaleMatrix(TestSceneState->GetSelectedEntity().Scale) * kraft::RotationMatrixFromEulerAngles(TestSceneState->GetSelectedEntity().Rotation) * kraft::TranslationMatrix(TestSceneState->GetSelectedEntity().Position);
     }
 
     return false;
@@ -206,12 +216,6 @@ bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kr
 
 bool Init()
 {
-    // KFATAL("Fatal error");
-    // KERROR("Error");
-    // KWARN("Warning");
-    // KINFO("Info");
-    // KSUCCESS("Success");
-
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
     EventSystem::Listen(EVENT_TYPE_KEY_UP, nullptr, KeyUpEventListener);
@@ -225,22 +229,6 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_START, nullptr, MouseDragStartEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_DRAGGING, nullptr, MouseDragDraggingEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_END, nullptr, MouseDragEndEventListener);
-
-    Mat4f a(Identity), b(Identity);
-    a._data[5] = 9;
-    a._data[7] = 8;
-    a._data[11] = 3;
-    b._data[3] = 5;
-    b._data[10] = 2;
-
-    PrintMatrix(a);
-    PrintMatrix(b);
-    PrintMatrix(a * b);
-
-    // kraft::renderer::ShaderEffect Output;
-    // KASSERT(kraft::renderer::LoadShaderFX(Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
-
-    // RenderPipeline Pipeline = renderer::Renderer->CreateRenderPipeline(Output, 0);
 
     SetupScene();
 
@@ -257,58 +245,31 @@ bool Init()
         }
     }
 
-    MaterialData MaterialConfig;
-    MaterialConfig.Name = "simple_2d";
-    MaterialConfig.DiffuseColor = Vec4f(1.0f, 1.0f, 1.0f, 1.0f);
-    MaterialConfig.AutoRelease = true;
-    MaterialConfig.DiffuseTextureMapName = TexturePath;
-    MaterialConfig.ShaderAsset = "res/shaders/basic.kfx.bkfx";
+    SimpleObjectState EntityA;
+    EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    EntityA.SetTransform(kraft::Vec3fZero, kraft::Vec3fZero, kraft::Vec3fOne);
+    TestSceneState->AddEntity(EntityA);
 
-    TestSceneState->ObjectState.MaterialInstance = kraft::MaterialSystem::AcquireMaterialWithData(MaterialConfig);
-    TestSceneState->ObjectState.MaterialInstance = kraft::MaterialSystem::AcquireMaterial("res/materials/simple_2d.kmt");
+    SimpleObjectState EntityB;
+    EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    EntityB.SetTransform({5.0f, 0.0f, 0.0f}, kraft::Vec3fZero, kraft::Vec3fOne);
+    TestSceneState->AddEntity(EntityB);
 
-    // if (!TestSceneState.ObjectState.Texture)
-    //     TestSceneState.ObjectState.Texture = TextureSystem::AcquireTexture(TextureName);
-    // TestSceneState.ObjectState.Texture = TextureSystem::GetDefaultDiffuseTexture();
+    MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
+    TestSceneState->SelectedObjectIndex = 0;
 
-    SetProjection(ProjectionType::Orthographic);
+    SetProjection(kraft::CameraProjectionType::Perspective);
     
     // To preserve the aspect ratio of the texture
-    kraft::Texture* Texture = TestSceneState->ObjectState.MaterialInstance->DiffuseMap.Texture; 
-    UpdateObjectScale();
+    // UpdateObjectScale();
 
-    TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
-    TestSceneState->SceneCamera.Dirty = true;
-    TestSceneState->ObjectState.Dirty = true;
-
+    const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
+    kraft::Texture* Texture = Material->GetUniform<kraft::Texture*>("DiffuseSampler");
     InitImguiWidgets(Texture->Name);
 
-    // #5865f2
-    // Vec3f color = Vec3f(0x58 / 255.0f, 0x65 / 255.0f, 0xf2 / 255.0f);
-    Vec4f color = KRGBA(0x58, 0x65, 0xf2, 0x1f);
-    Vec4f colorB = KRGBA(0xff, 0x6b, 0x6b, 0xff);
-    // Vertex and index buffers
-    Vertex3D verts[] = {
-        {Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}},
-        {Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}},
-        {Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}},
-        {Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}},
-    };
-
-    uint32 indices[] = {0, 1, 2, 3, 1, 0};
-
-    kraft::GeometryData GeometryData;
-    GeometryData.Indices = indices;
-    GeometryData.IndexSize = sizeof(uint32);
-    GeometryData.IndexCount = sizeof(indices) / sizeof(indices[0]);
-    GeometryData.Vertices = verts;
-    GeometryData.VertexSize = sizeof(Vertex3D);
-    GeometryData.VertexCount = 4;
-    GeometryData.Name = "test-geometry";
-    TestSceneState->ObjectState.GeometryID = kraft::GeometrySystem::AcquireGeometryWithData(GeometryData)->InternalID;
-    TestSceneState->ObjectState.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-
-    TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
+    TestSceneState->SceneCamera.UpdateViewMatrix();
 
     return true;
 }
@@ -316,46 +277,46 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
-    kraft::Camera *camera = &TestSceneState->SceneCamera;
+    kraft::Camera& Camera = TestSceneState->SceneCamera;
     if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         float32 speed = 50.f;
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
-            if (TestSceneState->Projection == ProjectionType::Orthographic)
+            if (Camera.ProjectionType == kraft::CameraProjectionType::Orthographic)
             {
-                kraft::Vec3f upVector = UpVector(camera->GetViewMatrix());
+                kraft::Vec3f upVector = UpVector(Camera.GetViewMatrix());
                 direction += upVector;
             }
             else
             {
-                kraft::Vec3f forwardVector = ForwardVector(camera->GetViewMatrix());
+                kraft::Vec3f forwardVector = ForwardVector(Camera.GetViewMatrix());
                 direction += forwardVector;
             }
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
         {
-            if (TestSceneState->Projection == ProjectionType::Orthographic)
+            if (Camera.ProjectionType == kraft::CameraProjectionType::Orthographic)
             {
-                kraft::Vec3f downVector = DownVector(camera->GetViewMatrix());
+                kraft::Vec3f downVector = DownVector(Camera.GetViewMatrix());
                 direction += downVector;
             }
             else
             {
-                kraft::Vec3f backwardVector = BackwardVector(camera->GetViewMatrix());
+                kraft::Vec3f backwardVector = BackwardVector(Camera.GetViewMatrix());
                 direction += backwardVector;
             }
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
         {
-            kraft::Vec3f leftVector = LeftVector(camera->GetViewMatrix());
+            kraft::Vec3f leftVector = LeftVector(Camera.GetViewMatrix());
             direction += leftVector;
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
         {
-            kraft::Vec3f rightVector = RightVector(camera->GetViewMatrix());
+            kraft::Vec3f rightVector = RightVector(Camera.GetViewMatrix());
             direction += rightVector;
         }
 
@@ -363,12 +324,12 @@ void Update(float64 deltaTime)
         {
             if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT_SHIFT))
             {
-                kraft::Vec3f down = DownVector(camera->GetViewMatrix());
+                kraft::Vec3f down = DownVector(Camera.GetViewMatrix());
                 direction += down;
             }
             else
             {
-                kraft::Vec3f up = UpVector(camera->GetViewMatrix());
+                kraft::Vec3f up = UpVector(Camera.GetViewMatrix());
                 direction += up;
             }
         }
@@ -376,52 +337,50 @@ void Update(float64 deltaTime)
         if (!Vec3fCompare(direction, kraft::Vec3fZero, 0.00001f))
         {
             direction = kraft::Normalize(direction);
-            kraft::Vec3f position = camera->Position;
+            kraft::Vec3f position = Camera.Position;
             kraft::Vec3f change = direction * speed * (float32)deltaTime;
-            camera->SetPosition(position + change);
+            Camera.SetPosition(position + change);
         }
     }
     else
     {
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
-            camera->SetPitch(camera->Pitch + 1.f * deltaTime);
+            Camera.SetPitch(Camera.Pitch + 1.f * deltaTime);
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_DOWN) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_S))
         {
-            camera->SetPitch(camera->Pitch - 1.f * deltaTime);
+            Camera.SetPitch(Camera.Pitch - 1.f * deltaTime);
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_A))
         {
-            camera->SetYaw(camera->Yaw + 1.f * deltaTime);
+            Camera.SetYaw(Camera.Yaw + 1.f * deltaTime);
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
         {
-            camera->SetYaw(camera->Yaw - 1.f * deltaTime);
+            Camera.SetYaw(Camera.Yaw - 1.f * deltaTime);
         }
     }
 
-    if (camera->Dirty)
+    if (Camera.Dirty)
     {
-        TestSceneState->ViewMatrix = TestSceneState->SceneCamera.GetViewMatrix();
+        Camera.ViewMatrix = Camera.GetViewMatrix();
     }
 }
 
 void Render(float64 deltaTime, kraft::renderer::RenderPacket& RenderPacket)
 {
-    RenderPacket.ProjectionMatrix = TestSceneState->ProjectionMatrix;
-    RenderPacket.ViewMatrix = TestSceneState->ViewMatrix;
+    kraft::Camera& Camera = TestSceneState->SceneCamera;
+    RenderPacket.ProjectionMatrix = Camera.ProjectionMatrix;
+    RenderPacket.ViewMatrix = Camera.ViewMatrix;
 
-    kraft::Renderer->AddRenderable(TestSceneState->ObjectState);
-
-    // kraft::Renderable Object2;
-    // Object2.Geometry.Geometry = TestSceneState->ObjectState.Geometry;
-    // Object2.Geometry.ModelMatrix = kraft::ScaleMatrix(TestSceneState->ObjectState.Scale / 3.0f) * kraft::TranslationMatrix(kraft::Vec3f(500.0f, 0, 0));
-    // Object2.MaterialInstance = TestSceneState->ObjectState.Material;
-    // kraft::Renderer->AddRenderable(Object2);
+    for (uint32 i = 0; i < TestSceneState->ObjectsCount; i++)
+    {
+        kraft::Renderer->AddRenderable(TestSceneState->ObjectStates[i]);
+    }
 }
 
 void OnResize(size_t width, size_t height)

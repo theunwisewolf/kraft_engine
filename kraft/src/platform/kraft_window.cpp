@@ -80,8 +80,8 @@ void Window::SetWindowTitle(const char* title)
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
 {
     EventData data;
-    data.UInt32[0] = width;
-    data.UInt32[1] = height;
+    data.UInt32Value[0] = width;
+    data.UInt32Value[1] = height;
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, data, glfwGetWindowUserPointer(window));
 }
@@ -112,12 +112,12 @@ void Window::CursorPositionCallback(GLFWwindow* window, double x, double y)
 void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 {
     EventData data;
-    data.Int64[0] = count;
-    data.Int64[1] = (int64)paths;
+    data.Int64Value[0] = count;
+    data.Int64Value[1] = (int64)paths;
 
     for (int i = 0; i < count; i++)
     {
-        KDEBUG("Dropped file %s", ((char**)data.Int64[1])[i]);
+        KDEBUG("Dropped file %s", ((char**)data.Int64Value[1])[i]);
     }
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));

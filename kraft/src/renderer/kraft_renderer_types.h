@@ -5,6 +5,8 @@
 #include "math/kraft_math.h"
 #include "containers/kraft_array.h"
 
+struct ImDrawData;
+
 namespace kraft
 {
 
@@ -59,14 +61,6 @@ enum RendererBackendType
     RENDERER_BACKEND_TYPE_NUM_COUNT
 };
 
-struct RenderResource
-{
-    String Name;
-
-    // Backend-specific layout
-    // VulkanShaderResource for Vulkan
-};
-
 struct RendererBackend
 {
     bool (*Init)(ApplicationConfig* config);
@@ -82,12 +76,12 @@ struct RendererBackend
     // Shader
     void (*UseShader)(const Shader* Shader);
     void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void (*ApplyGlobalShaderProperties)(Shader* Shader);
-    void (*ApplyInstanceShaderProperties)(Shader* Shader);
+    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader);
+    void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex);
     void (*DestroyRenderPipeline)(Shader* Shader);
-    void (*CreateMaterial)(Material *material);
-    void (*DestroyMaterial)(Material *material);
+    void (*CreateMaterial)(Material *Material);
+    void (*DestroyMaterial)(Material *Material);
 
     // Geometry
     void (*DrawGeometryData)(uint32 GeometryID);
@@ -100,7 +94,7 @@ struct RendererImguiBackend
     bool (*Init)();
     bool (*Destroy)();
     bool (*BeginFrame)(float64 deltaTime);
-    bool (*EndFrame)(float64 deltaTime);
+    bool (*EndFrame)(ImDrawData* DrawData);
     void* (*AddTexture)(Texture* Texture);
 };
 
