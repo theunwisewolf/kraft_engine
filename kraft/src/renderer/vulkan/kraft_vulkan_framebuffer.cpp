@@ -6,41 +6,41 @@
 namespace kraft::renderer
 {
 
-void VulkanCreateFramebuffer(VulkanContext* context, uint32 width, uint32 height, VulkanRenderPass* renderPass, VkImageView* attachments, VulkanFramebuffer* out)
+void VulkanCreateFramebuffer(VulkanContext* Context, uint32 Width, uint32 Height, VulkanRenderPass* RenderPass, VkImageView* Attachments, uint32 AttachmentCount, VulkanFramebuffer* Out)
 {
-    out->AttachmentCount = (uint32)arrlen(attachments);
-    arrsetlen(out->Attachments, out->AttachmentCount);
-    for (uint32 i = 0; i < out->AttachmentCount; ++i)
+    Out->AttachmentCount = AttachmentCount;
+    CreateArray(Out->Attachments, Out->AttachmentCount);
+    for (uint32 i = 0; i < Out->AttachmentCount; ++i)
     {
-        out->Attachments[i] = attachments[i];
+        Out->Attachments[i] = Attachments[i];
     }
 
-    out->RenderPass = renderPass;
-    out->Width = width;
-    out->Height = height;
+    Out->RenderPass = RenderPass;
+    Out->Width = Width;
+    Out->Height = Height;
 
-    VkFramebufferCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    info.attachmentCount = out->AttachmentCount;
-    info.pAttachments = out->Attachments;
-    info.width = width;
-    info.height = height;
-    info.renderPass = renderPass->Handle;
-    info.layers = 1;
+    VkFramebufferCreateInfo Info = {};
+    Info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    Info.attachmentCount = Out->AttachmentCount;
+    Info.pAttachments = Out->Attachments;
+    Info.width = Width;
+    Info.height = Height;
+    Info.renderPass = RenderPass->Handle;
+    Info.layers = 1;
 
-    KRAFT_VK_CHECK(vkCreateFramebuffer(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &out->Handle));
+    KRAFT_VK_CHECK(vkCreateFramebuffer(Context->LogicalDevice.Handle, &Info, Context->AllocationCallbacks, &Out->Handle));
 }
 
-void VulkanDestroyFramebuffer(VulkanContext* context, VulkanFramebuffer* framebuffer)
+void VulkanDestroyFramebuffer(VulkanContext* Context, VulkanFramebuffer* Framebuffer)
 {
-    vkDestroyFramebuffer(context->LogicalDevice.Handle, framebuffer->Handle, context->AllocationCallbacks);
-    arrfree(framebuffer->Attachments);
+    vkDestroyFramebuffer(Context->LogicalDevice.Handle, Framebuffer->Handle, Context->AllocationCallbacks);
+    DestroyArray(Framebuffer->Attachments);
 
-    framebuffer->AttachmentCount = 0;
-    framebuffer->Handle = 0;
-    framebuffer->RenderPass = 0;
-    framebuffer->Width = 0;
-    framebuffer->Height = 0;
+    Framebuffer->AttachmentCount = 0;
+    Framebuffer->Handle = 0;
+    Framebuffer->RenderPass = 0;
+    Framebuffer->Width = 0;
+    Framebuffer->Height = 0;
 }
 
 }

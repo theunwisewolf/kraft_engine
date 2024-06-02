@@ -35,6 +35,8 @@ void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
     desc.Tiling = VK_IMAGE_TILING_OPTIMAL;
     desc.Type = VK_IMAGE_TYPE_2D;
     desc.AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+    desc.MipLevels = 1; // TODO (amn): Mip-mapping
+    desc.Samples = VK_SAMPLE_COUNT_1_BIT; // TODO (amn): What should go here?
 
     VulkanCreateImage(context, desc, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &vulkanTexture->Image);
 
@@ -74,7 +76,7 @@ void VulkanCreateTexture(VulkanContext* context, uint8* data, Texture* texture)
     samplerInfo.mipLodBias      = 0.0f;
     samplerInfo.minLod          = 0.0f;
     samplerInfo.maxLod          = 0.0f;
-    samplerInfo.maxAnisotropy   = 16;
+    samplerInfo.maxAnisotropy   = 16.0f;
     samplerInfo.anisotropyEnable = VK_FALSE;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
 

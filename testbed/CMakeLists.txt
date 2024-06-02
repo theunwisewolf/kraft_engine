@@ -16,7 +16,6 @@ endif()
 
 set(SRC_FILES 
     src/scenes/simple_scene.cpp
-    src/editor/gizmos.cpp
     src/widgets.cpp
     src/main.cpp
 )

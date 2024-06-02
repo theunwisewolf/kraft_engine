@@ -34,9 +34,9 @@ bool VulkanCreateImage(
     createInfo.extent.width  = description.Width;
     createInfo.extent.height = description.Height;
     createInfo.extent.depth  = 1;
-    createInfo.mipLevels     = 4;
+    createInfo.mipLevels     = description.MipLevels;
     createInfo.arrayLayers   = 1;
-    createInfo.samples       = VK_SAMPLE_COUNT_1_BIT;
+    createInfo.samples       = description.Samples;
     createInfo.tiling        = description.Tiling;
     createInfo.usage         = description.UsageFlags;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;

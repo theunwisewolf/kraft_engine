@@ -21,6 +21,7 @@
 #include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_texture.h"
 #include "renderer/vulkan/kraft_vulkan_helpers.h"
+#include "kraft_vulkan_image.h"
 
 namespace kraft::renderer
 {
@@ -28,6 +29,293 @@ namespace kraft::renderer
 static VulkanContext s_Context = {};
 static VkDescriptorPool GlobalDescriptorPool;
 static VkDescriptorSetLayout GlobalDescriptorSetLayout;
+
+struct SceneViewPass
+{
+    uint32              Width;
+    uint32              Height;
+    VulkanFramebuffer   FrameBuffer;
+    VulkanRenderPass    RenderPass;
+    VulkanImage         FBOColorAttachmentImage;
+    VulkanImage         FBODepthAttachmentImage;
+    VkSampler           FBOImageSampler;
+    VulkanCommandBuffer CommandBuffers[3];
+    VulkanFence         WaitFences[3];
+    VulkanTexture       CompositeTextureVk;
+    Texture             CompositeTexture;
+    bool                NeedsResize = false;
+
+    void InitSceneViewPass(uint32 Width, uint32 Height);
+    void CreateFramebuffer();
+    void CreateCommandBuffers();
+    void DestroySceneViewPass();
+    void Begin();
+    void End();
+    void OnResize(uint32 Width, uint32 Height);
+    bool SetViewportSize(uint32 Width, uint32 Height);
+} SceneView = {};
+
+void SceneViewPass::Begin()
+{
+    // if (this->NeedsResize)
+    // {
+    //     this->NeedsResize = false;
+    //     this->OnResize(this->Width, this->Height);
+    // }
+
+    uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
+    s_Context.ActiveCommandBuffer = this->CommandBuffers[FrameIndex];
+    VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
+    VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
+    VulkanBeginRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass, this->FrameBuffer.Handle, VK_SUBPASS_CONTENTS_INLINE);
+    
+    VkViewport Viewport = {};
+    Viewport.x = 0;
+    Viewport.y = 0;
+    Viewport.width = this->Width;
+    Viewport.height = this->Height;
+    Viewport.minDepth = 0.0f;
+    Viewport.maxDepth = 1.0f;
+
+    vkCmdSetViewport(s_Context.ActiveCommandBuffer.Handle, 0, 1, &Viewport);
+
+    VkRect2D Scissor = {};
+    Scissor.extent = {this->Width, this->Height};
+
+    vkCmdSetScissor(s_Context.ActiveCommandBuffer.Handle, 0, 1, &Scissor);
+
+    this->RenderPass.Rect.z = (float32)this->Width;
+    this->RenderPass.Rect.w = (float32)this->Height;
+}
+
+void SceneViewPass::End()
+{
+    uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
+    VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass);
+    VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
+
+    VkSubmitInfo Info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    Info.commandBufferCount = 1;
+    Info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
+
+    VulkanWaitForFence(&s_Context, &this->WaitFences[FrameIndex], UINT64_MAX);
+    VulkanResetFence(&s_Context, &this->WaitFences[FrameIndex]);
+    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &Info, this->WaitFences[FrameIndex].Handle));
+    
+    VulkanSetCommandBufferSubmitted(&s_Context.ActiveCommandBuffer);
+}
+
+void SceneViewPass::OnResize(uint32 Width, uint32 Height)
+{
+    vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
+    if (Width == 0 || Height == 0)
+    {
+        return;
+    }
+
+    this->Width = Width;
+    this->Height = Height;
+    
+    this->RenderPass.Rect = {0.0f, 0.0f, (float)this->Width, (float)this->Height};
+    KDEBUG("Viewport size set to = %d, %d", this->Width, this->Height);
+
+    this->CreateCommandBuffers();
+    this->CreateFramebuffer();
+}
+
+void SceneViewPass::InitSceneViewPass(uint32 Width, uint32 Height)
+{
+    this->Width = Width;
+    this->Height = Height;
+    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)this->Width, (float)this->Height}, 1.0f, 0, &this->RenderPass, false);
+    
+    this->CreateFramebuffer();
+    this->CreateCommandBuffers();
+
+    for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
+    {
+        VulkanCreateFence(&s_Context, true, &this->WaitFences[i]);
+    }
+}
+
+void SceneViewPass::CreateFramebuffer()
+{
+    // Cleanup any old stuff
+    if (this->FBOColorAttachmentImage.Handle)
+    {
+        VulkanDestroyImage(&s_Context, &this->FBOColorAttachmentImage);
+    }
+
+    if (this->FBODepthAttachmentImage.Handle)
+    {
+        VulkanDestroyImage(&s_Context, &this->FBODepthAttachmentImage);
+    }
+
+    if (this->FBOImageSampler)
+    {
+        vkDestroySampler(s_Context.LogicalDevice.Handle, this->FBOImageSampler, s_Context.AllocationCallbacks);
+    }
+
+    if (this->FrameBuffer.Handle)
+    {
+        VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
+    }
+
+    // Editor Pass
+    // Color attachment
+    VulkanImageDescription ImageDescription;
+    ImageDescription.Width = this->Width;
+    ImageDescription.Height = this->Height;
+    ImageDescription.Format = s_Context.Swapchain.ImageFormat.format;
+    ImageDescription.UsageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ImageDescription.Tiling = VK_IMAGE_TILING_OPTIMAL;
+    ImageDescription.Type = VK_IMAGE_TYPE_2D;
+    ImageDescription.AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+    ImageDescription.MipLevels = 1;
+    ImageDescription.Samples = VK_SAMPLE_COUNT_1_BIT;
+
+    if (!VulkanCreateImage(&s_Context, ImageDescription, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &this->FBOColorAttachmentImage))
+    {
+        KASSERTM(false, "Failed to create image!");
+    }
+
+    // Create sampler to sample from the attachment in the fragment shader
+    VkSamplerCreateInfo SamplerCreateInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    SamplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+    SamplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+    SamplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    SamplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    SamplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    SamplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    SamplerCreateInfo.mipLodBias = 0.0f;
+    SamplerCreateInfo.maxAnisotropy = 1.0f;
+    SamplerCreateInfo.minLod = 0.0f;
+    SamplerCreateInfo.maxLod = 1.0f;
+    SamplerCreateInfo.compareOp   = VK_COMPARE_OP_ALWAYS;
+    SamplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    KRAFT_VK_CHECK(vkCreateSampler(s_Context.LogicalDevice.Handle, &SamplerCreateInfo, nullptr, &this->FBOImageSampler));
+
+    // Depth stencil attachment
+    ImageDescription.Format = s_Context.PhysicalDevice.DepthBufferFormat;
+    ImageDescription.UsageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VulkanCreateImage(&s_Context, ImageDescription, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false, &this->FBODepthAttachmentImage);
+
+    VkImageViewCreateInfo ImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    ImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    ImageViewCreateInfo.format = ImageDescription.Format;
+    ImageViewCreateInfo.flags = 0;
+    ImageViewCreateInfo.subresourceRange = {};
+    ImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (ImageDescription.Format >= VK_FORMAT_D16_UNORM_S8_UINT) 
+    {
+        ImageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    ImageViewCreateInfo.subresourceRange.levelCount = 1;
+    ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    ImageViewCreateInfo.subresourceRange.layerCount = 1;
+    ImageViewCreateInfo.image = this->FBODepthAttachmentImage.Handle;
+    KRAFT_VK_CHECK(vkCreateImageView(s_Context.LogicalDevice.Handle, &ImageViewCreateInfo, nullptr, &this->FBODepthAttachmentImage.View));
+
+    VkImageView Attachments[] = 
+    {
+        this->FBOColorAttachmentImage.View,
+        this->FBODepthAttachmentImage.View
+    };
+
+    VulkanCreateFramebuffer(&s_Context, this->Width, this->Height, &this->RenderPass, Attachments, 2, &this->FrameBuffer);
+    this->CompositeTextureVk =
+    {
+        .Image = this->FBOColorAttachmentImage,
+        .Sampler = this->FBOImageSampler,
+    };
+
+    this->CompositeTexture = 
+    {
+        .Width = this->Width,
+        .Height = this->Height,
+        .Generation = 0,
+        .Name = "SceneView",
+        .RendererData = &this->CompositeTextureVk,
+    };
+}
+
+bool SceneViewPass::SetViewportSize(uint32 Width, uint32 Height)
+{
+    this->NeedsResize = false;
+    // KDEBUG("Viewport = %d, %d | Old Viewport = %d, %d", Width, Height, this->Width, this->Height);
+    if (this->Width != Width || this->Height != Height)
+    {
+        this->NeedsResize = true;
+        // this->Width = Width;
+        // this->Height = Height;
+
+        this->OnResize(Width, Height);
+    }
+
+    return this->NeedsResize;
+}
+
+void SceneViewPass::CreateCommandBuffers()
+{
+    for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
+    {
+        if (this->CommandBuffers[i].Handle)
+        {
+            VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
+        }
+        
+        MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
+        VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &this->CommandBuffers[i]);
+    }
+}
+
+void SceneViewPass::DestroySceneViewPass()
+{
+    for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
+    {
+        if (this->CommandBuffers[i].Handle)
+        {
+            VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
+        }
+
+        MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
+        VulkanDestroyFence(&s_Context, &this->WaitFences[i]);
+    }
+
+    VulkanDestroyImage(&s_Context, &this->FBOColorAttachmentImage);
+    VulkanDestroyImage(&s_Context, &this->FBODepthAttachmentImage);
+    vkDestroySampler(s_Context.LogicalDevice.Handle, this->FBOImageSampler, s_Context.AllocationCallbacks);
+    VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
+
+    VulkanDestroyRenderPass(&s_Context, &this->RenderPass);
+}
+
+bool VulkanRendererBackend::SetSceneViewViewportSize(uint32 Width, uint32 Height)
+{
+    return SceneView.SetViewportSize(Width, Height);
+}
+
+Texture* VulkanRendererBackend::GetSceneViewTexture()
+{
+    return &SceneView.CompositeTexture;
+}
+
+void VulkanRendererBackend::BeginSceneView()
+{
+    SceneView.Begin();
+}
+
+void VulkanRendererBackend::EndSceneView()
+{
+    SceneView.End();
+}
+
+void VulkanRendererBackend::OnSceneViewViewportResize(uint32 Width, uint32 Height)
+{
+    SceneView.OnResize(Width, Height);
+}
 
 VulkanContext* VulkanRendererBackend::GetContext()
 {
@@ -159,18 +447,25 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     CreateVulkanSurface(&s_Context);
     VulkanSelectPhysicalDevice(&s_Context, requirements);
     VulkanCreateLogicalDevice(&s_Context, requirements);
-    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight);
-    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass);
-
     arrfree(requirements.DeviceExtensionNames);
+
+    //
+    // Create all rendering resources
+    //
+
+    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight);
+    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass, true);
 
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
     createCommandBuffers();
 
+    // SceneView Pass
+    SceneView.InitSceneViewPass(s_Context.FramebufferWidth, s_Context.FramebufferHeight);
+
     CreateArray(s_Context.ImageAvailableSemaphores, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.RenderCompleteSemaphores, s_Context.Swapchain.ImageCount);
-    CreateArray(s_Context.WaitFences, s_Context.Swapchain.ImageCount);
     CreateArray(s_Context.InFlightImageToFenceMap, s_Context.Swapchain.ImageCount);
+    CreateArray(s_Context.WaitFences, s_Context.Swapchain.ImageCount);
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -243,6 +538,8 @@ bool VulkanRendererBackend::Shutdown()
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
 
+    SceneView.DestroySceneViewPass();
+
     VulkanDestroyBuffer(&s_Context, &s_Context.VertexBuffer);
     VulkanDestroyBuffer(&s_Context, &s_Context.IndexBuffer);
 
@@ -301,12 +598,12 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     }
 
     // Record commands
-    VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
-    VulkanResetCommandBuffer(buffer);
+    s_Context.ActiveCommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
+    VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
 
-    VulkanBeginCommandBuffer(buffer, false, false, false);
+    VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
 
-    VulkanBeginRenderPass(buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
+    VulkanBeginRenderPass(&s_Context.ActiveCommandBuffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
     
     VkViewport viewport = {};
     viewport.x = 0;
@@ -316,12 +613,12 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    vkCmdSetViewport(buffer->Handle, 0, 1, &viewport);
+    vkCmdSetViewport(s_Context.ActiveCommandBuffer.Handle, 0, 1, &viewport);
 
     VkRect2D scissor = {};
     scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
 
-    vkCmdSetScissor(buffer->Handle, 0, 1, &scissor);
+    vkCmdSetScissor(s_Context.ActiveCommandBuffer.Handle, 0, 1, &scissor);
 
     s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
@@ -331,15 +628,14 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 
 bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 {
-    VulkanCommandBuffer* buffer = &s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
-    VulkanEndRenderPass(buffer, &s_Context.MainRenderPass);
-    VulkanEndCommandBuffer(buffer);
+    VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &s_Context.MainRenderPass);
+    VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
 
     VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     info.commandBufferCount = 1;
-    info.pCommandBuffers = &buffer->Handle;
+    info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
     info.waitSemaphoreCount = 1;
     info.pWaitSemaphores = &s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame];
     info.signalSemaphoreCount = 1;
@@ -348,7 +644,7 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 
     KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &info, s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame]->Handle));
     
-    VulkanSetCommandBufferSubmitted(buffer);
+    VulkanSetCommandBufferSubmitted(&s_Context.ActiveCommandBuffer);
 
     VulkanPresentSwapchain(&s_Context, s_Context.LogicalDevice.PresentQueue, s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame], s_Context.CurrentSwapchainImageIndex);
 
@@ -510,7 +806,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     RasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
     RasterizationStateCreateInfo.polygonMode = ToVulkanPolygonMode(Pass.RenderState->PolygonMode);
     RasterizationStateCreateInfo.lineWidth = Pass.RenderState->LineWidth;
-    RasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    RasterizationStateCreateInfo.cullMode = VK_CULL_MODE_NONE; // VK_CULL_MODE_BACK_BIT; // Back face culling is not working for some reason when rendering to imgui viewport, figure out why
     // If culling is eanbled & counter-clockwise is specified, the vertices
     // for any triangle must be specified in a counter-clockwise fashion. 
     // Vice-versa for clockwise.
@@ -611,7 +907,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     PipelineCreateInfo.pStages = &PipelineShaderStageCreateInfos[0];
     PipelineCreateInfo.pTessellationState = 0;
 
-    PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
+    // PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
+    PipelineCreateInfo.renderPass = SceneView.RenderPass.Handle;
     PipelineCreateInfo.subpass = 0;
     PipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
     PipelineCreateInfo.basePipelineIndex = -1;
@@ -792,8 +1089,7 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline Pipeline = VulkanShaderData->Pipeline;
-    VulkanCommandBuffer Buffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
-    vkCmdBindPipeline(Buffer.Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
+    vkCmdBindPipeline(s_Context.ActiveCommandBuffer.Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
 void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
@@ -801,11 +1097,10 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
     VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline Pipeline = VulkanShaderData->Pipeline;
     VkPipelineLayout PipelineLayout = VulkanShaderData->PipelineLayout;
-    VulkanCommandBuffer Buffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
 
     if (Uniform.Scope == ShaderUniformScope::Local)
     {
-        vkCmdPushConstants(Buffer.Handle, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
+        vkCmdPushConstants(s_Context.ActiveCommandBuffer.Handle, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
     }
     else
     {
@@ -862,7 +1157,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
 
     vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, 1, &DescriptorWriteInfo, 0, 0);
     vkCmdBindDescriptorSets(
-        s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex].Handle, 
+        s_Context.ActiveCommandBuffer.Handle, 
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
         ShaderData->PipelineLayout, 
         0, 1,
@@ -947,7 +1242,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     }
 
     vkCmdBindDescriptorSets(
-        s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex].Handle, 
+        s_Context.ActiveCommandBuffer.Handle, 
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
         ShaderData->PipelineLayout, 
         1, 1,
@@ -958,14 +1253,13 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
 void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 {
-    VulkanCommandBuffer CommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
     VulkanGeometryData GeometryData = s_Context.Geometries[GeometryID];
     VkDeviceSize Offsets[1] = { GeometryData.VertexBufferOffset };
     
-    vkCmdBindVertexBuffers(CommandBuffer.Handle, 0, 1, &s_Context.VertexBuffer.Handle, Offsets);
-    vkCmdBindIndexBuffer(CommandBuffer.Handle, s_Context.IndexBuffer.Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(s_Context.ActiveCommandBuffer.Handle, 0, 1, &s_Context.VertexBuffer.Handle, Offsets);
+    vkCmdBindIndexBuffer(s_Context.ActiveCommandBuffer.Handle, s_Context.IndexBuffer.Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexed(CommandBuffer.Handle, GeometryData.IndexCount, 1, 0, 0, 0);
+    vkCmdDrawIndexed(s_Context.ActiveCommandBuffer.Handle, GeometryData.IndexCount, 1, 0, 0, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* Context, VulkanBuffer DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
@@ -1155,7 +1449,7 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         arrput(attachments, swapchain->ImageViews[i]);
         arrput(attachments, swapchain->DepthAttachment.View);
 
-        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, attachments, &swapchain->Framebuffers[i]);
+        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, attachments, arrlen(attachments), &swapchain->Framebuffers[i]);
     }
 }
 

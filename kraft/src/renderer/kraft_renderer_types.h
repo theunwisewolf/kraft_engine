@@ -4,6 +4,7 @@
 #include "core/kraft_string.h"
 #include "math/kraft_math.h"
 #include "containers/kraft_array.h"
+#include "imgui/imgui.h"
 
 struct ImDrawData;
 
@@ -69,6 +70,12 @@ struct RendererBackend
     bool (*EndFrame)(float64 deltaTime);
     void (*OnResize)(int width, int height);
 
+    void (*BeginSceneView)();
+    void (*EndSceneView)();
+    void (*OnSceneViewViewportResize)(uint32 width, uint32 height);
+    bool (*SetSceneViewViewportSize)(uint32 Width, uint32 Height);
+    Texture* (*GetSceneViewTexture)();
+
     // Texture
     void (*CreateTexture)(uint8* data, Texture* out);
     void (*DestroyTexture)(Texture* texture);
@@ -95,7 +102,8 @@ struct RendererImguiBackend
     bool (*Destroy)();
     bool (*BeginFrame)(float64 deltaTime);
     bool (*EndFrame)(ImDrawData* DrawData);
-    void* (*AddTexture)(Texture* Texture);
+    ImTextureID (*AddTexture)(Texture* Texture);
+    void (*RemoveTexture)(ImTextureID TextureID);
 };
 
 struct Vertex3D

@@ -6,7 +6,7 @@
 namespace kraft::renderer
 {
 
-void VulkanCreateFramebuffer(VulkanContext* context, uint32 width, uint32 height, VulkanRenderPass* renderPass, VkImageView* attachments, VulkanFramebuffer* out);
-void VulkanDestroyFramebuffer(VulkanContext* context, VulkanFramebuffer* framebuffer);
+void VulkanCreateFramebuffer(VulkanContext* Context, uint32 Width, uint32 Height, VulkanRenderPass* RenderPass, VkImageView* Attachments, uint32 AttachmentCount, VulkanFramebuffer* Out);
+void VulkanDestroyFramebuffer(VulkanContext* Context, VulkanFramebuffer* Framebuffer);
 
 }

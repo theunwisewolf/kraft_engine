@@ -8,13 +8,15 @@ namespace kraft::renderer
 
 struct VulkanImageDescription
 {
-    VkImageType         Type;
-    uint32              Width;
-    uint32              Height;
-    VkFormat            Format;
-    VkImageTiling       Tiling;
-    VkImageUsageFlags   UsageFlags;
-    VkImageAspectFlags  AspectFlags;
+    VkImageType           Type;
+    uint32                Width;
+    uint32                Height;
+    VkFormat              Format;
+    VkImageTiling         Tiling;
+    VkImageUsageFlags     UsageFlags;
+    VkImageAspectFlags    AspectFlags;
+    uint32                MipLevels;
+    VkSampleCountFlagBits Samples;
 };
 
 bool VulkanCreateImage(

@@ -199,6 +199,7 @@ struct VulkanContext
     VulkanRenderPass         MainRenderPass;
     VkCommandPool            GraphicsCommandPool;
     VulkanCommandBuffer*     GraphicsCommandBuffers;
+    VulkanCommandBuffer      ActiveCommandBuffer;
     VulkanFence*             WaitFences;
     // If everything was perfect, this mapping below would not be needed
     // but, what I saw happening was on an M1 Mac, vkAcquireNextImageKHR

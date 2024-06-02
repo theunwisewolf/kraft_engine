@@ -13,8 +13,13 @@ namespace VulkanImgui
 bool Init();
 bool BeginFrame(float64 deltaTime);
 bool EndFrame(ImDrawData* DrawData);
-void* AddTexture(Texture* Texture);
 bool Destroy();
+
+// 
+// API
+//
+ImTextureID AddTexture(Texture* Texture);
+void RemoveTexture(ImTextureID TextureID);
 
 }
 }

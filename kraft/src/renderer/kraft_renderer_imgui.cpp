@@ -22,6 +22,7 @@ bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* 
         backend->BeginFrame = VulkanImgui::BeginFrame;
         backend->EndFrame   = VulkanImgui::EndFrame;
         backend->AddTexture = VulkanImgui::AddTexture;
+        backend->RemoveTexture = VulkanImgui::RemoveTexture;
         
         return true;
     }
@@ -77,9 +78,14 @@ void RendererImGui::AddWidget(const String& Name, ImGuiRenderCallback Callback)
     KINFO("Added imgui widget %s", *Name);
 }
 
-void* RendererImGui::AddTexture(Texture* Texture)
+ImTextureID RendererImGui::AddTexture(Texture* Texture)
 {
     return Backend->AddTexture(Texture);
+}
+
+void RendererImGui::RemoveTexture(ImTextureID TextureID)
+{
+    return Backend->RemoveTexture(TextureID);
 }
 
 void RendererImGui::RenderWidgets()
@@ -119,6 +125,9 @@ void RendererImGui::BeginFrame(float64 DeltaTime)
 {
     Backend->BeginFrame(DeltaTime);
     ImGui::NewFrame();
+
+    ImGuiID DockspaceID = ImGui::GetID("MainDockspace");
+    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
 
     // Extensions
     ImGuizmo::BeginFrame();

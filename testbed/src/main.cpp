@@ -251,6 +251,21 @@ bool Init()
     EntityA.SetTransform({-105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
     TestSceneState->AddEntity(EntityA);
 
+    const float ObjectCount = 20.0f;
+    const float ObjectWidth = 50.0f;
+    const float ObjectHeight = 50.0f;
+    const float Spacing = 0.0f;
+    for (int i = 0; i < ObjectCount; i++)
+    {
+        SimpleObjectState Object;
+        Object.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+        Object.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+
+        float x = ((ObjectCount * ObjectWidth + Spacing) * -0.5f) + i * ObjectWidth + Spacing;
+        Object.SetTransform({x, 200.0f, 0.0f}, kraft::Vec3fZero, {ObjectWidth, ObjectHeight, 50.0f});
+        TestSceneState->AddEntity(Object);
+    }
+
     SimpleObjectState EntityB;
     EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d_wireframe.kmt");
     EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;

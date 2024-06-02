@@ -32,6 +32,7 @@ struct Camera
     Mat4f                ProjectionMatrix; // Computed matrix
     Mat4f                ViewMatrix; // Computed matrix
     bool                 Dirty = true;
+    float32              FOVRadians = 45.0f;
 
     Camera();
 
@@ -41,6 +42,9 @@ struct Camera
     void SetPitch(float32 pitch);
     void SetYaw(float32 yaw);
     void SetRoll(float32 roll);
+    void SetOrthographicProjection(uint32 Width, uint32 Height, float32 NearClip, float32 FarClip);
+    void SetPerspectiveProjection(float32 FOVRadians, uint32 Width, uint32 Height, float32 NearClip, float32 FarClip);
+    void SetPerspectiveProjection(float32 FOVRadians, float32 AspectRatio, float32 NearClip, float32 FarClip);
 
     KRAFT_INLINE Mat4f& GetViewMatrix()
     {

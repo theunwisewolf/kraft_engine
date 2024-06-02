@@ -167,6 +167,8 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
         desc.Tiling      = VK_IMAGE_TILING_OPTIMAL;
         desc.UsageFlags  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         desc.AspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+        desc.MipLevels   = 1;
+        desc.Samples     = VK_SAMPLE_COUNT_1_BIT;
 
         VulkanCreateImage(context, desc, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &context->Swapchain.DepthAttachment);
     }

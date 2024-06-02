@@ -45,6 +45,11 @@ KRAFT_INLINE float32 DegToRadians(float32 degrees)
     return degrees * (KRAFT_PI / 180.0f);
 }
 
+KRAFT_INLINE float32 RadiansToDegrees(float32 radians) 
+{
+    return (radians * 180.0f) / KRAFT_PI;
+}
+
 }
 
 /**

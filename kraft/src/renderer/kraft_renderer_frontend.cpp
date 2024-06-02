@@ -70,30 +70,33 @@ void RendererFrontend::OnResize(int width, int height)
 
 bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 {
+    Backend->BeginSceneView();
+    for (auto It = this->Renderables.vbegin(); It != this->Renderables.vend(); It++)
+    {
+        auto& Objects = *It;
+        uint64 Count = Objects.Size();
+        if (!Count) continue;
+        ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
+        ShaderSystem::ApplyGlobalProperties(Packet->ProjectionMatrix, Packet->ViewMatrix);
+        for (int i = 0; i < Count; i++)
+        {
+            Renderable Object = Objects[i];
+            ShaderSystem::SetMaterialInstance(Object.MaterialInstance);
+
+            MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
+            MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
+
+            Backend->DrawGeometryData(Object.GeometryID);
+        }
+        ShaderSystem::Unbind();
+
+        Objects.Clear();
+    }
+    Backend->EndSceneView();
+
+
     if (Backend->BeginFrame(Packet->DeltaTime))
     {
-        for (auto It = this->Renderables.vbegin(); It != this->Renderables.vend(); It++)
-        {
-            auto& Objects = *It;
-            uint64 Count = Objects.Size();
-            if (!Count) continue;
-            ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
-            ShaderSystem::ApplyGlobalProperties(Packet->ProjectionMatrix, Packet->ViewMatrix);
-            for (int i = 0; i < Count; i++)
-            {
-                Renderable Object = Objects[i];
-                ShaderSystem::SetMaterialInstance(Object.MaterialInstance);
-
-                MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
-                MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
-
-                Backend->DrawGeometryData(Object.GeometryID);
-            }
-            ShaderSystem::Unbind();
-
-            Objects.Clear();
-        }
-
 #if KRAFT_IMGUI_ENABLED
         ImGuiRenderer.BeginFrame(Packet->DeltaTime);
         ImGuiRenderer.RenderWidgets();
@@ -133,6 +136,16 @@ bool RendererFrontend::AddRenderable(Renderable Object)
 // 
 // API
 //
+
+bool RendererFrontend::SetSceneViewViewportSize(uint32 Width, uint32 Height)
+{
+    return Backend->SetSceneViewViewportSize(Width, Height);
+}
+
+Texture* RendererFrontend::GetSceneViewTexture()
+{
+    return Backend->GetSceneViewTexture();
+}
 
 void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 {

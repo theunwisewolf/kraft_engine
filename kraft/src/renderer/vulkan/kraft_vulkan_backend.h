@@ -23,6 +23,13 @@ namespace VulkanRendererBackend
     bool EndFrame(float64 deltaTime);
     void OnResize(int width, int height);
 
+    // SceneView (Temp stuff: Need to figure this out properly)
+    void BeginSceneView();
+    void OnSceneViewViewportResize(uint32 Width, uint32 Height);
+    void EndSceneView();
+    bool SetSceneViewViewportSize(uint32 Width, uint32 Height);
+    Texture* GetSceneViewTexture();
+
     void CreateRenderPipeline(Shader* Shader, int PassIndex);
     void DestroyRenderPipeline(Shader* Shader);
     void CreateMaterial(Material* Material);

@@ -47,7 +47,8 @@ struct RendererImGui
 
     bool Init(ApplicationConfig* config);
     void AddWidget(const String& Name, ImGuiRenderCallback Callback);
-    void* AddTexture(Texture* Texture);
+    ImTextureID AddTexture(Texture* Texture);
+    void RemoveTexture(ImTextureID Texture);
     void OnResize(int Width, int Height);
     void RenderWidgets();
     void Destroy();

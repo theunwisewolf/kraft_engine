@@ -4,6 +4,7 @@
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vk_enum_string_helper.h>
 
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
@@ -32,7 +33,7 @@ static void CheckVkResult(VkResult err)
     if (err == 0)
         return;
 
-    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    fprintf(stderr, "[vulkan] Error: VkResult = %s\n", string_VkResult(err));
     if (err < 0)
         abort();
 }
@@ -183,10 +184,15 @@ bool EndFrame(ImDrawData* DrawData)
     return true;
 }
 
-void* AddTexture(Texture* Texture)
+ImTextureID AddTexture(Texture* Texture)
 {
     VulkanTexture* BackendTexture = (VulkanTexture*)Texture->RendererData;
     return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->Image.View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+}
+
+void RemoveTexture(ImTextureID TextureID)
+{
+    return ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)TextureID);
 }
 
 bool Destroy()

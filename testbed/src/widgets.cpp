@@ -7,18 +7,32 @@
 #include "systems/kraft_material_system.h"
 
 #include "utils.h"
-#include "editor/gizmos.h"
 
 #include <imgui/imgui.h>
+#include "imgui/extensions/imguizmo/ImGuizmo.h"
+
+struct GizmosState
+{
+    ImGuizmo::OPERATION CurrentOperation;
+    ImGuizmo::MODE      Mode;
+    bool                Snap;
+} State = {};
 
 static void* TextureID;
+static kraft::Texture* SceneTexture;
+static ImTextureID ImSceneTexture;
 
 void InitImguiWidgets(const kraft::String& TexturePath)
 {
     TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::TextureSystem::AcquireTexture(TexturePath));
     kraft::Renderer->ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
 
-    InitGizmos();
+    SceneTexture = kraft::Renderer->GetSceneViewTexture();
+    ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(SceneTexture);
+
+    State.CurrentOperation = ImGuizmo::TRANSLATE;
+    State.Mode = ImGuizmo::LOCAL;
+    State.Snap = false;
 }
 
 void DrawImGuiWidgets(bool refresh)
@@ -51,6 +65,9 @@ void DrawImGuiWidgets(bool refresh)
     kraft::Vec3f Translation = TestSceneState->GetSelectedEntity().Position;
     kraft::Vec3f Rotation = TestSceneState->GetSelectedEntity().Rotation;
     kraft::Vec3f Scale = TestSceneState->GetSelectedEntity().Scale;
+    rotationDeg.x = kraft::RadiansToDegrees(Rotation.x);
+    rotationDeg.y = kraft::RadiansToDegrees(Rotation.y);
+    rotationDeg.z = kraft::RadiansToDegrees(Rotation.z);
 
     if (ImGui::RadioButton("Perspective Projection", usePerspectiveProjection == true))
     {
@@ -179,14 +196,77 @@ void DrawImGuiWidgets(bool refresh)
     ImGui::PopID();
 
     ImVec2 ViewPortPanelSize = ImGui::GetContentRegionAvail();
-    ImGui::Image(TextureID, ViewPortPanelSize, {0,1}, {1,0});
+    // ImGui::Image(SceneTexture, ViewPortPanelSize, {0,1}, {1,0});
 
     ImGui::End();
 
-    // static bool ShowDemoWindow = true;
-    // ImGui::ShowDemoWindow(&ShowDemoWindow);
+    // ImGui::SetNextWindowSize({1024, 768});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("Viewport");
+    ViewPortPanelSize = ImGui::GetContentRegionAvail();
+    ImGui::GetForegroundDrawList()->AddRect(ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y + ViewPortPanelSize.y), ImVec2(ImGui::GetWindowPos().x + ViewPortPanelSize.x, ImGui::GetWindowPos().y), ImGui::GetColorU32(ImVec4(1, 0, 0, 1)));
+    
+    if (usePerspectiveProjection)
+    {
+        Camera.SetPerspectiveProjection(kraft::DegToRadians(fov), ViewPortPanelSize.x, ViewPortPanelSize.y, nearClipP, farClipP);
+    }
+    else
+    {
+        Camera.SetOrthographicProjection(ViewPortPanelSize.x, ViewPortPanelSize.y, nearClip, farClip);
+    }
+
+    if (kraft::Renderer->SetSceneViewViewportSize(ViewPortPanelSize.x, ViewPortPanelSize.y))
+    {
+        // Remove the old texture
+        kraft::Renderer->ImGuiRenderer.RemoveTexture(ImSceneTexture);
+        ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::Renderer->GetSceneViewTexture());
+    }
+
+    // auto CurrentSceneTexture = kraft::Renderer->GetSceneViewTexture();
+    // if (CurrentSceneTexture->Width != SceneTexture->Width || CurrentSceneTexture->Height != SceneTexture->Height)
+    // {
+    //     kraft::Renderer->ImGuiRenderer.RemoveTexture(ImSceneTexture);
+    //     SceneTexture = CurrentSceneTexture;
+    //     ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(SceneTexture);
+    // }
+
+    ImGui::Image(ImSceneTexture, ViewPortPanelSize, {0,1}, {1,0});
+
+    // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
+    {
+        auto& SelectedEntity = TestSceneState->GetSelectedEntity();
+        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Q))
+            State.CurrentOperation = ImGuizmo::TRANSLATE;
+
+        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_W))
+            State.CurrentOperation = ImGuizmo::ROTATE;
+
+        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_E))
+            State.CurrentOperation = ImGuizmo::SCALE;
+            
+        ImGuizmo::SetOrthographic(Camera.ProjectionType == kraft::CameraProjectionType::Orthographic);
+        ImGuizmo::SetDrawlist();
+
+        float rw = (float)ImGui::GetWindowWidth();
+        float rh = (float)ImGui::GetWindowHeight();
+        ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, rw, rh);
+        // ImGuizmo::Manipulate(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, State.CurrentOperation, State.Mode, Matrix._data, nullptr, State.Snap ? Snap._data : nullptr);
+        ImGuizmo::Manipulate(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, State.CurrentOperation, State.Mode, SelectedEntity.ModelMatrix._data);
+        // ImGuizmo::DrawCubes(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, Matrix._data, 1);
+
+        if (ImGuizmo::IsUsing())
+        {
+            ImGuizmo::DecomposeMatrixToComponents(SelectedEntity.ModelMatrix._data, Translation._data, Rotation._data, Scale._data);
+            // SelectedEntity.SetTransform();
+        }
+    }
+
+
+    ImGui::End();
+    ImGui::PopStyleVar();
 
     TestSceneState->GetSelectedEntity().SetTransform(Translation, Rotation, Scale);
 
-    EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
+    // static bool ShowDemoWindow = true;
+    // ImGui::ShowDemoWindow(&ShowDemoWindow);
 }

@@ -14,6 +14,11 @@ bool CreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->BeginFrame = VulkanRendererBackend::BeginFrame;
         backend->EndFrame   = VulkanRendererBackend::EndFrame;
         backend->OnResize   = VulkanRendererBackend::OnResize;
+        backend->BeginSceneView = VulkanRendererBackend::BeginSceneView;
+        backend->EndSceneView = VulkanRendererBackend::EndSceneView;
+        backend->OnSceneViewViewportResize = VulkanRendererBackend::OnSceneViewViewportResize;
+        backend->GetSceneViewTexture = VulkanRendererBackend::GetSceneViewTexture;
+        backend->SetSceneViewViewportSize = VulkanRendererBackend::SetSceneViewViewportSize;
         
         backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
         backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
