@@ -1,7 +1,9 @@
 #pragma once
 
-#include "renderer/kraft_camera.h"
-#include "renderer/kraft_renderer_frontend.h"
+#include <renderer/kraft_camera.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <renderer/kraft_resource_manager.h>
+
 #include "scenes/simple_scene.h"
 
 static void SetProjection(kraft::CameraProjectionType Type)
@@ -35,7 +37,9 @@ static void UpdateObjectScale()
 {
     const kraft::Camera& Camera = TestSceneState->SceneCamera;
     const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
-    kraft::Texture* Texture = Material->GetUniform<kraft::Texture*>("DiffuseSampler");
+
+    kraft::renderer::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
+    kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
     kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);

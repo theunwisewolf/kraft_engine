@@ -24,6 +24,28 @@
 namespace kraft::renderer
 {
 
+int GetShaderStageFromString(StringView Value)
+{
+    if (Value == "Vertex")
+    {
+        return SHADER_STAGE_FLAGS_VERTEX;
+    }
+    else if (Value == "Fragment")
+    {
+        return SHADER_STAGE_FLAGS_FRAGMENT;
+    }
+    else if (Value == "Compute")
+    {
+        return SHADER_STAGE_FLAGS_COMPUTE;
+    }
+    else if (Value == "Geometry")
+    {
+        return SHADER_STAGE_FLAGS_GEOMETRY;
+    }
+
+    return 0;
+}
+
 void ShaderFXParser::Create(const String& SourceFilePath, kraft::Lexer* Lexer)
 {
     this->Lexer = Lexer;
@@ -199,18 +221,11 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition& ResourceB
 
             if (Pair.Key == "Stage")
             {
-                bool Valid = false;
-                for (int i = 0; i < ShaderStage::Count; i++)
+                Binding.Stage = (ShaderStageFlags)GetShaderStageFromString(Pair.Value.StringView());
+                if (Binding.Stage == 0)
                 {
-                    if (Pair.Value.StringView() == ShaderStage::Strings[i])
-                    {
-                        Binding.Stage = (ShaderStage::Enum)i;
-                        Valid = true;
-                        break;
-                    }
+                    MARK_ERROR_RETURN("Invalid shader stage '" + Pair.Value.String() + "'");
                 }
-
-                if (!Valid) MARK_ERROR_RETURN("Invalid shader stage '" + Pair.Value.String() + "'");
             }
             else if (Pair.Key == "Binding")
             {
@@ -264,18 +279,8 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition& CBufferDefini
             {
                 if (Pair.Key == "Stage")
                 {
-                    bool Valid = false;
-                    for (int i = 0; i < ShaderStage::Count; i++)
-                    {
-                        if (Pair.Value.StringView() == ShaderStage::Strings[i])
-                        {
-                            Entry.Stage = (ShaderStage::Enum)i;
-                            Valid = true;
-                            break;
-                        }
-                    }
-
-                    if (!Valid)
+                    Entry.Stage = (ShaderStageFlags)GetShaderStageFromString(Pair.Value.StringView());
+                    if (Entry.Stage == 0)
                     {
                         MARK_ERROR_RETURN("Invalid shader stage '" + Pair.Value.String() + "'");
                     }
@@ -622,19 +627,19 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
             
             if (Token.MatchesKeyword("Back"))
             {
-                State.CullMode = CullMode::Back;
+                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_BACK;
             }
             else if (Token.MatchesKeyword("Front"))
             {
-                State.CullMode = CullMode::Front;
+                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_FRONT;
             }
             else if (Token.MatchesKeyword("FrontAndBack"))
             {
-                State.CullMode = CullMode::FrontAndBack;
+                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_FRONT_AND_BACK;
             }
             else if (Token.MatchesKeyword("Off"))
             {
-                State.CullMode = CullMode::None;
+                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_NONE;
             }
             else
             {
@@ -938,14 +943,14 @@ void ShaderFXParser::ParseRenderPassBlock()
         }
         else if (Token.MatchesKeyword("VertexShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Pass, ShaderStage::Vertex))
+            if (!this->ParseRenderPassShaderStage(Pass, ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX))
             {
                 return;
             }
         }
         else if (Token.MatchesKeyword("FragmentShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Pass, ShaderStage::Fragment))
+            if (!this->ParseRenderPassShaderStage(Pass, ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT))
             {
                 return;
             }
@@ -955,7 +960,7 @@ void ShaderFXParser::ParseRenderPassBlock()
     this->Shader.RenderPasses.Push(Pass);
 }
 
-bool ShaderFXParser::ParseRenderPassShaderStage(RenderPassDefinition& Pass, renderer::ShaderStage::Enum ShaderStage)
+bool ShaderFXParser::ParseRenderPassShaderStage(RenderPassDefinition& Pass, renderer::ShaderStageFlags ShaderStage)
 {
     Token Token;
     if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
@@ -1025,7 +1030,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
     shaderc_compilation_result_t Result;
     shaderc_compile_options_t CompileOptions;
 
-    Buffer BinaryOutput;
+    kraft::Buffer BinaryOutput;
     BinaryOutput.Write(Shader.Name);
     BinaryOutput.Write(Shader.ResourcePath);
     BinaryOutput.Write(Shader.VertexLayouts);
@@ -1053,7 +1058,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
         for (int j = 0; j < Pass.ShaderStages.Length; j++)
         {
             const RenderPassDefinition::ShaderDefinition& Stage = Pass.ShaderStages[j];
-            KDEBUG("Compiling shaderstage %s for %s", ShaderStage::String(Stage.Stage), *Shader.ResourcePath);
+            KDEBUG("Compiling shaderstage %d for %s", Stage.Stage, *Shader.ResourcePath);
 
             CompileOptions = shaderc_compile_options_initialize();
             const char* StageName;
@@ -1062,28 +1067,28 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
             shaderc_shader_kind ShaderKind;
             switch (Stage.Stage)
             {
-                case ShaderStage::Vertex: 
+                case ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
                 {
                     ShaderKind = shaderc_vertex_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case ShaderStage::Geometry: 
+                case ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
                 {
                     ShaderKind = shaderc_geometry_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case ShaderStage::Fragment: 
+                case ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
                 {
                     ShaderKind = shaderc_fragment_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
                 }
                 break;
 
-                case ShaderStage::Compute:
+                case ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
                 {
                     ShaderKind = shaderc_compute_shader;
                     shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
@@ -1091,7 +1096,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
                 break;
             }
             
-            Result = shaderc_compile_into_spv(Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, ShaderStage::String(Stage.Stage), "main", CompileOptions);
+            Result = shaderc_compile_into_spv(Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions);
             if (shaderc_result_get_compilation_status(Result) == shaderc_compilation_status_success)
             {
                 ShaderCodeFragment SpirvBinary;
@@ -1104,7 +1109,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
             }
             else
             {
-                KERROR("%s shader compilation failed with error:\n%s", ShaderStage::String(Stage.Stage), shaderc_result_get_error_message(Result));
+                KERROR("%d shader compilation failed with error:\n%s", Stage.Stage, shaderc_result_get_error_message(Result));
 
                 shaderc_result_release(Result);
                 shaderc_compiler_release(Compiler);
@@ -1147,7 +1152,7 @@ bool LoadShaderFX(const String& Path, ShaderEffect& Shader)
     filesystem::ReadAllBytes(&Handle, &BinaryBuffer);
     filesystem::CloseFile(&Handle);
 
-    Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
+    kraft::Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
     Reader.Read(&Shader.Name);
     Reader.Read(&Shader.ResourcePath);
     Reader.Read(&Shader.VertexLayouts);

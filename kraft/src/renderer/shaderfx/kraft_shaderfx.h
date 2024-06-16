@@ -51,7 +51,7 @@ struct ShaderFXParser
     bool ParseBlendOp(Token Token, BlendOp::Enum& Factor);
 
     void ParseRenderPassBlock();
-    bool ParseRenderPassShaderStage(RenderPassDefinition& Pass, renderer::ShaderStage::Enum ShaderStage);
+    bool ParseRenderPassShaderStage(RenderPassDefinition& Pass, renderer::ShaderStageFlags ShaderStage);
 };
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath);

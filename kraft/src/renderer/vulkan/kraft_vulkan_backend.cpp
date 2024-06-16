@@ -16,12 +16,18 @@
 #include "renderer/vulkan/kraft_vulkan_fence.h"
 #include "renderer/vulkan/kraft_vulkan_shader.h"
 #include "renderer/vulkan/kraft_vulkan_pipeline.h"
-#include "renderer/vulkan/kraft_vulkan_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_index_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_vertex_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_texture.h"
 #include "renderer/vulkan/kraft_vulkan_helpers.h"
 #include "kraft_vulkan_image.h"
+
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+
+#ifdef KRAFT_RENDERER_DEBUG
+// PFN_vkDebugMarkerSetObjectTagEXT vkDebugMarkerSetObjectTag;
+PFN_vkSetDebugUtilsObjectNameEXT KRAFT_vkSetDebugUtilsObjectNameEXT;
+// PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin;
+// PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd;
+// PFN_vkCmdDebugMarkerInsertEXT vkCmdDebugMarkerInsert;
+#endif
 
 namespace kraft::renderer
 {
@@ -36,18 +42,16 @@ struct SceneViewPass
     uint32              Height;
     VulkanFramebuffer   FrameBuffer;
     VulkanRenderPass    RenderPass;
-    VulkanImage         FBOColorAttachmentImage;
-    VulkanImage         FBODepthAttachmentImage;
-    VkSampler           FBOImageSampler;
-    VulkanCommandBuffer CommandBuffers[3];
-    VulkanFence         WaitFences[3];
-    VulkanTexture       CompositeTextureVk;
-    Texture             CompositeTexture;
+    // VulkanCommandBuffer CommandBuffers[3];
+    // VulkanFence         WaitFences[3];
+    Handle<Texture>     ColorPassTexture;
+    Handle<Texture>     DepthPassTexture;
+    Handle<Texture>     CompositeTexture;
     bool                NeedsResize = false;
 
     void InitSceneViewPass(uint32 Width, uint32 Height);
     void CreateFramebuffer();
-    void CreateCommandBuffers();
+    // void CreateCommandBuffers();
     void DestroySceneViewPass();
     void Begin();
     void End();
@@ -63,10 +67,13 @@ void SceneViewPass::Begin()
     //     this->OnResize(this->Width, this->Height);
     // }
 
-    uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
-    s_Context.ActiveCommandBuffer = this->CommandBuffers[FrameIndex];
-    VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
-    VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
+    // uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
+    // VulkanWaitForFence(&s_Context, &this->WaitFences[FrameIndex], UINT64_MAX);
+    // VulkanResetFence(&s_Context, &this->WaitFences[FrameIndex]);
+
+    // s_Context.ActiveCommandBuffer = this->CommandBuffers[FrameIndex];
+    // VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
+    // VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
     VulkanBeginRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass, this->FrameBuffer.Handle, VK_SUBPASS_CONTENTS_INLINE);
     
     VkViewport Viewport = {};
@@ -90,19 +97,17 @@ void SceneViewPass::Begin()
 
 void SceneViewPass::End()
 {
-    uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
+    // uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
     VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass);
-    VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
+    // VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
 
-    VkSubmitInfo Info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    Info.commandBufferCount = 1;
-    Info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
+    // VkSubmitInfo Info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    // Info.commandBufferCount = 1;
+    // Info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
 
-    VulkanWaitForFence(&s_Context, &this->WaitFences[FrameIndex], UINT64_MAX);
-    VulkanResetFence(&s_Context, &this->WaitFences[FrameIndex]);
-    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &Info, this->WaitFences[FrameIndex].Handle));
-    
-    VulkanSetCommandBufferSubmitted(&s_Context.ActiveCommandBuffer);
+    // KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &Info, this->WaitFences[FrameIndex].Handle));
+
+    // VulkanSetCommandBufferSubmitted(&s_Context.ActiveCommandBuffer);
 }
 
 void SceneViewPass::OnResize(uint32 Width, uint32 Height)
@@ -119,7 +124,11 @@ void SceneViewPass::OnResize(uint32 Width, uint32 Height)
     this->RenderPass.Rect = {0.0f, 0.0f, (float)this->Width, (float)this->Height};
     KDEBUG("Viewport size set to = %d, %d", this->Width, this->Height);
 
-    this->CreateCommandBuffers();
+    // Delete the old color pass and depth pass
+    ResourceManager::Ptr->DestroyTexture(ColorPassTexture);
+    ResourceManager::Ptr->DestroyTexture(DepthPassTexture);
+
+    // this->CreateCommandBuffers();
     this->CreateFramebuffer();
 }
 
@@ -127,118 +136,63 @@ void SceneViewPass::InitSceneViewPass(uint32 Width, uint32 Height)
 {
     this->Width = Width;
     this->Height = Height;
-    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)this->Width, (float)this->Height}, 1.0f, 0, &this->RenderPass, false);
+    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)this->Width, (float)this->Height}, 1.0f, 0, &this->RenderPass, false, "SceneViewRenderPass");
     
     this->CreateFramebuffer();
-    this->CreateCommandBuffers();
+    // this->CreateCommandBuffers();
 
-    for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
-    {
-        VulkanCreateFence(&s_Context, true, &this->WaitFences[i]);
-    }
+    // for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
+    // {
+    //     VulkanCreateFence(&s_Context, true, &this->WaitFences[i]);
+    // }
 }
 
 void SceneViewPass::CreateFramebuffer()
 {
-    // Cleanup any old stuff
-    if (this->FBOColorAttachmentImage.Handle)
-    {
-        VulkanDestroyImage(&s_Context, &this->FBOColorAttachmentImage);
-    }
-
-    if (this->FBODepthAttachmentImage.Handle)
-    {
-        VulkanDestroyImage(&s_Context, &this->FBODepthAttachmentImage);
-    }
-
-    if (this->FBOImageSampler)
-    {
-        vkDestroySampler(s_Context.LogicalDevice.Handle, this->FBOImageSampler, s_Context.AllocationCallbacks);
-    }
-
     if (this->FrameBuffer.Handle)
     {
-        VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
+        // VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
     }
 
-    // Editor Pass
-    // Color attachment
-    VulkanImageDescription ImageDescription;
-    ImageDescription.Width = this->Width;
-    ImageDescription.Height = this->Height;
-    ImageDescription.Format = s_Context.Swapchain.ImageFormat.format;
-    ImageDescription.UsageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    ImageDescription.Tiling = VK_IMAGE_TILING_OPTIMAL;
-    ImageDescription.Type = VK_IMAGE_TYPE_2D;
-    ImageDescription.AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-    ImageDescription.MipLevels = 1;
-    ImageDescription.Samples = VK_SAMPLE_COUNT_1_BIT;
+    const auto& TexturePool = s_Context.ResourceManager->GetTexturePool();
+    ColorPassTexture = s_Context.ResourceManager->CreateTexture({
+        .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
+        .Format = Format::BGRA8_UNORM,
+        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+        .Sampler = {
+            .WrapModeU = TextureWrapMode::ClampToEdge,
+            .WrapModeV = TextureWrapMode::ClampToEdge,
+            .WrapModeW = TextureWrapMode::ClampToEdge,
+            .Compare = CompareOp::Always,
+        },
+        .DebugName = "ColorPassTexture",
+    });
 
-    if (!VulkanCreateImage(&s_Context, ImageDescription, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &this->FBOColorAttachmentImage))
-    {
-        KASSERTM(false, "Failed to create image!");
-    }
+    DepthPassTexture = s_Context.ResourceManager->CreateTexture({
+        .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
+        .Format = s_Context.ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
+        .Sampler = {
+            .WrapModeU = TextureWrapMode::ClampToEdge,
+            .WrapModeV = TextureWrapMode::ClampToEdge,
+            .WrapModeW = TextureWrapMode::ClampToEdge,
+            .Compare = CompareOp::Always,
+        },
+        .DebugName = "DepthPassTexture",
+    });
 
-    // Create sampler to sample from the attachment in the fragment shader
-    VkSamplerCreateInfo SamplerCreateInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    SamplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-    SamplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-    SamplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    SamplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    SamplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    SamplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    SamplerCreateInfo.mipLodBias = 0.0f;
-    SamplerCreateInfo.maxAnisotropy = 1.0f;
-    SamplerCreateInfo.minLod = 0.0f;
-    SamplerCreateInfo.maxLod = 1.0f;
-    SamplerCreateInfo.compareOp   = VK_COMPARE_OP_ALWAYS;
-    SamplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    KRAFT_VK_CHECK(vkCreateSampler(s_Context.LogicalDevice.Handle, &SamplerCreateInfo, nullptr, &this->FBOImageSampler));
-
-    // Depth stencil attachment
-    ImageDescription.Format = s_Context.PhysicalDevice.DepthBufferFormat;
-    ImageDescription.UsageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-    VulkanCreateImage(&s_Context, ImageDescription, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false, &this->FBODepthAttachmentImage);
-
-    VkImageViewCreateInfo ImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    ImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    ImageViewCreateInfo.format = ImageDescription.Format;
-    ImageViewCreateInfo.flags = 0;
-    ImageViewCreateInfo.subresourceRange = {};
-    ImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    if (ImageDescription.Format >= VK_FORMAT_D16_UNORM_S8_UINT) 
-    {
-        ImageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-    }
-    ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    ImageViewCreateInfo.subresourceRange.levelCount = 1;
-    ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount = 1;
-    ImageViewCreateInfo.image = this->FBODepthAttachmentImage.Handle;
-    KRAFT_VK_CHECK(vkCreateImageView(s_Context.LogicalDevice.Handle, &ImageViewCreateInfo, nullptr, &this->FBODepthAttachmentImage.View));
+    VulkanTexture *ColorPassVkTexture = TexturePool.Get(ColorPassTexture);
+    VulkanTexture *DepthPassVkTexture = TexturePool.Get(DepthPassTexture);
 
     VkImageView Attachments[] = 
     {
-        this->FBOColorAttachmentImage.View,
-        this->FBODepthAttachmentImage.View
+        ColorPassVkTexture->View,
+        // DepthPassVkTexture->View
     };
 
-    VulkanCreateFramebuffer(&s_Context, this->Width, this->Height, &this->RenderPass, Attachments, 2, &this->FrameBuffer);
-    this->CompositeTextureVk =
-    {
-        .Image = this->FBOColorAttachmentImage,
-        .Sampler = this->FBOImageSampler,
-    };
+    VulkanCreateFramebuffer(&s_Context, this->Width, this->Height, &this->RenderPass, Attachments, 1, &this->FrameBuffer);
 
-    this->CompositeTexture = 
-    {
-        .Width = this->Width,
-        .Height = this->Height,
-        .Generation = 0,
-        .Name = "SceneView",
-        .RendererData = &this->CompositeTextureVk,
-    };
+    this->CompositeTexture = ColorPassTexture;
 }
 
 bool SceneViewPass::SetViewportSize(uint32 Width, uint32 Height)
@@ -248,8 +202,8 @@ bool SceneViewPass::SetViewportSize(uint32 Width, uint32 Height)
     if (this->Width != Width || this->Height != Height)
     {
         this->NeedsResize = true;
-        // this->Width = Width;
-        // this->Height = Height;
+        this->Width = Width;
+        this->Height = Height;
 
         this->OnResize(Width, Height);
     }
@@ -257,38 +211,37 @@ bool SceneViewPass::SetViewportSize(uint32 Width, uint32 Height)
     return this->NeedsResize;
 }
 
-void SceneViewPass::CreateCommandBuffers()
-{
-    for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
-    {
-        if (this->CommandBuffers[i].Handle)
-        {
-            VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
-        }
+// void SceneViewPass::CreateCommandBuffers()
+// {
+//     for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
+//     {
+//         if (this->CommandBuffers[i].Handle)
+//         {
+//             VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
+//         }
         
-        MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
-        VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &this->CommandBuffers[i]);
-    }
-}
+//         MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
+//         VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &this->CommandBuffers[i]);
+//     }
+// }
 
 void SceneViewPass::DestroySceneViewPass()
 {
-    for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
-    {
-        if (this->CommandBuffers[i].Handle)
-        {
-            VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
-        }
+    // for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
+    // {
+    //     if (this->CommandBuffers[i].Handle)
+    //     {
+    //         VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
+    //     }
 
-        MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
-        VulkanDestroyFence(&s_Context, &this->WaitFences[i]);
-    }
+    //     MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
+    //     VulkanDestroyFence(&s_Context, &this->WaitFences[i]);
+    // }
 
-    VulkanDestroyImage(&s_Context, &this->FBOColorAttachmentImage);
-    VulkanDestroyImage(&s_Context, &this->FBODepthAttachmentImage);
-    vkDestroySampler(s_Context.LogicalDevice.Handle, this->FBOImageSampler, s_Context.AllocationCallbacks);
+    // ResourceManager::Ptr->DestroyTexture(this->ColorPassTexture);
+    // ResourceManager::Ptr->DestroyTexture(this->DepthPassTexture);
+
     VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
-
     VulkanDestroyRenderPass(&s_Context, &this->RenderPass);
 }
 
@@ -297,9 +250,9 @@ bool VulkanRendererBackend::SetSceneViewViewportSize(uint32 Width, uint32 Height
     return SceneView.SetViewportSize(Width, Height);
 }
 
-Texture* VulkanRendererBackend::GetSceneViewTexture()
+Handle<Texture> VulkanRendererBackend::GetSceneViewTexture()
 {
-    return &SceneView.CompositeTexture;
+    return SceneView.CompositeTexture;
 }
 
 void VulkanRendererBackend::BeginSceneView()
@@ -317,9 +270,14 @@ void VulkanRendererBackend::OnSceneViewViewportResize(uint32 Width, uint32 Heigh
     SceneView.OnResize(Width, Height);
 }
 
-VulkanContext* VulkanRendererBackend::GetContext()
+VulkanContext* VulkanRendererBackend::Context()
 {
     return &s_Context;
+}
+
+VkDevice VulkanRendererBackend::Device()
+{
+    return s_Context.LogicalDevice.Handle;
 }
 
 static bool createBuffers();
@@ -331,7 +289,9 @@ static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerPr
 
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
-    s_Context = {};
+    s_Context = {
+        .ResourceManager = (VulkanResourceManager*)ResourceManager::Ptr,
+    };
 
     s_Context.AllocationCallbacks = nullptr;
     s_Context.FramebufferWidth = config->WindowWidth;
@@ -432,6 +392,9 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
 
         KRAFT_VK_CHECK(func(s_Context.Instance, &createInfo, s_Context.AllocationCallbacks, &s_Context.DebugMessenger));
     }
+
+    KRAFT_vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(s_Context.Instance, "vkSetDebugUtilsObjectNameEXT");
+    s_Context.SetObjectName = VulkanRendererBackend::SetObjectName;
 #endif
 
     // TODO: These requirements should come from a config or something
@@ -449,12 +412,59 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     VulkanCreateLogicalDevice(&s_Context, requirements);
     arrfree(requirements.DeviceExtensionNames);
 
+    PhysicalDeviceFormatSpecs FormatSpecs;
+    {
+        switch (s_Context.PhysicalDevice.DepthBufferFormat)
+        {
+            case VK_FORMAT_D16_UNORM: FormatSpecs.DepthBufferFormat = Format::D16_UNORM;
+            break;
+
+            case VK_FORMAT_D32_SFLOAT: FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT;
+            break;
+
+            case VK_FORMAT_D16_UNORM_S8_UINT: FormatSpecs.DepthBufferFormat = Format::D16_UNORM_S8_UINT;
+            break;
+
+            case VK_FORMAT_D24_UNORM_S8_UINT: FormatSpecs.DepthBufferFormat = Format::D24_UNORM_S8_UINT;
+            break;
+
+            case VK_FORMAT_D32_SFLOAT_S8_UINT: FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT_S8_UINT;
+            break;
+
+            default: KFATAL("Unsupported depth buffer format %d", s_Context.PhysicalDevice.DepthBufferFormat);
+        }
+
+        s_Context.ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
+    }
+
     //
     // Create all rendering resources
     //
 
     VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight);
-    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass, true);
+    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass, true, "MainRenderPass");
+
+    {
+        switch (s_Context.Swapchain.ImageFormat.format)
+        {
+            case VK_FORMAT_R8G8B8A8_UNORM: FormatSpecs.SwapchainFormat = Format::RGBA8_UNORM;
+            break;
+
+            case VK_FORMAT_R8G8B8_UNORM: FormatSpecs.SwapchainFormat = Format::RGB8_UNORM;
+            break;
+
+            case VK_FORMAT_B8G8R8A8_UNORM: FormatSpecs.SwapchainFormat = Format::BGRA8_UNORM;
+            break;
+
+            case VK_FORMAT_B8G8R8_UNORM: FormatSpecs.SwapchainFormat = Format::BGR8_UNORM;
+            break;
+
+            default: KFATAL("Unsupported swapchain image format %d", s_Context.Swapchain.ImageFormat.format);
+        }
+    
+        s_Context.ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
+    }
+
 
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
     createCommandBuffers();
@@ -540,8 +550,8 @@ bool VulkanRendererBackend::Shutdown()
 
     SceneView.DestroySceneViewPass();
 
-    VulkanDestroyBuffer(&s_Context, &s_Context.VertexBuffer);
-    VulkanDestroyBuffer(&s_Context, &s_Context.IndexBuffer);
+    // VulkanDestroyBuffer(&s_Context, &s_Context.VertexBuffer);
+    // VulkanDestroyBuffer(&s_Context, &s_Context.IndexBuffer);
 
     vkDestroyDescriptorPool(s_Context.LogicalDevice.Handle, GlobalDescriptorPool, s_Context.AllocationCallbacks);
     vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, GlobalDescriptorSetLayout, s_Context.AllocationCallbacks);
@@ -580,12 +590,12 @@ bool VulkanRendererBackend::Shutdown()
     return true;
 }
 
-bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
+bool VulkanRendererBackend::PrepareFrame()
 {
     VulkanFence* fence = s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame];
     if (!VulkanWaitForFence(&s_Context, fence, UINT64_MAX))
     {
-        KERROR("[VulkanRendererBackend::BeginFrame]: VulkanWaitForFence failed");
+        KERROR("[VulkanRendererBackend::PrepareFrame]: VulkanWaitForFence failed");
         return false;
     }
 
@@ -600,9 +610,13 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     // Record commands
     s_Context.ActiveCommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
     VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
-
     VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
 
+    return true;
+}
+
+bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
+{
     VulkanBeginRenderPass(&s_Context.ActiveCommandBuffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
     
     VkViewport viewport = {};
@@ -629,6 +643,7 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
 bool VulkanRendererBackend::EndFrame(float64 deltaTime)
 {
     VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &s_Context.MainRenderPass);
+    
     VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
 
     VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -695,7 +710,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         ShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         ShaderStageInfo.module = ShaderModule;
         ShaderStageInfo.pName = "main";
-        ShaderStageInfo.stage = ToVulkanShaderStage(Shader.Stage);
+        ShaderStageInfo.stage = ToVulkanShaderStageFlagBits(Shader.Stage);
 
         PipelineShaderStageCreateInfos[j] = ShaderStageInfo;
         ShaderModules[j] = ShaderModule;
@@ -737,7 +752,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 
     // Shader resources
     // Both global and instance ubos will be written separately, so the offsets must be aligned
-    uint64 GlobalUBOSize = GetAligned(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    uint64 GlobalUBOSize = math::AlignUp(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     Shader->GlobalUBOOffset = 0;
     Shader->GlobalUBOStride = GlobalUBOSize;
 
@@ -758,7 +773,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         DescriptorSetLayoutBindings[j].descriptorCount = 1;
         DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
         DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
-        DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStage(Binding.Stage);
+        DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStageFlags(Binding.Stage);
 
         if (Binding.Type == ResourceType::UniformBuffer)
         {
@@ -766,8 +781,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         }
     }
 
-    Shader->InstanceUBOStride = GetAligned(InstanceUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
-    uint64 UBOSize = GetAligned(Shader->InstanceUBOStride * KRAFT_MATERIAL_MAX_INSTANCES + GlobalUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    Shader->InstanceUBOStride = math::AlignUp(InstanceUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    uint64 UBOSize = math::AlignUp(Shader->InstanceUBOStride * KRAFT_MATERIAL_MAX_INSTANCES + GlobalUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
 
     // Constant Buffers
     uint64 ConstantBufferSize = 0;
@@ -775,7 +790,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     for (int j = 0; j < ConstantBuffersCount; j++)
     {
         const ConstantBufferEntry& Entry = Pass.ConstantBuffers->Fields[j];
-        uint64 AlignedSize = GetAligned(ShaderDataType::SizeOf(Entry.Type), 4);
+        uint64 AlignedSize = math::AlignUp(ShaderDataType::SizeOf(Entry.Type), 4);
         PushConstantRanges[j].size   = AlignedSize;
         PushConstantRanges[j].offset = ConstantBufferSize;
         PushConstantRanges[j].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -829,7 +844,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 
     VkPipelineDepthStencilStateCreateInfo DepthStencilStateCreateInfo = {};
     DepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    DepthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+    DepthStencilStateCreateInfo.depthTestEnable = Pass.RenderState->ZTestOperation > CompareOp::Never ? VK_TRUE : VK_FALSE;
     DepthStencilStateCreateInfo.depthWriteEnable = Pass.RenderState->ZWriteEnable;
     DepthStencilStateCreateInfo.depthCompareOp = ToVulkanCompareOp(Pass.RenderState->ZTestOperation);
     DepthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
@@ -930,11 +945,13 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     VulkanShaderData->ShaderResources.DescriptorSetLayouts = { LocalDescriptorSetLayout };
 
     // Create the uniform buffer for data upload
-    uint32 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
-    VulkanCreateBuffer(&s_Context, UBOSize, VK_SHARING_MODE_EXCLUSIVE, 
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | ExtraMemoryFlags,
-        true, &VulkanShaderData->ShaderResources.UniformBuffer);
+    uint64 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
+    VulkanShaderData->ShaderResources.UniformBuffer = ResourceManager::Ptr->CreateBuffer({
+        .Size = UBOSize,
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
+        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | ExtraMemoryFlags,
+        .MapMemory = true,
+    });
 
     // Create global descriptor sets
     const uint32 MaxSwapchainImages = 3;
@@ -953,7 +970,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, VulkanShaderData->ShaderResources.GlobalDescriptorSets));
 
     // Map the buffer memory
-    VulkanShaderData->ShaderResources.UniformBufferMemory = VulkanMapBufferMemory(&s_Context, &VulkanShaderData->ShaderResources.UniformBuffer, VK_WHOLE_SIZE, 0);
+    // VulkanShaderData->ShaderResources.UniformBufferMemory = VulkanMapBufferMemory(&s_Context, &VulkanShaderData->ShaderResources.UniformBuffer, VK_WHOLE_SIZE, 0);
+    VulkanShaderData->ShaderResources.UniformBufferMemory = ResourceManager::Ptr->GetBufferData(VulkanShaderData->ShaderResources.UniformBuffer);
     VulkanShaderData->Pipeline = Pipeline;
     VulkanShaderData->PipelineLayout = PipelineLayout;
     Shader->RendererData = VulkanShaderData;
@@ -974,7 +992,9 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
         VkPipeline Pipeline = VulkanShaderData->Pipeline;
         VkPipelineLayout PipelineLayout = VulkanShaderData->PipelineLayout;
 
-        VulkanDestroyBuffer(&s_Context, &ShaderResources.UniformBuffer);
+        ResourceManager::Ptr->DestroyBuffer(ShaderResources.UniformBuffer);
+
+        // VulkanDestroyBuffer(&s_Context, &ShaderResources.UniformBuffer);
 
         for (int i = 0; i < ShaderResources.DescriptorSetLayouts.Length; i++)
         {
@@ -1075,16 +1095,6 @@ void VulkanRendererBackend::DestroyMaterial(Material* Material)
     Material->RendererData = 0;
 }
 
-void VulkanRendererBackend::CreateTexture(uint8* data, Texture* texture)
-{
-    VulkanCreateTexture(&s_Context, data, texture);
-}
-
-void VulkanRendererBackend::DestroyTexture(Texture* texture)
-{
-    VulkanDestroyTexture(&s_Context, texture);
-}
-
 void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
@@ -1111,7 +1121,7 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
 
             if (Uniform.Type == ResourceType::Sampler)
             {
-                MaterialInstance->Textures[Uniform.Offset] = *(Texture**)Value;
+                MaterialInstance->Textures[Uniform.Offset] = *(Handle<Texture>*)Value;
             }
             else
             {
@@ -1142,7 +1152,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
     VulkanShader* ShaderData = (VulkanShader*)Shader->RendererData;
 
     VkDescriptorBufferInfo DescriptorBufferInfo;
-    DescriptorBufferInfo.buffer = ShaderData->ShaderResources.UniformBuffer.Handle;
+    DescriptorBufferInfo.buffer = s_Context.ResourceManager->GetBufferPool().Get(ShaderData->ShaderResources.UniformBuffer)->Handle;
     DescriptorBufferInfo.offset = Shader->GlobalUBOOffset;
     DescriptorBufferInfo.range = Shader->GlobalUBOStride;
 
@@ -1184,7 +1194,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Material data
     if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        DescriptorBufferInfo.buffer = ShaderResources->UniformBuffer.Handle;
+        DescriptorBufferInfo.buffer = s_Context.ResourceManager->GetBufferPool().Get(ShaderData->ShaderResources.UniformBuffer)->Handle;
         DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;
         DescriptorBufferInfo.range = Shader->InstanceUBOStride;
 
@@ -1207,16 +1217,17 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Sampler
     if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
+        const auto& TexturePool = s_Context.ResourceManager->GetTexturePool(); 
         for (int i = 0; i < MaterialInstance->Textures.Length; i++)
         {
-            kraft::Texture* Texture = MaterialInstance->Textures[i];
-            VulkanTexture* VkTexture = (VulkanTexture*)Texture->RendererData;
+            Handle<Texture> Resource = MaterialInstance->Textures[i];
+            VulkanTexture* VkTexture = TexturePool.Get(Resource);
 
-            KASSERT(VkTexture->Image.Handle);
-            KASSERT(VkTexture->Image.View);
+            KASSERT(VkTexture->Image);
+            KASSERT(VkTexture->View);
 
             DescriptorImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            DescriptorImageInfo[i].imageView = VkTexture->Image.View;
+            DescriptorImageInfo[i].imageView = VkTexture->View;
             DescriptorImageInfo[i].sampler = VkTexture->Sampler;
         }
 
@@ -1255,30 +1266,28 @@ void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 {
     VulkanGeometryData GeometryData = s_Context.Geometries[GeometryID];
     VkDeviceSize Offsets[1] = { GeometryData.VertexBufferOffset };
+
+    VulkanBuffer* VertexBuffer = s_Context.ResourceManager->GetBufferPool().Get(s_Context.VertexBuffer);
+    VulkanBuffer* IndexBuffer = s_Context.ResourceManager->GetBufferPool().Get(s_Context.IndexBuffer);
     
-    vkCmdBindVertexBuffers(s_Context.ActiveCommandBuffer.Handle, 0, 1, &s_Context.VertexBuffer.Handle, Offsets);
-    vkCmdBindIndexBuffer(s_Context.ActiveCommandBuffer.Handle, s_Context.IndexBuffer.Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(s_Context.ActiveCommandBuffer.Handle, 0, 1, &VertexBuffer->Handle, Offsets);
+    vkCmdBindIndexBuffer(s_Context.ActiveCommandBuffer.Handle, IndexBuffer->Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
 
     vkCmdDrawIndexed(s_Context.ActiveCommandBuffer.Handle, GeometryData.IndexCount, 1, 0, 0, 0);
 }
 
-static bool UploadDataToGPU(VulkanContext* Context, VulkanBuffer DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
+static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
 {
-    // Create a staging buffer
-    VulkanBuffer StagingBuffer;
-    if (!VulkanCreateBuffer(Context, Size, VK_SHARING_MODE_EXCLUSIVE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, true, &StagingBuffer))
-    {
-        return false;
-    }
+    TempBuffer StagingBuffer = ResourceManager::Ptr->CreateTempBuffer(Size);
+    MemCpy(StagingBuffer.Ptr, Data, Size);
 
-    // Load the given data in the staging buffer
-    VulkanLoadDataInBuffer(Context, &StagingBuffer, Data, Size, 0);
-
-    // Copy the staging buffer data to the vertex buffer
-    VulkanCopyBufferTo(Context, &StagingBuffer, 0, &DstBuffer, DstBufferOffset, Size, Context->LogicalDevice.GraphicsQueue, Context->GraphicsCommandPool);
-
-    // Destroy the staging buffer
-    VulkanDestroyBuffer(Context, &StagingBuffer);
+    ResourceManager::Ptr->UploadBuffer({
+        .DstBuffer = DstBuffer,
+        .SrcBuffer = StagingBuffer.GPUBuffer,
+        .SrcSize = Size,
+        .DstOffset = DstBufferOffset,
+        .SrcOffset = StagingBuffer.Offset,
+    });
 
     return true;
 }
@@ -1371,21 +1380,33 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
 
     return VK_FALSE;
 }
+
+void VulkanRendererBackend::SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name)
+{
+    VkDebugUtilsObjectNameInfoEXT NameInfo = {};
+    NameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+    NameInfo.objectType = ObjectType;
+    NameInfo.objectHandle = Object;
+    NameInfo.pObjectName = Name;
+    KRAFT_vkSetDebugUtilsObjectNameEXT(s_Context.LogicalDevice.Handle, &NameInfo);
+}
 #endif
 
 bool createBuffers()
 {
     const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 1024;
-    if (!VulkanCreateBuffer(&s_Context, VertexBufferSize, VK_SHARING_MODE_EXCLUSIVE, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &s_Context.VertexBuffer))
-    {
-        return false;
-    }
+    s_Context.VertexBuffer = ResourceManager::Ptr->CreateBuffer({
+        .Size = VertexBufferSize,
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_VERTEX_BUFFER,
+        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+    });
 
     const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 1024;
-    if (!VulkanCreateBuffer(&s_Context, IndexBufferSize, VK_SHARING_MODE_EXCLUSIVE, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &s_Context.IndexBuffer))
-    {
-        return false;
-    }
+    s_Context.IndexBuffer = ResourceManager::Ptr->CreateBuffer({
+        .Size = IndexBufferSize,
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_INDEX_BUFFER,
+        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+    });
 
     return true;
 }
@@ -1438,18 +1459,19 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         MemZero(swapchain->Framebuffers, sizeof(VulkanFramebuffer) * swapchain->ImageCount);
     }
 
+    const int AttachmentCount = 1;
+    // VkImageView Attachments[AttachmentCount] = { 0, s_Context.ResourceManager->GetTexturePool().Get(swapchain->DepthAttachment)->View };
+    VkImageView Attachments[AttachmentCount] = {};
+
     for (uint32 i = 0; i < swapchain->ImageCount; ++i)
     {
         if (swapchain->Framebuffers[i].Handle)
         {
             VulkanDestroyFramebuffer(&s_Context, &swapchain->Framebuffers[i]);
         }
-
-        VkImageView* attachments = 0;
-        arrput(attachments, swapchain->ImageViews[i]);
-        arrput(attachments, swapchain->DepthAttachment.View);
-
-        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, attachments, arrlen(attachments), &swapchain->Framebuffers[i]);
+        
+        Attachments[0] = swapchain->ImageViews[i];
+        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, Attachments, AttachmentCount, &swapchain->Framebuffers[i]);
     }
 }
 

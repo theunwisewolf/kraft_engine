@@ -42,7 +42,7 @@ struct MaterialSystem
     static void ApplyLocalProperties(Material* Material, const Mat4f& Model);
 
     static bool SetTexture(Material* Instance, const String& Key, const String& TexturePath);
-    static bool SetTexture(Material* Instance, const String& Key, Texture* Texture);
+    static bool SetTexture(Material* Instance, const String& Key, Handle<Texture> Texture);
     
     template<typename T>
     static bool SetProperty(Material* Instance, const String& Name, T Value)

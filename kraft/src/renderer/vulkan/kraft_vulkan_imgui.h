@@ -18,8 +18,9 @@ bool Destroy();
 // 
 // API
 //
-ImTextureID AddTexture(Texture* Texture);
+ImTextureID AddTexture(Handle<Texture> Texture);
 void RemoveTexture(ImTextureID TextureID);
+void PostFrameCleanup();
 
 }
 }

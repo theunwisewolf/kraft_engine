@@ -8,6 +8,8 @@
 
 #include "utils.h"
 
+#include <renderer/kraft_resource_manager.h>
+
 #include <imgui/imgui.h>
 #include "imgui/extensions/imguizmo/ImGuizmo.h"
 
@@ -18,13 +20,13 @@ struct GizmosState
     bool                Snap;
 } State = {};
 
-static void* TextureID;
-static kraft::Texture* SceneTexture;
+static kraft::renderer::Handle<kraft::Texture> SceneTexture;
+static ImTextureID TextureID;
 static ImTextureID ImSceneTexture;
 
-void InitImguiWidgets(const kraft::String& TexturePath)
+void InitImguiWidgets(kraft::renderer::Handle<kraft::Texture> DiffuseTexture)
 {
-    TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::TextureSystem::AcquireTexture(TexturePath));
+    TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(DiffuseTexture);
     kraft::Renderer->ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
 
     SceneTexture = kraft::Renderer->GetSceneViewTexture();
@@ -55,7 +57,9 @@ void DrawImGuiWidgets(bool refresh)
     static float farClipP = 1000.f;
 
     // To preserve the aspect ratio of the texture
-    kraft::Texture* Texture = TestSceneState->GetSelectedEntity().MaterialInstance->GetUniform<kraft::Texture*>("DiffuseSampler");
+    kraft::renderer::Handle<kraft::Texture> Resource = TestSceneState->GetSelectedEntity().MaterialInstance->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
+    kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
+
     kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
     float downScale = kraft::math::Max(ratio.x, ratio.y);
 

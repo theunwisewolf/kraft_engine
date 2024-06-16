@@ -4,6 +4,7 @@
 #include "core/kraft_asserts.h"
 #include "math/kraft_math.h"
 #include "containers/kraft_array.h"
+#include "renderer/kraft_renderer_types.h"
 
 #include <vulkan/vulkan.h>
 
@@ -18,6 +19,44 @@
 namespace kraft::renderer
 {
 
+struct VulkanResourceManager;
+
+//
+// Resources
+//
+
+struct VulkanTexture
+{
+    uint32         Width;
+    uint32         Height;
+    VkImage        Image;
+    VkImageView    View;
+    VkDeviceMemory Memory;
+    VkSampler      Sampler;
+
+    VulkanTexture() : 
+        Width(0),
+        Height(0),
+        Image(0),
+        View(0),
+        Memory(0),
+        Sampler(0)
+    {
+
+    }
+};
+
+struct VulkanGeometryData
+{
+    uint32 ID;
+    uint32 IndexSize;
+    uint32 IndexCount;
+    uint32 IndexBufferOffset;
+    uint32 VertexSize;
+    uint32 VertexCount;
+    uint32 VertexBufferOffset;
+};
+
 struct VulkanBuffer
 {
     VkBuffer                Handle;
@@ -28,6 +67,10 @@ struct VulkanBuffer
     int32                   MemoryIndex;
     VkMemoryPropertyFlags   MemoryPropertyFlags;
 };
+
+//
+// End resources
+//
 
 struct VulkanPipeline
 {
@@ -100,15 +143,6 @@ struct VulkanFramebuffer
     VkImageView*        Attachments;
 };
 
-struct VulkanImage
-{
-    uint32         Width;
-    uint32         Height;
-    VkImage        Handle;
-    VkImageView    View;
-    VkDeviceMemory Memory;
-};
-
 struct VulkanQueueFamilyInfo
 {
     uint32 GraphicsQueueIndex;
@@ -150,41 +184,16 @@ struct VulkanLogicalDevice
 
 struct VulkanSwapchain
 {
-    VkSwapchainKHR      Handle;
+    VkSwapchainKHR      Resource;
     VkSurfaceFormatKHR  ImageFormat;
     VkImage*            Images;
     VkImageView*        ImageViews;
     uint8               CurrentFrame;               
     uint8               MaxFramesInFlight;               
     uint32              ImageCount;
-    VulkanImage         DepthAttachment;
+    Handle<Texture>     DepthAttachment;
     VulkanFramebuffer*  Framebuffers;
 };
-
-//
-// Resources
-//
-
-struct VulkanTexture
-{
-    VulkanImage Image;
-    VkSampler   Sampler;
-};
-
-struct VulkanGeometryData
-{
-    uint32 ID;
-    uint32 IndexSize;
-    uint32 IndexCount;
-    uint32 IndexBufferOffset;
-    uint32 VertexSize;
-    uint32 VertexCount;
-    uint32 VertexBufferOffset;
-};
-
-//
-// End resources
-//
 
 struct VulkanContext
 {
@@ -215,13 +224,15 @@ struct VulkanContext
 
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
+    void (*SetObjectName)(uint64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
-    VulkanBuffer             VertexBuffer;
-    VulkanBuffer             IndexBuffer;
+    Handle<Buffer>           VertexBuffer;
+    Handle<Buffer>           IndexBuffer;
     uint32                   CurrentVertexBufferOffset;
     uint32                   CurrentIndexBufferOffset;
     VulkanGeometryData       Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
+    VulkanResourceManager*   ResourceManager;
 };
 
 struct VulkanPhysicalDeviceRequirements
@@ -245,7 +256,7 @@ struct VulkanShaderResources
 {
     Array<VkDescriptorSetLayout> DescriptorSetLayouts;
     VkDescriptorSet              GlobalDescriptorSets[3];
-    VulkanBuffer                 UniformBuffer;
+    Handle<Buffer>               UniformBuffer;
     void*                        UniformBufferMemory;
     
     // This is used to figure out where in memory the next material

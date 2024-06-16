@@ -9,6 +9,8 @@
 #include "systems/kraft_shader_system.h"
 #include "renderer/kraft_renderer_frontend.h"
 
+#include <renderer/kraft_renderer_types.h>
+
 namespace kraft
 {
 
@@ -140,7 +142,7 @@ Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
     Instance->Name = Data.Name;
     Instance->AssetPath = Data.FilePath;
     Instance->Shader = Shader;
-    Instance->Textures = Array<Texture*>(Shader->TextureCount);
+    Instance->Textures = Array<Handle<Texture>>(Shader->TextureCount);
     Instance->Properties = HashMap<String, MaterialProperty>();
     Instance->Properties.reserve(Shader->InstanceUniformsCount);
     Instance->Dirty = true;
@@ -249,8 +251,8 @@ void MaterialSystem::ApplyLocalProperties(Material* Material, const Mat4f& Model
 
 bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const String& TexturePath)
 {
-    Texture* NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
-    if (!NewTexture)
+    Handle<Texture> NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
+    if (NewTexture.IsInvalid())
     {
         return false;
     }
@@ -258,14 +260,8 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const Str
     return SetTexture(Instance, Key, NewTexture);
 }
 
-bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Texture* NewTexture)
+bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Texture> NewTexture)
 {
-    KASSERT(NewTexture);
-    if (!NewTexture)
-    {
-        return false;
-    }
-
     auto It = Instance->Properties.find(Key);
     if (It == Instance->Properties.iend())
     {
@@ -283,7 +279,7 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Texture* 
     KDEBUG("Uniform offset %d", Uniform.Offset);
 
     // Release the old texture
-    Texture* OldTexture = Instance->Textures[Uniform.Offset];
+    Handle<Texture> OldTexture = Instance->Textures[Uniform.Offset];
     TextureSystem::ReleaseTexture(OldTexture);
 
     Property.Set(NewTexture);
@@ -327,17 +323,17 @@ static void CreateDefaultMaterialsInternal()
 
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
 {
-    FileHandle Handle;
-    bool Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
+    FileHandle File;
+    bool Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &File);
     if (!Result)
     {
         return false;
     }
 
-    uint64 BufferSize = kraft::filesystem::GetFileSize(&Handle) + 1;
+    uint64 BufferSize = kraft::filesystem::GetFileSize(&File) + 1;
     uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
-    filesystem::ReadAllBytes(&Handle, &FileDataBuffer);
-    filesystem::CloseFile(&Handle);
+    filesystem::ReadAllBytes(&File, &FileDataBuffer);
+    filesystem::CloseFile(&File);
 
     Lexer Lexer;
     Lexer.Create((char*)FileDataBuffer);
@@ -406,14 +402,14 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                         }
 
                         const String& TexturePath = Token.String();
-                        Texture* Texture = TextureSystem::AcquireTexture(TexturePath);
-                        if (!Texture)
+                        Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
+                        if (Resource.IsInvalid())
                         {
                             KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.", *TexturePath, *FilePath);
-                            Texture = TextureSystem::GetDefaultDiffuseTexture();
+                            Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 
-                        Data->Properties["DiffuseSampler"] = Texture;
+                        Data->Properties["DiffuseSampler"] = Resource;
                     }
                     else if (Token.MatchesKeyword("Shader"))
                     {

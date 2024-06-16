@@ -220,6 +220,9 @@ public:
      */
     KRAFT_INLINE void Clear() noexcept
     {
+        for (int i = 0; i < Length; i++)
+            Data()[i].~ValueType();
+
         Length = 0;
     }
 };

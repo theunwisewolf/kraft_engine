@@ -251,7 +251,7 @@ bool Init()
     EntityA.SetTransform({-105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
     TestSceneState->AddEntity(EntityA);
 
-    const float ObjectCount = 20.0f;
+    const float ObjectCount = 0.0f;
     const float ObjectWidth = 50.0f;
     const float ObjectHeight = 50.0f;
     const float Spacing = 0.0f;
@@ -281,8 +281,8 @@ bool Init()
     // UpdateObjectScale();
 
     const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
-    kraft::Texture* Texture = Material->GetUniform<kraft::Texture*>("DiffuseSampler");
-    InitImguiWidgets(Texture->Name);
+    Handle<Texture> DiffuseTexture = Material->GetUniform<Handle<Texture>>("DiffuseSampler");
+    InitImguiWidgets(DiffuseTexture);
 
     TestSceneState->SceneCamera.UpdateViewMatrix();
 

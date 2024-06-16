@@ -27,6 +27,11 @@ KRAFT_API KRAFT_INLINE T Max(T a, T b)
     return a > b ? a : b;
 }
 
+KRAFT_INLINE uint64 AlignUp(uint64 UnalignedValue, uint64 Alignment) 
+{
+    return ((UnalignedValue + (Alignment - 1)) & ~(Alignment - 1));
+}
+
 }
 
 //

@@ -50,26 +50,14 @@ struct Shader
 
 struct Texture
 {
-    uint32 ID;
-    uint32 Width;
-    uint32 Height;
-    uint8  Channels;
-    uint32 Generation;
-    char   Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
+    uint32  ID;
+    float32 Width;
+    float32 Height;
+    uint8   Channels;
+    uint32  Generation;
+    char    Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
 
     void*  RendererData; // Renderer specific data
-};
-
-enum TextureUse
-{
-    TEXTURE_USE_UNKNOWN = 0x00,
-    TEXTURE_USE_MAP_DIFFUSE = 0x01,
-};
-
-struct TextureMap
-{
-    Texture*    Texture;
-    TextureUse  Usage;
 };
 
 #define MATERIAL_PROPERTY_SET(Type) KRAFT_INLINE void Set(Type Val) { MemCpy(this->Memory, (void*)&Val, sizeof(Type));  }
@@ -94,7 +82,7 @@ struct MaterialProperty
         UInt16   UInt16Value;
         UInt32   UInt32Value;
         UInt64   UInt64Value;
-        Texture* TextureValue;
+        Handle<Texture> TextureValue;
 
         char    Memory[128];
     };
@@ -117,7 +105,7 @@ struct MaterialProperty
     MATERIAL_PROPERTY_SETTERS(UInt16);
     MATERIAL_PROPERTY_SETTERS(UInt32);
     MATERIAL_PROPERTY_SETTERS(UInt64);
-    MATERIAL_PROPERTY_SETTERS(Texture*);
+    MATERIAL_PROPERTY_SETTERS(Handle<Texture>);
 
     template<typename T>
     T Get() const
@@ -142,7 +130,7 @@ struct Material
     Shader*         Shader;
 
     // List of textures of this material instance
-    Array<Texture*> Textures;
+    Array<Handle<Texture>> Textures;
 
     // All the material properties
     // The indices match to the material's properties hashmap

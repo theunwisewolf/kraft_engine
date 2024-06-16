@@ -149,7 +149,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
         auto& ConstantBuffer = Pass.ConstantBuffers->Fields[i];
         
         // Push constants must be aligned to 4 bytes
-        uint32 AlignedSize = GetAligned(ShaderDataType::SizeOf(ConstantBuffer.Type), 4);
+        uint32 AlignedSize = math::AlignUp(ShaderDataType::SizeOf(ConstantBuffer.Type), 4);
         AddUniform(&Reference->Shader, ConstantBuffer.Name, 0, Offset, AlignedSize, ResourceType::ConstantBuffer, ShaderUniformScope::Local);
 
         Offset += AlignedSize;

@@ -55,6 +55,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/kraft_renderer_backend.cpp
         src/renderer/kraft_renderer_frontend.cpp
         src/renderer/kraft_renderer_imgui.cpp
+        src/renderer/kraft_resource_manager.cpp
         src/renderer/vulkan/kraft_vulkan_backend.cpp
         src/renderer/vulkan/kraft_vulkan_device.cpp
         src/renderer/vulkan/kraft_vulkan_swapchain.cpp
@@ -65,12 +66,10 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/vulkan/kraft_vulkan_fence.cpp
         src/renderer/vulkan/kraft_vulkan_shader.cpp
         src/renderer/vulkan/kraft_vulkan_pipeline.cpp
-        src/renderer/vulkan/kraft_vulkan_buffer.cpp
-        src/renderer/vulkan/kraft_vulkan_index_buffer.cpp
-        src/renderer/vulkan/kraft_vulkan_vertex_buffer.cpp
         src/renderer/vulkan/kraft_vulkan_imgui.cpp
-        src/renderer/vulkan/kraft_vulkan_texture.cpp
         src/renderer/vulkan/kraft_vulkan_surface.cpp
+        src/renderer/vulkan/kraft_vulkan_resource_manager.cpp
+        src/renderer/vulkan/kraft_vulkan_helpers.cpp
 
         src/renderer/renderables/kraft_gameobject.cpp
 
@@ -79,6 +78,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/systems/kraft_material_system.cpp
         src/systems/kraft_geometry_system.cpp
         src/systems/kraft_shader_system.cpp
+        src/systems/kraft_asset_database.cpp
 
         # imgui
         vendor/imgui/imgui.cpp

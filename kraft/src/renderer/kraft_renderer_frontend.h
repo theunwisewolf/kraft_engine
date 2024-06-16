@@ -32,12 +32,10 @@ struct RendererFrontend
     bool AddRenderable(Renderable Object);
 
     // API
-    Texture* GetSceneViewTexture();
+    Handle<Texture> GetSceneViewTexture();
     bool SetSceneViewViewportSize(uint32 Width, uint32 Height);
     void CreateRenderPipeline(Shader* Shader, int PassIndex);
     void DestroyRenderPipeline(Shader* Shader);
-    void CreateTexture(uint8* Data, Texture* Out);
-    void DestroyTexture(Texture* texture);
     void CreateMaterial(Material* Material);
     void DestroyMaterial(Material* Material);
     void UseShader(const Shader* Shader);

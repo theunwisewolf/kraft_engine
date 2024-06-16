@@ -23,6 +23,7 @@ bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* 
         backend->EndFrame   = VulkanImgui::EndFrame;
         backend->AddTexture = VulkanImgui::AddTexture;
         backend->RemoveTexture = VulkanImgui::RemoveTexture;
+        backend->PostFrameCleanup = VulkanImgui::PostFrameCleanup;
         
         return true;
     }
@@ -78,9 +79,9 @@ void RendererImGui::AddWidget(const String& Name, ImGuiRenderCallback Callback)
     KINFO("Added imgui widget %s", *Name);
 }
 
-ImTextureID RendererImGui::AddTexture(Texture* Texture)
+ImTextureID RendererImGui::AddTexture(Handle<Texture> Resource)
 {
-    return Backend->AddTexture(Texture);
+    return Backend->AddTexture(Resource);
 }
 
 void RendererImGui::RemoveTexture(ImTextureID TextureID)
@@ -119,6 +120,8 @@ void RendererImGui::EndFrameUpdatePlatformWindows()
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
+
+    Backend->PostFrameCleanup();
 }
 
 void RendererImGui::BeginFrame(float64 DeltaTime)

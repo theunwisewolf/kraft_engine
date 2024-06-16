@@ -29,14 +29,14 @@ struct VertexLayoutDefinition
     Array<VertexAttribute>          Attributes;
     Array<VertexInputBinding>       InputBindings;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(Attributes);
         Out->Write(InputBindings);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&Attributes);
@@ -50,9 +50,9 @@ struct ResourceBinding
     uint16             Binding = 0;
     uint16             Size = 0;
     ResourceType::Enum Type;
-    ShaderStage::Enum  Stage;
+    ShaderStageFlags   Stage;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(Binding);
@@ -61,7 +61,7 @@ struct ResourceBinding
         Out->Write(Stage);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&Binding);
@@ -76,13 +76,13 @@ struct ResourceBindingsDefinition
     String                 Name;
     Array<ResourceBinding> ResourceBindings;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(ResourceBindings);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&ResourceBindings);
@@ -94,13 +94,13 @@ struct ShaderCodeFragment
     String                          Name;
     StringView                      Code;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(Code);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&Code);
@@ -109,15 +109,15 @@ struct ShaderCodeFragment
 
 struct RenderStateDefinition
 {
-    String             Name;
-    CullMode::Enum     CullMode;
-    CompareOp::Enum    ZTestOperation;
-    bool               ZWriteEnable;
-    BlendState         BlendMode;
-    PolygonMode::Enum  PolygonMode;
-    float              LineWidth;
+    String              Name;
+    CullModeFlags       CullMode;
+    CompareOp::Enum     ZTestOperation;
+    bool                ZWriteEnable;
+    BlendState          BlendMode;
+    PolygonMode::Enum   PolygonMode;
+    float               LineWidth;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(CullMode);
@@ -128,7 +128,7 @@ struct RenderStateDefinition
         Out->Write(LineWidth);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&CullMode);
@@ -143,18 +143,18 @@ struct RenderStateDefinition
 
 struct ConstantBufferEntry
 {
-    String               Name;
-    ShaderStage::Enum    Stage;
-    ShaderDataType::Enum Type;
+    String                 Name;
+    ShaderStageFlags       Stage;
+    ShaderDataType::Enum   Type;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(Stage);
         Out->Write(Type);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&Stage);
@@ -167,13 +167,13 @@ struct ConstantBufferDefinition
     String                     Name;
     Array<ConstantBufferEntry> Fields;
 
-    void WriteTo(Buffer* Out)
+    void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
         Out->Write(Fields);
     }
 
-    void ReadFrom(Buffer* In)
+    void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
         In->Read(&Fields);
@@ -184,16 +184,16 @@ struct RenderPassDefinition
 {
     struct ShaderDefinition
     {
-        ShaderStage::Enum   Stage;
-        ShaderCodeFragment  CodeFragment;
+        ShaderStageFlags       Stage;
+        ShaderCodeFragment     CodeFragment;
 
-        void WriteTo(Buffer* Out)
+        void WriteTo(kraft::Buffer* Out)
         {
             Out->Write(Stage);
             Out->Write(CodeFragment);
         }
 
-        void ReadFrom(Buffer* In)
+        void ReadFrom(kraft::Buffer* In)
         {
             In->Read(&Stage);
             In->Read(&CodeFragment);

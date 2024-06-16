@@ -3,7 +3,9 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_asserts.h"
 #include "core/kraft_string.h"
+#include <containers/kraft_hashmap.h>
 #include "renderer/kraft_renderer_frontend.h"
+#include "renderer/kraft_resource_manager.h"
 
 #define STBI_FAILURE_USERMSG
 #ifdef UNICODE
@@ -21,16 +23,34 @@ using namespace renderer;
 
 struct TextureReference
 {
-    uint32      RefCount;
-    bool        AutoRelease;
-    Texture     Texture;
+    uint32          RefCount;
+    bool            AutoRelease;
+    Handle<Texture> Resource;
+
+    TextureReference() :
+        RefCount(0),
+        AutoRelease(true),
+        Resource(Handle<Texture>::Invalid())
+    {
+        
+    }
+
+    TextureReference(Handle<Texture> Resource, bool AutoRelease = true) :
+        RefCount(0),
+        Resource(Resource),
+        AutoRelease(AutoRelease) {}
 };
 
 // Private state
 struct TextureSystemState
 {
-    uint32            MaxTextureCount;
-    TextureReference* Textures;
+    uint32          MaxTextureCount;
+    HashMap<String, TextureReference> TextureCache;
+
+    TextureSystemState(uint32 MaxTextures)
+    {
+        this->MaxTextureCount = MaxTextures;
+    }
 };
 
 static TextureSystemState* State = 0;
@@ -38,92 +58,72 @@ static void _createDefaultTextures();
 
 void TextureSystem::Init(uint32 maxTextureCount)
 {
-    uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * maxTextureCount;
-    char* RawMemory = (char*)kraft::Malloc(totalSize, MEMORY_TAG_TEXTURE_SYSTEM, true);
+    void* RawMemory = kraft::Malloc(sizeof(TextureSystemState), MEMORY_TAG_TEXTURE_SYSTEM, true);
 
+    State = new (RawMemory) TextureSystemState(maxTextureCount);
     State = (TextureSystemState*)RawMemory;
-    State->Textures = (TextureReference*)(RawMemory + sizeof(TextureSystemState));
-    State->MaxTextureCount = maxTextureCount;
 
     _createDefaultTextures();
 }
 
 void TextureSystem::Shutdown()
 {
-    for (int i = 0; i < State->MaxTextureCount; ++i)
-    {
-        TextureReference* ref = &State->Textures[i];
-        if (ref->RefCount > 0)
-        {
-            Renderer->DestroyTexture(&ref->Texture);
-        }
-    }
-
-    uint32 totalSize = sizeof(TextureSystemState) + sizeof(TextureReference) * State->MaxTextureCount;
+    uint32 totalSize = sizeof(TextureSystemState);
     kraft::Free(State, totalSize, MEMORY_TAG_TEXTURE_SYSTEM);
 
     KINFO("[TextureSystem::Shutdown]: Shutting down texture system");
 }
 
-Texture* TextureSystem::AcquireTexture(const String& name, bool autoRelease)
+Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRelease)
 {
-    String TextureName(name);
-    TextureName.Trim();
-    if (TextureName.Length == 0)
+    auto ExistingTexture = State->TextureCache.find(Name);
+    if (ExistingTexture != State->TextureCache.end())
     {
-        return nullptr;
+        ExistingTexture.value().RefCount++;
+        return ExistingTexture.value().Resource;
     }
 
-    int freeIndex = -1;
-    int index = -1;
-
-    // TODO: (TheUnwiseWolf) Use a hashmap instead of this
-    for (int i = 0; i < State->MaxTextureCount; ++i)
+    if (State->TextureCache.size() == State->MaxTextureCount)
     {
-        if (State->Textures[i].Texture.Name == name)
-        {
-            index = i;
-            break;
-        }
-
-        if (freeIndex == -1 && State->Textures[i].RefCount == 0)
-        {
-            freeIndex = i;
-        }
+        KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!");
+        return Handle<Texture>::Invalid();
     }
 
-    // Texture already exists in the cache
-    // Just increase the ref-count
-    if (index > -1)
+    // Read the file
+    // TODO (amn): File reading should be done by an asset database
+    stbi_set_flip_vertically_on_load(1);
+
+    int Width, Height, Channels, DesiredChannels = 4;
+    unsigned char *TextureData = stbi_load(*Name, &Width, &Height, &Channels, DesiredChannels);
+
+    if (!TextureData)
     {
-        KINFO("[TextureSystem::AcquireTexture]: Texture already acquired; Reusing!");
-        State->Textures[index].RefCount++;
-    }
-    else
-    {
-        if (freeIndex == -1)
+        KERROR("[TextureSystem::LoadTexture]: Failed to load image %s", Name.Data());
+        if (const char* FailureReason = stbi_failure_reason())
         {
-            KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!");
-            return NULL;
+            KERROR("[TextureSystem::LoadTexture]: Error %s", FailureReason);
         }
 
-        TextureReference* reference = &State->Textures[freeIndex];
-        reference->RefCount++;
-        reference->AutoRelease = autoRelease;
-
-        uint64 length = math::Min(TextureName.Length, (uint64)KRAFT_TEXTURE_NAME_MAX_LENGTH);
-        StringCopy(&(reference->Texture.Name[0]), TextureName.Data());
-        if (!LoadTexture(name, &reference->Texture))
-        {
-            KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Texture loading failed");
-            return NULL;
-        }
-
-        index = freeIndex;
+        return Handle<Texture>::Invalid();
     }
 
-    KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %s (index = %d)", TextureName.Data(), index);
-    return &State->Textures[index].Texture;
+    // Temp for testing
+    char* DebugName = (char*)Malloc(Name.GetLengthInBytes(), MEMORY_TAG_NONE, true);
+    MemCpy(DebugName, *Name, Name.GetLengthInBytes());
+
+    Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData({
+        .Dimensions = { (float32)Width, (float32)Height, 1, (float32)DesiredChannels },
+        .Format = Format::RGBA8_UNORM,
+        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+        .DebugName = DebugName,
+    }, TextureData);
+
+    stbi_image_free(TextureData);
+
+    State->TextureCache[Name] = TextureReference(TextureResource, AutoRelease);
+
+    KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %s", *Name);
+    return TextureResource;
 }
 
 void TextureSystem::ReleaseTexture(const String& TextureName)
@@ -135,125 +135,104 @@ void TextureSystem::ReleaseTexture(const String& TextureName)
     }
 
     KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture %s", TextureName.Data());
-
-    int index = -1;
-    for (int i = 0; i < State->MaxTextureCount; ++i)
+    auto It = State->TextureCache.find(TextureName);
+    if (It == State->TextureCache.end())
     {
-        if (State->Textures[i].Texture.Name == TextureName)
-        {
-            index = i;
-            break;
-        }
-    }
-
-    if (index == -1)
-    {
-        KERROR("[TextureSystem::ReleaseTexture]: Called for unknown texture %s", TextureName.Data());
+        KERROR("[TextureSystem::ReleaseTexture]: Called for unknown texture %s", *TextureName);
         return;
     }
 
-    TextureReference* ref = &State->Textures[index];
-    if (ref->RefCount == 0)
+    TextureReference& Ref = It.value();
+    if (Ref.RefCount == 0)
     {
-        KWARN("[TextureSystem::ReleaseTexture]: Texture %s already released!", ref->Texture.Name);
+        KWARN("[TextureSystem::ReleaseTexture]: Texture %s already released!", *TextureName);
         return;
     }
 
-    ref->RefCount--;
-    if (ref->RefCount == 0 && ref->AutoRelease)
+    Ref.RefCount--;
+    if (Ref.RefCount == 0 && Ref.AutoRelease)
     {
-        Renderer->DestroyTexture(&ref->Texture);
-        MemZero(&ref->Texture, sizeof(Texture));
+        ResourceManager::Get()->DestroyTexture(Ref.Resource);
+        State->TextureCache.erase(It);
     }
 }
 
-void TextureSystem::ReleaseTexture(Texture* Texture)
+void TextureSystem::ReleaseTexture(Handle<Texture> Resource)
 {
-    if (Texture)
-    {
-        TextureSystem::ReleaseTexture(Texture->Name);
-    }
+    // TODO (amn): Figure this out
+    // State->TextureCache.values()
+    // if (Texture)
+    // {
+    //     TextureSystem::ReleaseTexture(Texture->Name);
+    // }
 }
 
-bool TextureSystem::LoadTexture(const String& TexturePath, Texture* texture)
+Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription Description, uint8* Data)
 {
-    // Load textures
-    stbi_set_flip_vertically_on_load(1);
+    Description.Usage |= TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
+    Handle<Texture> TextureResource = ResourceManager::Get()->CreateTexture(Description);
 
-    int width, height, channels, desiredChannels = 4;
-    unsigned char *data = stbi_load(*TexturePath, &width, &height, &channels, desiredChannels);
+    KASSERT(!TextureResource.IsInvalid());
 
-    if (data)
+    uint64 TextureSize = Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w;
+    TempBuffer StagingBuffer = ResourceManager::Get()->CreateTempBuffer(TextureSize);
+    MemCpy(StagingBuffer.Ptr, Data, TextureSize);
+
+    if (!ResourceManager::Get()->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))
     {
-        texture->Width = width;
-        texture->Height = height;
-        texture->Channels = desiredChannels > 0 ? desiredChannels : channels;
-
-        Renderer->CreateTexture(data, texture);
-        stbi_image_free(data);
-
-        return true;
+        KERROR("Texture upload failed");
+        // Delete texture handle
     }
 
-    if (const char* failureReason = stbi_failure_reason())
-    {
-        KERROR("[TextureSystem::LoadTexture]: Failed to load image %s", TexturePath.Data());
-        KERROR("[TextureSystem::LoadTexture]: Error %s", failureReason);
-    }
-
-    return false;
+    return TextureResource;
 }
 
-void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channels, Texture* out)
+uint8* TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Channels)
 {
-    if (!out)
-        out = (Texture*)Malloc(sizeof(Texture), MEMORY_TAG_TEXTURE_SYSTEM);
+    uint32 TextureSize = Width * Height * Channels;
+    uint8* Pixels = (uint8*)Malloc(TextureSize, MEMORY_TAG_TEXTURE);
+    MemSet(Pixels, 255, TextureSize);
 
-    out->Width = width;
-    out->Height = height;
-    out->Channels = channels;
-
-    uint32 BufferSize = width * height * channels;
-    uint8* pixels = (uint8*)Malloc(BufferSize, MEMORY_TAG_TEXTURE);
-    MemSet(pixels, 255, BufferSize);
-
-    const int segments = 8, boxSize = width / segments;
-    unsigned char white[4] = {255, 255, 255, 255};
-    unsigned char black[4] = {0, 0, 0, 255};
-    unsigned char* color = NULL;
-    int swap = 0;
-    int fill = 0;
-    for(int i = 0; i < width * height; i++)
+    const int Segments = 8;
+    const int BoxSize = Width / Segments;
+    unsigned char White[4] = {255, 255, 255, 255};
+    unsigned char Black[4] = {0, 0, 0, 255};
+    unsigned char* Color = NULL;
+    bool Swap = 0;
+    bool Fill = 0;
+    for (int i = 0; i < Width * Height; i++)
     {
         if (i > 0)
         {
-            if (i % (width * boxSize) == 0)
-                swap = !swap;
+            if (i % (Width * BoxSize) == 0)
+                Swap = !Swap;
 
-            if (i % boxSize == 0)
-                fill = !fill;
+            if (i % BoxSize == 0)
+                Fill = !Fill;
         }
 
-        if (fill)
+        if (Fill)
         {
-            if (swap)
-                color = black;
+            if (Swap)
+                Color = Black;
             else
-                color = white;
+                Color = White;
         }
         else
         {
-            if (swap)
-                color = white;
+            if (Swap)
+                Color = White;
             else
-                color = black;
+                Color = Black;
         }
 
-        for(int j = 0; j < channels; j++)
+        for (int j = 0; j < Channels; j++)
         {
-            pixels[i * channels + j] = color[j];
+            Pixels[i * Channels + j] = Color[j];
         }
     }
+
+    return Pixels;
 
     // for (int i = 0; i < width; i++)
     // {
@@ -281,13 +260,13 @@ void TextureSystem::CreateEmptyTexture(uint32 width, uint32 height, uint8 channe
     //     }
     // }
 
-    Renderer->CreateTexture(pixels, out);
-    Free(pixels, BufferSize, MEMORY_TAG_TEXTURE);
+    // Renderer->CreateTexture(pixels, out);
+    // Free(pixels, TextureSize, MEMORY_TAG_TEXTURE);
 }
 
-Texture* TextureSystem::GetDefaultDiffuseTexture()
+Handle<Texture> TextureSystem::GetDefaultDiffuseTexture()
 {
-    return &State->Textures[0].Texture;
+    return State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME].Resource;
 }
 
 //
@@ -296,12 +275,19 @@ Texture* TextureSystem::GetDefaultDiffuseTexture()
 
 static void _createDefaultTextures()
 {
-    TextureReference* ref = &State->Textures[0];
-    StringNCopy(ref->Texture.Name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME, sizeof(ref->Texture.Name));
+    const int Width = 256;
+    const int Height = 256;
+    const int Depth = 1;
+    const int Channels = 4;
+    uint8* TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
+    Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData({
+        .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
+        .Format = Format::RGBA8_UNORM,
+        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+        .DebugName = "Default-Diffuse-Texture",
+    }, TextureData);
 
-    ref->RefCount = 1;
-    ref->AutoRelease = false;
-    TextureSystem::CreateEmptyTexture(256, 256, 4, &ref->Texture);
+    State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME] = TextureReference(TextureResource, false);
 }
 
 }

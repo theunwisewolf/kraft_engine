@@ -17,6 +17,9 @@
 #include "renderer/vulkan/kraft_vulkan_command_buffer.h"
 #include "renderer/vulkan/kraft_vulkan_renderpass.h"
 
+#include <containers/kraft_array.h>
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+
 namespace kraft::renderer
 {
 
@@ -38,9 +41,14 @@ static void CheckVkResult(VkResult err)
         abort();
 }
 
+struct ImguiBackendState
+{
+    Array<ImTextureID> TexturesToRemove;
+} State;
+
 bool Init()
 {
-    VulkanContext *context = VulkanRendererBackend::GetContext();
+    VulkanContext *context = VulkanRendererBackend::Context();
     VkDescriptorPoolSize poolSizes[] =
     {
         // { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -119,7 +127,7 @@ bool BeginFrame(float64 deltaTime)
 
 bool EndFrame(ImDrawData* DrawData)
 {
-    VulkanContext *Context = VulkanRendererBackend::GetContext();
+    VulkanContext *Context = VulkanRendererBackend::Context();
     VulkanCommandBuffer* parentCommandBuffer = &Context->GraphicsCommandBuffers[Context->CurrentSwapchainImageIndex];
     // VulkanBeginCommandBuffer(parentCommandBuffer, true, false, false);
     // VulkanBeginRenderPass(parentCommandBuffer, &context->MainRenderPass, context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
@@ -184,20 +192,33 @@ bool EndFrame(ImDrawData* DrawData)
     return true;
 }
 
-ImTextureID AddTexture(Texture* Texture)
+ImTextureID AddTexture(Handle<Texture> Resource)
 {
-    VulkanTexture* BackendTexture = (VulkanTexture*)Texture->RendererData;
-    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->Image.View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+    VulkanContext *Context = VulkanRendererBackend::Context();
+    const auto& TexturePool = Context->ResourceManager->GetTexturePool();
+    VulkanTexture* BackendTexture = TexturePool.Get(Resource);
+    
+    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
 }
 
 void RemoveTexture(ImTextureID TextureID)
 {
-    return ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)TextureID);
+    State.TexturesToRemove.Push(TextureID);
+}
+
+void PostFrameCleanup()
+{
+    for (int i = 0; i < State.TexturesToRemove.Size(); i++)
+    {
+        ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)State.TexturesToRemove[i]);
+    }
+
+    State.TexturesToRemove.Clear();
 }
 
 bool Destroy()
 {
-    VulkanContext *context = VulkanRendererBackend::GetContext();
+    VulkanContext *context = VulkanRendererBackend::Context();
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();

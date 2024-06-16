@@ -11,6 +11,8 @@
 #include "systems/kraft_shader_system.h"
 #include "systems/kraft_material_system.h"
 
+#include <renderer/kraft_resource_manager.h>
+
 #define KRAFT_IMGUI_ENABLED 1
 
 namespace kraft::renderer
@@ -47,12 +49,12 @@ bool RendererFrontend::Init(ApplicationConfig* config)
 bool RendererFrontend::Shutdown()
 {
     ImGuiRenderer.Destroy();
-    bool ret = Backend->Shutdown();
+    DestroyBackend(Backend);
 
     FreeBlock(BackendMemory);
     Backend = nullptr;
 
-    return ret;
+    return true;
 }
 
 void RendererFrontend::OnResize(int width, int height)
@@ -70,6 +72,9 @@ void RendererFrontend::OnResize(int width, int height)
 
 bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 {
+    static uint64 Frame = 0;
+
+    Backend->PrepareFrame();
     Backend->BeginSceneView();
     for (auto It = this->Renderables.vbegin(); It != this->Renderables.vend(); It++)
     {
@@ -94,7 +99,6 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
     }
     Backend->EndSceneView();
 
-
     if (Backend->BeginFrame(Packet->DeltaTime))
     {
 #if KRAFT_IMGUI_ENABLED
@@ -112,6 +116,10 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
 #if KRAFT_IMGUI_ENABLED
         ImGuiRenderer.EndFrameUpdatePlatformWindows();
 #endif
+
+        ResourceManager::Ptr->EndFrame(Frame);
+
+        Frame++;
 
         return true;
     }
@@ -142,7 +150,7 @@ bool RendererFrontend::SetSceneViewViewportSize(uint32 Width, uint32 Height)
     return Backend->SetSceneViewViewportSize(Width, Height);
 }
 
-Texture* RendererFrontend::GetSceneViewTexture()
+Handle<Texture> RendererFrontend::GetSceneViewTexture()
 {
     return Backend->GetSceneViewTexture();
 }
@@ -155,16 +163,6 @@ void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
 {
     Backend->DestroyRenderPipeline(Shader);
-}
-
-void RendererFrontend::CreateTexture(uint8* data, Texture* out)
-{
-    Backend->CreateTexture(data, out);
-}
-
-void RendererFrontend::DestroyTexture(Texture* texture)
-{
-    Backend->DestroyTexture(texture);
 }
 
 void RendererFrontend::CreateMaterial(Material* Material)

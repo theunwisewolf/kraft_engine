@@ -19,6 +19,7 @@ namespace VulkanRendererBackend
 {
     bool Init(ApplicationConfig* config);
     bool Shutdown();
+    bool PrepareFrame();
     bool BeginFrame(float64 deltaTime);
     bool EndFrame(float64 deltaTime);
     void OnResize(int width, int height);
@@ -28,16 +29,12 @@ namespace VulkanRendererBackend
     void OnSceneViewViewportResize(uint32 Width, uint32 Height);
     void EndSceneView();
     bool SetSceneViewViewportSize(uint32 Width, uint32 Height);
-    Texture* GetSceneViewTexture();
+    Handle<Texture> GetSceneViewTexture();
 
     void CreateRenderPipeline(Shader* Shader, int PassIndex);
     void DestroyRenderPipeline(Shader* Shader);
     void CreateMaterial(Material* Material);
     void DestroyMaterial(Material* Material);
-
-    // Textures
-    void CreateTexture(uint8* data, Texture* texture);
-    void DestroyTexture(Texture* texture);
 
     void UseShader(const Shader* Shader);
     void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
@@ -49,13 +46,16 @@ namespace VulkanRendererBackend
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);
 
-    VulkanContext* GetContext();
+    VulkanContext* Context();
+    VkDevice Device();
 #ifdef KRAFT_RENDERER_DEBUG
     VkBool32 DebugUtilsMessenger(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,
         const VkDebugUtilsMessengerCallbackDataEXT*      pCallbackData,
         void*                                            pUserData);
+
+    void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 };
 

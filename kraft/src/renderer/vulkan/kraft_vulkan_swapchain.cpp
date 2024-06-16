@@ -4,6 +4,7 @@
 #include "core/kraft_memory.h"
 #include "renderer/vulkan/kraft_vulkan_device.h"
 #include "renderer/vulkan/kraft_vulkan_image.h"
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
 namespace kraft::renderer
 {
@@ -122,10 +123,10 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    KRAFT_VK_CHECK(vkCreateSwapchainKHR(context->LogicalDevice.Handle, &swapchainCreateInfo, context->AllocationCallbacks, &context->Swapchain.Handle));
+    KRAFT_VK_CHECK(vkCreateSwapchainKHR(context->LogicalDevice.Handle, &swapchainCreateInfo, context->AllocationCallbacks, &context->Swapchain.Resource));
 
     context->Swapchain.ImageCount = 0;
-    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, &context->Swapchain.ImageCount, 0));
+    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, 0));
     if (!context->Swapchain.Images)
     {
         context->Swapchain.Images = (VkImage*)kraft::Malloc(sizeof(VkImage) * context->Swapchain.ImageCount, MEMORY_TAG_RENDERER);
@@ -137,7 +138,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     }
 
     // Grab the images from the swapchain
-    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, &context->Swapchain.ImageCount, context->Swapchain.Images));
+    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, context->Swapchain.Images));
 
     // Create Image views
     for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
@@ -159,18 +160,13 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // Depth buffer if required
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
-        VulkanImageDescription desc;
-        desc.Type        = VK_IMAGE_TYPE_2D;
-        desc.Width       = extent.width;
-        desc.Height      = extent.height;
-        desc.Format      = context->PhysicalDevice.DepthBufferFormat;
-        desc.Tiling      = VK_IMAGE_TILING_OPTIMAL;
-        desc.UsageFlags  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        desc.AspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
-        desc.MipLevels   = 1;
-        desc.Samples     = VK_SAMPLE_COUNT_1_BIT;
-
-        VulkanCreateImage(context, desc, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, &context->Swapchain.DepthAttachment);
+        context->Swapchain.DepthAttachment = ResourceManager::Ptr->CreateTexture({
+            .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
+            .Format = ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
+            .CreateSampler = false,
+            .DebugName = "Swapchain-Depth",
+        });
     }
 
     KSUCCESS("[VulkanCreateSwapchain]: Swapchain created successfully!");
@@ -185,8 +181,9 @@ void VulkanDestroySwapchain(VulkanContext* context)
         context->Swapchain.ImageViews[i] = 0;
     }
 
-    VulkanDestroyImage(context, &context->Swapchain.DepthAttachment);
-    vkDestroySwapchainKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, context->AllocationCallbacks);
+    // ResourceManager::Ptr->DestroyTexture(context->Swapchain.DepthAttachment);
+
+    vkDestroySwapchainKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, context->AllocationCallbacks);
 }
 
 void VulkanRecreateSwapchain(VulkanContext* context)
@@ -197,7 +194,7 @@ void VulkanRecreateSwapchain(VulkanContext* context)
 
 bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)
 {
-    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Handle, timeoutNS, imageAvailableSemaphore, fence, out);
+    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, timeoutNS, imageAvailableSemaphore, fence, out);
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);
@@ -219,7 +216,7 @@ void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSema
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
     presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &context->Swapchain.Handle;
+    presentInfo.pSwapchains = &context->Swapchain.Resource;
     presentInfo.pImageIndices = &presentImageIndex;
     presentInfo.pResults = 0;
 

@@ -3,7 +3,7 @@
 namespace kraft::renderer
 {
 
-void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, float32 depth, uint32 stencil, VulkanRenderPass* out, bool SwapchainTarget)
+void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, float32 depth, uint32 stencil, VulkanRenderPass* out, bool SwapchainTarget, const char* DebugName)
 {
     out->Color   = color;
     out->Rect    = rect;
@@ -14,7 +14,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     uint32 attachmentCount = 1;
     VkAttachmentDescription attachmentDescriptions[2];
 
-    VkAttachmentDescription colorAttachment;
+    VkAttachmentDescription colorAttachment = {};
     colorAttachment.format          = context->Swapchain.ImageFormat.format;
     colorAttachment.loadOp          = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp         = VK_ATTACHMENT_STORE_OP_STORE;
@@ -30,11 +30,11 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentDescription depthAttachment;
+    VkAttachmentDescription depthAttachment = {};
     depthAttachment.format          = context->PhysicalDevice.DepthBufferFormat;
     depthAttachment.loadOp          = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp         = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.storeOp         = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp   = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.stencilStoreOp  = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.samples         = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -49,7 +49,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
-    if (depthAttachmentRequired)
+    if (depthAttachmentRequired && false)
     {
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
         attachmentDescriptions[1]       = depthAttachment;
@@ -64,7 +64,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         {
             .srcSubpass = VK_SUBPASS_EXTERNAL,
             .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .srcAccessMask = 0,
             .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -74,18 +74,18 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency;
 
         // https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#first-render-pass-writes-to-a-depth-attachment-second-render-pass-re-uses-the-same-depth-attachment
-        VkSubpassDependency DepthPassDependency = 
-        {
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Both stages might have access the depth-buffer, so need both in src/dstStageMask
-            .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            .dependencyFlags = 0,
-        };
+        // VkSubpassDependency DepthPassDependency = 
+        // {
+        //     .srcSubpass = VK_SUBPASS_EXTERNAL,
+        //     .dstSubpass = 0,
+        //     .srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Both stages might have access the depth-buffer, so need both in src/dstStageMask
+        //     .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        //     .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        //     .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        //     .dependencyFlags = 0,
+        // };
 
-        Dependencies[SubpassDependenciesCount++] = DepthPassDependency;
+        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency;
     }
     else
     {
@@ -123,7 +123,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         VkSubpassDependency DepthPassDependency2;
         DepthPassDependency2.srcSubpass = 0;
         DepthPassDependency2.dstSubpass = VK_SUBPASS_EXTERNAL;
-        DepthPassDependency2.srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        DepthPassDependency2.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         DepthPassDependency2.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         DepthPassDependency2.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         DepthPassDependency2.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -131,8 +131,8 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
 
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency1;
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency2;
-        Dependencies[SubpassDependenciesCount++] = DepthPassDependency1;
-        Dependencies[SubpassDependenciesCount++] = DepthPassDependency2;
+        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency1;
+        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency2;
     }
 
     VkRenderPassCreateInfo createInfo = {};
@@ -145,6 +145,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     createInfo.pSubpasses = &subpass;
 
     KRAFT_VK_CHECK(vkCreateRenderPass(context->LogicalDevice.Handle, &createInfo, context->AllocationCallbacks, &out->Handle));
+    context->SetObjectName((uint64)out->Handle, VK_OBJECT_TYPE_RENDER_PASS, DebugName);
 }
 
 void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass, VkFramebuffer frameBuffer, VkSubpassContents contents)
