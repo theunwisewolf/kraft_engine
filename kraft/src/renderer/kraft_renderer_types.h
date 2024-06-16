@@ -625,8 +625,8 @@ struct RenderPassDescription
     const char*        DebugName;
 
     Vec4f              Dimensions;
-    DepthTarget        DepthTarget;
     Array<ColorTarget> ColorTargets;
+    DepthTarget        DepthTarget;
     RenderPassLayout   Layout;
 };
 
