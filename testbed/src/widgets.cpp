@@ -225,6 +225,10 @@ void DrawImGuiWidgets(bool refresh)
         kraft::Renderer->ImGuiRenderer.RemoveTexture(ImSceneTexture);
         ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::Renderer->GetSceneViewTexture());
     }
+    else
+    {
+        ImGui::Image(ImSceneTexture, ViewPortPanelSize, {0,1}, {1,0});
+    }
 
     // auto CurrentSceneTexture = kraft::Renderer->GetSceneViewTexture();
     // if (CurrentSceneTexture->Width != SceneTexture->Width || CurrentSceneTexture->Height != SceneTexture->Height)
@@ -233,8 +237,6 @@ void DrawImGuiWidgets(bool refresh)
     //     SceneTexture = CurrentSceneTexture;
     //     ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(SceneTexture);
     // }
-
-    ImGui::Image(ImSceneTexture, ViewPortPanelSize, {0,1}, {1,0});
 
     // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
     {

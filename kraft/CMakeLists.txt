@@ -56,6 +56,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/kraft_renderer_frontend.cpp
         src/renderer/kraft_renderer_imgui.cpp
         src/renderer/kraft_resource_manager.cpp
+        src/renderer/vulkan/kraft_vulkan_volk_impl.cpp
         src/renderer/vulkan/kraft_vulkan_backend.cpp
         src/renderer/vulkan/kraft_vulkan_device.cpp
         src/renderer/vulkan/kraft_vulkan_swapchain.cpp

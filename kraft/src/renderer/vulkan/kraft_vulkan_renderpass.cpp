@@ -1,5 +1,7 @@
 #include "kraft_vulkan_renderpass.h"
 
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+
 namespace kraft::renderer
 {
 
@@ -49,7 +51,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
-    if (depthAttachmentRequired && false)
+    if (depthAttachmentRequired)
     {
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
         attachmentDescriptions[1]       = depthAttachment;
@@ -64,7 +66,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         {
             .srcSubpass = VK_SUBPASS_EXTERNAL,
             .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .srcAccessMask = 0,
             .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -74,18 +76,18 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency;
 
         // https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples#first-render-pass-writes-to-a-depth-attachment-second-render-pass-re-uses-the-same-depth-attachment
-        // VkSubpassDependency DepthPassDependency = 
-        // {
-        //     .srcSubpass = VK_SUBPASS_EXTERNAL,
-        //     .dstSubpass = 0,
-        //     .srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Both stages might have access the depth-buffer, so need both in src/dstStageMask
-        //     .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-        //     .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        //     .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        //     .dependencyFlags = 0,
-        // };
+        VkSubpassDependency DepthPassDependency = 
+        {
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .dstSubpass = 0,
+            .srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, // Both stages might have access the depth-buffer, so need both in src/dstStageMask
+            .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dependencyFlags = 0,
+        };
 
-        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency;
+        Dependencies[SubpassDependenciesCount++] = DepthPassDependency;
     }
     else
     {
@@ -131,8 +133,8 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
 
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency1;
         Dependencies[SubpassDependenciesCount++] = ColorPassDependency2;
-        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency1;
-        // Dependencies[SubpassDependenciesCount++] = DepthPassDependency2;
+        Dependencies[SubpassDependenciesCount++] = DepthPassDependency1;
+        Dependencies[SubpassDependenciesCount++] = DepthPassDependency2;
     }
 
     VkRenderPassCreateInfo createInfo = {};
@@ -170,14 +172,69 @@ void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass*
     info.clearValueCount = 2;
     info.pClearValues = clearValues;
 
-    vkCmdBeginRenderPass(commandBuffer->Handle, &info, contents);
+    vkCmdBeginRenderPass(commandBuffer->Resource, &info, contents);
     commandBuffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
+}
+
+void VulkanBeginRenderPass(VulkanContext* Context, VulkanCommandBuffer* CmdBuffer, Handle<RenderPass> PassHandle, VkSubpassContents Contents)
+{
+    VulkanRenderPass* GPURenderPass = Context->ResourceManager->GetRenderPassPool().Get(PassHandle);
+    RenderPass* RenderPass = Context->ResourceManager->GetRenderPassPool().GetAuxiliaryData(PassHandle);
+
+    VkRenderPassBeginInfo BeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    BeginInfo.framebuffer = GPURenderPass->Framebuffer.Handle;
+    BeginInfo.renderPass = GPURenderPass->Handle;
+    BeginInfo.renderArea.offset.x = 0;
+    BeginInfo.renderArea.offset.y = 0;
+    BeginInfo.renderArea.extent.width = (uint32)RenderPass->Dimensions.x;
+    BeginInfo.renderArea.extent.height = (uint32)RenderPass->Dimensions.y;
+
+    VkClearValue ClearValues[32] = {};
+    uint32 ColorValuesIndex = 0;
+    for (int i = 0; i < RenderPass->ColorTargets.Size(); i++)
+    {
+        const ColorTarget& Target = RenderPass->ColorTargets[i];
+        ClearValues[i].color.float32[0] = Target.ClearColor.r;
+        ClearValues[i].color.float32[1] = Target.ClearColor.g;
+        ClearValues[i].color.float32[2] = Target.ClearColor.b;
+        ClearValues[i].color.float32[3] = Target.ClearColor.a;
+
+        ColorValuesIndex++;
+    }
+
+    ClearValues[ColorValuesIndex].depthStencil.depth = RenderPass->DepthTarget.Depth;
+    ClearValues[ColorValuesIndex].depthStencil.stencil = RenderPass->DepthTarget.Stencil;
+    ColorValuesIndex++;
+
+    BeginInfo.clearValueCount = ColorValuesIndex;
+    BeginInfo.pClearValues = ClearValues;
+
+    vkCmdBeginRenderPass(CmdBuffer->Resource, &BeginInfo, Contents);
+    CmdBuffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
+
+    VkViewport Viewport = {};
+    Viewport.width = RenderPass->Dimensions.x;
+    Viewport.height = RenderPass->Dimensions.y;
+    Viewport.maxDepth = 1.0f;
+
+    vkCmdSetViewport(CmdBuffer->Resource, 0, 1, &Viewport);
+
+    VkRect2D Scissor = {};
+    Scissor.extent = { (uint32)RenderPass->Dimensions.x, (uint32)RenderPass->Dimensions.y };
+
+    vkCmdSetScissor(CmdBuffer->Resource, 0, 1, &Scissor);
 }
 
 void VulkanEndRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass)
 {
-    vkCmdEndRenderPass(commandBuffer->Handle);
+    vkCmdEndRenderPass(commandBuffer->Resource);
     commandBuffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING;
+}
+
+void VulkanEndRenderPass(VulkanCommandBuffer* CmdBuffer)
+{
+    vkCmdEndRenderPass(CmdBuffer->Resource);
+    CmdBuffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING;
 }
 
 void VulkanDestroyRenderPass(VulkanContext* context, VulkanRenderPass* pass)

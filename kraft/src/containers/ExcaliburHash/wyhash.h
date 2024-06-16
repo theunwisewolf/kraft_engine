@@ -5,14 +5,10 @@
 #if defined(_MSC_VER)
     #define EXLBR_VISUAL_STUDIO (1)
     #define EXLBR_FORCE_INLINE __forceinline
-#endif
-
-#if defined(__clang__)
+#elif defined(__clang__)
     #define EXLBR_CLANG (1)
     #define EXLBR_FORCE_INLINE __attribute__((always_inline))
-#endif
-
-#if defined(__GNUC__)
+#elif defined(__GNUC__)
     #define EXLBR_GCC (1)
 #endif
 

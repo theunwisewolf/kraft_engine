@@ -54,6 +54,8 @@ struct Texture
     float32 Width;
     float32 Height;
     uint8   Channels;
+    Format::Enum TextureFormat;
+    TextureSampleCountFlags SampleCount;
     uint32  Generation;
     char    Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
 

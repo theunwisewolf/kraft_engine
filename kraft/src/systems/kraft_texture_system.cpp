@@ -281,10 +281,10 @@ static void _createDefaultTextures()
     const int Channels = 4;
     uint8* TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
     Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData({
+        .DebugName = "Default-Diffuse-Texture",
         .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
         .Format = Format::RGBA8_UNORM,
         .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
-        .DebugName = "Default-Diffuse-Texture",
     }, TextureData);
 
     State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME] = TextureReference(TextureResource, false);

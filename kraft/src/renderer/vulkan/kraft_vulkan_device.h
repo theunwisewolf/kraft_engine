@@ -3,7 +3,7 @@
 #include "core/kraft_core.h"
 #include "renderer/vulkan/kraft_vulkan_types.h"
 
-#include <vulkan/vulkan.h>
+#include <volk/volk.h>
 
 namespace kraft::renderer
 {

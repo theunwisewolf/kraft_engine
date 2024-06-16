@@ -15,14 +15,14 @@ void VulkanAllocateCommandBuffer(VulkanContext* context, VkCommandPool pool, boo
     allocateInfo.level = primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
     allocateInfo.commandBufferCount = 1;
 
-    KRAFT_VK_CHECK(vkAllocateCommandBuffers(context->LogicalDevice.Handle, &allocateInfo, &out->Handle));
+    KRAFT_VK_CHECK(vkAllocateCommandBuffers(context->LogicalDevice.Handle, &allocateInfo, &out->Resource));
     out->State = VULKAN_COMMAND_BUFFER_STATE_READY;
 }
 
 void VulkanFreeCommandBuffer(VulkanContext* context, VkCommandPool pool, VulkanCommandBuffer* buffer)
 {
-    vkFreeCommandBuffers(context->LogicalDevice.Handle, pool, 1, &buffer->Handle);
-    buffer->Handle = 0;
+    vkFreeCommandBuffers(context->LogicalDevice.Handle, pool, 1, &buffer->Resource);
+    buffer->Resource = 0;
     buffer->State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
 }
 
@@ -47,13 +47,13 @@ void VulkanBeginCommandBuffer(VulkanCommandBuffer* buffer, bool singleUse, bool 
         info.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
     }
 
-    KRAFT_VK_CHECK(vkBeginCommandBuffer(buffer->Handle, &info));
+    KRAFT_VK_CHECK(vkBeginCommandBuffer(buffer->Resource, &info));
     buffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING;
 }
 
 void VulkanEndCommandBuffer(VulkanCommandBuffer* buffer)
 {
-    KRAFT_VK_CHECK(vkEndCommandBuffer(buffer->Handle));
+    KRAFT_VK_CHECK(vkEndCommandBuffer(buffer->Resource));
     buffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING_ENDED;
 }
 
@@ -85,7 +85,7 @@ void VulkanEndAndSubmitSingleUseCommandBuffer(VulkanContext* context, VkCommandP
     VkSubmitInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     info.commandBufferCount = 1;
-    info.pCommandBuffers = &buffer->Handle;
+    info.pCommandBuffers = &buffer->Resource;
 
     // Submit to the queue
     KRAFT_VK_CHECK(vkQueueSubmit(queue, 1, &info, 0));

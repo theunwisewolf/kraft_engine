@@ -15,7 +15,6 @@ void VulkanCreateFramebuffer(VulkanContext* Context, uint32 Width, uint32 Height
         Out->Attachments[i] = Attachments[i];
     }
 
-    Out->RenderPass = RenderPass;
     Out->Width = Width;
     Out->Height = Height;
 
@@ -38,7 +37,6 @@ void VulkanDestroyFramebuffer(VulkanContext* Context, VulkanFramebuffer* Framebu
 
     Framebuffer->AttachmentCount = 0;
     Framebuffer->Handle = 0;
-    Framebuffer->RenderPass = 0;
     Framebuffer->Width = 0;
     Framebuffer->Height = 0;
 }

@@ -510,6 +510,57 @@ enum ShaderStageFlags
     SHADER_STAGE_FLAGS_COMPUTE = 1 << 3,
 };
 
+namespace LoadOp
+{
+    enum Enum { Load, Clear, DontCare, Count };
+    static const char* Strings[] = { "Load", "Clear", "DontCare" };
+    static const char* String(Enum Value)
+    {
+        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    }
+};
+
+namespace StoreOp
+{
+    enum Enum { Store, DontCare, Count };
+    static const char* Strings[] = { "Store", "DontCare" };
+    static const char* String(Enum Value)
+    {
+        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    }
+};
+
+namespace TextureLayout
+{
+    enum Enum { Undefined, RenderTarget, DepthStencil, PresentationTarget, Sampled, Count };
+    static const char* Strings[] = { "Undefined", "RenderTarget", "DepthStencil", "PresentationTarget", "Sampled" };
+    static const char* String(Enum Value)
+    {
+        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    }
+};
+
+struct DepthTarget
+{
+    Handle<Texture>     Texture;
+    LoadOp::Enum        LoadOperation = LoadOp::Clear;
+    StoreOp::Enum       StoreOperation = StoreOp::Store;
+    LoadOp::Enum        StencilLoadOperation = LoadOp::Clear;
+    StoreOp::Enum       StencilStoreOperation = StoreOp::Store;
+    TextureLayout::Enum NextUsage = TextureLayout::DepthStencil;
+    float32             Depth = 1.0f;
+    uint32              Stencil = 0;
+};
+
+struct ColorTarget
+{
+    Handle<Texture>     Texture;
+    LoadOp::Enum        LoadOperation = LoadOp::Clear;
+    StoreOp::Enum       StoreOperation = StoreOp::Store;
+    TextureLayout::Enum NextUsage = TextureLayout::RenderTarget;
+    Vec4f               ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+};
+
 struct TextureSamplerDescription
 {
     TextureFilter::Enum     MinFilter = TextureFilter::Linear;
@@ -524,6 +575,8 @@ struct TextureSamplerDescription
 
 struct TextureDescription
 {
+    const char*              DebugName = "";
+
     Vec4f                    Dimensions;
     Format::Enum             Format;
     uint64                   Usage;
@@ -536,8 +589,6 @@ struct TextureDescription
     // Sampler description
     bool                      CreateSampler = true;
     TextureSamplerDescription Sampler;
-
-    const char*              DebugName = "";
 };
 
 struct BufferDescription
@@ -556,6 +607,34 @@ struct Buffer
     void*  Ptr = nullptr;
 
     // TODO (amn): Figure out what other fields we need here
+};
+
+struct RenderPassSubpass
+{
+    bool DepthTarget = false;
+    Array<uint8> ColorTargetSlots;
+};
+
+struct RenderPassLayout
+{
+    Array<RenderPassSubpass> Subpasses;
+};
+
+struct RenderPassDescription
+{
+    const char*        DebugName;
+
+    Vec4f              Dimensions;
+    DepthTarget        DepthTarget;
+    Array<ColorTarget> ColorTargets;
+    RenderPassLayout   Layout;
+};
+
+struct RenderPass
+{
+    Vec4f              Dimensions;
+    DepthTarget        DepthTarget;
+    Array<ColorTarget> ColorTargets;
 };
 
 struct UploadBufferDescription

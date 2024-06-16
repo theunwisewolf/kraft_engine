@@ -8,7 +8,7 @@ namespace kraft::renderer
 
 void VulkanTransitionImageLayout(
     VulkanContext* context,
-    VulkanCommandBuffer commandBuffer,
+    VulkanCommandBuffer CmdBuffer,
     VkImage Image,
     VkImageLayout oldLayout,
     VkImageLayout newLayout)
@@ -45,13 +45,29 @@ void VulkanTransitionImageLayout(
         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
+    else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
     else
     {
         KASSERTM(false, "Transition not supported");
         return;
     }
 
-    vkCmdPipelineBarrier(commandBuffer.Handle, srcStage, dstStage, 0, 0, 0, 0, 0, 1, &barrier);
+    vkCmdPipelineBarrier(CmdBuffer.Resource, srcStage, dstStage, 0, 0, 0, 0, 0, 1, &barrier);
 }
 
 }

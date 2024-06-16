@@ -21,6 +21,10 @@
 
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
+#include <vulkan/vulkan.h>
+
+#include <volk/volk.h>
+
 #ifdef KRAFT_RENDERER_DEBUG
 // PFN_vkDebugMarkerSetObjectTagEXT vkDebugMarkerSetObjectTag;
 PFN_vkSetDebugUtilsObjectNameEXT KRAFT_vkSetDebugUtilsObjectNameEXT;
@@ -40,17 +44,15 @@ struct SceneViewPass
 {
     uint32              Width;
     uint32              Height;
-    VulkanFramebuffer   FrameBuffer;
-    VulkanRenderPass    RenderPass;
+    // VulkanFramebuffer   FrameBuffer;
     // VulkanCommandBuffer CommandBuffers[3];
     // VulkanFence         WaitFences[3];
+    Handle<RenderPass>  RenderPass;
     Handle<Texture>     ColorPassTexture;
     Handle<Texture>     DepthPassTexture;
-    Handle<Texture>     CompositeTexture;
-    bool                NeedsResize = false;
 
     void InitSceneViewPass(uint32 Width, uint32 Height);
-    void CreateFramebuffer();
+    void CreateRenderPass();
     // void CreateCommandBuffers();
     void DestroySceneViewPass();
     void Begin();
@@ -61,53 +63,12 @@ struct SceneViewPass
 
 void SceneViewPass::Begin()
 {
-    // if (this->NeedsResize)
-    // {
-    //     this->NeedsResize = false;
-    //     this->OnResize(this->Width, this->Height);
-    // }
-
-    // uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
-    // VulkanWaitForFence(&s_Context, &this->WaitFences[FrameIndex], UINT64_MAX);
-    // VulkanResetFence(&s_Context, &this->WaitFences[FrameIndex]);
-
-    // s_Context.ActiveCommandBuffer = this->CommandBuffers[FrameIndex];
-    // VulkanResetCommandBuffer(&s_Context.ActiveCommandBuffer);
-    // VulkanBeginCommandBuffer(&s_Context.ActiveCommandBuffer, false, false, false);
-    VulkanBeginRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass, this->FrameBuffer.Handle, VK_SUBPASS_CONTENTS_INLINE);
-    
-    VkViewport Viewport = {};
-    Viewport.x = 0;
-    Viewport.y = 0;
-    Viewport.width = this->Width;
-    Viewport.height = this->Height;
-    Viewport.minDepth = 0.0f;
-    Viewport.maxDepth = 1.0f;
-
-    vkCmdSetViewport(s_Context.ActiveCommandBuffer.Handle, 0, 1, &Viewport);
-
-    VkRect2D Scissor = {};
-    Scissor.extent = {this->Width, this->Height};
-
-    vkCmdSetScissor(s_Context.ActiveCommandBuffer.Handle, 0, 1, &Scissor);
-
-    this->RenderPass.Rect.z = (float32)this->Width;
-    this->RenderPass.Rect.w = (float32)this->Height;
+    VulkanBeginRenderPass(&s_Context, &s_Context.ActiveCommandBuffer, this->RenderPass, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void SceneViewPass::End()
 {
-    // uint32 FrameIndex = s_Context.CurrentSwapchainImageIndex;
-    VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &this->RenderPass);
-    // VulkanEndCommandBuffer(&s_Context.ActiveCommandBuffer);
-
-    // VkSubmitInfo Info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    // Info.commandBufferCount = 1;
-    // Info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
-
-    // KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &Info, this->WaitFences[FrameIndex].Handle));
-
-    // VulkanSetCommandBufferSubmitted(&s_Context.ActiveCommandBuffer);
+    VulkanEndRenderPass(&s_Context.ActiveCommandBuffer);
 }
 
 void SceneViewPass::OnResize(uint32 Width, uint32 Height)
@@ -120,42 +81,30 @@ void SceneViewPass::OnResize(uint32 Width, uint32 Height)
 
     this->Width = Width;
     this->Height = Height;
-    
-    this->RenderPass.Rect = {0.0f, 0.0f, (float)this->Width, (float)this->Height};
+
     KDEBUG("Viewport size set to = %d, %d", this->Width, this->Height);
 
     // Delete the old color pass and depth pass
+    ResourceManager::Ptr->DestroyRenderPass(this->RenderPass);
     ResourceManager::Ptr->DestroyTexture(ColorPassTexture);
     ResourceManager::Ptr->DestroyTexture(DepthPassTexture);
 
     // this->CreateCommandBuffers();
-    this->CreateFramebuffer();
+    this->CreateRenderPass();
 }
 
 void SceneViewPass::InitSceneViewPass(uint32 Width, uint32 Height)
 {
     this->Width = Width;
     this->Height = Height;
-    VulkanCreateRenderPass(&s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)this->Width, (float)this->Height}, 1.0f, 0, &this->RenderPass, false, "SceneViewRenderPass");
-    
-    this->CreateFramebuffer();
-    // this->CreateCommandBuffers();
 
-    // for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
-    // {
-    //     VulkanCreateFence(&s_Context, true, &this->WaitFences[i]);
-    // }
+    this->CreateRenderPass();
 }
 
-void SceneViewPass::CreateFramebuffer()
+void SceneViewPass::CreateRenderPass()
 {
-    if (this->FrameBuffer.Handle)
-    {
-        // VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
-    }
-
-    const auto& TexturePool = s_Context.ResourceManager->GetTexturePool();
     ColorPassTexture = s_Context.ResourceManager->CreateTexture({
+        .DebugName = "ColorPassTexture",
         .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
         .Format = Format::BGRA8_UNORM,
         .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
@@ -165,10 +114,10 @@ void SceneViewPass::CreateFramebuffer()
             .WrapModeW = TextureWrapMode::ClampToEdge,
             .Compare = CompareOp::Always,
         },
-        .DebugName = "ColorPassTexture",
     });
 
     DepthPassTexture = s_Context.ResourceManager->CreateTexture({
+        .DebugName = "DepthPassTexture",
         .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
         .Format = s_Context.ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
         .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
@@ -178,52 +127,46 @@ void SceneViewPass::CreateFramebuffer()
             .WrapModeW = TextureWrapMode::ClampToEdge,
             .Compare = CompareOp::Always,
         },
-        .DebugName = "DepthPassTexture",
     });
 
-    VulkanTexture *ColorPassVkTexture = TexturePool.Get(ColorPassTexture);
-    VulkanTexture *DepthPassVkTexture = TexturePool.Get(DepthPassTexture);
-
-    VkImageView Attachments[] = 
-    {
-        ColorPassVkTexture->View,
-        // DepthPassVkTexture->View
-    };
-
-    VulkanCreateFramebuffer(&s_Context, this->Width, this->Height, &this->RenderPass, Attachments, 1, &this->FrameBuffer);
-
-    this->CompositeTexture = ColorPassTexture;
+    this->RenderPass = ResourceManager::Ptr->CreateRenderPass({
+        .DebugName = "SceneViewRenderPass",
+        .Dimensions = { (float)this->Width, (float)this->Height, 0.f, 0.f },
+        .ColorTargets = {
+            {
+                .Texture = ColorPassTexture,
+                .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
+                .NextUsage = TextureLayout::Sampled,
+            }
+        },
+        .DepthTarget = {
+            .Texture = DepthPassTexture,
+            .NextUsage = TextureLayout::DepthStencil,
+            .Depth = 1.0f,
+            .Stencil = 0,
+        },
+        .Layout = {
+            .Subpasses = {
+                {
+                    .DepthTarget = true,
+                    .ColorTargetSlots = { 0 }
+                }
+            }
+        }
+    });
 }
 
 bool SceneViewPass::SetViewportSize(uint32 Width, uint32 Height)
 {
-    this->NeedsResize = false;
     // KDEBUG("Viewport = %d, %d | Old Viewport = %d, %d", Width, Height, this->Width, this->Height);
     if (this->Width != Width || this->Height != Height)
     {
-        this->NeedsResize = true;
-        this->Width = Width;
-        this->Height = Height;
-
         this->OnResize(Width, Height);
+        return true;
     }
 
-    return this->NeedsResize;
+    return false;
 }
-
-// void SceneViewPass::CreateCommandBuffers()
-// {
-//     for (int i = 0; i < s_Context.Swapchain.ImageCount; i++)
-//     {
-//         if (this->CommandBuffers[i].Handle)
-//         {
-//             VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &this->CommandBuffers[i]);
-//         }
-        
-//         MemZero(&this->CommandBuffers[i], sizeof(VulkanCommandBuffer));
-//         VulkanAllocateCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, true, &this->CommandBuffers[i]);
-//     }
-// }
 
 void SceneViewPass::DestroySceneViewPass()
 {
@@ -241,8 +184,8 @@ void SceneViewPass::DestroySceneViewPass()
     // ResourceManager::Ptr->DestroyTexture(this->ColorPassTexture);
     // ResourceManager::Ptr->DestroyTexture(this->DepthPassTexture);
 
-    VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
-    VulkanDestroyRenderPass(&s_Context, &this->RenderPass);
+    // VulkanDestroyFramebuffer(&s_Context, &this->FrameBuffer);
+    // VulkanDestroyRenderPass(&s_Context, &this->RenderPass);
 }
 
 bool VulkanRendererBackend::SetSceneViewViewportSize(uint32 Width, uint32 Height)
@@ -252,7 +195,7 @@ bool VulkanRendererBackend::SetSceneViewViewportSize(uint32 Width, uint32 Height
 
 Handle<Texture> VulkanRendererBackend::GetSceneViewTexture()
 {
-    return SceneView.CompositeTexture;
+    return SceneView.ColorPassTexture;
 }
 
 void VulkanRendererBackend::BeginSceneView()
@@ -289,6 +232,8 @@ static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerPr
 
 bool VulkanRendererBackend::Init(ApplicationConfig* config)
 {
+    KRAFT_VK_CHECK(volkInitialize());
+
     s_Context = {
         .ResourceManager = (VulkanResourceManager*)ResourceManager::Ptr,
     };
@@ -374,6 +319,8 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     KRAFT_VK_CHECK(vkCreateInstance(&instanceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Instance));
     arrfree(extensions);
     arrfree(layers);
+
+    volkLoadInstance(s_Context.Instance);
 
 #ifdef KRAFT_RENDERER_DEBUG
     arrfree(availableLayerProperties);
@@ -627,12 +574,12 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    vkCmdSetViewport(s_Context.ActiveCommandBuffer.Handle, 0, 1, &viewport);
+    vkCmdSetViewport(s_Context.ActiveCommandBuffer.Resource, 0, 1, &viewport);
 
     VkRect2D scissor = {};
     scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
 
-    vkCmdSetScissor(s_Context.ActiveCommandBuffer.Handle, 0, 1, &scissor);
+    vkCmdSetScissor(s_Context.ActiveCommandBuffer.Resource, 0, 1, &scissor);
 
     s_Context.MainRenderPass.Rect.z = (float32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (float32)s_Context.FramebufferHeight;
@@ -650,7 +597,7 @@ bool VulkanRendererBackend::EndFrame(float64 deltaTime)
     VkSubmitInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     info.commandBufferCount = 1;
-    info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Handle;
+    info.pCommandBuffers = &s_Context.ActiveCommandBuffer.Resource;
     info.waitSemaphoreCount = 1;
     info.pWaitSemaphores = &s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame];
     info.signalSemaphoreCount = 1;
@@ -923,7 +870,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     PipelineCreateInfo.pTessellationState = 0;
 
     // PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
-    PipelineCreateInfo.renderPass = SceneView.RenderPass.Handle;
+    PipelineCreateInfo.renderPass = s_Context.ResourceManager->GetRenderPassPool().Get(SceneView.RenderPass)->Handle;
     PipelineCreateInfo.subpass = 0;
     PipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
     PipelineCreateInfo.basePipelineIndex = -1;
@@ -1099,7 +1046,7 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline Pipeline = VulkanShaderData->Pipeline;
-    vkCmdBindPipeline(s_Context.ActiveCommandBuffer.Handle, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
+    vkCmdBindPipeline(s_Context.ActiveCommandBuffer.Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
 void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
@@ -1110,7 +1057,7 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
 
     if (Uniform.Scope == ShaderUniformScope::Local)
     {
-        vkCmdPushConstants(s_Context.ActiveCommandBuffer.Handle, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
+        vkCmdPushConstants(s_Context.ActiveCommandBuffer.Resource, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
     }
     else
     {
@@ -1167,7 +1114,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader)
 
     vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, 1, &DescriptorWriteInfo, 0, 0);
     vkCmdBindDescriptorSets(
-        s_Context.ActiveCommandBuffer.Handle, 
+        s_Context.ActiveCommandBuffer.Resource, 
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
         ShaderData->PipelineLayout, 
         0, 1,
@@ -1253,7 +1200,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     }
 
     vkCmdBindDescriptorSets(
-        s_Context.ActiveCommandBuffer.Handle, 
+        s_Context.ActiveCommandBuffer.Resource, 
         VK_PIPELINE_BIND_POINT_GRAPHICS, 
         ShaderData->PipelineLayout, 
         1, 1,
@@ -1270,10 +1217,10 @@ void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
     VulkanBuffer* VertexBuffer = s_Context.ResourceManager->GetBufferPool().Get(s_Context.VertexBuffer);
     VulkanBuffer* IndexBuffer = s_Context.ResourceManager->GetBufferPool().Get(s_Context.IndexBuffer);
     
-    vkCmdBindVertexBuffers(s_Context.ActiveCommandBuffer.Handle, 0, 1, &VertexBuffer->Handle, Offsets);
-    vkCmdBindIndexBuffer(s_Context.ActiveCommandBuffer.Handle, IndexBuffer->Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(s_Context.ActiveCommandBuffer.Resource, 0, 1, &VertexBuffer->Handle, Offsets);
+    vkCmdBindIndexBuffer(s_Context.ActiveCommandBuffer.Resource, IndexBuffer->Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexed(s_Context.ActiveCommandBuffer.Handle, GeometryData.IndexCount, 1, 0, 0, 0);
+    vkCmdDrawIndexed(s_Context.ActiveCommandBuffer.Resource, GeometryData.IndexCount, 1, 0, 0, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
@@ -1388,7 +1335,7 @@ void VulkanRendererBackend::SetObjectName(uint64 Object, VkObjectType ObjectType
     NameInfo.objectType = ObjectType;
     NameInfo.objectHandle = Object;
     NameInfo.pObjectName = Name;
-    KRAFT_vkSetDebugUtilsObjectNameEXT(s_Context.LogicalDevice.Handle, &NameInfo);
+    vkSetDebugUtilsObjectNameEXT(s_Context.LogicalDevice.Handle, &NameInfo);
 }
 #endif
 
@@ -1420,7 +1367,7 @@ void createCommandBuffers()
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
-        if (s_Context.GraphicsCommandBuffers[i].Handle)
+        if (s_Context.GraphicsCommandBuffers[i].Resource)
         {
             VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
         }
@@ -1438,12 +1385,12 @@ void destroyCommandBuffers()
     {
         for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
         {
-            if (s_Context.GraphicsCommandBuffers[i].Handle)
+            if (s_Context.GraphicsCommandBuffers[i].Resource)
             {
                 VulkanFreeCommandBuffer(&s_Context, s_Context.GraphicsCommandPool, &s_Context.GraphicsCommandBuffers[i]);
             }
 
-            s_Context.GraphicsCommandBuffers[i].Handle = 0;
+            s_Context.GraphicsCommandBuffers[i].Resource = 0;
         }
     }
 
@@ -1459,19 +1406,16 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         MemZero(swapchain->Framebuffers, sizeof(VulkanFramebuffer) * swapchain->ImageCount);
     }
 
-    const int AttachmentCount = 1;
-    // VkImageView Attachments[AttachmentCount] = { 0, s_Context.ResourceManager->GetTexturePool().Get(swapchain->DepthAttachment)->View };
-    VkImageView Attachments[AttachmentCount] = {};
-
+    VkImageView Attachments[] = { 0, s_Context.ResourceManager->GetTexturePool().Get(swapchain->DepthAttachment)->View };
     for (uint32 i = 0; i < swapchain->ImageCount; ++i)
     {
         if (swapchain->Framebuffers[i].Handle)
         {
             VulkanDestroyFramebuffer(&s_Context, &swapchain->Framebuffers[i]);
         }
-        
+
         Attachments[0] = swapchain->ImageViews[i];
-        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, Attachments, AttachmentCount, &swapchain->Framebuffers[i]);
+        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, renderPass, Attachments, KRAFT_C_ARRAY_SIZE(Attachments), &swapchain->Framebuffers[i]);
     }
 }
 

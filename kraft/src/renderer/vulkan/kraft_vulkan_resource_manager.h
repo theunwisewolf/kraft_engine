@@ -19,13 +19,13 @@ public:
     VulkanResourceManager();
     virtual ~VulkanResourceManager();
     
-    // Creates a texture resource on the GPU
     virtual Handle<Texture> CreateTexture(TextureDescription Description) final;
-    virtual void DestroyTexture(Handle<Texture> Resource) final;
-
-    // Creates a buffer resource on the GPU
     virtual Handle<Buffer> CreateBuffer(BufferDescription Description) final;
+    virtual Handle<RenderPass> CreateRenderPass(RenderPassDescription Description) final;
+
+    virtual void DestroyTexture(Handle<Texture> Resource) final;
     virtual void DestroyBuffer(Handle<Buffer> Resource) final;
+    virtual void DestroyRenderPass(Handle<RenderPass> Resource) final;
     virtual uint8* GetBufferData(Handle<Buffer> Buffer) final;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame
@@ -38,6 +38,7 @@ public:
     virtual Texture* GetTextureMetadata(Handle<Texture> Resource);
     KRAFT_INLINE const Pool<VulkanTexture, Texture>& GetTexturePool() const { return TexturePool; }
     KRAFT_INLINE const Pool<VulkanBuffer, Buffer>& GetBufferPool() const { return BufferPool; }
+    KRAFT_INLINE const Pool<VulkanRenderPass, RenderPass>& GetRenderPassPool() const { return RenderPassPool; }
 
     virtual void StartFrame(uint64 FrameNumber);
     virtual void EndFrame(uint64 FrameNumber);
@@ -45,6 +46,7 @@ public:
 private:
     Pool<VulkanTexture, Texture> TexturePool;   
     Pool<VulkanBuffer, Buffer> BufferPool;
+    Pool<VulkanRenderPass, RenderPass> RenderPassPool;
 };
 
 }

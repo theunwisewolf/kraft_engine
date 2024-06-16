@@ -221,13 +221,17 @@ public:
     ResourceManager();
     virtual ~ResourceManager() = 0;
 
-    // Creates a texture resource on the GPU
+    // Creation apis
     virtual Handle<Texture> CreateTexture(TextureDescription Description) = 0;
-    virtual void DestroyTexture(Handle<Texture> Resource) = 0;
-
-    // Creates a buffer resource on the GPU
     virtual Handle<Buffer> CreateBuffer(BufferDescription Description) = 0;
+    virtual Handle<RenderPass> CreateRenderPass(RenderPassDescription Description) = 0;
+
+    // Destruction apis
+    virtual void DestroyTexture(Handle<Texture> Resource) = 0;
     virtual void DestroyBuffer(Handle<Buffer> Resource) = 0;
+    virtual void DestroyRenderPass(Handle<RenderPass> Resource) = 0;
+
+    // Access apis
     virtual uint8* GetBufferData(Handle<Buffer> Buffer) = 0;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame

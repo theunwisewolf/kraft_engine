@@ -31,5 +31,8 @@ VkSharingMode ToVulkanSharingMode(SharingMode::Enum Value);
 VkBufferUsageFlags ToVulkanBufferUsage(uint64 Flags);
 // VkMemoryPropertyFlagBits ToVulkanMemoryPropertyFlagBits(MemoryPropertyFlags::Enum Value);
 VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(uint64 Flags);
+VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Op);
+VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Op);
+VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Layout);
 
 }

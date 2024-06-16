@@ -2,8 +2,9 @@
 
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_glfw.h>
+
 #include <imgui/backends/imgui_impl_vulkan.h>
-#include <vulkan/vulkan.h>
+#include <volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "core/kraft_memory.h"
@@ -179,7 +180,7 @@ bool EndFrame(ImDrawData* DrawData)
 		// vkCmdSetScissor(commandBuffer->Handle, 0, 1, &scissor);
 
         // Record dear imgui primitives into command buffer
-        ImGui_ImplVulkan_RenderDrawData(DrawData, parentCommandBuffer->Handle);
+        ImGui_ImplVulkan_RenderDrawData(DrawData, parentCommandBuffer->Resource);
 
         // KRAFT_VK_CHECK(vkEndCommandBuffer(commandBuffer->Handle));
 

@@ -6,7 +6,7 @@
 #include "containers/kraft_array.h"
 #include "renderer/kraft_renderer_types.h"
 
-#include <vulkan/vulkan.h>
+#include <volk/volk.h>
 
 #define KRAFT_VK_CHECK(expression) \
     do { \
@@ -109,7 +109,7 @@ enum VulkanCommandBufferState
 
 struct VulkanCommandBuffer
 {
-    VkCommandBuffer          Handle;
+    VkCommandBuffer          Resource;
     VulkanCommandBufferState State;
 };
 
@@ -123,6 +123,15 @@ enum VulkanRenderPassState
     VULKAN_RENDER_PASS_STATE_SUBMITTED,
 };
 
+struct VulkanFramebuffer
+{
+    VkFramebuffer       Handle;
+    uint32              Width;
+    uint32              Height;
+    uint32              AttachmentCount;
+    VkImageView*        Attachments;
+};
+
 struct VulkanRenderPass
 {
     VkRenderPass          Handle;
@@ -131,16 +140,7 @@ struct VulkanRenderPass
     float32               Depth;
     uint32                Stencil;
     VulkanRenderPassState State;
-};
-
-struct VulkanFramebuffer
-{
-    VkFramebuffer       Handle;
-    uint32              Width;
-    uint32              Height;
-    uint32              AttachmentCount;
-    VulkanRenderPass*   RenderPass;
-    VkImageView*        Attachments;
+    VulkanFramebuffer     Framebuffer;
 };
 
 struct VulkanQueueFamilyInfo

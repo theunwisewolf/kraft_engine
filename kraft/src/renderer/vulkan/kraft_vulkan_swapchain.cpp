@@ -161,11 +161,11 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
         context->Swapchain.DepthAttachment = ResourceManager::Ptr->CreateTexture({
+            .DebugName = "Swapchain-Depth",
             .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
             .Format = ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
             .CreateSampler = false,
-            .DebugName = "Swapchain-Depth",
         });
     }
 

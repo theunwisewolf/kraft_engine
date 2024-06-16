@@ -248,7 +248,7 @@ bool Init()
     SimpleObjectState EntityA;
     EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
     EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityA.SetTransform({-105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
+    EntityA.SetTransform({0.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {10.0f, 10.0f, 10.0f});
     TestSceneState->AddEntity(EntityA);
 
     const float ObjectCount = 0.0f;
@@ -275,7 +275,7 @@ bool Init()
     // MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
     TestSceneState->SelectedObjectIndex = 0;
 
-    SetProjection(kraft::CameraProjectionType::Orthographic);
+    SetProjection(kraft::CameraProjectionType::Perspective);
     
     // To preserve the aspect ratio of the texture
     // UpdateObjectScale();

@@ -382,4 +382,41 @@ VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(uint64 Flags)
     return Result;
 }
 
+VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Value)
+{
+    static VkAttachmentLoadOp Mapping[] = 
+    {
+        VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,
+        VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR,
+        VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    };
+
+    return Mapping[Value];
+}
+
+VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Value)
+{
+    static VkAttachmentStoreOp Mapping[] = 
+    {
+        VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,
+        VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    };
+
+    return Mapping[Value];
+}
+
+VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Value)
+{
+    static VkImageLayout Mapping[] = 
+    {
+        VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,
+        VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VkImageLayout::VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+
+    return Mapping[Value];
+}
+
 }

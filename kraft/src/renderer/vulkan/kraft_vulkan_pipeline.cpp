@@ -153,9 +153,9 @@ void VulkanDestroyPipeline(VulkanContext* context, VulkanPipeline* pipeline)
     }
 }
 
-void VulkanBindPipeline(VulkanCommandBuffer* buffer, VkPipelineBindPoint bindPoint, VulkanPipeline* pipeline)
+void VulkanBindPipeline(VulkanCommandBuffer* CmdBuffer, VkPipelineBindPoint bindPoint, VulkanPipeline* pipeline)
 {
-    vkCmdBindPipeline(buffer->Handle, bindPoint, pipeline->Handle);
+    vkCmdBindPipeline(CmdBuffer->Resource, bindPoint, pipeline->Handle);
 }
 
 }
