@@ -33,6 +33,7 @@ VkFormat ToVulkanFormat(Format::Enum Format)
     static VkFormat Mapping[Format::Count] = 
     {
         // Color formats
+        VK_FORMAT_R8_UNORM,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_FORMAT_R8G8B8_UNORM,
         VK_FORMAT_B8G8R8A8_UNORM,

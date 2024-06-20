@@ -1,0 +1,3 @@
+[submodule "kraft/vendor/assimp"]
+	path = kraft/vendor/assimp
+	url = https://github.com/assimp/assimp.git

@@ -32,6 +32,10 @@ set(SRC_FILES
     src/renderer/shaderfx/kraft_shaderfx.cpp
 )
 
+if (WIN32)
+    list(APPEND SRC_FILES src/platform/windows/kraft_win32_filesystem.cpp)
+endif()
+
 set(HEADER_FILES
     src/util.h
     src/core/kraft_main.h

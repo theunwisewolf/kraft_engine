@@ -54,22 +54,5 @@ template <> struct KeyInfo<uint64_t>
     static inline bool isEqual(const uint64_t& lhs, const uint64_t& rhs) noexcept { return lhs == rhs; }
 };
 
-template <> struct KeyInfo<kraft::String>
-{
-    static inline bool isValid(const kraft::String& Key) noexcept { return !Key.Empty() && Key.Data()[0] != char(1); }
-    static inline kraft::String getTombstone() noexcept
-    {
-        return kraft::String(1, char(1));
-    }
-    
-    static inline kraft::String getEmpty() noexcept { return kraft::String(); }
-    static inline size_t hash(const kraft::String& Key) noexcept 
-    {
-        return FNV1AHashBytes((const unsigned char*)Key.Data(), Key.GetLengthInBytes());
-    }
-
-    static inline bool isEqual(const kraft::String& lhs, const kraft::String& rhs) noexcept { return lhs == rhs; }
-};
-
 
 } // namespace Excalibur

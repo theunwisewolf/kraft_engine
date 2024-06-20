@@ -25,6 +25,8 @@
 #include "widgets.h"
 #include "utils.h"
 
+#include <systems/kraft_asset_database.h>
+
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
 static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
@@ -245,10 +247,16 @@ bool Init()
         }
     }
 
+    // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room/viking_room.fbx");
+    kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room.obj");
+    KASSERT(VikingRoom);
+    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
+
     SimpleObjectState EntityA;
     EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
-    EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityA.SetTransform({0.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {10.0f, 10.0f, 10.0f});
+    // EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    EntityA.GeometryID = VikingRoom->Geometry->InternalID;
+    EntityA.SetTransform({0.0f, 0.0f, 0.0f}, { kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, {10.0f, 10.0f, 10.0f});
     TestSceneState->AddEntity(EntityA);
 
     const float ObjectCount = 0.0f;

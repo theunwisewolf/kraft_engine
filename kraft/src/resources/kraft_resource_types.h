@@ -48,6 +48,14 @@ struct Shader
     void*                           RendererData;
 };
 
+enum TextureMapType : uint8
+{
+    TEXTURE_MAP_TYPE_DIFFUSE,
+    TEXTURE_MAP_TYPE_SPECULAR,
+    TEXTURE_MAP_TYPE_NORMAL,
+    TEXTURE_MAP_TYPE_HEIGHT,
+};
+
 struct Texture
 {
     uint32  ID;
@@ -56,6 +64,8 @@ struct Texture
     uint8   Channels;
     Format::Enum TextureFormat;
     TextureSampleCountFlags SampleCount;
+    TextureMapType Type;
+
     uint32  Generation;
     char    Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
 

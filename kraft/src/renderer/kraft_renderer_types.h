@@ -317,7 +317,7 @@ namespace Format
     enum Enum
     {
         // Color Formats
-        RGBA8_UNORM, RGB8_UNORM, BGRA8_UNORM, BGR8_UNORM,
+        RED, RGBA8_UNORM, RGB8_UNORM, BGRA8_UNORM, BGR8_UNORM,
         // Depth-Stencil Formats
         D16_UNORM, D32_SFLOAT, D16_UNORM_S8_UINT, D24_UNORM_S8_UINT, D32_SFLOAT_S8_UINT,
         Count
@@ -325,7 +325,7 @@ namespace Format
 
     static const char* Strings[] =
     {
-        "RGBA8_UNORM", "RGB8_UNORM", "BGRA8_UNORM", "BGR8_UNORM",
+        "RED", "RGBA8_UNORM", "RGB8_UNORM", "BGRA8_UNORM", "BGR8_UNORM",
         "D16_UNORM", "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT",
         "Count"
     };

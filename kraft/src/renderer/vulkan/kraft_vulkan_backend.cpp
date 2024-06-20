@@ -135,8 +135,8 @@ void SceneViewPass::CreateRenderPass()
         .ColorTargets = {
             {
                 .Texture = ColorPassTexture,
-                .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
                 .NextUsage = TextureLayout::Sampled,
+                .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
             }
         },
         .DepthTarget = {
@@ -1341,14 +1341,14 @@ void VulkanRendererBackend::SetObjectName(uint64 Object, VkObjectType ObjectType
 
 bool createBuffers()
 {
-    const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 1024;
+    const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 1024 * 256;
     s_Context.VertexBuffer = ResourceManager::Ptr->CreateBuffer({
         .Size = VertexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_VERTEX_BUFFER,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
     });
 
-    const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 1024;
+    const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 1024 * 256;
     s_Context.IndexBuffer = ResourceManager::Ptr->CreateBuffer({
         .Size = IndexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_INDEX_BUFFER,

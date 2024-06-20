@@ -14,7 +14,9 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
         Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight, 0.1f, 1000.f);
-        Camera.SetPosition({0.0f, 0.0f, 30.f});
+        // Camera.SetPosition({0.0f, 0.0f, 30.f});
+        Camera.SetPosition({25.0f, 15.0f, 20.f});
+        Camera.SetPitch(-0.381);
     }
     else
     {

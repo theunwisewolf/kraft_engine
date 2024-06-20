@@ -66,7 +66,7 @@ bool Application::Create(int argc, char *argv[])
         CommandLineArgs.Arguments[i] = argv[i];
     }
 
-    BasePath = filesystem::Basename(CommandLineArgs.Arguments[0]);
+    BasePath = filesystem::Dirname(CommandLineArgs.Arguments[0]);
     BasePath = filesystem::CleanPath(BasePath);
 
     I = this;

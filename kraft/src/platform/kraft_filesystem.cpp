@@ -193,7 +193,7 @@ String CleanPath(const String& Path)
     return Output;
 }
 
-void Basename(const char* path, char* out)
+void Dirname(const char* path, char* out)
 {
     uint64 Length = StringLength(path);
     for (int i = Length - 1; i >= 0; i--)
@@ -206,13 +206,39 @@ void Basename(const char* path, char* out)
     }
 }
 
-String Basename(const String& Path)
+String Dirname(const String& Path)
 {
     for (int i = Path.Length - 1; i >= 0; i--)
     {
         if (Path[i] == '/' || Path[i] == '\\')
         {
             return String(Path, 0, i);
+        }
+    }
+
+    return Path;
+}
+
+void Basename(const char* path, char* out)
+{
+    uint64 Length = StringLength(path);
+    for (int i = Length - 1; i >= 0; i--)
+    {
+        if (path[i] == '/' || path[i] == '\\')
+        {
+            StringNCopy(out, path + i + 1, Length - i + 1);
+            return;
+        }
+    }
+}
+
+String Basename(const String& Path)
+{
+    for (int i = Path.Length - 1; i >= 0; i--)
+    {
+        if (Path[i] == '/' || Path[i] == '\\')
+        {
+            return String(Path, i + 1, Path.Length - i + 1);
         }
     }
 

@@ -263,10 +263,13 @@ void DrawImGuiWidgets(bool refresh)
         if (ImGuizmo::IsUsing())
         {
             ImGuizmo::DecomposeMatrixToComponents(SelectedEntity.ModelMatrix._data, Translation._data, Rotation._data, Scale._data);
+
+            Rotation.x = kraft::DegToRadians(Rotation.x);
+            Rotation.y = kraft::DegToRadians(Rotation.y);
+            Rotation.z = kraft::DegToRadians(Rotation.z);
             // SelectedEntity.SetTransform();
         }
     }
-
 
     ImGui::End();
     ImGui::PopStyleVar();

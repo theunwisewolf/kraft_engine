@@ -56,6 +56,13 @@ struct TextureSystemState
 static TextureSystemState* State = 0;
 static void _createDefaultTextures();
 
+static Format::Enum FormatFromChannels(int Channels)
+{
+    if (Channels == 1) { return Format::RED; }
+    if (Channels == 3) { return Format::RGB8_UNORM; }
+    if (Channels == 4) { return Format::RGBA8_UNORM; }
+}
+
 void TextureSystem::Init(uint32 maxTextureCount)
 {
     void* RawMemory = kraft::Malloc(sizeof(TextureSystemState), MEMORY_TAG_TEXTURE_SYSTEM, true);
@@ -93,9 +100,18 @@ Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRelea
     // TODO (amn): File reading should be done by an asset database
     stbi_set_flip_vertically_on_load(1);
 
-    int Width, Height, Channels, DesiredChannels = 4;
-    unsigned char *TextureData = stbi_load(*Name, &Width, &Height, &Channels, DesiredChannels);
+    int Width, Height, Channels, DesiredChannels = 0;
+    if (!stbi_info(*Name, &Width, &Height, &Channels))
+    {
+        KERROR("[TextureSystem::LoadTexture]: Failed to load metadata for image '%s' with error '%s'", Name.Data(), stbi_failure_reason());
+        
+        return Handle<Texture>::Invalid();
+    }
 
+    // GPUs dont usually support 3 channel images, so we load with 4
+    DesiredChannels = (Channels == 3) ? 4 : Channels;
+
+    uint8 *TextureData = stbi_load(*Name, &Width, &Height, &Channels, DesiredChannels);
     if (!TextureData)
     {
         KERROR("[TextureSystem::LoadTexture]: Failed to load image %s", Name.Data());
@@ -107,15 +123,15 @@ Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRelea
         return Handle<Texture>::Invalid();
     }
 
-    // Temp for testing
+    // TODO (amn): Remove this, just for testing
     char* DebugName = (char*)Malloc(Name.GetLengthInBytes(), MEMORY_TAG_NONE, true);
     MemCpy(DebugName, *Name, Name.GetLengthInBytes());
 
     Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData({
-        .Dimensions = { (float32)Width, (float32)Height, 1, (float32)DesiredChannels },
-        .Format = Format::RGBA8_UNORM,
-        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         .DebugName = DebugName,
+        .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
+        .Format = FormatFromChannels(DesiredChannels),
+        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
     }, TextureData);
 
     stbi_image_free(TextureData);

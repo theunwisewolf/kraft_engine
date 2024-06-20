@@ -24,7 +24,14 @@ if (NOT Vulkan_FOUND)
     endif()
 endif()
 
+
+add_subdirectory(${KRAFT_PATH}/vendor/volk)
 add_subdirectory(${KRAFT_PATH}/vendor/glfw ${KRAFT_BINARY_DIR}/vendor/glfw)
+
+set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(${KRAFT_PATH}/vendor/assimp ${KRAFT_BINARY_DIR}/vendor/assimp)
+set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(KRAFT_LIBRARY_ARCH_PREFIX "x64")
@@ -57,12 +64,10 @@ else()
     set(KRAFT_DEBUG_BUILD OFF)
 endif()
 
-set(KRAFT_STATIC_LIBS)
-set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor)
+set(KRAFT_STATIC_LIBS assimp::assimp)
+set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor vendor/assimp/include)
 set(KRAFT_STATIC_LIBS_COMPILE_DEFINITIONS)
 set(KRAFT_COMPILE_DEFINITIONS _ENABLE_EXTENDED_ALIGNED_STORAGE)
-
-add_subdirectory(${KRAFT_PATH}/vendor/volk)
 
 if (KRAFT_APP_TYPE STREQUAL "GUI")
     # Include paths

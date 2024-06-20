@@ -14,6 +14,12 @@ struct FileHandle
     void* Handle;
 };
 
+struct FileMMapHandle
+{
+    void*  Handle;
+    uint64 Size;
+};
+
 enum FileOpenMode
 {
     FILE_OPEN_MODE_READ   = 0x1,
@@ -45,7 +51,11 @@ KRAFT_API bool FileExists(const String& path);
 KRAFT_API void CleanPath(const char* path, char* out);
 KRAFT_API String CleanPath(const String& Path);
 
-// Returns the directory without the filename 
+// Returns the directory without the filename
+KRAFT_API void Dirname(const char* path, char* out);
+KRAFT_API String Dirname(const String& Path);
+
+// Returns the filename without the directory
 KRAFT_API void Basename(const char* path, char* out);
 KRAFT_API String Basename(const String& Path);
 
@@ -57,6 +67,7 @@ KRAFT_API bool WriteFile(FileHandle* Handle, const kraft::Buffer& Buffer);
 
 // Platform dependent APIs
 KRAFT_API bool ReadDir(const String& Path, Array<FileInfo>& OutFiles);
+KRAFT_API FileMMapHandle MMap(const String& Path);
 
 }
 
