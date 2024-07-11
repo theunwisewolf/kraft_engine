@@ -54,7 +54,7 @@ bool RendererImGui::Init(ApplicationConfig* config)
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
     IniFilename = String(256, 0);
-    StringFormat(*IniFilename, IniFilename.Allocated, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
+    StringFormat(*IniFilename, (int)IniFilename.Allocated, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
     io.IniFilename = *IniFilename;
     
     // Setup Dear ImGui style

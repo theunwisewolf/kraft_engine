@@ -86,7 +86,7 @@ void AssetDatabase::ProcessAIMesh(aiMesh *Mesh, const aiScene *Scene, MeshAsset&
     }
 
     // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
-    for (int i = 0; i < Mesh->mNumFaces; i++)
+    for (unsigned int i = 0; i < Mesh->mNumFaces; i++)
     {
         aiFace Face = Mesh->mFaces[i];
         
@@ -104,10 +104,10 @@ void AssetDatabase::ProcessAIMesh(aiMesh *Mesh, const aiScene *Scene, MeshAsset&
     this->LoadAIMaterialTextures(Out, Material, aiTextureType_HEIGHT, TEXTURE_MAP_TYPE_HEIGHT);
 
     kraft::GeometryData Geometry = {};
-    Geometry.IndexCount = Indices.Size();
+    Geometry.IndexCount = (uint32)Indices.Size();
     Geometry.IndexSize = sizeof(uint32);
     Geometry.Indices = Indices.Data();
-    Geometry.VertexCount = Vertices.Size();
+    Geometry.VertexCount = (uint32)Vertices.Size();
     Geometry.VertexSize = sizeof(Vertex3D);
     Geometry.Vertices = Vertices.Data();
     Geometry.Name = "VikingHouse";

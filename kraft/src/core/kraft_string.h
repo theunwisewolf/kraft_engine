@@ -423,8 +423,8 @@ public:
             return false;
         }
 
-        int Start = Length - Suffix.Length;
-        for (int i = Start, j = 0; j < Suffix.Length; i++, j++)
+        int64 Start = (int64)Length - (int64)Suffix.Length;
+        for (int64 i = Start, j = 0; j < Suffix.Length; i++, j++)
         {
             if (Data()[i] != Suffix.Data()[j])
             {

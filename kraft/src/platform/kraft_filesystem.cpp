@@ -108,7 +108,7 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     uint64 size = ftell((FILE*)handle->Handle);
     rewind((FILE*)handle->Handle);
 
-    if (!*outBuffer) 
+    if (!*outBuffer)
         *outBuffer = (uint8*)Malloc(size, MEMORY_TAG_FILE_BUF);
 
     size_t read = fread(*outBuffer, 1, size, (FILE*)handle->Handle);

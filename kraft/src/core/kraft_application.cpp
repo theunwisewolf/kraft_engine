@@ -181,7 +181,7 @@ bool Application::Run()
         if (deltaTime < targetFrameRate)
         {
             // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
-            Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
+            Platform::SleepMilliseconds((uint64)((targetFrameRate - deltaTime) * 1000.f));
             // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
         }
 

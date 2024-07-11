@@ -311,7 +311,8 @@ template <typename TKey, typename TValue, unsigned kNumInlineItems = 1, typename
 
         size_t numBytes = sizeof(TItem) * numBuckets;
         // note: 64 to match CPU cache line size
-        size_t alignment = std::max(alignof(TItem), size_t(64));
+        // size_t alignment = std::max(alignof(TItem), size_t(64));
+        size_t alignment = alignof(TItem) > size_t(64) ? alignof(TItem) : size_t(64);
         numBytes = align(numBytes, alignment);
         EXLBR_ASSERT((numBytes % alignment) == 0);
 

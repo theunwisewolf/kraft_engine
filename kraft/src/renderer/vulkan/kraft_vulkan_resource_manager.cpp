@@ -92,9 +92,9 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     VkImageCreateInfo ImageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     ImageCreateInfo.imageType     = ToVulkanImageType(Description.Type);
     ImageCreateInfo.format        = ToVulkanFormat(Description.Format);
-    ImageCreateInfo.extent.width  = Description.Dimensions.x;
-    ImageCreateInfo.extent.height = Description.Dimensions.y;
-    ImageCreateInfo.extent.depth  = Description.Dimensions.z;
+    ImageCreateInfo.extent.width  = (uint32)Description.Dimensions.x;
+    ImageCreateInfo.extent.height = (uint32)Description.Dimensions.y;
+    ImageCreateInfo.extent.depth  = (uint32)Description.Dimensions.z;
     ImageCreateInfo.mipLevels     = Description.MipLevels;
     ImageCreateInfo.arrayLayers   = 1;
     ImageCreateInfo.samples       = ToVulkanSampleCountFlagBits(Description.SampleCount);
@@ -256,7 +256,7 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
         if (Subpass.DepthTarget)
         {
             HasDepthTarget = true;
-            DepthAttachmentRef.attachment = Description.ColorTargets.Size(); // Depth attachment will always be at the end
+            DepthAttachmentRef.attachment = (uint32)Description.ColorTargets.Size(); // Depth attachment will always be at the end
             DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             Subpasses[SubpassesIndex].pDepthStencilAttachment = &DepthAttachmentRef;
@@ -264,7 +264,7 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
 
         if (Subpass.ColorTargetSlots.Size() > 0)
         {
-            Subpasses[SubpassesIndex].colorAttachmentCount = Subpass.ColorTargetSlots.Size();
+            Subpasses[SubpassesIndex].colorAttachmentCount = (uint32)Subpass.ColorTargetSlots.Size();
             Subpasses[SubpassesIndex].pColorAttachments = ColorAttachmentRefs + AttachmentRefsIndex;
             for (int j = 0; j < Subpass.ColorTargetSlots.Size(); j++)
             {
@@ -427,8 +427,8 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
     Region.imageSubresource.layerCount = 1;
     Region.imageSubresource.mipLevel = 0;
 
-    Region.imageExtent.width = TextureMetadata->Width;
-    Region.imageExtent.height = TextureMetadata->Height;
+    Region.imageExtent.width = (uint32)TextureMetadata->Width;
+    Region.imageExtent.height = (uint32)TextureMetadata->Height;
     Region.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(TempCmdBuffer.Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);

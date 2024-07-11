@@ -61,6 +61,8 @@ static Format::Enum FormatFromChannels(int Channels)
     if (Channels == 1) { return Format::RED; }
     if (Channels == 3) { return Format::RGB8_UNORM; }
     if (Channels == 4) { return Format::RGBA8_UNORM; }
+
+    return Format::RGBA8_UNORM;
 }
 
 void TextureSystem::Init(uint32 maxTextureCount)
@@ -190,7 +192,7 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription Descript
 
     KASSERT(!TextureResource.IsInvalid());
 
-    uint64 TextureSize = Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w;
+    uint64 TextureSize = (uint64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
     TempBuffer StagingBuffer = ResourceManager::Get()->CreateTempBuffer(TextureSize);
     MemCpy(StagingBuffer.Ptr, Data, TextureSize);
 
@@ -216,7 +218,7 @@ uint8* TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Chan
     unsigned char* Color = NULL;
     bool Swap = 0;
     bool Fill = 0;
-    for (int i = 0; i < Width * Height; i++)
+    for (uint32 i = 0; i < Width * Height; i++)
     {
         if (i > 0)
         {
@@ -242,7 +244,7 @@ uint8* TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Chan
                 Color = Black;
         }
 
-        for (int j = 0; j < Channels; j++)
+        for (uint32 j = 0; j < Channels; j++)
         {
             Pixels[i * Channels + j] = Color[j];
         }

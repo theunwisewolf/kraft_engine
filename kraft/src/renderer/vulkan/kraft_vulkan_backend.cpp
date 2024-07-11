@@ -637,13 +637,13 @@ void VulkanRendererBackend::OnResize(int width, int height)
 void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 {
     const ShaderEffect& Effect = Shader->ShaderEffect;
-    int RenderPassesCount = Effect.RenderPasses.Length;
+    uint64 RenderPassesCount = Effect.RenderPasses.Length;
 
     const RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
     VkGraphicsPipelineCreateInfo PipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     
     // Shader stages
-    int ShaderStagesCount = Pass.ShaderStages.Length;
+    uint64 ShaderStagesCount = Pass.ShaderStages.Length;
     auto PipelineShaderStageCreateInfos = Array<VkPipelineShaderStageCreateInfo>(ShaderStagesCount);
     Array<VkShaderModule> ShaderModules(ShaderStagesCount); 
     for (int j = 0; j < ShaderStagesCount; j++)
@@ -676,7 +676,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     Scissor.extent = {s_Context.FramebufferWidth, s_Context.FramebufferHeight};
 
     // Input bindings and attributes
-    int InputBindingsCount = Pass.VertexLayout->InputBindings.Length;
+    uint64 InputBindingsCount = Pass.VertexLayout->InputBindings.Length;
     auto InputBindingsDesc = Array<VkVertexInputBindingDescription>(InputBindingsCount);
     for (int j = 0; j < InputBindingsCount; j++)
     {
@@ -686,7 +686,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         InputBindingsDesc[j].stride = InputBinding.Stride;
     }
 
-    int AttributesCount = Pass.VertexLayout->Attributes.Length;
+    uint64 AttributesCount = Pass.VertexLayout->Attributes.Length;
     auto AttributesDesc = Array<VkVertexInputAttributeDescription>(AttributesCount);
     for (int j = 0; j < AttributesCount; j++)
     {
@@ -699,12 +699,12 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 
     // Shader resources
     // Both global and instance ubos will be written separately, so the offsets must be aligned
-    uint64 GlobalUBOSize = math::AlignUp(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    uint32 GlobalUBOSize = (uint32)math::AlignUp(sizeof(GlobalUniformData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     Shader->GlobalUBOOffset = 0;
     Shader->GlobalUBOStride = GlobalUBOSize;
 
-    int ResourceBindingsCount = Pass.Resources->ResourceBindings.Length;
-    int ConstantBuffersCount = Pass.ConstantBuffers->Fields.Length;
+    uint64 ResourceBindingsCount = Pass.Resources->ResourceBindings.Length;
+    uint64 ConstantBuffersCount = Pass.ConstantBuffers->Fields.Length;
 
     uint64 InstanceUBOSize = 0;
     auto DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
@@ -728,16 +728,16 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
         }
     }
 
-    Shader->InstanceUBOStride = math::AlignUp(InstanceUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+    Shader->InstanceUBOStride = (uint32)math::AlignUp(InstanceUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     uint64 UBOSize = math::AlignUp(Shader->InstanceUBOStride * KRAFT_MATERIAL_MAX_INSTANCES + GlobalUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
 
     // Constant Buffers
-    uint64 ConstantBufferSize = 0;
+    uint32 ConstantBufferSize = 0;
     auto PushConstantRanges = Array<VkPushConstantRange>(ConstantBuffersCount);
     for (int j = 0; j < ConstantBuffersCount; j++)
     {
         const ConstantBufferEntry& Entry = Pass.ConstantBuffers->Fields[j];
-        uint64 AlignedSize = math::AlignUp(ShaderDataType::SizeOf(Entry.Type), 4);
+        uint32 AlignedSize = (uint32)math::AlignUp(ShaderDataType::SizeOf(Entry.Type), 4);
         PushConstantRanges[j].size   = AlignedSize;
         PushConstantRanges[j].offset = ConstantBufferSize;
         PushConstantRanges[j].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -748,7 +748,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     KASSERTM(ConstantBufferSize <= 128, "ConstantBuffers cannot be larger than 128 bytes");
 
     VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-    DescriptorSetLayoutCreateInfo.bindingCount = DescriptorSetLayoutBindings.Length;
+    DescriptorSetLayoutCreateInfo.bindingCount = (uint32)DescriptorSetLayoutBindings.Length;
     DescriptorSetLayoutCreateInfo.pBindings = &DescriptorSetLayoutBindings[0];
 
     VkDescriptorSetLayout LocalDescriptorSetLayout;
@@ -836,9 +836,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     VkPipelineVertexInputStateCreateInfo VertexInputStateCreateInfo = {};
     VertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     VertexInputStateCreateInfo.pVertexBindingDescriptions = &InputBindingsDesc[0];
-    VertexInputStateCreateInfo.vertexBindingDescriptionCount = InputBindingsDesc.Length;
+    VertexInputStateCreateInfo.vertexBindingDescriptionCount = (uint32)InputBindingsDesc.Length;
     VertexInputStateCreateInfo.pVertexAttributeDescriptions = &AttributesDesc[0];
-    VertexInputStateCreateInfo.vertexAttributeDescriptionCount = AttributesDesc.Length;
+    VertexInputStateCreateInfo.vertexAttributeDescriptionCount = (uint32)AttributesDesc.Length;
     PipelineCreateInfo.pVertexInputState = &VertexInputStateCreateInfo;
 
     VkPipelineInputAssemblyStateCreateInfo InputAssemblyStateCreateInfo = {};
@@ -857,7 +857,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     LayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     LayoutCreateInfo.setLayoutCount = sizeof(DescriptorSetLayouts) / sizeof(DescriptorSetLayouts[0]);
     LayoutCreateInfo.pSetLayouts = &DescriptorSetLayouts[0];
-    LayoutCreateInfo.pushConstantRangeCount = PushConstantRanges.Length;
+    LayoutCreateInfo.pushConstantRangeCount = (uint32)PushConstantRanges.Length;
     LayoutCreateInfo.pPushConstantRanges = &PushConstantRanges[0];
 
     VkPipelineLayout PipelineLayout;
@@ -865,7 +865,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     KASSERT(PipelineLayout);
     PipelineCreateInfo.layout = PipelineLayout;
 
-    PipelineCreateInfo.stageCount = PipelineShaderStageCreateInfos.Length;
+    PipelineCreateInfo.stageCount = (uint32)PipelineShaderStageCreateInfos.Length;
     PipelineCreateInfo.pStages = &PipelineShaderStageCreateInfos[0];
     PipelineCreateInfo.pTessellationState = 0;
 
@@ -994,11 +994,11 @@ void VulkanRendererBackend::CreateMaterial(Material* Material)
     uint32 SwapchainImageCount = s_Context.Swapchain.ImageCount;
 
     Array<VkDescriptorSetLayout>& DescriptorSetLayouts = VulkanShaderData->ShaderResources.DescriptorSetLayouts;
-    uint32 LayoutsCount = DescriptorSetLayouts.Length;
+    uint32 LayoutsCount = (uint32)DescriptorSetLayouts.Length;
     MaterialRendererData->DescriptorSets = Array<VkDescriptorSet>(SwapchainImageCount * LayoutsCount);
 
     VkDescriptorSet* WriteBuffer = MaterialRendererData->DescriptorSets.Data();
-    for (int i = 0; i < LayoutsCount; i++)
+    for (uint32 i = 0; i < LayoutsCount; i++)
     {
         VkDescriptorSetLayout Layout = DescriptorSetLayouts[i];
         VkDescriptorSetLayout LocalLayouts[MaxSwapchainImages] = { Layout, Layout, Layout };
@@ -1180,7 +1180,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
         DescriptorWriteInfo = {};
         DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        DescriptorWriteInfo.descriptorCount = MaterialInstance->Textures.Length;
+        DescriptorWriteInfo.descriptorCount = (uint32)MaterialInstance->Textures.Length;
         DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         DescriptorWriteInfo.dstSet = MaterialData->DescriptorSets[s_Context.CurrentSwapchainImageIndex];
         DescriptorWriteInfo.dstBinding = BindingIndex;

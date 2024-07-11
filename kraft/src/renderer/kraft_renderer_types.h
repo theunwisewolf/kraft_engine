@@ -29,7 +29,7 @@ private:
     uint16 Index;
     uint16 Generation;
 
-    template <typename U, typename V> friend class Pool;
+    template <typename U, typename V> friend struct Pool;
     Handle(uint16 Index, uint16 Generation) : Index(Index), Generation(Generation) {}
 public:
     Handle() : Index(0), Generation(0) {}

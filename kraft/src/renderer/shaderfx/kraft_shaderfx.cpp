@@ -229,11 +229,11 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition& ResourceB
             }
             else if (Pair.Key == "Binding")
             {
-                Binding.Binding = Pair.Value.FloatValue;
+                Binding.Binding = (uint16)Pair.Value.FloatValue;
             }
             else if (Pair.Key == "Size")
             {
-                Binding.Size = Pair.Value.FloatValue;
+                Binding.Size = (uint16)Pair.Value.FloatValue;
             }
         }
 
@@ -443,7 +443,7 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition &Layout)
     // Binding
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Binding = Token.FloatValue;
+        Attribute.Binding = (uint16)Token.FloatValue;
     }
     else
     {
@@ -454,7 +454,7 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition &Layout)
     // Location
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Location = Token.FloatValue;
+        Attribute.Location = (uint16)Token.FloatValue;
     }
     else
     {
@@ -465,7 +465,7 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition &Layout)
     // Offset
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Offset = Token.FloatValue;
+        Attribute.Offset = (uint16)Token.FloatValue;
     }
     else
     {
@@ -484,7 +484,7 @@ void ShaderFXParser::ParseVertexInputBinding(VertexLayoutDefinition& Layout)
     // Binding
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        InputBinding.Binding = Token.FloatValue;
+        InputBinding.Binding = (uint16)Token.FloatValue;
     }
     else
     {
@@ -497,7 +497,7 @@ void ShaderFXParser::ParseVertexInputBinding(VertexLayoutDefinition& Layout)
     // Stride
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        InputBinding.Stride = Token.FloatValue;
+        InputBinding.Stride = (uint16)Token.FloatValue;
     }
     else
     {
@@ -799,7 +799,7 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
                 return;
             }
             
-            State.LineWidth = Token.FloatValue;
+            State.LineWidth = (float32)Token.FloatValue;
         }
     }
 }
@@ -1061,9 +1061,6 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
             KDEBUG("Compiling shaderstage %d for %s", Stage.Stage, *Shader.ResourcePath);
 
             CompileOptions = shaderc_compile_options_initialize();
-            const char* StageName;
-            uint64 StageNameLength;
-
             shaderc_shader_kind ShaderKind;
             switch (Stage.Stage)
             {

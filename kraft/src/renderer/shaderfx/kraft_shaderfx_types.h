@@ -115,7 +115,7 @@ struct RenderStateDefinition
     bool                ZWriteEnable;
     BlendState          BlendMode;
     PolygonMode::Enum   PolygonMode;
-    float               LineWidth;
+    float32             LineWidth;
 
     void WriteTo(kraft::Buffer* Out)
     {

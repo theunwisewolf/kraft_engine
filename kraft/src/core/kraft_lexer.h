@@ -76,7 +76,7 @@ struct Token
     TokenType::Enum Type;
     char*     Text;
     uint64    Length;
-    double    FloatValue;
+    float64   FloatValue;
 
     KRAFT_INLINE constexpr bool MatchesKeyword(const String& ExpectedKeyword) const 
     {

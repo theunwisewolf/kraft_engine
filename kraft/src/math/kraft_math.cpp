@@ -143,4 +143,27 @@ Mat4f RotationMatrixFromEulerAngles(float32 rotationXRadians, float32 rotationYR
     return out;
 }
 
+Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f _Up)
+{
+    const Vec3f Front(Normalize(Center - Eye));
+    const Vec3f Right(Normalize(Cross(Front, _Up)));
+    const Vec3f Up(Cross(Right, Front));
+
+    Mat4f Result(Identity);
+    Result[0][0] = Right.x;
+    Result[1][0] = Right.y;
+    Result[2][0] = Right.z;
+    Result[0][1] = Up.x;
+    Result[1][1] = Up.y;
+    Result[2][1] = Up.z;
+    Result[0][2] = -Front.x;
+    Result[1][2] = -Front.y;
+    Result[2][2] = -Front.z;
+    Result[3][0] = -Dot(Right, Eye);
+    Result[3][1] = -Dot(Up, Eye);
+    Result[3][2] =  Dot(Front, Eye);
+
+    return Result;
+}
+
 }

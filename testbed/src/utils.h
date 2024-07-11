@@ -9,14 +9,25 @@
 static void SetProjection(kraft::CameraProjectionType Type)
 {
     kraft::Camera& Camera = TestSceneState->SceneCamera;
-    Camera.Reset();
+    auto Entity = TestSceneState->GetSelectedEntity();
+    // Camera.Reset();
     if (Type == kraft::CameraProjectionType::Perspective)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
         Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight, 0.1f, 1000.f);
-        // Camera.SetPosition({0.0f, 0.0f, 30.f});
-        Camera.SetPosition({25.0f, 15.0f, 20.f});
-        Camera.SetPitch(-0.381);
+
+        // Camera.SetPosition({25.0f, 15.0f, 20.f});
+        // Camera.SetPitch(-0.381);
+
+        kraft::Vec3f WorldUp = kraft::Vec3f(0.0f, 1.0f, 0.0f);
+
+        kraft::Vec3f CameraTarget = Entity.Position;
+        Camera.Position = {0.0f, 0.0f, 30.f};
+        Camera.UpdateVectors();
+        // Camera.Front = kraft::Normalize(Camera.Position - CameraTarget);
+        // Camera.Front = kraft::Vec3f({0.0f, 0.0f, -1.0f});
+        // Camera.Right = kraft::Normalize(kraft::Cross(WorldUp, Camera.Front));
+        // Camera.Up = kraft::Normalize(kraft::Cross(Camera.Right, Camera.Front));
     }
     else
     {
@@ -28,8 +39,6 @@ static void SetProjection(kraft::CameraProjectionType Type)
             (float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
             -1.0f, 1.0f
         );
-
-        Camera.SetPosition(kraft::Vec3fZero);
     }
 
     Camera.Dirty = true;

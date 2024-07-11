@@ -19,7 +19,7 @@
 namespace kraft::renderer
 {
 
-struct VulkanResourceManager;
+class VulkanResourceManager;
 
 //
 // Resources

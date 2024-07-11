@@ -32,6 +32,12 @@ KRAFT_INLINE uint64 AlignUp(uint64 UnalignedValue, uint64 Alignment)
     return ((UnalignedValue + (Alignment - 1)) & ~(Alignment - 1));
 }
 
+template<typename T>
+KRAFT_INLINE T Clamp(T Value, T Min, T Max)
+{
+    return Value < Min ? Min : Value > Max ? Max : Value;
+}
+
 }
 
 //
@@ -53,6 +59,18 @@ KRAFT_INLINE float32 DegToRadians(float32 degrees)
 KRAFT_INLINE float32 RadiansToDegrees(float32 radians) 
 {
     return (radians * 180.0f) / KRAFT_PI;
+}
+
+// Converts the given angle in degrees to radians
+KRAFT_INLINE float32 Radians(float32 Degrees) 
+{
+    return DegToRadians(Degrees);
+}
+
+// Converts the given angle in radians to degrees
+KRAFT_INLINE float32 Degrees(float32 Radians) 
+{
+    return RadiansToDegrees(Radians);
 }
 
 }
@@ -826,6 +844,18 @@ void PrintMatrix(Matrix<T, rows, cols> in)
     printf("\n}\n");
 }
 
+template <typename T, int N>
+void PrintVector(Vector<T, N> in)
+{
+    printf("{ ");
+    for (int i = 0; i < N; i++)
+    {
+        printf("%f, ", in._data[i]);
+    }
+    
+    printf(" }\n");
+}
+
 UNARY_OPERATOR(-);
 UNARY_OPERATOR(!);
 UNARY_OPERATOR(~);
@@ -961,5 +991,7 @@ KRAFT_API Mat4f RotationMatrixY(float32 angleRadians);
 KRAFT_API Mat4f RotationMatrixZ(float32 angleRadians);
 KRAFT_API Mat4f RotationMatrixFromEulerAngles(Vec3f euler);
 KRAFT_API Mat4f RotationMatrixFromEulerAngles(float32 rotationXRadians, float32 rotationYRadians, float32 rotationZRadians);
+
+KRAFT_API Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f Up);
 
 }

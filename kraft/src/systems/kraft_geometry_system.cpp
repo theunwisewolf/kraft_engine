@@ -38,7 +38,7 @@ void GeometrySystem::Init(GeometrySystemConfig Config)
 
 void GeometrySystem::Shutdown()
 {
-    for (int i = 0; i < State->MaxGeometriesCount; ++i)
+    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
         if (Reference->ReferenceCount > 0)
@@ -58,8 +58,7 @@ Geometry* GeometrySystem::GetDefaultGeometry()
 
 Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
 {
-    int Index = -1;
-    for (int i = 0; i < State->MaxGeometriesCount; ++i)
+    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
         if (Reference->Geometry.ID == ID)
@@ -76,12 +75,12 @@ Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
 Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRelease)
 {
     int Index = -1;
-    for (int i = 0; i < State->MaxGeometriesCount; ++i)
+    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
         if (Reference->ReferenceCount == 0)
         {
-            Index = i;
+            Index = (int)i;
             break;
         }
     }

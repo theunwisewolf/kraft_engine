@@ -171,6 +171,16 @@ void DrawImGuiWidgets(bool refresh)
         {
             Camera.Dirty = true;
         }
+
+        if (ImGui::DragFloat("Pitch", &Camera.Pitch))
+        {
+            Camera.UpdateVectors();
+        }
+        
+        if (ImGui::DragFloat("Yaw", &Camera.Yaw))
+        {
+            Camera.UpdateVectors();
+        }
     }
     ImGui::PopID();
 
@@ -276,6 +286,6 @@ void DrawImGuiWidgets(bool refresh)
 
     TestSceneState->GetSelectedEntity().SetTransform(Translation, Rotation, Scale);
 
-    // static bool ShowDemoWindow = true;
-    // ImGui::ShowDemoWindow(&ShowDemoWindow);
+    static bool ShowDemoWindow = true;
+    ImGui::ShowDemoWindow(&ShowDemoWindow);
 }
