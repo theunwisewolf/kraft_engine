@@ -32,6 +32,9 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
 
     }
 
+    // Remove the title bar
+    // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
     this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), title, NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
@@ -56,6 +59,8 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
+
+    glfwMaximizeWindow(this->PlatformWindowHandle);
 
     return 0;
 }

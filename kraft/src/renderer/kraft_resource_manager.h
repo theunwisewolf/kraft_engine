@@ -70,7 +70,7 @@ struct Pool
     using HandleType = Handle<Type>;
     typedef void (*PoolCleanupFunction)(ConcreteType* GPUResource);
 
-    uint16        PoolSize;
+    uint16        PoolSize = 0;
     uint16        FreeListTop;
     Type*         AuxiliaryData;
     ConcreteType* Data;
@@ -80,26 +80,61 @@ struct Pool
     Array<HandleType> DeletedItems[3] = {};
     uint32 ActiveDeletedItemsArray = 0;
 
-    Pool(uint16 PoolSize) : 
-        PoolSize(PoolSize),
+    Pool(uint16 ElementCount) :
         FreeListTop(0)
     {
-        uint64 AuxiliaryDataArraySize = sizeof(Type) * PoolSize;
-        uint64 DataArraySize = sizeof(ConcreteType) * PoolSize;
-        uint64 HandlesArraySize = sizeof(HandleType) * PoolSize;
-        uint64 FreeListArraySize = sizeof(uint16) * PoolSize;
+        KASSERT(ElementCount > 0);
+        this->Grow(ElementCount);
+    }
 
-        uint64 MemoryRequirement = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
-        char* Buffer = (char*)Malloc(MemoryRequirement, MEMORY_TAG_RESOURCE_POOL, true);
-        this->AuxiliaryData = (Type*)Buffer;
-        this->Data = (ConcreteType*)(Buffer + AuxiliaryDataArraySize);
-        this->Handles = (HandleType*)(Buffer + AuxiliaryDataArraySize + DataArraySize);
-        this->FreeList = (uint16*)(Buffer + AuxiliaryDataArraySize + DataArraySize + HandlesArraySize);
+    void Grow(uint16 ElementCount)
+    {
+        // For now we only support enlarging the pool
+        KASSERT(ElementCount > this->PoolSize);
 
-        for (int i = 0; i < PoolSize; i++)
+        // Allocate a new buffer and save any old buffer references
+        uint64 AuxiliaryDataArraySize = sizeof(Type) * ElementCount;
+        uint64 DataArraySize = sizeof(ConcreteType) * ElementCount;
+        uint64 HandlesArraySize = sizeof(HandleType) * ElementCount;
+        uint64 FreeListArraySize = sizeof(uint16) * ElementCount;
+        uint64 NewSize = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+        uint8* NewBuffer = (uint8*)Malloc(NewSize, MEMORY_TAG_RESOURCE_POOL, true);
+
+        uint64 OldAuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
+        uint64 OldDataArraySize = sizeof(ConcreteType) * this->PoolSize;
+        uint64 OldHandlesArraySize = sizeof(HandleType) * this->PoolSize;
+        uint64 OldFreeListArraySize = sizeof(uint16) * this->PoolSize;
+        uint64 OldSize = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+        
+        uint8* OldBuffer = (uint8*)this->AuxiliaryData;
+        Type* OldAuxiliaryData = (Type*)OldBuffer;
+        ConcreteType* OldData = (ConcreteType*)(OldBuffer + OldAuxiliaryDataArraySize);
+        HandleType* OldHandles = (HandleType*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize);
+        uint16* OldFreeList = (uint16*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize + OldHandlesArraySize);
+
+        this->AuxiliaryData = (Type*)NewBuffer;
+        this->Data = (ConcreteType*)(NewBuffer + AuxiliaryDataArraySize);
+        this->Handles = (HandleType*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize);
+        this->FreeList = (uint16*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize + HandlesArraySize);
+
+        // Now if we had any old data, copy it over
+        if (this->PoolSize > 0)
+        {
+            MemCpy(AuxiliaryData, OldAuxiliaryData, OldAuxiliaryDataArraySize);
+            MemCpy(Data, OldData, OldDataArraySize);
+            MemCpy(Handles, OldHandles, OldHandlesArraySize);
+            MemCpy(FreeList, OldFreeList, OldFreeListArraySize);
+
+            Free(OldBuffer, OldSize, MEMORY_TAG_RESOURCE_POOL);
+        }
+
+        // Mark the remaining elements as free
+        for (int i = this->PoolSize; i < ElementCount; i++)
         {
             this->FreeList[i] = i;
         }
+
+        this->PoolSize = ElementCount;
     }
 
     bool ValidateHandle(HandleType Handle) const
@@ -129,7 +164,7 @@ struct Pool
     {
         if (this->FreeListTop >= this->PoolSize)
         {
-            // TODO (amn): Grow pool
+            this->Grow(this->PoolSize * 2);
         }
 
         uint16 Index = this->FreeList[this->FreeListTop++];
