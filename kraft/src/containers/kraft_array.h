@@ -5,32 +5,24 @@
 
 #include <initializer_list>
 
-namespace kraft
-{
+namespace kraft {
 
-template<typename ValueType>
-struct Array
+template<typename ValueType> struct Array
 {
     typedef uint64 SizeType;
 
-    ValueType   *InternalBuffer = nullptr;
+    ValueType* InternalBuffer = nullptr;
 
     // Number of elements currently in the buffer
-    SizeType    Length = 0;
+    SizeType Length = 0;
 
     // Number of elements that can fit in the buffer
-    SizeType    Allocated = 0;
+    SizeType Allocated = 0;
 
 protected:
-    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
-    {
-        return 2 * Size;
-    }
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size) { return 2 * Size; }
 
-    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
-    {
-        return Allocated * sizeof(ValueType);
-    }
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes() { return Allocated * sizeof(ValueType); }
 
     constexpr void EnlargeBufferIfRequired(SizeType NewSize, bool ExactFit = false)
     {
@@ -40,11 +32,11 @@ protected:
         }
 
         ValueType* OldBuffer = Data();
-        SizeType OldAllocationSize = GetBufferSizeInBytes();
-        
+        SizeType   OldAllocationSize = GetBufferSizeInBytes();
+
         Allocated = ExactFit ? NewSize : ChooseAllocationSize(NewSize);
         ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
-        
+
         // If we had any data, copy over
         if (OldBuffer)
         {
@@ -120,8 +112,8 @@ public:
 
     constexpr Array(Array&& Arr) noexcept
     {
-        SizeType _Length = Length;
-        SizeType _Allocated = Allocated;
+        SizeType   _Length = Length;
+        SizeType   _Allocated = Allocated;
         ValueType* _Buffer = InternalBuffer;
 
         Length = Arr.Length;
@@ -148,20 +140,11 @@ public:
         return *this;
     }
 
-    ~Array()
-    {
-        Free(InternalBuffer, GetBufferSizeInBytes(), MEMORY_TAG_ARRAY);
-    }
+    ~Array() { Free(InternalBuffer, GetBufferSizeInBytes(), MEMORY_TAG_ARRAY); }
 
-    constexpr const ValueType* Data() const noexcept
-    {
-        return InternalBuffer;
-    }
+    constexpr const ValueType* Data() const noexcept { return InternalBuffer; }
 
-    constexpr ValueType* Data() noexcept
-    {
-        return InternalBuffer;
-    }
+    constexpr ValueType* Data() noexcept { return InternalBuffer; }
 
     // constexpr const ValueType* operator*() const noexcept
     // {
@@ -173,20 +156,11 @@ public:
     //     return InternalBuffer;
     // }
 
-    constexpr ValueType& operator[](SizeType Index)
-    {
-        return Data()[Index];
-    }
+    constexpr ValueType& operator[](SizeType Index) { return Data()[Index]; }
 
-    constexpr const ValueType& operator[](SizeType Index) const
-    {
-        return Data()[Index];
-    }
+    constexpr const ValueType& operator[](SizeType Index) const { return Data()[Index]; }
 
-    inline SizeType Size() const
-    {
-        return Length;
-    }
+    inline SizeType Size() const { return Length; }
 
     KRAFT_INLINE void Alloc(SizeType Size)
     {
@@ -197,10 +171,7 @@ public:
         }
     }
 
-    KRAFT_INLINE void Reserve(SizeType Size)
-    {
-        EnlargeBufferIfRequired(Size, true);
-    }
+    KRAFT_INLINE void Reserve(SizeType Size) { EnlargeBufferIfRequired(Size, true); }
 
     void Push(const ValueType& Value)
     {
@@ -209,10 +180,7 @@ public:
         Length++;
     }
 
-    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept
-    {
-        return Length * sizeof(ValueType);
-    }
+    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept { return Length * sizeof(ValueType); }
 
     /**
      * Sets the length of the array to Zero

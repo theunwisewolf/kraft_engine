@@ -1,15 +1,14 @@
 #pragma once
 
+#include "containers/kraft_array.h"
 #include "core/kraft_core.h"
 #include "core/kraft_string.h"
-#include "math/kraft_math.h"
-#include "containers/kraft_array.h"
 #include "imgui/imgui.h"
+#include "math/kraft_math.h"
 
 struct ImDrawData;
 
-namespace kraft
-{
+namespace kraft {
 
 struct ApplicationConfig;
 struct Texture;
@@ -18,23 +17,22 @@ struct Geometry;
 struct Shader;
 struct ShaderUniform;
 
-namespace renderer
-{
+namespace renderer {
 
 // Templated only for type-safety
-template<typename T>
-struct Handle
+template<typename T> struct Handle
 {
 private:
     uint16 Index;
     uint16 Generation;
 
-    template <typename U, typename V> friend struct Pool;
+    template<typename U, typename V> friend struct Pool;
     Handle(uint16 Index, uint16 Generation) : Index(Index), Generation(Generation) {}
+
 public:
     Handle() : Index(0), Generation(0) {}
     static Handle Invalid() { return Handle(0, 0xffff); }
-    bool IsInvalid() { return *this == Handle::Invalid(); }
+    bool          IsInvalid() { return *this == Handle::Invalid(); }
 
     bool operator==(const Handle<T> Other) { return Other.Generation == Generation && Other.Index == Index; }
     bool operator!=(const Handle<T> Other) { return Other.Generation != Generation || Other.Index != Index; }
@@ -67,9 +65,9 @@ struct Renderable
 
 struct RenderPacket
 {
-    float64           DeltaTime;
-    Mat4f             ProjectionMatrix;
-    Mat4f             ViewMatrix;
+    float64 DeltaTime;
+    Mat4f   ProjectionMatrix;
+    Mat4f   ViewMatrix;
 };
 
 enum RendererBackendType
@@ -103,12 +101,20 @@ struct RendererBackend
     void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex);
     void (*DestroyRenderPipeline)(Shader* Shader);
-    void (*CreateMaterial)(Material *Material);
-    void (*DestroyMaterial)(Material *Material);
+    void (*CreateMaterial)(Material* Material);
+    void (*DestroyMaterial)(Material* Material);
 
     // Geometry
     void (*DrawGeometryData)(uint32 GeometryID);
-    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
+    bool (*CreateGeometry)(
+        Geometry*    Geometry,
+        uint32       VertexCount,
+        const void*  Vertices,
+        uint32       VertexSize,
+        uint32       IndexCount,
+        const void*  Indices,
+        const uint32 IndexSize
+    );
     void (*DestroyGeometry)(Geometry* Geometry);
 };
 
@@ -129,158 +135,185 @@ struct Vertex3D
     Vec2f UV;
 };
 
-namespace ShaderDataType
+namespace ShaderDataType {
+enum Enum
 {
-    enum Enum
-    {
-        Float, Float2, Float3, Float4, Mat4, Byte, Byte4N, UByte, UByte4N, Short2, Short2N, Short4, Short4N, UInt, UInt2, UInt4, Count 
-    };
+    Float,
+    Float2,
+    Float3,
+    Float4,
+    Mat4,
+    Byte,
+    Byte4N,
+    UByte,
+    UByte4N,
+    Short2,
+    Short2N,
+    Short4,
+    Short4N,
+    UInt,
+    UInt2,
+    UInt4,
+    Count
+};
 
-    static const char* Strings[] = 
-    {
-        "Float", "Float2", "Float3", "Float4", "Mat4", "Byte", "Byte4N", "UByte", "UByte4N", "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4", "Count"
-    };
+static const char* Strings[] = { "Float",  "Float2",  "Float3", "Float4",  "Mat4", "Byte",  "Byte4N", "UByte", "UByte4N",
+                                 "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4",  "Count" };
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
-
-    static uint64 SizeOf(Enum Value)
-    {
-        switch (Value)
-        {
-            case Float:  return 1 * sizeof(float32);
-            case Float2: return 2 * sizeof(float32);
-            case Float3: return 3 * sizeof(float32);
-            case Float4: return 4 * sizeof(float32);
-            case Mat4:   return 16 * sizeof(float32);
-            case Byte:   return 1 * sizeof(byte);
-            case Byte4N: return 4 * sizeof(byte);
-            case UByte:  return 4 * sizeof(byte);
-            case UByte4N:return 4 * sizeof(byte);
-            case Short2: return 2 * sizeof(int16);
-            case Short2N:return 2 * sizeof(int16);
-            case Short4: return 4 * sizeof(int16);
-            case Short4N:return 4 * sizeof(int16);
-            case UInt:   return 1 * sizeof(uint32);
-            case UInt2:  return 2 * sizeof(uint32);
-            case UInt4:  return 4 * sizeof(uint32);
-            case Count:  return 0;
-        }
-
-        return 0;
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 
-namespace VertexInputRate
+static uint64 SizeOf(Enum Value)
 {
-    enum Enum
+    switch (Value)
     {
-        PerVertex, PerInstance, Count
-    };
-
-    static const char* Strings[] = 
-    {
-        "PerVertex", "PerInstance", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+        case Float:   return 1 * sizeof(float32);
+        case Float2:  return 2 * sizeof(float32);
+        case Float3:  return 3 * sizeof(float32);
+        case Float4:  return 4 * sizeof(float32);
+        case Mat4:    return 16 * sizeof(float32);
+        case Byte:    return 1 * sizeof(byte);
+        case Byte4N:  return 4 * sizeof(byte);
+        case UByte:   return 4 * sizeof(byte);
+        case UByte4N: return 4 * sizeof(byte);
+        case Short2:  return 2 * sizeof(int16);
+        case Short2N: return 2 * sizeof(int16);
+        case Short4:  return 4 * sizeof(int16);
+        case Short4N: return 4 * sizeof(int16);
+        case UInt:    return 1 * sizeof(uint32);
+        case UInt2:   return 2 * sizeof(uint32);
+        case UInt4:   return 4 * sizeof(uint32);
+        case Count:   return 0;
     }
+
+    return 0;
+}
 }
 
-namespace ResourceType
+namespace VertexInputRate {
+enum Enum
 {
-    enum Enum
-    {
-        Sampler, UniformBuffer, ConstantBuffer, Count
-    };
+    PerVertex,
+    PerInstance,
+    Count
+};
 
-    static const char* Strings[] =
-    {
-        "Sampler", "UniformBuffer", "ConstantBuffer", "Count"
-    };
+static const char* Strings[] = { "PerVertex", "PerInstance", "Count" };
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
-namespace PolygonMode
+namespace ResourceType {
+enum Enum
 {
-    enum Enum
-    {
-        Fill, Line, Point, Count
-    };
+    Sampler,
+    UniformBuffer,
+    ConstantBuffer,
+    Count
+};
 
-    static const char* Strings[] =
-    {
-        "Fill", "Line", "Point"
-    };
+static const char* Strings[] = { "Sampler", "UniformBuffer", "ConstantBuffer", "Count" };
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
-namespace CompareOp
+namespace PolygonMode {
+enum Enum
 {
-    enum Enum
-    {
-        Never, Less, Equal, LessOrEqual, Greater, NotEqual, GreaterOrEqual, Always, Count,
-    };
+    Fill,
+    Line,
+    Point,
+    Count
+};
 
-    static const char* Strings[] =
-    {
-        "Never", "Less", "Equal", "LessOrEqual", "Greater", "NotEqual", "GreaterOrEqual", "Always", "Count",
-    };
+static const char* Strings[] = { "Fill", "Line", "Point" };
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
-namespace BlendFactor
+namespace CompareOp {
+enum Enum
 {
-    enum Enum
-    {
-        Zero, One, SrcColor, OneMinusSrcColor, DstColor, OneMinusDstColor,
-        SrcAlpha, OneMinusSrcAlpha, DstAlpha, OneMinusDstAlpha, Count
-    };
+    Never,
+    Less,
+    Equal,
+    LessOrEqual,
+    Greater,
+    NotEqual,
+    GreaterOrEqual,
+    Always,
+    Count,
+};
 
-    static const char* Strings[] =
-    {
-        "Zero", "One", "SrcColor", "OneMinusSrcColor", "DstColor", "OneMinusDstColor",
-        "SrcAlpha", "OneMinusSrcAlpha", "DstAlpha", "OneMinusDstAlpha", "Count",
-    };
+static const char* Strings[] = {
+    "Never", "Less", "Equal", "LessOrEqual", "Greater", "NotEqual", "GreaterOrEqual", "Always", "Count",
+};
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
-namespace BlendOp
+namespace BlendFactor {
+enum Enum
 {
-    enum Enum
-    {
-        Add, Subtract, ReverseSubtract, Min, Max, Count
-    };
+    Zero,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+    Count
+};
 
-    static const char* Strings[] =
-    {
-        "Add", "Subtract", "ReverseSubtract", "Min", "Max", "Count"
-    };
+static const char* Strings[] = {
+    "Zero",     "One",
+    "SrcColor", "OneMinusSrcColor",
+    "DstColor", "OneMinusDstColor",
+    "SrcAlpha", "OneMinusSrcAlpha",
+    "DstAlpha", "OneMinusDstAlpha",
+    "Count",
+};
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+}
+
+namespace BlendOp {
+enum Enum
+{
+    Add,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max,
+    Count
+};
+
+static const char* Strings[] = { "Add", "Subtract", "ReverseSubtract", "Min", "Max", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
 struct BlendState
@@ -294,211 +327,196 @@ struct BlendState
     BlendOp::Enum     AlphaBlendOperation;
 };
 
-namespace ShaderUniformScope
+namespace ShaderUniformScope {
+enum Enum
 {
-    enum Enum
-    {
-        Global, Instance, Local, Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Global", "Instance", "Local", "Count"  
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Global,
+    Instance,
+    Local,
+    Count
 };
 
-namespace Format
+static const char* Strings[] = { "Global", "Instance", "Local", "Count" };
+
+static const char* String(Enum Value)
 {
-    enum Enum
-    {
-        // Color Formats
-        RED, RGBA8_UNORM, RGB8_UNORM, BGRA8_UNORM, BGR8_UNORM,
-        // Depth-Stencil Formats
-        D16_UNORM, D32_SFLOAT, D16_UNORM_S8_UINT, D24_UNORM_S8_UINT, D32_SFLOAT_S8_UINT,
-        Count
-    };
-
-    static const char* Strings[] =
-    {
-        "RED", "RGBA8_UNORM", "RGB8_UNORM", "BGRA8_UNORM", "BGR8_UNORM",
-        "D16_UNORM", "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT",
-        "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
-namespace TextureTiling
+namespace Format {
+enum Enum
 {
-    enum Enum
-    {
-        Optimal, Linear, Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Optimal", "Linear", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    // Color Formats
+    RED,
+    RGBA8_UNORM,
+    RGB8_UNORM,
+    BGRA8_UNORM,
+    BGR8_UNORM,
+    // Depth-Stencil Formats
+    D16_UNORM,
+    D32_SFLOAT,
+    D16_UNORM_S8_UINT,
+    D24_UNORM_S8_UINT,
+    D32_SFLOAT_S8_UINT,
+    Count
 };
 
-namespace TextureType
+static const char* Strings[] = { "RED",        "RGBA8_UNORM",       "RGB8_UNORM",        "BGRA8_UNORM",        "BGR8_UNORM", "D16_UNORM",
+                                 "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT", "Count" };
+
+static const char* String(Enum Value)
 {
-    enum Enum
-    {
-        Type1D, Type2D, Type3D, Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Type1D", "Type2D", "Type3D", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
-namespace TextureFilter
+namespace TextureTiling {
+enum Enum
 {
-    enum Enum
-    {
-        Nearest,
-        Linear,
-        Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Nearest", "Linear", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Optimal,
+    Linear,
+    Count
 };
 
-namespace TextureWrapMode
+static const char* Strings[] = { "Optimal", "Linear", "Count" };
+
+static const char* String(Enum Value)
 {
-    enum Enum
-    {
-        Repeat,
-        MirroredRepeat,
-        ClampToEdge,
-        ClampToBorder,
-        Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Repeat", "MirroredRepeat", "ClampToEdge", "ClampToBorder", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
-namespace TextureMipMapMode
+namespace TextureType {
+enum Enum
 {
-    enum Enum
-    {
-        Nearest,
-        Linear,
-        Count
-    };
-
-    static const char* Strings[] =
-    {
-        "Nearest", "Linear", "Count"
-    };
-
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Type1D,
+    Type2D,
+    Type3D,
+    Count
 };
 
-namespace SharingMode
+static const char* Strings[] = { "Type1D", "Type2D", "Type3D", "Count" };
+
+static const char* String(Enum Value)
 {
-    enum Enum
-    {
-        Exclusive, Concurrent, Count
-    };
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+};
 
-    static const char* Strings[] =
-    {
-        "Exclusive", "Concurrent", "Count"
-    };
+namespace TextureFilter {
+enum Enum
+{
+    Nearest,
+    Linear,
+    Count
+};
 
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+static const char* Strings[] = { "Nearest", "Linear", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+};
+
+namespace TextureWrapMode {
+enum Enum
+{
+    Repeat,
+    MirroredRepeat,
+    ClampToEdge,
+    ClampToBorder,
+    Count
+};
+
+static const char* Strings[] = { "Repeat", "MirroredRepeat", "ClampToEdge", "ClampToBorder", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+};
+
+namespace TextureMipMapMode {
+enum Enum
+{
+    Nearest,
+    Linear,
+    Count
+};
+
+static const char* Strings[] = { "Nearest", "Linear", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+};
+
+namespace SharingMode {
+enum Enum
+{
+    Exclusive,
+    Concurrent,
+    Count
+};
+
+static const char* Strings[] = { "Exclusive", "Concurrent", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 }
 
 enum CullModeFlags
 {
-    CULL_MODE_FLAGS_NONE = 1 << 0, 
-    CULL_MODE_FLAGS_FRONT = 1 << 1, 
-    CULL_MODE_FLAGS_BACK = 1 << 2, 
+    CULL_MODE_FLAGS_NONE = 1 << 0,
+    CULL_MODE_FLAGS_FRONT = 1 << 1,
+    CULL_MODE_FLAGS_BACK = 1 << 2,
     CULL_MODE_FLAGS_FRONT_AND_BACK = 1 << 3,
 };
 
 enum TextureUsageFlags
 {
-    TEXTURE_USAGE_FLAGS_TRANSFER_SRC = 1 << 0, 
-    TEXTURE_USAGE_FLAGS_TRANSFER_DST = 1 << 1, 
-    TEXTURE_USAGE_FLAGS_SAMPLED = 1 << 2, 
-    TEXTURE_USAGE_FLAGS_STORAGE = 1 << 3, 
-    TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT = 1 << 4, 
+    TEXTURE_USAGE_FLAGS_TRANSFER_SRC = 1 << 0,
+    TEXTURE_USAGE_FLAGS_TRANSFER_DST = 1 << 1,
+    TEXTURE_USAGE_FLAGS_SAMPLED = 1 << 2,
+    TEXTURE_USAGE_FLAGS_STORAGE = 1 << 3,
+    TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT = 1 << 4,
     TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT = 1 << 5,
 };
 
 enum TextureSampleCountFlags
 {
-    TEXTURE_SAMPLE_COUNT_FLAGS_1 = 1 << 0, 
-    TEXTURE_SAMPLE_COUNT_FLAGS_2 = 1 << 1, 
-    TEXTURE_SAMPLE_COUNT_FLAGS_4 = 1 << 2, 
-    TEXTURE_SAMPLE_COUNT_FLAGS_8 = 1 << 3, 
+    TEXTURE_SAMPLE_COUNT_FLAGS_1 = 1 << 0,
+    TEXTURE_SAMPLE_COUNT_FLAGS_2 = 1 << 1,
+    TEXTURE_SAMPLE_COUNT_FLAGS_4 = 1 << 2,
+    TEXTURE_SAMPLE_COUNT_FLAGS_8 = 1 << 3,
     TEXTURE_SAMPLE_COUNT_FLAGS_16 = 1 << 4,
-    TEXTURE_SAMPLE_COUNT_FLAGS_32 = 1 << 5, 
+    TEXTURE_SAMPLE_COUNT_FLAGS_32 = 1 << 5,
     TEXTURE_SAMPLE_COUNT_FLAGS_64 = 1 << 6,
 };
 
 enum BufferUsageFlags
 {
-    BUFFER_USAGE_FLAGS_TRANSFER_SRC = 1 << 0, 
-    BUFFER_USAGE_FLAGS_TRANSFER_DST = 1 << 1, 
-    BUFFER_USAGE_FLAGS_UNIFORM_TEXEL_BUFFER = 1 << 2, 
-    BUFFER_USAGE_FLAGS_STORAGE_TEXEL_BUFFER = 1 << 3, 
+    BUFFER_USAGE_FLAGS_TRANSFER_SRC = 1 << 0,
+    BUFFER_USAGE_FLAGS_TRANSFER_DST = 1 << 1,
+    BUFFER_USAGE_FLAGS_UNIFORM_TEXEL_BUFFER = 1 << 2,
+    BUFFER_USAGE_FLAGS_STORAGE_TEXEL_BUFFER = 1 << 3,
     BUFFER_USAGE_FLAGS_UNIFORM_BUFFER = 1 << 4,
-    BUFFER_USAGE_FLAGS_STORAGE_BUFFER = 1 << 5, 
-    BUFFER_USAGE_FLAGS_INDEX_BUFFER = 1 << 6, 
-    BUFFER_USAGE_FLAGS_VERTEX_BUFFER = 1 << 7, 
+    BUFFER_USAGE_FLAGS_STORAGE_BUFFER = 1 << 5,
+    BUFFER_USAGE_FLAGS_INDEX_BUFFER = 1 << 6,
+    BUFFER_USAGE_FLAGS_VERTEX_BUFFER = 1 << 7,
     BUFFER_USAGE_FLAGS_INDIRECT_BUFFER = 1 << 8,
 };
 
 enum MemoryPropertyFlags
 {
-    MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL = 1 << 0, 
-    MEMORY_PROPERTY_FLAGS_HOST_VISIBLE = 1 << 1, 
-    MEMORY_PROPERTY_FLAGS_HOST_COHERENT = 1 << 2, 
+    MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL = 1 << 0,
+    MEMORY_PROPERTY_FLAGS_HOST_VISIBLE = 1 << 1,
+    MEMORY_PROPERTY_FLAGS_HOST_COHERENT = 1 << 2,
     MEMORY_PROPERTY_FLAGS_HOST_CACHED = 1 << 3,
 };
 
@@ -510,34 +528,52 @@ enum ShaderStageFlags
     SHADER_STAGE_FLAGS_COMPUTE = 1 << 3,
 };
 
-namespace LoadOp
+namespace LoadOp {
+enum Enum
 {
-    enum Enum { Load, Clear, DontCare, Count };
-    static const char* Strings[] = { "Load", "Clear", "DontCare" };
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Load,
+    Clear,
+    DontCare,
+    Count
+};
+static const char* Strings[] = { "Load", "Clear", "DontCare" };
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
-namespace StoreOp
+namespace StoreOp {
+enum Enum
 {
-    enum Enum { Store, DontCare, Count };
-    static const char* Strings[] = { "Store", "DontCare" };
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Store,
+    DontCare,
+    Count
+};
+static const char* Strings[] = { "Store", "DontCare" };
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
-namespace TextureLayout
+namespace TextureLayout {
+enum Enum
 {
-    enum Enum { Undefined, RenderTarget, DepthStencil, PresentationTarget, Sampled, Count };
-    static const char* Strings[] = { "Undefined", "RenderTarget", "DepthStencil", "PresentationTarget", "Sampled" };
-    static const char* String(Enum Value)
-    {
-        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-    }
+    Undefined,
+    RenderTarget,
+    DepthStencil,
+    PresentationTarget,
+    Sampled,
+    Count
+};
+
+static const char* Strings[] = { "Undefined", "RenderTarget", "DepthStencil", "PresentationTarget", "Sampled" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
 };
 
 struct DepthTarget
@@ -575,17 +611,17 @@ struct TextureSamplerDescription
 
 struct TextureDescription
 {
-    const char*              DebugName = "";
+    const char* DebugName = "";
 
-    Vec4f                    Dimensions;
-    Format::Enum             Format;
-    uint64                   Usage;
-    TextureTiling::Enum      Tiling         = TextureTiling::Optimal;
-    TextureType::Enum        Type           = TextureType::Type2D;
-    TextureSampleCountFlags  SampleCount    = TEXTURE_SAMPLE_COUNT_FLAGS_1;
-    uint32                   MipLevels      = 1;
-    SharingMode::Enum        SharingMode    = SharingMode::Exclusive;
-    
+    Vec4f                   Dimensions;
+    Format::Enum            Format;
+    uint64                  Usage;
+    TextureTiling::Enum     Tiling = TextureTiling::Optimal;
+    TextureType::Enum       Type = TextureType::Type2D;
+    TextureSampleCountFlags SampleCount = TEXTURE_SAMPLE_COUNT_FLAGS_1;
+    uint32                  MipLevels = 1;
+    SharingMode::Enum       SharingMode = SharingMode::Exclusive;
+
     // Sampler description
     bool                      CreateSampler = true;
     TextureSamplerDescription Sampler;
@@ -593,12 +629,12 @@ struct TextureDescription
 
 struct BufferDescription
 {
-    uint64                    Size;
-    uint64                    UsageFlags;
-    uint64                    MemoryPropertyFlags;
-    SharingMode::Enum         SharingMode = SharingMode::Exclusive;
-    bool                      BindMemory = true;
-    bool                      MapMemory = false;
+    uint64            Size;
+    uint64            UsageFlags;
+    uint64            MemoryPropertyFlags;
+    SharingMode::Enum SharingMode = SharingMode::Exclusive;
+    bool              BindMemory = true;
+    bool              MapMemory = false;
 };
 
 struct Buffer
@@ -611,7 +647,7 @@ struct Buffer
 
 struct RenderPassSubpass
 {
-    bool DepthTarget = false;
+    bool         DepthTarget = false;
     Array<uint8> ColorTargetSlots;
 };
 
@@ -622,7 +658,7 @@ struct RenderPassLayout
 
 struct RenderPassDescription
 {
-    const char*        DebugName;
+    const char* DebugName;
 
     Vec4f              Dimensions;
     Array<ColorTarget> ColorTargets;
@@ -639,17 +675,17 @@ struct RenderPass
 
 struct UploadBufferDescription
 {
-    Handle<Buffer>  DstBuffer;
-    Handle<Buffer>  SrcBuffer;
-    uint64          SrcSize;
-    uint64          DstOffset = 0;
-    uint64          SrcOffset = 0;
+    Handle<Buffer> DstBuffer;
+    Handle<Buffer> SrcBuffer;
+    uint64         SrcSize;
+    uint64         DstOffset = 0;
+    uint64         SrcOffset = 0;
 };
 
 struct PhysicalDeviceFormatSpecs
 {
     Format::Enum SwapchainFormat;
-    Format::Enum DepthBufferFormat;  
+    Format::Enum DepthBufferFormat;
 };
 
 } // namespace::renderer

@@ -1,6 +1,3 @@
 #include "kraft_buffer.h"
 
-namespace kraft
-{
-
-}
+namespace kraft {}

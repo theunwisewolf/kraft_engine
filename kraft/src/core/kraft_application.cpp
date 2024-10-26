@@ -1,25 +1,24 @@
 #include "kraft_application.h"
 
+#include "containers/array.h"
+#include "core/kraft_input.h"
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
-#include "core/kraft_input.h"
-#include "core/kraft_time.h"
 #include "core/kraft_string.h"
-#include "containers/array.h"
-#include "platform/kraft_window.h"
-#include "platform/kraft_platform.h"
+#include "core/kraft_time.h"
 #include "platform/kraft_filesystem.h"
+#include "platform/kraft_platform.h"
+#include "platform/kraft_window.h"
 
 #if defined(KRAFT_GUI_APP)
-#include "systems/kraft_texture_system.h"
-#include "systems/kraft_material_system.h"
-#include "systems/kraft_geometry_system.h"
-#include "systems/kraft_shader_system.h"
 #include "renderer/kraft_renderer_frontend.h"
+#include "systems/kraft_geometry_system.h"
+#include "systems/kraft_material_system.h"
+#include "systems/kraft_shader_system.h"
+#include "systems/kraft_texture_system.h"
 #endif
 
-namespace kraft
-{
+namespace kraft {
 
 Application* Application::I = nullptr;
 
@@ -35,7 +34,7 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
     if (width == 0 && height == 0)
     {
         KINFO("[Application::WindowResizeListener]: Application suspended");
-        application->Suspended = true;   
+        application->Suspended = true;
     }
     else
     {
@@ -55,7 +54,7 @@ bool Application::WindowResizeListener(EventType type, void* sender, void* liste
     return false;
 }
 
-bool Application::Create(int argc, char *argv[])
+bool Application::Create(int argc, char* argv[])
 {
     CommandLineArgs = {};
     CommandLineArgs.Count = argc;
@@ -80,10 +79,10 @@ bool Application::Create(int argc, char *argv[])
         KERROR("[Application::Create]: Failed to initalize renderer!");
         return false;
     }
-    
+
     TextureSystem::Init(256);
-    MaterialSystem::Init(MaterialSystemConfig{256});
-    GeometrySystem::Init(GeometrySystemConfig{256});
+    MaterialSystem::Init(MaterialSystemConfig{ 256 });
+    GeometrySystem::Init(GeometrySystemConfig{ 256 });
     ShaderSystem::Init(256);
 #endif
 
@@ -108,7 +107,7 @@ bool Application::Run()
     kraft::Time::Start();
     State.LastTime = kraft::Time::ElapsedTime;
     float64 targetFrameRate = 1 / 144.f;
-    uint64 frames = 0;
+    uint64  frames = 0;
     float64 timeSinceLastSecond = 0.f;
 
     kraft::PrintDebugMemoryInfo();
@@ -124,11 +123,11 @@ bool Application::Run()
             float64 deltaTime = currentTime - State.LastTime;
             kraft::Time::DeltaTime = deltaTime;
             timeSinceLastSecond += deltaTime;
-            
+
             // TODO
             // this->Running = ??
             this->Update(deltaTime);
-            
+
             if (timeSinceLastSecond >= 1.f)
             {
                 timeSinceLastSecond = 0.f;
@@ -172,7 +171,9 @@ bool Application::Run()
         {
             timeSinceLastSecond = 0.f;
 
-            StringFormat(windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime);
+            StringFormat(
+                windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime
+            );
             Platform::GetWindow().SetWindowTitle(windowTitleBuffer);
 
             frames = 0;

@@ -1,14 +1,13 @@
 #include "kraft_input.h"
 
+#include "core/kraft_events.h"
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
-#include "core/kraft_events.h"
 
-namespace kraft
-{
+namespace kraft {
 
-bool                InputSystem::Initialized = false;
-InputSystemState    InputSystem::State;
+bool             InputSystem::Initialized = false;
+InputSystemState InputSystem::State;
 
 bool InputSystem::Init()
 {
@@ -112,6 +111,5 @@ void InputSystem::ProcessScroll(float64 x, float64 y)
     data.Float64Value[1] = y;
     EventSystem::Dispatch(EventType::EVENT_TYPE_SCROLL, data, 0);
 }
-
 
 }

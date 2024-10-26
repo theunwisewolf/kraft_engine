@@ -1,7 +1,3 @@
 #include "kraft_array.h"
 
-namespace kraft
-{
-
-
-}
+namespace kraft {}

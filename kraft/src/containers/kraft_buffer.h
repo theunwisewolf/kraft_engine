@@ -1,80 +1,77 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "core/kraft_string.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string_view.h"
 #include "containers/kraft_array.h"
+#include "core/kraft_core.h"
+#include "core/kraft_memory.h"
+#include "core/kraft_string.h"
+#include "core/kraft_string_view.h"
 
 #include <type_traits>
 
-namespace kraft
-{
+namespace kraft {
 
-#define WRITE_TYPE(Type)                                    \
-    KRAFT_INLINE void Write(Type Value)                     \
-    {                                                       \
-        EnlargeBufferIfRequired(Length + sizeof(Type));     \
-        MemCpy(Data() + Length, &Value, sizeof(Type));      \
-        Length += sizeof(Type);                             \
+#define WRITE_TYPE(Type)                                                                                                                   \
+    KRAFT_INLINE void Write(Type Value)                                                                                                    \
+    {                                                                                                                                      \
+        EnlargeBufferIfRequired(Length + sizeof(Type));                                                                                    \
+        MemCpy(Data() + Length, &Value, sizeof(Type));                                                                                     \
+        Length += sizeof(Type);                                                                                                            \
     }
 
-#define READ_TYPE(Type)                                     \
-    KRAFT_INLINE void Read(Type* Value)                     \
-    {                                                       \
-        MemCpy(Value, Data() + Length, sizeof(Type));       \
-        Length += sizeof(Type);                             \
+#define READ_TYPE(Type)                                                                                                                    \
+    KRAFT_INLINE void Read(Type* Value)                                                                                                    \
+    {                                                                                                                                      \
+        MemCpy(Value, Data() + Length, sizeof(Type));                                                                                      \
+        Length += sizeof(Type);                                                                                                            \
     }
 
-#define KRAFT_BUFFER_SERIALIZE_START void WriteTo(Buffer* Out) {
+#define KRAFT_BUFFER_SERIALIZE_START                                                                                                       \
+    void WriteTo(Buffer* Out)                                                                                                              \
+    {
 #define KRAFT_BUFFER_SERIALIZE_ADD(Field) Out->Write(Field)
-#define KRAFT_BUFFER_SERIALIZE_END }
+#define KRAFT_BUFFER_SERIALIZE_END        }
 
-#define KRAFT_BUFFER_DESERIALIZE_START void ReadFrom(const Buffer* In) {
+#define KRAFT_BUFFER_DESERIALIZE_START                                                                                                     \
+    void ReadFrom(const Buffer* In)                                                                                                        \
+    {
 #define KRAFT_BUFFER_DESERIALIZE_ADD(Field) In->Read(&Field)
-#define KRAFT_BUFFER_DESERIALIZE_END }
+#define KRAFT_BUFFER_DESERIALIZE_END        }
 
-#define KRAFT_BUFFER_SERIALIZE_1(_1) \
-    KRAFT_BUFFER_SERIALIZE_START \
-        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
+#define KRAFT_BUFFER_SERIALIZE_1(_1)                                                                                                       \
+    KRAFT_BUFFER_SERIALIZE_START                                                                                                           \
+    KRAFT_BUFFER_SERIALIZE_ADD(_1);                                                                                                        \
     KRAFT_BUFFER_SERIALIZE_END
 
-#define KRAFT_BUFFER_SERIALIZE_2(_1, _2) \
-    KRAFT_BUFFER_SERIALIZE_START \
-        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
-        KRAFT_BUFFER_SERIALIZE_ADD(_2); \
+#define KRAFT_BUFFER_SERIALIZE_2(_1, _2)                                                                                                   \
+    KRAFT_BUFFER_SERIALIZE_START                                                                                                           \
+    KRAFT_BUFFER_SERIALIZE_ADD(_1);                                                                                                        \
+    KRAFT_BUFFER_SERIALIZE_ADD(_2);                                                                                                        \
     KRAFT_BUFFER_SERIALIZE_END
 
-#define KRAFT_BUFFER_SERIALIZE_3(_1, _2, _3) \
-    KRAFT_BUFFER_SERIALIZE_START \
-        KRAFT_BUFFER_SERIALIZE_ADD(_1); \
-        KRAFT_BUFFER_SERIALIZE_ADD(_2); \
-        KRAFT_BUFFER_SERIALIZE_ADD(_3); \
+#define KRAFT_BUFFER_SERIALIZE_3(_1, _2, _3)                                                                                               \
+    KRAFT_BUFFER_SERIALIZE_START                                                                                                           \
+    KRAFT_BUFFER_SERIALIZE_ADD(_1);                                                                                                        \
+    KRAFT_BUFFER_SERIALIZE_ADD(_2);                                                                                                        \
+    KRAFT_BUFFER_SERIALIZE_ADD(_3);                                                                                                        \
     KRAFT_BUFFER_SERIALIZE_END
 
 struct Buffer
 {
-    using SizeType  = uint64;
+    using SizeType = uint64;
     using ValueType = char;
 
-    ValueType   *InternalBuffer = nullptr;
+    ValueType* InternalBuffer = nullptr;
 
     // Number of elements currently in the buffer
-    SizeType    Length = 0;
+    SizeType Length = 0;
 
     // Number of elements that can fit in the buffer
-    SizeType    Allocated = 0;
+    SizeType Allocated = 0;
 
 protected:
-    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
-    {
-        return 2 * Size;
-    }
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size) { return 2 * Size; }
 
-    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
-    {
-        return Allocated * sizeof(ValueType);
-    }
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes() { return Allocated * sizeof(ValueType); }
 
     constexpr void EnlargeBufferIfRequired(SizeType NewSize)
     {
@@ -84,8 +81,8 @@ protected:
         }
 
         ValueType* OldBuffer = Data();
-        SizeType OldAllocationSize = GetBufferSizeInBytes();
-        
+        SizeType   OldAllocationSize = GetBufferSizeInBytes();
+
         Allocated = ChooseAllocationSize(NewSize);
         ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
         MemCpy(NewBuffer, OldBuffer, Length * sizeof(ValueType));
@@ -128,25 +125,13 @@ public:
         this->Allocated = Size;
     }
 
-    KRAFT_INLINE void Alloc(SizeType Size)
-    {
-        InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
-    }
-    
-    constexpr ValueType* Data() noexcept
-    {
-        return InternalBuffer;
-    }
+    KRAFT_INLINE void Alloc(SizeType Size) { InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true); }
 
-    constexpr const ValueType* operator*() const noexcept
-    {
-        return InternalBuffer;
-    }
+    constexpr ValueType* Data() noexcept { return InternalBuffer; }
 
-    constexpr ValueType* operator*()
-    {
-        return InternalBuffer;
-    }
+    constexpr const ValueType* operator*() const noexcept { return InternalBuffer; }
+
+    constexpr ValueType* operator*() { return InternalBuffer; }
 
     WRITE_TYPE(uint8);
     WRITE_TYPE(uint16);
@@ -163,7 +148,7 @@ public:
     KRAFT_INLINE void Write(const String& Value)
     {
         EnlargeBufferIfRequired(Length + Value.GetLengthInBytes() + sizeof(uint64));
-        
+
         // Write the length
         MemCpy(Data() + Length, &Value.Length, sizeof(uint64));
         Length += sizeof(uint64);
@@ -192,9 +177,8 @@ public:
     }
 
     // For trivially copyable types
-    template <typename ArrayValueType>
-    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<ArrayValueType>::value>::type
-    Write(Array<ArrayValueType> Value)
+    template<typename ArrayValueType>
+    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<ArrayValueType>::value>::type Write(Array<ArrayValueType> Value)
     {
         EnlargeBufferIfRequired(Length + Value.GetLengthInBytes() + sizeof(uint64));
 
@@ -206,9 +190,8 @@ public:
         Length += Value.GetLengthInBytes();
     }
 
-    template <typename CopyableValueType>
-    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<CopyableValueType>::value>::type
-    Write(CopyableValueType Value)
+    template<typename CopyableValueType>
+    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<CopyableValueType>::value>::type Write(CopyableValueType Value)
     {
         EnlargeBufferIfRequired(Length + sizeof(Value));
 
@@ -216,16 +199,14 @@ public:
         Length += sizeof(Value);
     }
 
-    template <typename NonCopyableValueType>
-    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<NonCopyableValueType>::value>::type
-    Write(NonCopyableValueType Value)
+    template<typename NonCopyableValueType>
+    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<NonCopyableValueType>::value>::type Write(NonCopyableValueType Value)
     {
         Value.WriteTo(this);
     }
 
-    template <typename ArrayValueType>
-    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<ArrayValueType>::value>::type
-    Write(Array<ArrayValueType> Value)
+    template<typename ArrayValueType>
+    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<ArrayValueType>::value>::type Write(Array<ArrayValueType> Value)
     {
         Write(Value.Length);
         for (int i = 0; i < Value.Length; i++)
@@ -267,9 +248,8 @@ public:
     }
 
     // For trivially copyable types
-    template <class ArrayValueType>
-    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<ArrayValueType>::value>::type
-    Read(Array<ArrayValueType>* Value)
+    template<class ArrayValueType>
+    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<ArrayValueType>::value>::type Read(Array<ArrayValueType>* Value)
     {
         // Read the length
         uint64 ValueLength;
@@ -280,9 +260,8 @@ public:
         Length += Value->GetLengthInBytes();
     }
 
-    template <class ArrayValueType>
-    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<ArrayValueType>::value>::type
-    Read(Array<ArrayValueType>* Value)
+    template<class ArrayValueType>
+    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<ArrayValueType>::value>::type Read(Array<ArrayValueType>* Value)
     {
         // Read the length
         uint64 ValueLength;
@@ -295,17 +274,15 @@ public:
         }
     }
 
-    template <typename CopyableValueType>
-    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<CopyableValueType>::value>::type
-    Read(CopyableValueType* Value)
+    template<typename CopyableValueType>
+    KRAFT_INLINE typename std::enable_if<std::is_trivially_copyable<CopyableValueType>::value>::type Read(CopyableValueType* Value)
     {
         MemCpy(Value, Data() + Length, sizeof(CopyableValueType));
         Length += sizeof(CopyableValueType);
     }
 
-    template <typename NonCopyableValueType>
-    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<NonCopyableValueType>::value>::type
-    Read(NonCopyableValueType* Value)
+    template<typename NonCopyableValueType>
+    KRAFT_INLINE typename std::enable_if<!std::is_trivially_copyable<NonCopyableValueType>::value>::type Read(NonCopyableValueType* Value)
     {
         Value->ReadFrom(this);
     }

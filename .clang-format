@@ -6,6 +6,9 @@ AlignOperands: true
 AlignAfterOpenBracket: BlockIndent
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
+AccessModifierOffset: -4
+# BreakTemplateDeclarations: Leave
+# AlwaysBreakTemplateDeclarations: 'false'
 ContinuationIndentWidth: 4
 ColumnLimit: 140
 IndentWidth: '4'
@@ -14,6 +17,14 @@ TabWidth: '4'
 UseTab: Never
 ReflowComments: false
 BreakBeforeBraces: Custom
+AllowShortEnumsOnASingleLine: true
+AllowShortCaseExpressionOnASingleLine: 'true'
+AllowShortCaseLabelsOnASingleLine: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCaseColons: false
 BraceWrapping:
   AfterCaseLabel:        true
   AfterClass:            true
@@ -31,4 +42,5 @@ BraceWrapping:
   SplitEmptyFunction:    false
   SplitEmptyRecord:      false
   SplitEmptyNamespace:   false
+PackConstructorInitializers: CurrentLine
 ...
