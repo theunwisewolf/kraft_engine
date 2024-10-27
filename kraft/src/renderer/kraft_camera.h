@@ -3,8 +3,7 @@
 #include "core/kraft_core.h"
 #include "math/kraft_math.h"
 
-namespace kraft
-{
+namespace kraft {
 
 enum CameraProjectionType
 {
@@ -27,23 +26,23 @@ struct Camera
 
         Vec3f Euler;
     };
-    
+
     CameraProjectionType ProjectionType;
     Mat4f                ProjectionMatrix; // Computed matrix
-    Mat4f                ViewMatrix; // Computed matrix
+    Mat4f                ViewMatrix;       // Computed matrix
     bool                 Dirty = true;
     float32              FOVRadians = kraft::Radians(45.0f);
 
     // The target the camera is supposed to look at
-    Vec3f                Target;
+    Vec3f Target;
 
     // The direction of the camera to the target
-    Vec3f                Direction;
+    Vec3f Direction;
 
     // Direction vectors
-    Vec3f                Up;
-    Vec3f                Right;
-    Vec3f                Front;
+    Vec3f Up;
+    Vec3f Right;
+    Vec3f Front;
 
     Camera();
 
@@ -56,7 +55,15 @@ struct Camera
 
     KRAFT_INLINE Mat4f GetViewMatrix()
     {
-        this->ViewMatrix = kraft::LookAt(this->Position, this->Position + this->Front, this->Up);
+        if (this->ProjectionType == CameraProjectionType::Orthographic)
+        {
+            this->ViewMatrix = Mat4f(Identity);
+        }
+        else
+        {
+            this->ViewMatrix = kraft::LookAt(this->Position, this->Position + this->Front, this->Up);
+        }
+
         return this->ViewMatrix;
         // UpdateViewMatrix();
         // return this->ViewMatrix;
@@ -69,7 +76,7 @@ struct Camera
         _Front.y = Sin(Radians(Pitch));
         _Front.z = Sin(Radians(Yaw)) * Cos(Radians(Pitch));
         this->Front = Normalize(_Front);
-        this->Right = Normalize(Cross(this->Front, {0.0f, 1.0f, 0.0f}));
+        this->Right = Normalize(Cross(this->Front, { 0.0f, 1.0f, 0.0f }));
         this->Up = Normalize(Cross(this->Right, this->Front));
     }
 };

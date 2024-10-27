@@ -9,12 +9,17 @@
 static void SetProjection(kraft::CameraProjectionType Type)
 {
     kraft::Camera& Camera = TestSceneState->SceneCamera;
-    auto Entity = TestSceneState->GetSelectedEntity();
+    auto           Entity = TestSceneState->GetSelectedEntity();
     // Camera.Reset();
     if (Type == kraft::CameraProjectionType::Perspective)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
-        Camera.ProjectionMatrix = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight, 0.1f, 1000.f);
+        Camera.ProjectionMatrix = kraft::PerspectiveMatrix(
+            kraft::DegToRadians(45.0f),
+            (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight,
+            0.1f,
+            1000.f
+        );
 
         // Camera.SetPosition({25.0f, 15.0f, 20.f});
         // Camera.SetPitch(-0.381);
@@ -22,7 +27,7 @@ static void SetProjection(kraft::CameraProjectionType Type)
         kraft::Vec3f WorldUp = kraft::Vec3f(0.0f, 1.0f, 0.0f);
 
         kraft::Vec3f CameraTarget = Entity.Position;
-        Camera.Position = {0.0f, 0.0f, 30.f};
+        Camera.Position = { 0.0f, 0.0f, 30.f };
         Camera.UpdateVectors();
         // Camera.Front = kraft::Normalize(Camera.Position - CameraTarget);
         // Camera.Front = kraft::Vec3f({0.0f, 0.0f, -1.0f});
@@ -33,35 +38,46 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Orthographic;
         Camera.ProjectionMatrix = kraft::OrthographicMatrix(
-            -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
-            (float)kraft::Application::Get()->Config.WindowWidth * 0.5f, 
-            -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
-            (float)kraft::Application::Get()->Config.WindowHeight * 0.5f, 
-            -1.0f, 1.0f
+            -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
+            (float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
+            -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f,
+            (float)kraft::Application::Get()->Config.WindowHeight * 0.5f,
+            -1.0f,
+            1.0f
         );
     }
 
     Camera.Dirty = true;
 }
 
-static void UpdateObjectScale()
+static void UpdateObjectScale(uint32 EntityID)
 {
-    const kraft::Camera& Camera = TestSceneState->SceneCamera;
-    const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
+    SimpleObjectState&     Entity = TestSceneState->GetEntityByID(EntityID);
+    const kraft::Camera&   Camera = TestSceneState->SceneCamera;
+    const kraft::Material* Material = Entity.MaterialInstance;
 
     kraft::renderer::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
-    kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
+    kraft::Texture*                         Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
-    kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth, (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
-    float downScale = kraft::math::Max(ratio.x, ratio.y);
+    float WindowWidth = kraft::Application::Get()->Config.WindowWidth;
+    float WindowHeight = kraft::Application::Get()->Config.WindowHeight;
+    float RatioImage = Texture->Width / Texture->Height;
+    float RatioWindow = WindowWidth / WindowHeight;
+
+    kraft::Vec3f Scale;
+    kraft::Vec3f Size = (RatioWindow > RatioImage) ? (kraft::Vec3f{ Texture->Width * WindowHeight / Texture->Height, WindowHeight, 1.0f })
+                                                   : kraft::Vec3f{ WindowWidth, Texture->Height * WindowWidth / Texture->Width, 1.0f };
+    kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth,
+                           (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
+    float        downScale = kraft::math::Max(ratio.x, ratio.y);
     if (Camera.ProjectionType == kraft::CameraProjectionType::Orthographic)
     {
-        TestSceneState->GetSelectedEntity().Scale = {(float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f};
+        Scale = { (float)Texture->Width / downScale, (float)Texture->Height / downScale, 1.0f };
     }
     else
     {
-        TestSceneState->GetSelectedEntity().Scale = {(float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f};
+        Scale = { (float)Texture->Width / 20.f / downScale, (float)Texture->Height / 20.f / downScale, 1.0f };
     }
 
-    TestSceneState->GetSelectedEntity().ModelMatrix = ScaleMatrix(TestSceneState->GetSelectedEntity().Scale);
+    Entity.SetTransform(Entity.Position, Entity.Rotation, Scale);
 }

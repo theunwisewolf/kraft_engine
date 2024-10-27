@@ -1,0 +1,6 @@
+Material Simple2D
+{
+    Shader          "res/shaders/basic.kfx.bkfx"
+    DiffuseColor    vec4(1.0, 1.0, 1.0, 1.0)
+    DiffuseMapName  "res/textures/viking_room.png"
+}

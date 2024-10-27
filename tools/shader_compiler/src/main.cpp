@@ -20,7 +20,7 @@ bool Init()
         return false;
     }
 
-    kraft::String BasePath = "D:/Dev/kraft/res/shaders";
+    kraft::String BasePath = "Z:/Dev/kraft/res/shaders";
     kraft::Array<kraft::filesystem::FileInfo> Files;
     kraft::filesystem::ReadDir(BasePath, Files);
 

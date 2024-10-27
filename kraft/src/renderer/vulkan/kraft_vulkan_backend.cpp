@@ -366,28 +366,17 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     {
         switch (s_Context.PhysicalDevice.DepthBufferFormat)
         {
-            case VK_FORMAT_D16_UNORM:
-                FormatSpecs.DepthBufferFormat = Format::D16_UNORM;
-                break;
+            case VK_FORMAT_D16_UNORM:          FormatSpecs.DepthBufferFormat = Format::D16_UNORM; break;
 
-            case VK_FORMAT_D32_SFLOAT:
-                FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT;
-                break;
+            case VK_FORMAT_D32_SFLOAT:         FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT; break;
 
-            case VK_FORMAT_D16_UNORM_S8_UINT:
-                FormatSpecs.DepthBufferFormat = Format::D16_UNORM_S8_UINT;
-                break;
+            case VK_FORMAT_D16_UNORM_S8_UINT:  FormatSpecs.DepthBufferFormat = Format::D16_UNORM_S8_UINT; break;
 
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-                FormatSpecs.DepthBufferFormat = Format::D24_UNORM_S8_UINT;
-                break;
+            case VK_FORMAT_D24_UNORM_S8_UINT:  FormatSpecs.DepthBufferFormat = Format::D24_UNORM_S8_UINT; break;
 
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT_S8_UINT;
-                break;
+            case VK_FORMAT_D32_SFLOAT_S8_UINT: FormatSpecs.DepthBufferFormat = Format::D32_SFLOAT_S8_UINT; break;
 
-            default:
-                KFATAL("Unsupported depth buffer format %d", s_Context.PhysicalDevice.DepthBufferFormat);
+            default:                           KFATAL("Unsupported depth buffer format %d", s_Context.PhysicalDevice.DepthBufferFormat);
         }
 
         s_Context.ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
@@ -412,24 +401,15 @@ bool VulkanRendererBackend::Init(ApplicationConfig* config)
     {
         switch (s_Context.Swapchain.ImageFormat.format)
         {
-            case VK_FORMAT_R8G8B8A8_UNORM:
-                FormatSpecs.SwapchainFormat = Format::RGBA8_UNORM;
-                break;
+            case VK_FORMAT_R8G8B8A8_UNORM: FormatSpecs.SwapchainFormat = Format::RGBA8_UNORM; break;
 
-            case VK_FORMAT_R8G8B8_UNORM:
-                FormatSpecs.SwapchainFormat = Format::RGB8_UNORM;
-                break;
+            case VK_FORMAT_R8G8B8_UNORM:   FormatSpecs.SwapchainFormat = Format::RGB8_UNORM; break;
 
-            case VK_FORMAT_B8G8R8A8_UNORM:
-                FormatSpecs.SwapchainFormat = Format::BGRA8_UNORM;
-                break;
+            case VK_FORMAT_B8G8R8A8_UNORM: FormatSpecs.SwapchainFormat = Format::BGRA8_UNORM; break;
 
-            case VK_FORMAT_B8G8R8_UNORM:
-                FormatSpecs.SwapchainFormat = Format::BGR8_UNORM;
-                break;
+            case VK_FORMAT_B8G8R8_UNORM:   FormatSpecs.SwapchainFormat = Format::BGR8_UNORM; break;
 
-            default:
-                KFATAL("Unsupported swapchain image format %d", s_Context.Swapchain.ImageFormat.format);
+            default:                       KFATAL("Unsupported swapchain image format %d", s_Context.Swapchain.ImageFormat.format);
         }
 
         s_Context.ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
@@ -814,8 +794,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     RasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
     RasterizationStateCreateInfo.polygonMode = ToVulkanPolygonMode(Pass.RenderState->PolygonMode);
     RasterizationStateCreateInfo.lineWidth = Pass.RenderState->LineWidth;
-    RasterizationStateCreateInfo.cullMode =
-        VK_CULL_MODE_NONE; // VK_CULL_MODE_BACK_BIT; // Back face culling is not working for some reason when rendering to imgui viewport, figure out why
+    RasterizationStateCreateInfo.cullMode = ToVulkanCullModeFlagBits(Pass.RenderState->CullMode);
     // If culling is eanbled & counter-clockwise is specified, the vertices
     // for any triangle must be specified in a counter-clockwise fashion.
     // Vice-versa for clockwise.
@@ -933,6 +912,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     uint64 ExtraMemoryFlags =
         s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
     VulkanShaderData->ShaderResources.UniformBuffer = ResourceManager::Ptr->CreateBuffer({
+        .DebugName = "UniformBuffer",
         .Size = UBOSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE |
@@ -957,7 +937,6 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex)
     ));
 
     // Map the buffer memory
-    // VulkanShaderData->ShaderResources.UniformBufferMemory = VulkanMapBufferMemory(&s_Context, &VulkanShaderData->ShaderResources.UniformBuffer, VK_WHOLE_SIZE, 0);
     VulkanShaderData->ShaderResources.UniformBufferMemory =
         ResourceManager::Ptr->GetBufferData(VulkanShaderData->ShaderResources.UniformBuffer);
     VulkanShaderData->Pipeline = Pipeline;
@@ -1391,8 +1370,7 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
         }
         break;
 
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT: break;
     }
 
     return VK_FALSE;
@@ -1413,6 +1391,7 @@ bool createBuffers()
 {
     const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 1024 * 256;
     s_Context.VertexBuffer = ResourceManager::Ptr->CreateBuffer({
+        .DebugName = "GlobalVertexBuffer",
         .Size = VertexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_VERTEX_BUFFER,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
@@ -1420,6 +1399,7 @@ bool createBuffers()
 
     const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 1024 * 256;
     s_Context.IndexBuffer = ResourceManager::Ptr->CreateBuffer({
+        .DebugName = "GlobalIndexBuffer",
         .Size = IndexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_INDEX_BUFFER,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,

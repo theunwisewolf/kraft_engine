@@ -18,9 +18,12 @@ struct KRAFT_API Window
     int Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType);
     bool PollEvents(); // Returns false if the window wants to close
     void SetWindowTitle(const char* title);
+    void Minimize();
+    void Maximize();
     void Destroy();
     
     static void WindowSizeCallback(GLFWwindow* window, int width, int height);
+    static void WindowMaximizeCallback(GLFWwindow* window, int maximized);
     static void KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods);
     static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);

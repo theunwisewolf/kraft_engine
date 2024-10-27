@@ -89,7 +89,7 @@ Shader Basic
     {
         State Default
         {       
-            Cull            Front
+            Cull            Off
             ZTest           Less
             ZWrite          On
             Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha

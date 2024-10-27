@@ -151,12 +151,12 @@ void _createDefaultGeometries()
     Vertex3D Vertices[] = 
     {
         { Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f} },
-        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f} },
         { Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f} },
+        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f} },
         { Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f} },
     };
 
-    uint32 Indices[] = {0, 1, 2, 3, 1, 0};
+    uint32 Indices[] = {0, 1, 2, 2, 3, 0};
     
     Ref->Geometry.ID = 0;
     Ref->AutoRelease = false;

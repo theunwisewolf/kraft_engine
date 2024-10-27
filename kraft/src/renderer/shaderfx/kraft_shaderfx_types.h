@@ -108,13 +108,13 @@ struct ShaderCodeFragment
 
 struct RenderStateDefinition
 {
-    String            Name;
-    CullModeFlags     CullMode;
-    CompareOp::Enum   ZTestOperation;
-    bool              ZWriteEnable;
-    BlendState        BlendMode;
-    PolygonMode::Enum PolygonMode;
-    float32           LineWidth;
+    String              Name;
+    CullModeFlags::Enum CullMode;
+    CompareOp::Enum     ZTestOperation;
+    bool                ZWriteEnable;
+    BlendState          BlendMode;
+    PolygonMode::Enum   PolygonMode;
+    float32             LineWidth;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -217,7 +217,8 @@ struct ShaderEffect
     Array<ShaderCodeFragment>         CodeFragments;
     Array<RenderPassDefinition>       RenderPasses;
 
-    ShaderEffect() {}
+    ShaderEffect()
+    {}
     ShaderEffect(ShaderEffect& Other)
     {
         Name = Other.Name;

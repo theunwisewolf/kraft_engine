@@ -14,7 +14,7 @@ VkDescriptorType ToVulkanResourceType(ResourceType::Enum Value);
 VkPolygonMode ToVulkanPolygonMode(PolygonMode::Enum Value);
 VkBlendFactor ToVulkanBlendFactor(BlendFactor::Enum Value);
 VkBlendOp ToVulkanBlendOp(BlendOp::Enum Value);
-// VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags::Enum Value);
+VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags::Enum Value);
 VkCullModeFlags ToVulkanCullModeFlags(uint64 Flags);
 VkCompareOp ToVulkanCompareOp(CompareOp::Enum Value);
 // VkImageUsageFlagBits ToVulkanImageUsageFlagBits(TextureUsageFlags::Enum Value);

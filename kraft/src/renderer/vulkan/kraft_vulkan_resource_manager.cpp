@@ -1,13 +1,12 @@
 #include "kraft_vulkan_resource_manager.h"
 
-#include <renderer/vulkan/kraft_vulkan_helpers.h>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
-#include <renderer/vulkan/kraft_vulkan_memory.h>
-#include <renderer/vulkan/kraft_vulkan_image.h>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>
+#include <renderer/vulkan/kraft_vulkan_helpers.h>
+#include <renderer/vulkan/kraft_vulkan_image.h>
+#include <renderer/vulkan/kraft_vulkan_memory.h>
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
 VulkanTempMemoryBlockAllocator::VulkanTempMemoryBlockAllocator(uint64 BlockSize)
 {
@@ -17,9 +16,11 @@ VulkanTempMemoryBlockAllocator::VulkanTempMemoryBlockAllocator(uint64 BlockSize)
 VulkanTempMemoryBlockAllocator::Block VulkanTempMemoryBlockAllocator::GetNextFreeBlock()
 {
     Handle<Buffer> Buf = ResourceManager::Get()->CreateBuffer({
+        .DebugName = "VulkanTempMemoryBlockAllocator",
         .Size = this->BlockSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
-        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
+        .MemoryPropertyFlags =
+            MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
     });
 
     KASSERT(Buf != Handle<Buffer>::Invalid());
@@ -30,10 +31,7 @@ VulkanTempMemoryBlockAllocator::Block VulkanTempMemoryBlockAllocator::GetNextFre
     };
 }
 
-VulkanResourceManager::VulkanResourceManager() :
-    TexturePool(1024),
-    BufferPool(1024),
-    RenderPassPool(1024)
+VulkanResourceManager::VulkanResourceManager() : TexturePool(1024), BufferPool(1024), RenderPassPool(1024)
 {
     TempGPUAllocator.Allocator = new VulkanTempMemoryBlockAllocator(1024 * 1024 * 128);
 }
@@ -43,7 +41,7 @@ VulkanResourceManager::~VulkanResourceManager()
     delete TempGPUAllocator.Allocator;
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice Device = VulkanRendererBackend::Device();
+    VkDevice       Device = VulkanRendererBackend::Device();
 
     for (int i = 0; i < this->TexturePool.GetSize(); i++)
     {
@@ -79,8 +77,8 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     KASSERT(Description.Dimensions.x > 0 && Description.Dimensions.y > 0 && Description.Dimensions.z > 0 && Description.Dimensions.w > 0);
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice Device = VulkanRendererBackend::Device();
-    VulkanTexture Output = {};
+    VkDevice       Device = VulkanRendererBackend::Device();
+    VulkanTexture  Output = {};
 
     // Create a VkImage
     if (Description.Tiling == TextureTiling::Linear)
@@ -90,27 +88,38 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     }
 
     VkImageCreateInfo ImageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    ImageCreateInfo.imageType     = ToVulkanImageType(Description.Type);
-    ImageCreateInfo.format        = ToVulkanFormat(Description.Format);
-    ImageCreateInfo.extent.width  = (uint32)Description.Dimensions.x;
+    ImageCreateInfo.imageType = ToVulkanImageType(Description.Type);
+    ImageCreateInfo.format = ToVulkanFormat(Description.Format);
+    ImageCreateInfo.extent.width = (uint32)Description.Dimensions.x;
     ImageCreateInfo.extent.height = (uint32)Description.Dimensions.y;
-    ImageCreateInfo.extent.depth  = (uint32)Description.Dimensions.z;
-    ImageCreateInfo.mipLevels     = Description.MipLevels;
-    ImageCreateInfo.arrayLayers   = 1;
-    ImageCreateInfo.samples       = ToVulkanSampleCountFlagBits(Description.SampleCount);
-    ImageCreateInfo.tiling        = ToVulkanImageTiling(Description.Tiling);
-    ImageCreateInfo.usage         = ToVulkanImageUsageFlags(Description.Usage);
-    ImageCreateInfo.sharingMode   = ToVulkanSharingMode(Description.SharingMode);
+    ImageCreateInfo.extent.depth = (uint32)Description.Dimensions.z;
+    ImageCreateInfo.mipLevels = Description.MipLevels;
+    ImageCreateInfo.arrayLayers = 1;
+    ImageCreateInfo.samples = ToVulkanSampleCountFlagBits(Description.SampleCount);
+    ImageCreateInfo.tiling = ToVulkanImageTiling(Description.Tiling);
+    ImageCreateInfo.usage = ToVulkanImageUsageFlags(Description.Usage);
+    ImageCreateInfo.sharingMode = ToVulkanSharingMode(Description.SharingMode);
     ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     // If we have a depth format, ensure it is supported by the physical device
     if (Description.Format >= Format::D16_UNORM && ImageCreateInfo.format != Context->PhysicalDevice.DepthBufferFormat)
     {
         VkImageFormatProperties FormatProperties;
-        VkResult Result = vkGetPhysicalDeviceImageFormatProperties(Context->PhysicalDevice.Handle, ImageCreateInfo.format, ImageCreateInfo.imageType, ImageCreateInfo.tiling, ImageCreateInfo.usage, ImageCreateInfo.flags, &FormatProperties);
+        VkResult                Result = vkGetPhysicalDeviceImageFormatProperties(
+            Context->PhysicalDevice.Handle,
+            ImageCreateInfo.format,
+            ImageCreateInfo.imageType,
+            ImageCreateInfo.tiling,
+            ImageCreateInfo.usage,
+            ImageCreateInfo.flags,
+            &FormatProperties
+        );
         if (Result == VK_ERROR_FORMAT_NOT_SUPPORTED)
         {
-            KWARN("Supplied image format: %s is not supported by the GPU; Falling back to default depth buffer format.", Format::String(Description.Format));
+            KWARN(
+                "Supplied image format: %s is not supported by the GPU; Falling back to default depth buffer format.",
+                Format::String(Description.Format)
+            );
             ImageCreateInfo.format = Context->PhysicalDevice.DepthBufferFormat;
         }
     }
@@ -126,7 +135,9 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
 
     VkMemoryRequirements MemoryRequirements;
     vkGetImageMemoryRequirements(Device, Output.Image, &MemoryRequirements);
-    if (!VulkanAllocateMemory(Context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &Output.Memory))
+    if (!VulkanAllocateMemory(
+            Context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &Output.Memory
+        ))
     {
         return Handle<Texture>::Invalid();
     }
@@ -138,15 +149,13 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     // Now create the image view
     VkImageViewCreateInfo ImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     ImageViewCreateInfo.image = Output.Image;
-    ImageViewCreateInfo.viewType = Description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (Description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
+    ImageViewCreateInfo.viewType = Description.Type == TextureType::Type2D
+                                       ? VK_IMAGE_VIEW_TYPE_2D
+                                       : (Description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
     ImageViewCreateInfo.format = ImageCreateInfo.format;
 
-    if (
-        Description.Format == Format::RGB8_UNORM || 
-        Description.Format == Format::RGBA8_UNORM ||
-        Description.Format == Format::BGRA8_UNORM ||
-        Description.Format == Format::BGR8_UNORM
-    )
+    if (Description.Format == Format::RGB8_UNORM || Description.Format == Format::RGBA8_UNORM ||
+        Description.Format == Format::BGRA8_UNORM || Description.Format == Format::BGR8_UNORM)
     {
         ImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
@@ -171,44 +180,49 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     if (Description.CreateSampler)
     {
         VkSamplerCreateInfo SamplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-        SamplerInfo.magFilter       = ToVulkanFilter(Description.Sampler.MagFilter);
-        SamplerInfo.minFilter       = ToVulkanFilter(Description.Sampler.MinFilter);
-        SamplerInfo.addressModeU    = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeU);
-        SamplerInfo.addressModeV    = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeV);
-        SamplerInfo.addressModeW    = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeW);
-        SamplerInfo.borderColor     = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        SamplerInfo.compareEnable   = Description.Sampler.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
-        SamplerInfo.compareOp       = ToVulkanCompareOp(Description.Sampler.Compare);
-        SamplerInfo.mipmapMode      = ToVulkanSamplerMipMapMode(Description.Sampler.MipMapMode);
-        SamplerInfo.maxAnisotropy   = 16.0f;
+        SamplerInfo.magFilter = ToVulkanFilter(Description.Sampler.MagFilter);
+        SamplerInfo.minFilter = ToVulkanFilter(Description.Sampler.MinFilter);
+        SamplerInfo.addressModeU = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeU);
+        SamplerInfo.addressModeV = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeV);
+        SamplerInfo.addressModeW = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeW);
+        SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        SamplerInfo.compareEnable = Description.Sampler.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
+        SamplerInfo.compareOp = ToVulkanCompareOp(Description.Sampler.Compare);
+        SamplerInfo.mipmapMode = ToVulkanSamplerMipMapMode(Description.Sampler.MipMapMode);
+        SamplerInfo.maxAnisotropy = 16.0f;
         SamplerInfo.anisotropyEnable = Description.Sampler.AnisotropyEnabled;
         SamplerInfo.unnormalizedCoordinates = VK_FALSE;
 
         KRAFT_VK_CHECK(vkCreateSampler(Device, &SamplerInfo, Context->AllocationCallbacks, &Output.Sampler));
+        Context->SetObjectName((uint64)Output.Sampler, VK_OBJECT_TYPE_SAMPLER, Description.DebugName);
     }
 
-    return TexturePool.Insert({ 
-        .Width = Description.Dimensions.x, 
-        .Height = Description.Dimensions.y, 
-        .Channels = (uint8)Description.Dimensions.w,
-        .TextureFormat = Description.Format,
-        .SampleCount = Description.SampleCount,
-    }, Output);
+    return TexturePool.Insert(
+        {
+            .Width = Description.Dimensions.x,
+            .Height = Description.Dimensions.y,
+            .Channels = (uint8)Description.Dimensions.w,
+            .TextureFormat = Description.Format,
+            .SampleCount = Description.SampleCount,
+        },
+        Output
+    );
 }
 
 Handle<Buffer> VulkanResourceManager::CreateBuffer(BufferDescription Description)
 {
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice Device = VulkanRendererBackend::Device();
-    VulkanBuffer Output = {};
+    VulkanContext*        Context = VulkanRendererBackend::Context();
+    VkDevice              Device = VulkanRendererBackend::Device();
+    VulkanBuffer          Output = {};
     VkMemoryPropertyFlags MemoryProperties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
 
     VkBufferCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     CreateInfo.size = Description.Size;
     CreateInfo.sharingMode = ToVulkanSharingMode(Description.SharingMode);
     CreateInfo.usage = ToVulkanBufferUsage(Description.UsageFlags);
-    
+
     KRAFT_VK_CHECK(vkCreateBuffer(Device, &CreateInfo, Context->AllocationCallbacks, &Output.Handle));
+    Context->SetObjectName((uint64)Output.Handle, VK_OBJECT_TYPE_BUFFER, Description.DebugName);
 
     VkMemoryRequirements MemoryRequirements;
     vkGetBufferMemoryRequirements(Device, Output.Handle, &MemoryRequirements);
@@ -229,22 +243,22 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(BufferDescription Description
         vkMapMemory(VulkanRendererBackend::Device(), Output.Memory, 0, VK_WHOLE_SIZE, 0, &Ptr);
     }
 
-    return BufferPool.Insert({.Size = Description.Size, .Ptr = Ptr}, Output);
+    return BufferPool.Insert({ .Size = Description.Size, .Ptr = Ptr }, Output);
 }
 
 Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription Description)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice Device = VulkanRendererBackend::Device();
+    VkDevice       Device = VulkanRendererBackend::Device();
 
-    VkSubpassDescription Subpasses[8];
-    uint32 SubpassesIndex = 0;
-    VkAttachmentReference DepthAttachmentRef;
-    VkAttachmentReference ColorAttachmentRefs[31] = {};
-    uint32 AttachmentRefsIndex = 0;
+    VkSubpassDescription    Subpasses[8];
+    uint32                  SubpassesIndex = 0;
+    VkAttachmentReference   DepthAttachmentRef;
+    VkAttachmentReference   ColorAttachmentRefs[31] = {};
+    uint32                  AttachmentRefsIndex = 0;
     VkAttachmentDescription Attachments[31 + 1] = {};
-    VkImageView FramebufferImageViews[31 + 1] = {};
-    uint32 AttachmentsIndex = 0;
+    VkImageView             FramebufferImageViews[31 + 1] = {};
+    uint32                  AttachmentsIndex = 0;
 
     bool HasDepthTarget = false;
     for (int i = 0; i < Description.Layout.Subpasses.Size(); i++)
@@ -282,16 +296,16 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
     for (int i = 0; i < Description.ColorTargets.Size(); i++)
     {
         const ColorTarget& Target = Description.ColorTargets[i];
-        Texture* ColorTexture = this->TexturePool.GetAuxiliaryData(Target.Texture);
-        VulkanTexture* VkColorTexture = this->TexturePool.Get(Target.Texture);
+        Texture*           ColorTexture = this->TexturePool.GetAuxiliaryData(Target.Texture);
+        VulkanTexture*     VkColorTexture = this->TexturePool.Get(Target.Texture);
 
         Attachments[AttachmentsIndex] = {};
-        Attachments[AttachmentsIndex].format          = ToVulkanFormat(ColorTexture->TextureFormat);
-        Attachments[AttachmentsIndex].loadOp          = ToVulkanAttachmentLoadOp(Target.LoadOperation);
-        Attachments[AttachmentsIndex].storeOp         = ToVulkanAttachmentStoreOp(Target.StoreOperation);
-        Attachments[AttachmentsIndex].samples         = ToVulkanSampleCountFlagBits(ColorTexture->SampleCount);
-        Attachments[AttachmentsIndex].initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[AttachmentsIndex].finalLayout     = ToVulkanImageLayout(Target.NextUsage);
+        Attachments[AttachmentsIndex].format = ToVulkanFormat(ColorTexture->TextureFormat);
+        Attachments[AttachmentsIndex].loadOp = ToVulkanAttachmentLoadOp(Target.LoadOperation);
+        Attachments[AttachmentsIndex].storeOp = ToVulkanAttachmentStoreOp(Target.StoreOperation);
+        Attachments[AttachmentsIndex].samples = ToVulkanSampleCountFlagBits(ColorTexture->SampleCount);
+        Attachments[AttachmentsIndex].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[AttachmentsIndex].finalLayout = ToVulkanImageLayout(Target.NextUsage);
 
         FramebufferImageViews[AttachmentsIndex] = VkColorTexture->View;
 
@@ -300,21 +314,21 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
 
     if (HasDepthTarget)
     {
-        Texture* DepthTexture = this->TexturePool.GetAuxiliaryData(Description.DepthTarget.Texture);
+        Texture*       DepthTexture = this->TexturePool.GetAuxiliaryData(Description.DepthTarget.Texture);
         VulkanTexture* VkDepthTexture = this->TexturePool.Get(Description.DepthTarget.Texture);
 
         Attachments[AttachmentsIndex] = {};
-        Attachments[AttachmentsIndex].format          = ToVulkanFormat(DepthTexture->TextureFormat);
-        Attachments[AttachmentsIndex].loadOp          = ToVulkanAttachmentLoadOp(Description.DepthTarget.LoadOperation);
-        Attachments[AttachmentsIndex].storeOp         = ToVulkanAttachmentStoreOp(Description.DepthTarget.StoreOperation);
-        Attachments[AttachmentsIndex].stencilLoadOp   = ToVulkanAttachmentLoadOp(Description.DepthTarget.StencilLoadOperation);
-        Attachments[AttachmentsIndex].stencilStoreOp  = ToVulkanAttachmentStoreOp(Description.DepthTarget.StencilStoreOperation);
-        Attachments[AttachmentsIndex].samples         = ToVulkanSampleCountFlagBits(DepthTexture->SampleCount);
-        Attachments[AttachmentsIndex].initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED;
+        Attachments[AttachmentsIndex].format = ToVulkanFormat(DepthTexture->TextureFormat);
+        Attachments[AttachmentsIndex].loadOp = ToVulkanAttachmentLoadOp(Description.DepthTarget.LoadOperation);
+        Attachments[AttachmentsIndex].storeOp = ToVulkanAttachmentStoreOp(Description.DepthTarget.StoreOperation);
+        Attachments[AttachmentsIndex].stencilLoadOp = ToVulkanAttachmentLoadOp(Description.DepthTarget.StencilLoadOperation);
+        Attachments[AttachmentsIndex].stencilStoreOp = ToVulkanAttachmentStoreOp(Description.DepthTarget.StencilStoreOperation);
+        Attachments[AttachmentsIndex].samples = ToVulkanSampleCountFlagBits(DepthTexture->SampleCount);
+        Attachments[AttachmentsIndex].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        // TODO: If we want to sample the depth-stencil texture, should this layout be 
+        // TODO: If we want to sample the depth-stencil texture, should this layout be
         // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ? Figure this out
-        Attachments[AttachmentsIndex].finalLayout     = ToVulkanImageLayout(Description.DepthTarget.NextUsage);
+        Attachments[AttachmentsIndex].finalLayout = ToVulkanImageLayout(Description.DepthTarget.NextUsage);
 
         FramebufferImageViews[AttachmentsIndex] = VkDepthTexture->View;
 
@@ -325,16 +339,20 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
     dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
     dependencies[0].dstSubpass = 0;
     dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                   VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[0].srcAccessMask = VK_ACCESS_NONE_KHR;
-    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     dependencies[1].srcSubpass = 0;
     dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                   VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
@@ -361,8 +379,11 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
     Info.layers = 1;
 
     KRAFT_VK_CHECK(vkCreateFramebuffer(Device, &Info, Context->AllocationCallbacks, &Out.Framebuffer.Handle));
+    Context->SetObjectName((uint64)Out.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, Description.DebugName);
 
-    return this->RenderPassPool.Insert({ .Dimensions = Description.Dimensions, .DepthTarget = Description.DepthTarget, .ColorTargets = Description.ColorTargets }, Out);
+    return this->RenderPassPool.Insert(
+        { .Dimensions = Description.Dimensions, .DepthTarget = Description.DepthTarget, .ColorTargets = Description.ColorTargets }, Out
+    );
 }
 
 void VulkanResourceManager::DestroyTexture(Handle<Texture> Resource)
@@ -382,7 +403,7 @@ void VulkanResourceManager::DestroyRenderPass(Handle<RenderPass> Resource)
 
 uint8* VulkanResourceManager::GetBufferData(Handle<Buffer> BufferHandle)
 {
-    Buffer* Buffer = BufferPool.GetAuxiliaryData(BufferHandle);
+    Buffer*       Buffer = BufferPool.GetAuxiliaryData(BufferHandle);
     VulkanBuffer* GPUBuffer = BufferPool.Get(BufferHandle);
 
     // Map the buffer first if it not mapped yet
@@ -402,7 +423,7 @@ TempBuffer VulkanResourceManager::CreateTempBuffer(uint64 Size)
 bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffer> BufferHandle, uint64 BufferOffset)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    Texture* TextureMetadata = this->TexturePool.GetAuxiliaryData(Resource);
+    Texture*       TextureMetadata = this->TexturePool.GetAuxiliaryData(Resource);
     KASSERT(TextureMetadata);
 
     VulkanTexture* GPUTexture = this->TexturePool.Get(Resource);
@@ -434,8 +455,10 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
     vkCmdCopyBufferToImage(TempCmdBuffer.Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
 
     // Transition the layout from VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    // so the image turns into a suitable format for the shader to read 
-    VulkanTransitionImageLayout(Context, TempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // so the image turns into a suitable format for the shader to read
+    VulkanTransitionImageLayout(
+        Context, TempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
 
     // End our temp command buffer
     VulkanEndAndSubmitSingleUseCommandBuffer(Context, Context->GraphicsCommandPool, &TempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
@@ -445,20 +468,20 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
 
 bool VulkanResourceManager::UploadBuffer(UploadBufferDescription Description)
 {
-    VulkanBuffer *Src = this->BufferPool.Get(Description.SrcBuffer);
+    VulkanBuffer* Src = this->BufferPool.Get(Description.SrcBuffer);
     if (!Src)
     {
         return false;
     }
 
-    VulkanBuffer *Dst = this->BufferPool.Get(Description.DstBuffer);
+    VulkanBuffer* Dst = this->BufferPool.Get(Description.DstBuffer);
     if (!Dst)
     {
         return false;
     }
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice Device = VulkanRendererBackend::Device();
+    VkDevice       Device = VulkanRendererBackend::Device();
     vkDeviceWaitIdle(Device);
 
     VulkanCommandBuffer TempCmdBuffer;
@@ -475,33 +498,29 @@ bool VulkanResourceManager::UploadBuffer(UploadBufferDescription Description)
     return true;
 }
 
-Texture *VulkanResourceManager::GetTextureMetadata(Handle<Texture> Resource)
+Texture* VulkanResourceManager::GetTextureMetadata(Handle<Texture> Resource)
 {
     return TexturePool.GetAuxiliaryData(Resource);
 }
 
 void VulkanResourceManager::StartFrame(uint64 FrameNumber)
-{
-    
-}
+{}
 
 void VulkanResourceManager::EndFrame(uint64 FrameNumber)
 {
     // Render passes will be destroyed first because they may be referencing images
-    this->RenderPassPool.Cleanup([](VulkanRenderPass* RenderPass)
-    {
+    this->RenderPassPool.Cleanup([](VulkanRenderPass* RenderPass) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice Device = VulkanRendererBackend::Device();
+        VkDevice       Device = VulkanRendererBackend::Device();
         vkDeviceWaitIdle(Device);
 
         vkDestroyFramebuffer(Device, RenderPass->Framebuffer.Handle, Context->AllocationCallbacks);
         vkDestroyRenderPass(Device, RenderPass->Handle, Context->AllocationCallbacks);
     });
 
-    this->TexturePool.Cleanup([](VulkanTexture* Texture)
-    {
+    this->TexturePool.Cleanup([](VulkanTexture* Texture) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice Device = VulkanRendererBackend::Device();
+        VkDevice       Device = VulkanRendererBackend::Device();
 
         if (Texture->View)
         {
@@ -524,10 +543,9 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
         vkDestroySampler(Device, Texture->Sampler, Context->AllocationCallbacks);
     });
 
-    this->BufferPool.Cleanup([](VulkanBuffer* GPUResource)
-    {
+    this->BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice Device = VulkanRendererBackend::Device();
+        VkDevice       Device = VulkanRendererBackend::Device();
 
         vkFreeMemory(Device, GPUResource->Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, GPUResource->Handle, Context->AllocationCallbacks);

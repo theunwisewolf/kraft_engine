@@ -95,9 +95,16 @@ bool Application::Create(int argc, char* argv[])
     this->Suspended = false;
 
 #if defined(KRAFT_GUI_APP)
-    this->OnResize(this->Config.WindowWidth, this->Config.WindowHeight);
-
     EventSystem::Listen(EventType::EVENT_TYPE_WINDOW_RESIZE, this, Application::WindowResizeListener);
+
+    if (this->Config.StartMaximized)
+    {
+        Platform::GetWindow().Maximize();
+    }
+    else
+    {
+        this->OnResize(this->Config.WindowWidth, this->Config.WindowHeight);
+    }
 #endif
     return true;
 }
@@ -122,21 +129,21 @@ bool Application::Run()
             float64 currentTime = kraft::Time::ElapsedTime;
             float64 deltaTime = currentTime - State.LastTime;
             kraft::Time::DeltaTime = deltaTime;
-            timeSinceLastSecond += deltaTime;
+            timeSinceLastFrame += deltaTime;
 
             // TODO
             // this->Running = ??
             this->Update(deltaTime);
 
-            if (timeSinceLastSecond >= 1.f)
+            if (timeSinceLastFrame >= 1.f)
             {
-                timeSinceLastSecond = 0.f;
-                frames = 0;
+                timeSinceLastFrame = 0.f;
+                FrameCount = 0;
             }
 
-            if (deltaTime < targetFrameRate)
+            if (deltaTime < TargetFrameTime)
             {
-                Platform::SleepMilliseconds((targetFrameRate - deltaTime) * 1000.f);
+                Platform::SleepMilliseconds((TargetFrameTime - deltaTime) * 1000.f);
             }
 
             State.LastTime = currentTime;

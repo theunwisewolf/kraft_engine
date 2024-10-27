@@ -19,6 +19,7 @@ struct ApplicationConfig
     const char*                   WindowTitle;
     renderer::RendererBackendType RendererBackend = renderer::RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     bool                          ConsoleApp;
+    bool                          StartMaximized;
 };
 
 struct ApplicationState

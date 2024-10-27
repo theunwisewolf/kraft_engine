@@ -20,22 +20,41 @@ struct ShaderUniform;
 namespace renderer {
 
 // Templated only for type-safety
-template<typename T> struct Handle
+template<typename T>
+struct Handle
 {
 private:
     uint16 Index;
     uint16 Generation;
 
-    template<typename U, typename V> friend struct Pool;
-    Handle(uint16 Index, uint16 Generation) : Index(Index), Generation(Generation) {}
+    template<typename U, typename V>
+    friend struct Pool;
+    Handle(uint16 Index, uint16 Generation) : Index(Index), Generation(Generation)
+    {}
 
 public:
-    Handle() : Index(0), Generation(0) {}
-    static Handle Invalid() { return Handle(0, 0xffff); }
-    bool          IsInvalid() { return *this == Handle::Invalid(); }
+    Handle() : Index(0), Generation(0)
+    {}
 
-    bool operator==(const Handle<T> Other) { return Other.Generation == Generation && Other.Index == Index; }
-    bool operator!=(const Handle<T> Other) { return Other.Generation != Generation || Other.Index != Index; }
+    static Handle Invalid()
+    {
+        return Handle(0, 0xffff);
+    }
+
+    bool IsInvalid()
+    {
+        return *this == Handle::Invalid();
+    }
+
+    bool operator==(const Handle<T> Other)
+    {
+        return Other.Generation == Generation && Other.Index == Index;
+    }
+
+    bool operator!=(const Handle<T> Other)
+    {
+        return Other.Generation != Generation || Other.Index != Index;
+    }
 };
 
 struct ShaderEffect;
@@ -53,7 +72,8 @@ struct GlobalUniformData
         char _[256];
     };
 
-    GlobalUniformData() {}
+    GlobalUniformData()
+    {}
 };
 
 struct Renderable
@@ -470,13 +490,23 @@ static const char* String(Enum Value)
 }
 }
 
-enum CullModeFlags
+namespace CullModeFlags {
+enum Enum
 {
-    CULL_MODE_FLAGS_NONE = 1 << 0,
-    CULL_MODE_FLAGS_FRONT = 1 << 1,
-    CULL_MODE_FLAGS_BACK = 1 << 2,
-    CULL_MODE_FLAGS_FRONT_AND_BACK = 1 << 3,
+    None,
+    Front,
+    Back,
+    FrontAndBack = Front | Back,
+    Count,
 };
+
+static const char* Strings[] = { "None", "Front", "Back", "BackAndFront", "Count" };
+
+static const char* String(Enum Value)
+{
+    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+}
+}
 
 enum TextureUsageFlags
 {
@@ -629,6 +659,8 @@ struct TextureDescription
 
 struct BufferDescription
 {
+    const char* DebugName;
+
     uint64            Size;
     uint64            UsageFlags;
     uint64            MemoryPropertyFlags;

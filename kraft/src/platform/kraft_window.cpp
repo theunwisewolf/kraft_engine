@@ -54,13 +54,12 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
     // Window callbacks
     glfwSetWindowUserPointer(this->PlatformWindowHandle, this);
     glfwSetWindowSizeCallback(this->PlatformWindowHandle, WindowSizeCallback);
+    glfwSetWindowMaximizeCallback(this->PlatformWindowHandle, WindowMaximizeCallback);
     glfwSetKeyCallback(this->PlatformWindowHandle, KeyCallback);
     glfwSetMouseButtonCallback(this->PlatformWindowHandle, MouseButtonCallback);
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
-
-    glfwMaximizeWindow(this->PlatformWindowHandle);
 
     return 0;
 }
@@ -82,13 +81,37 @@ void Window::SetWindowTitle(const char* title)
     glfwSetWindowTitle(this->PlatformWindowHandle, title);
 }
 
+void Window::Minimize()
+{
+    glfwHideWindow(this->PlatformWindowHandle);
+}
+
+void Window::Maximize()
+{
+    glfwMaximizeWindow(this->PlatformWindowHandle);
+}
+
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
 {
     EventData data;
     data.UInt32Value[0] = width;
     data.UInt32Value[1] = height;
+    data.UInt32Value[2] = 0; // Maximized
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, data, glfwGetWindowUserPointer(window));
+}
+
+void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
+{
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+
+    EventData data;
+    data.UInt32Value[0] = width;
+    data.UInt32Value[1] = height;
+    data.UInt32Value[2] = maximized;
+
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_MAXIMIZE, data, glfwGetWindowUserPointer(window));
 }
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)

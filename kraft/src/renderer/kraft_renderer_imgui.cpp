@@ -1,26 +1,25 @@
 #include "kraft_renderer_imgui.h"
 
-#include "core/kraft_log.h"
 #include "core/kraft_application.h"
+#include "core/kraft_log.h"
 #include "renderer/vulkan/kraft_vulkan_imgui.h"
 
-#include <imgui/imgui.h>
 #include <imgui/extensions/imguizmo/ImGuizmo.h>
+#include <imgui/imgui.h>
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
-static bool WidgetsNeedRefresh = false;
+static bool                  WidgetsNeedRefresh = false;
 static RendererImguiBackend* Backend = nullptr;
 
 bool RendererCreateImguiBackend(RendererBackendType type, RendererImguiBackend* backend)
 {
     if (type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
-        backend->Init       = VulkanImgui::Init;
-        backend->Destroy    = VulkanImgui::Destroy;
+        backend->Init = VulkanImgui::Init;
+        backend->Destroy = VulkanImgui::Destroy;
         backend->BeginFrame = VulkanImgui::BeginFrame;
-        backend->EndFrame   = VulkanImgui::EndFrame;
+        backend->EndFrame = VulkanImgui::EndFrame;
         backend->AddTexture = VulkanImgui::AddTexture;
         backend->RemoveTexture = VulkanImgui::RemoveTexture;
         backend->PostFrameCleanup = VulkanImgui::PostFrameCleanup;
@@ -47,16 +46,17 @@ bool RendererImGui::Init(ApplicationConfig* config)
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
 
     IniFilename = String(256, 0);
     StringFormat(*IniFilename, (int)IniFilename.Allocated, "%s/kraft_imgui_config.ini", kraft::Application::Get()->BasePath.Data());
     io.IniFilename = *IniFilename;
-    
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
@@ -131,9 +131,9 @@ void RendererImGui::BeginFrame(float64 DeltaTime)
 
     ImGuiID DockspaceID = ImGui::GetID("MainDockspace");
     // ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
-    static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+    static ImGuiDockNodeFlags dockspace_flags = 0;
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    ImGuiWindowFlags     window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -143,7 +143,7 @@ void RendererImGui::BeginFrame(float64 DeltaTime)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    
+
     static bool p_open = true;
     ImGui::Begin("DockSpace Demo", &p_open, window_flags);
     ImGui::PopStyleVar();
@@ -186,11 +186,26 @@ void RendererImGui::BeginFrame(float64 DeltaTime)
         {
             ImGui::Separator();
 
-            if (ImGui::MenuItem("Flag: NoDockingOverCentralNode", "", (dockspace_flags & ImGuiDockNodeFlags_NoDockingOverCentralNode) != 0))   { dockspace_flags ^= ImGuiDockNodeFlags_NoDockingOverCentralNode; }
-            if (ImGui::MenuItem("Flag: NoDockingSplit",           "", (dockspace_flags & ImGuiDockNodeFlags_NoDockingSplit) != 0))             { dockspace_flags ^= ImGuiDockNodeFlags_NoDockingSplit; }
-            if (ImGui::MenuItem("Flag: NoUndocking",              "", (dockspace_flags & ImGuiDockNodeFlags_NoUndocking) != 0))                { dockspace_flags ^= ImGuiDockNodeFlags_NoUndocking; }
-            if (ImGui::MenuItem("Flag: NoResize",                 "", (dockspace_flags & ImGuiDockNodeFlags_NoResize) != 0))                   { dockspace_flags ^= ImGuiDockNodeFlags_NoResize; }
-            if (ImGui::MenuItem("Flag: AutoHideTabBar",           "", (dockspace_flags & ImGuiDockNodeFlags_AutoHideTabBar) != 0))             { dockspace_flags ^= ImGuiDockNodeFlags_AutoHideTabBar; }
+            if (ImGui::MenuItem("Flag: NoDockingOverCentralNode", "", (dockspace_flags & ImGuiDockNodeFlags_NoDockingOverCentralNode) != 0))
+            {
+                dockspace_flags ^= ImGuiDockNodeFlags_NoDockingOverCentralNode;
+            }
+            if (ImGui::MenuItem("Flag: NoDockingSplit", "", (dockspace_flags & ImGuiDockNodeFlags_NoDockingSplit) != 0))
+            {
+                dockspace_flags ^= ImGuiDockNodeFlags_NoDockingSplit;
+            }
+            if (ImGui::MenuItem("Flag: NoUndocking", "", (dockspace_flags & ImGuiDockNodeFlags_NoUndocking) != 0))
+            {
+                dockspace_flags ^= ImGuiDockNodeFlags_NoUndocking;
+            }
+            if (ImGui::MenuItem("Flag: NoResize", "", (dockspace_flags & ImGuiDockNodeFlags_NoResize) != 0))
+            {
+                dockspace_flags ^= ImGuiDockNodeFlags_NoResize;
+            }
+            if (ImGui::MenuItem("Flag: AutoHideTabBar", "", (dockspace_flags & ImGuiDockNodeFlags_AutoHideTabBar) != 0))
+            {
+                dockspace_flags ^= ImGuiDockNodeFlags_AutoHideTabBar;
+            }
             ImGui::Separator();
 
             if (ImGui::MenuItem("Close", NULL, false, p_open != NULL))

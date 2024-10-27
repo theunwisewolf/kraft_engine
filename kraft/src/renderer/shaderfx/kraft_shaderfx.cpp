@@ -654,19 +654,19 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
 
             if (Token.MatchesKeyword("Back"))
             {
-                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_BACK;
+                State.CullMode = CullModeFlags::Back;
             }
             else if (Token.MatchesKeyword("Front"))
             {
-                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_FRONT;
+                State.CullMode = CullModeFlags::Front;
             }
             else if (Token.MatchesKeyword("FrontAndBack"))
             {
-                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_FRONT_AND_BACK;
+                State.CullMode = CullModeFlags::FrontAndBack;
             }
             else if (Token.MatchesKeyword("Off"))
             {
-                State.CullMode = CullModeFlags::CULL_MODE_FLAGS_NONE;
+                State.CullMode = CullModeFlags::None;
             }
             else
             {

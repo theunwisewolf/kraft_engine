@@ -45,7 +45,12 @@ bool ReadDir(const String& Path, Array<FileInfo>& OutFiles)
 
     if (INVALID_HANDLE_VALUE == hFind) 
     {
-        KERROR("[Win32]: FindFirstFile failed with error code %d", GetLastError());
+        kraft::String ErrorMessage(1024, 0);
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
+                    *ErrorMessage, ErrorMessage.Length, NULL);
+
+        KERROR("[Win32]: FindFirstFile failed with error %s", *ErrorMessage);
         return false;
     }
 

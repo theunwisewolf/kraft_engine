@@ -7,3 +7,4 @@
 
 void InitImguiWidgets(kraft::renderer::Handle<kraft::Texture> DiffuseTexture);
 void DrawImGuiWidgets(bool refresh);
+void PipelineDebugger();

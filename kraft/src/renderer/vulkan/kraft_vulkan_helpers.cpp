@@ -129,25 +129,27 @@ VkBlendOp ToVulkanBlendOp(BlendOp::Enum Value)
     return Mapping[Value];
 }
 
-VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags Value)
+VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags::Enum Value)
 {
-    if (Value & CullModeFlags::CULL_MODE_FLAGS_NONE) return VK_CULL_MODE_NONE;
-    if (Value & CullModeFlags::CULL_MODE_FLAGS_FRONT) return VK_CULL_MODE_FRONT_BIT;
-    if (Value & CullModeFlags::CULL_MODE_FLAGS_BACK) return VK_CULL_MODE_BACK_BIT;
-    if (Value & CullModeFlags::CULL_MODE_FLAGS_FRONT_AND_BACK) return VK_CULL_MODE_FRONT_AND_BACK;
+    static VkCullModeFlagBits Mapping[CullModeFlags::Count] = 
+    {
+        VK_CULL_MODE_NONE, 
+        VK_CULL_MODE_FRONT_BIT, 
+        VK_CULL_MODE_BACK_BIT, 
+        VK_CULL_MODE_FRONT_AND_BACK, 
+    };
 
-    KASSERTM(false, "Invalid cull mode");
-    return VkCullModeFlagBits(0);
+    return Mapping[Value];
 }
 
 VkCullModeFlags ToVulkanCullModeFlags(uint64 Flags)
 {
     VkCullModeFlags Result = 0;
 
-    Result |= (Flags & CULL_MODE_FLAGS_NONE) ? VK_CULL_MODE_NONE : 0;
-    Result |= (Flags & CULL_MODE_FLAGS_FRONT) ? VK_CULL_MODE_FRONT_BIT : 0;
-    Result |= (Flags & CULL_MODE_FLAGS_BACK) ? VK_CULL_MODE_BACK_BIT : 0;
-    Result |= (Flags & CULL_MODE_FLAGS_FRONT_AND_BACK) ? VK_CULL_MODE_FRONT_AND_BACK : 0;
+    Result |= (Flags & CullModeFlags::None) ? VK_CULL_MODE_NONE : 0;
+    Result |= (Flags & CullModeFlags::Front) ? VK_CULL_MODE_FRONT_BIT : 0;
+    Result |= (Flags & CullModeFlags::Back) ? VK_CULL_MODE_BACK_BIT : 0;
+    Result |= (Flags & CullModeFlags::FrontAndBack) ? VK_CULL_MODE_FRONT_AND_BACK : 0;
 
     return Result;
 }

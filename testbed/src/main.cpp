@@ -4,44 +4,44 @@
 // #include <glad/vulkan.h>
 
 #include "core/kraft_asserts.h"
-#include "core/kraft_main.h"
-#include "core/kraft_memory.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
+#include "core/kraft_main.h"
+#include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "core/kraft_time.h"
 #include "math/kraft_math.h"
-#include "platform/kraft_platform.h"
 #include "platform/kraft_filesystem.h"
+#include "platform/kraft_platform.h"
 #include "renderer/kraft_renderer_types.h"
+#include "renderer/shaderfx/kraft_shaderfx.h"
+#include "systems/kraft_geometry_system.h"
 #include "systems/kraft_material_system.h"
 #include "systems/kraft_texture_system.h"
-#include "systems/kraft_geometry_system.h"
-#include "renderer/shaderfx/kraft_shaderfx.h"
 
 #include <imgui.h>
 
 #include "scenes/simple_scene.h"
-#include "widgets.h"
 #include "utils.h"
+#include "widgets.h"
 
 #include <systems/kraft_asset_database.h>
 
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
 static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
-bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
-    int count = (int)data.Int64Value[0];
-    const char **paths = (const char**)data.Int64Value[1];
+    int          count = (int)data.Int64Value[0];
+    const char** paths = (const char**)data.Int64Value[1];
 
     // Try loading the texture from the command line args
-    const char *TexturePath = paths[count - 1];
+    const char* TexturePath = paths[count - 1];
     if (kraft::filesystem::FileExists(TexturePath))
     {
         KINFO("Loading texture from path %s", TexturePath);
         kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
-        UpdateObjectScale();
+        UpdateObjectScale(1);
     }
     else
     {
@@ -51,7 +51,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
     return false;
 }
 
-bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     kraft::Keys KeyCode = (kraft::Keys)data.Int32Value[0];
     KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
@@ -62,13 +62,13 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
         kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
         kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
         DefaultTexture = !DefaultTexture;
-        UpdateObjectScale();
+        UpdateObjectScale(1);
     }
 
     return false;
 }
 
-bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32Value[0];
     KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
@@ -76,7 +76,7 @@ bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kra
     return false;
 }
 
-bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     // int x = data.Int32[0];
     // int y = data.Int32[1];
@@ -85,7 +85,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
     return false;
 }
 
-bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int button = data.Int32Value[0];
     KINFO("%d mouse button pressed", button);
@@ -93,7 +93,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
     return false;
 }
 
-bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int button = data.Int32Value[0];
     KINFO("%d mouse button released", button);
@@ -101,7 +101,7 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
     return false;
 }
 
-bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int x = data.Int32Value[0];
     int y = data.Int32Value[1];
@@ -110,15 +110,15 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
     return false;
 }
 
-bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     kraft::Camera& Camera = TestSceneState->SceneCamera;
     if (kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
-        const float32 Sensitivity = 0.1f;
+        const float32        Sensitivity = 0.1f;
         kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
-        float32 x = float32(data.Int32Value[0] - MousePositionPrev.x) * Sensitivity;
-        float32 y = -float32(data.Int32Value[1] - MousePositionPrev.y) * Sensitivity;
+        float32              x = float32(data.Int32Value[0] - MousePositionPrev.x) * Sensitivity;
+        float32              y = -float32(data.Int32Value[1] - MousePositionPrev.y) * Sensitivity;
 
         Camera.Yaw += x;
         Camera.Pitch += y;
@@ -130,7 +130,7 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
     return false;
 }
 
-bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int x = data.Int32Value[0];
     int y = data.Int32Value[1];
@@ -139,7 +139,7 @@ bool MouseDragEndEventListener(kraft::EventType type, void* sender, void* listen
     return false;
 }
 
-bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data) 
+bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     // kraft::Camera& Camera = TestSceneState->SceneCamera;
 
@@ -212,10 +212,14 @@ bool Init()
     // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
 
     SimpleObjectState EntityA;
-    EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
-    // EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
+    // // EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
     EntityA.GeometryID = VikingRoom->Geometry->InternalID;
-    EntityA.SetTransform({0.0f, 0.0f, 0.0f}, { kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, {10.0f, 10.0f, 10.0f});
+    EntityA.SetTransform(
+        { 0.0f, 0.0f, 16.0f },
+        { kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
+        { 10.0f, 10.0f, 10.0f }
+    );
     TestSceneState->AddEntity(EntityA);
 
     const float ObjectCount = 0.0f;
@@ -229,26 +233,26 @@ bool Init()
         Object.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
 
         float x = ((ObjectCount * ObjectWidth + Spacing) * -0.5f) + i * ObjectWidth + Spacing;
-        Object.SetTransform({x, 200.0f, 0.0f}, kraft::Vec3fZero, {ObjectWidth, ObjectHeight, 50.0f});
+        Object.SetTransform({ x, 200.0f, 0.0f }, kraft::Vec3fZero, { ObjectWidth, ObjectHeight, 50.0f });
         TestSceneState->AddEntity(Object);
     }
 
-    // SimpleObjectState EntityB;
-    // EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d_wireframe.kmt");
-    // EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    // EntityB.SetTransform({105.0f, 0.0f, 0.0f}, kraft::Vec3fZero, {200.0f, 200.0f, 200.0f});
-    // TestSceneState->AddEntity(EntityB);
+    SimpleObjectState EntityB;
+    EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    EntityB.SetTransform({ 0.0f, 0.0f, 0.0f }, kraft::Vec3fZero, { 200.0f, 200.0f, 200.0f });
+    TestSceneState->AddEntity(EntityB);
 
     // MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
     TestSceneState->SelectedObjectIndex = 0;
 
     SetProjection(kraft::CameraProjectionType::Perspective);
-    
+
     // To preserve the aspect ratio of the texture
-    // UpdateObjectScale();
+    UpdateObjectScale(1);
 
     const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
-    Handle<Texture> DiffuseTexture = Material->GetUniform<Handle<Texture>>("DiffuseSampler");
+    Handle<Texture>        DiffuseTexture = Material->GetUniform<Handle<Texture>>("DiffuseSampler");
     InitImguiWidgets(DiffuseTexture);
 
     return true;
@@ -260,7 +264,7 @@ void Update(float64 deltaTime)
     kraft::Camera& Camera = TestSceneState->SceneCamera;
     // if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
-        float32 Speed = 50.f * deltaTime;
+        float32      Speed = 50.f * deltaTime;
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
@@ -368,14 +372,10 @@ void OnResize(size_t width, size_t height)
 }
 
 void OnBackground()
-{
-
-}
+{}
 
 void OnForeground()
-{
-
-}
+{}
 
 bool Shutdown()
 {
@@ -384,24 +384,23 @@ bool Shutdown()
     return true;
 }
 
-
-bool CreateApplication(kraft::Application* app, int argc, char *argv[])
+bool CreateApplication(kraft::Application* app, int argc, char* argv[])
 {
     app->Config.ApplicationName = "Kraft!";
-    app->Config.WindowTitle     = "Kraft! [VULKAN]";
-    app->Config.WindowWidth     = 1280;
-    app->Config.WindowHeight    = 800;
+    app->Config.WindowTitle = "Kraft! [VULKAN]";
+    app->Config.WindowWidth = 1280;
+    app->Config.WindowHeight = 800;
     app->Config.RendererBackend = kraft::renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
-    app->Config.ConsoleApp      = false;
+    app->Config.ConsoleApp = false;
+    app->Config.StartMaximized = true;
 
-    app->Init                   = Init;
-    app->Update                 = Update;
-    app->Render                 = Render;
-    app->OnResize               = OnResize;
-    app->OnBackground           = OnBackground;
-    app->OnForeground           = OnForeground;
-    app->Shutdown               = Shutdown;
+    app->Init = Init;
+    app->Update = Update;
+    app->Render = Render;
+    app->OnResize = OnResize;
+    app->OnBackground = OnBackground;
+    app->OnForeground = OnForeground;
+    app->Shutdown = Shutdown;
 
     return true;
 }
-

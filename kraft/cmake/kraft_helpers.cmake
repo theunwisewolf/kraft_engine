@@ -25,7 +25,7 @@ if (NOT Vulkan_FOUND)
 endif()
 
 
-add_subdirectory(${KRAFT_PATH}/vendor/volk)
+add_subdirectory(${KRAFT_PATH}/vendor/volk ${KRAFT_BINARY_DIR}/vendor/volk)
 add_subdirectory(${KRAFT_PATH}/vendor/glfw ${KRAFT_BINARY_DIR}/vendor/glfw)
 
 set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
