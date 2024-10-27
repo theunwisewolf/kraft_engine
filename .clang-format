@@ -20,6 +20,7 @@ BreakBeforeBraces: Custom
 AllowShortEnumsOnASingleLine: true
 AllowShortCaseExpressionOnASingleLine: 'true'
 AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
 AlignConsecutiveShortCaseStatements:
   Enabled: true
   AcrossEmptyLines: true

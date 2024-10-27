@@ -1,28 +1,39 @@
 #include "kraft_shaderfx.h"
 
-#include "core/kraft_memory.h"
-#include "core/kraft_asserts.h"
-#include "platform/kraft_filesystem.h"
 #include "containers/kraft_buffer.h"
+#include "core/kraft_asserts.h"
+#include "core/kraft_memory.h"
+#include "platform/kraft_filesystem.h"
 
 #include "shaderc/shaderc.h"
 
-#define MARK_ERROR(error) do { this->Error = true; \
-            this->ErrorLine = this->Lexer->Line; \
-            this->ErrorString = error; } while(0)
+#define MARK_ERROR(error)                                                                                                                  \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        this->Error = true;                                                                                                                \
+        this->ErrorLine = this->Lexer->Line;                                                                                               \
+        this->ErrorString = error;                                                                                                         \
+    } while (0)
 
-#define MARK_ERROR_RETURN(error) do { this->Error = true; \
-            this->ErrorLine = this->Lexer->Line; \
-            this->ErrorString = error; \
-            return; } while(0)
+#define MARK_ERROR_RETURN(error)                                                                                                           \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        this->Error = true;                                                                                                                \
+        this->ErrorLine = this->Lexer->Line;                                                                                               \
+        this->ErrorString = error;                                                                                                         \
+        return;                                                                                                                            \
+    } while (0)
 
-#define MARK_ERROR_WITH_FIELD_RETURN(error, field) do { this->Error = true; \
-            this->ErrorLine = this->Lexer->Line; \
-            this->ErrorString = error + String("'") + field + String("'"); \
-            return; } while(0)
+#define MARK_ERROR_WITH_FIELD_RETURN(error, field)                                                                                         \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        this->Error = true;                                                                                                                \
+        this->ErrorLine = this->Lexer->Line;                                                                                               \
+        this->ErrorString = error + String("'") + field + String("'");                                                                     \
+        return;                                                                                                                            \
+    } while (0)
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
 int GetShaderStageFromString(StringView Value)
 {
@@ -55,8 +66,7 @@ void ShaderFXParser::Create(const String& SourceFilePath, kraft::Lexer* Lexer)
 }
 
 void ShaderFXParser::Destroy()
-{
-}
+{}
 
 void ShaderFXParser::GenerateAST()
 {
@@ -85,35 +95,40 @@ void ShaderFXParser::ParseIdentifier(Token Token)
             {
                 this->ParseShaderDeclaration();
             }
-        } break;
+        }
+        break;
         case 'L':
         {
             if (Token.MatchesKeyword("Layout"))
             {
                 this->ParseLayoutBlock();
             }
-        } break;
+        }
+        break;
         case 'G':
         {
             if (Token.MatchesKeyword("GLSL"))
             {
                 this->ParseGLSLBlock();
             }
-        } break;
+        }
+        break;
         case 'R':
         {
             if (Token.MatchesKeyword("RenderState"))
             {
                 this->ParseRenderStateBlock();
             }
-        } break;
+        }
+        break;
         case 'P':
         {
             if (Token.MatchesKeyword("Pass"))
             {
                 this->ParseRenderPassBlock();
             }
-        } break;
+        }
+        break;
     }
 }
 
@@ -139,7 +154,8 @@ void ShaderFXParser::ParseLayoutBlock()
     while (!this->Lexer->EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
         // TODO: Errors when something other than an identifier is found
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER) continue;
+        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+            continue;
 
         if (Token.MatchesKeyword("Vertex"))
         {
@@ -148,7 +164,7 @@ void ShaderFXParser::ParseLayoutBlock()
 
             VertexLayoutDefinition Layout;
             Layout.Name = String(Token.Text, Token.Length);
-            
+
             this->ParseVertexLayout(Layout);
 
             this->Shader.VertexLayouts.Push(Layout);
@@ -191,7 +207,8 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition& ResourceB
     while (!this->Lexer->EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
         // TODO: Errors when something other than an identifier is found
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER) continue;
+        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+            continue;
 
         ResourceBinding Binding;
         if (Token.MatchesKeyword("UniformBuffer"))
@@ -252,10 +269,11 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition& CBufferDefini
     while (!this->Lexer->EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
         // TODO: Errors when something other than an identifier is found
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER) continue;
+        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+            continue;
 
         ConstantBufferEntry Entry;
-        
+
         // Parse the data type
         Entry.Type = this->ParseDataType(Token);
         if (Entry.Type == ShaderDataType::Count)
@@ -268,7 +286,7 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition& CBufferDefini
         {
             return;
         }
-        
+
         Entry.Name = Token.String();
 
         // Parse properties
@@ -296,7 +314,11 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition& CBufferDefini
     }
 }
 
-#define MATCH_FORMAT(type, value) if (Token.MatchesKeyword(type)) { return value; }
+#define MATCH_FORMAT(type, value)                                                                                                          \
+    if (Token.MatchesKeyword(type))                                                                                                        \
+    {                                                                                                                                      \
+        return value;                                                                                                                      \
+    }
 
 ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
 {
@@ -314,7 +336,8 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
             MATCH_FORMAT("Float3", ShaderDataType::Float3);
             MATCH_FORMAT("float4", ShaderDataType::Float4);
             MATCH_FORMAT("Float4", ShaderDataType::Float4);
-        } break;
+        }
+        break;
         case 'm': // "Mat4"
         case 'M': // "Mat4"
         {
@@ -328,7 +351,8 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
             MATCH_FORMAT("Byte", ShaderDataType::Byte);
             MATCH_FORMAT("byte4n", ShaderDataType::Byte4N);
             MATCH_FORMAT("Byte4N", ShaderDataType::Byte4N);
-        } break;
+        }
+        break;
         case 'u': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         case 'U': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         {
@@ -342,7 +366,8 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
             MATCH_FORMAT("UInt2", ShaderDataType::UInt2);
             MATCH_FORMAT("uint4", ShaderDataType::UInt4);
             MATCH_FORMAT("UInt4", ShaderDataType::UInt4);
-        } break;
+        }
+        break;
         case 's': // "Short2", "Short2N", "Short4", "Short4N"
         case 'S': // "Short2", "Short2N", "Short4", "Short4N"
         {
@@ -354,7 +379,8 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(Token Token)
             MATCH_FORMAT("Short4", ShaderDataType::Short4);
             MATCH_FORMAT("short4n", ShaderDataType::Short4N);
             MATCH_FORMAT("Short4N", ShaderDataType::Short4N);
-        } break;
+        }
+        break;
     }
 
     return ShaderDataType::Count;
@@ -400,7 +426,8 @@ void ShaderFXParser::ParseVertexLayout(VertexLayoutDefinition& Layout)
     while (!this->Lexer->EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
         // TODO: Errors when something other than an identifier is found
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER) continue;
+        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+            continue;
 
         if (Token.MatchesKeyword("Attribute"))
         {
@@ -413,9 +440,9 @@ void ShaderFXParser::ParseVertexLayout(VertexLayoutDefinition& Layout)
     }
 }
 
-void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition &Layout)
+void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition& Layout)
 {
-    Token Token;
+    Token           Token;
     VertexAttribute Attribute;
     Attribute.Format = ShaderDataType::Count;
 
@@ -478,9 +505,9 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition &Layout)
 
 void ShaderFXParser::ParseVertexInputBinding(VertexLayoutDefinition& Layout)
 {
-    Token Token;
+    Token              Token;
     VertexInputBinding InputBinding;
-    
+
     // Binding
     if (this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_NUMBER))
     {
@@ -532,13 +559,13 @@ void ShaderFXParser::ParseGLSLBlock()
 
     ShaderCodeFragment CodeFragment;
     CodeFragment.Name = String(Token.Text, Token.Length);
-    
+
     // Consume the first brace of the GLSL Block
     if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
         return;
     }
-    
+
     Token = this->Lexer->NextToken();
     CodeFragment.Code.Buffer = Token.Text;
 
@@ -563,7 +590,7 @@ void ShaderFXParser::ParseGLSLBlock()
     CodeFragment.Code.Length = Token.Text - CodeFragment.Code.Buffer;
     this->Shader.CodeFragments.Push(CodeFragment);
 
-    String CodeStr(CodeFragment.Code);
+    String CodeStr(CodeFragment.Code.Buffer, CodeFragment.Code.Length);
     KDEBUG("%s", *CodeStr);
 }
 
@@ -582,7 +609,7 @@ void ShaderFXParser::ParseRenderStateBlock()
         {
             this->Error = true;
             this->ErrorLine = this->Lexer->Line;
-            
+
             return;
         }
 
@@ -594,7 +621,7 @@ void ShaderFXParser::ParseRenderStateBlock()
 
             RenderStateDefinition State;
             State.Name = String(Token.Text, Token.Length);
-            
+
             this->ParseRenderState(State);
 
             this->Shader.RenderStates.Push(State);
@@ -624,7 +651,7 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
             {
                 return;
             }
-            
+
             if (Token.MatchesKeyword("Back"))
             {
                 State.CullMode = CullModeFlags::CULL_MODE_FLAGS_BACK;
@@ -798,7 +825,7 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
             {
                 return;
             }
-            
+
             State.LineWidth = (float32)Token.FloatValue;
         }
     }
@@ -871,10 +898,11 @@ void ShaderFXParser::ParseRenderPassBlock()
 
         if (Token.MatchesKeyword("RenderState"))
         {
-            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER)) return;
+            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                return;
 
             StringView Name = Token.StringView();
-            bool Valid = false;
+            bool       Valid = false;
             for (int i = 0; i < this->Shader.RenderStates.Length; i++)
             {
                 if (this->Shader.RenderStates[i].Name == Name)
@@ -885,14 +913,16 @@ void ShaderFXParser::ParseRenderPassBlock()
                 }
             }
 
-            if (!Valid) MARK_ERROR_WITH_FIELD_RETURN("Unknown render state", Name);
+            if (!Valid)
+                MARK_ERROR_WITH_FIELD_RETURN("Unknown render state", Name);
         }
         else if (Token.MatchesKeyword("VertexLayout"))
         {
-            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER)) return;
-            
+            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                return;
+
             StringView Name = Token.StringView();
-            bool Valid = false;
+            bool       Valid = false;
             for (int i = 0; i < this->Shader.VertexLayouts.Length; i++)
             {
                 if (this->Shader.VertexLayouts[i].Name == Name)
@@ -903,14 +933,16 @@ void ShaderFXParser::ParseRenderPassBlock()
                 }
             }
 
-            if (!Valid) MARK_ERROR_WITH_FIELD_RETURN("Unknown vertex layout", Name);
+            if (!Valid)
+                MARK_ERROR_WITH_FIELD_RETURN("Unknown vertex layout", Name);
         }
         else if (Token.MatchesKeyword("Resources"))
         {
-            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER)) return;
+            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                return;
 
             StringView Name = Token.StringView();
-            bool Valid = false;
+            bool       Valid = false;
             for (int i = 0; i < this->Shader.Resources.Length; i++)
             {
                 if (this->Shader.Resources[i].Name == Name)
@@ -918,17 +950,19 @@ void ShaderFXParser::ParseRenderPassBlock()
                     Pass.Resources = &this->Shader.Resources[i];
                     Valid = true;
                     break;
-                } 
+                }
             }
 
-            if (!Valid) MARK_ERROR_WITH_FIELD_RETURN("Unknown resource buffer", Name);
+            if (!Valid)
+                MARK_ERROR_WITH_FIELD_RETURN("Unknown resource buffer", Name);
         }
         else if (Token.MatchesKeyword("ConstantBuffer"))
         {
-            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER)) return;
+            if (!this->Lexer->ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                return;
 
             StringView Name = Token.StringView();
-            bool Valid = false;
+            bool       Valid = false;
             for (int i = 0; i < this->Shader.ConstantBuffers.Length; i++)
             {
                 if (this->Shader.ConstantBuffers[i].Name == Name)
@@ -936,10 +970,11 @@ void ShaderFXParser::ParseRenderPassBlock()
                     Pass.ConstantBuffers = &this->Shader.ConstantBuffers[i];
                     Valid = true;
                     break;
-                } 
+                }
             }
 
-            if (!Valid) MARK_ERROR_WITH_FIELD_RETURN("Unknown constant buffer", Name);
+            if (!Valid)
+                MARK_ERROR_WITH_FIELD_RETURN("Unknown constant buffer", Name);
         }
         else if (Token.MatchesKeyword("VertexShader"))
         {
@@ -976,7 +1011,7 @@ bool ShaderFXParser::ParseRenderPassShaderStage(RenderPassDefinition& Pass, rend
             Stage.Stage = ShaderStage;
             Stage.CodeFragment = this->Shader.CodeFragments[i];
             Pass.ShaderStages.Push(Stage);
-            
+
             return true;
         }
     }
@@ -986,18 +1021,18 @@ bool ShaderFXParser::ParseRenderPassShaderStage(RenderPassDefinition& Pass, rend
     return false;
 }
 
-#define KRAFT_VERTEX_DEFINE "VERTEX"
-#define KRAFT_GEOMETRY_DEFINE "GEOMETRY"
-#define KRAFT_FRAGMENT_DEFINE "FRAGMENT"
-#define KRAFT_COMPUTE_DEFINE "COMPUTE"
+#define KRAFT_VERTEX_DEFINE       "VERTEX"
+#define KRAFT_GEOMETRY_DEFINE     "GEOMETRY"
+#define KRAFT_FRAGMENT_DEFINE     "FRAGMENT"
+#define KRAFT_COMPUTE_DEFINE      "COMPUTE"
 #define KRAFT_SHADERFX_ENABLE_VAL "1"
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath)
 {
     KINFO("Compiling shaderfx %s", *InputPath);
-    
+
     FileHandle Handle;
-    bool Result = filesystem::OpenFile(InputPath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
+    bool       Result = filesystem::OpenFile(InputPath, kraft::FILE_OPEN_MODE_READ, true, &Handle);
     if (!Result)
     {
         return false;
@@ -1026,9 +1061,9 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath)
 
 bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
 {
-    shaderc_compiler_t Compiler = shaderc_compiler_initialize();
+    shaderc_compiler_t           Compiler = shaderc_compiler_initialize();
     shaderc_compilation_result_t Result;
-    shaderc_compile_options_t CompileOptions;
+    shaderc_compile_options_t    CompileOptions;
 
     kraft::Buffer BinaryOutput;
     BinaryOutput.Write(Shader.Name);
@@ -1067,33 +1102,59 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
                 case ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
                 {
                     ShaderKind = shaderc_vertex_shader;
-                    shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
+                    shaderc_compile_options_add_macro_definition(
+                        CompileOptions,
+                        KRAFT_VERTEX_DEFINE,
+                        sizeof(KRAFT_VERTEX_DEFINE) - 1,
+                        KRAFT_SHADERFX_ENABLE_VAL,
+                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
                 }
                 break;
 
                 case ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
                 {
                     ShaderKind = shaderc_geometry_shader;
-                    shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
+                    shaderc_compile_options_add_macro_definition(
+                        CompileOptions,
+                        KRAFT_GEOMETRY_DEFINE,
+                        sizeof(KRAFT_GEOMETRY_DEFINE) - 1,
+                        KRAFT_SHADERFX_ENABLE_VAL,
+                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
                 }
                 break;
 
                 case ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
                 {
                     ShaderKind = shaderc_fragment_shader;
-                    shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
+                    shaderc_compile_options_add_macro_definition(
+                        CompileOptions,
+                        KRAFT_FRAGMENT_DEFINE,
+                        sizeof(KRAFT_FRAGMENT_DEFINE) - 1,
+                        KRAFT_SHADERFX_ENABLE_VAL,
+                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
                 }
                 break;
 
                 case ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
                 {
                     ShaderKind = shaderc_compute_shader;
-                    shaderc_compile_options_add_macro_definition(CompileOptions, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1);
+                    shaderc_compile_options_add_macro_definition(
+                        CompileOptions,
+                        KRAFT_COMPUTE_DEFINE,
+                        sizeof(KRAFT_COMPUTE_DEFINE) - 1,
+                        KRAFT_SHADERFX_ENABLE_VAL,
+                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
                 }
                 break;
             }
-            
-            Result = shaderc_compile_into_spv(Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions);
+
+            Result = shaderc_compile_into_spv(
+                Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions
+            );
             if (shaderc_result_get_compilation_status(Result) == shaderc_compilation_status_success)
             {
                 ShaderCodeFragment SpirvBinary;
@@ -1192,7 +1253,7 @@ bool LoadShaderFX(const String& Path, ShaderEffect& Shader)
             Reader.Read(&Stage.CodeFragment);
         }
     }
-    
+
     return true;
 }
 
@@ -1206,7 +1267,7 @@ bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
         KASSERT(ShaderA.VertexLayouts[i].Name == ShaderB.VertexLayouts[i].Name);
         KASSERT(ShaderA.VertexLayouts[i].Attributes.Length == ShaderB.VertexLayouts[i].Attributes.Length);
         KASSERT(ShaderA.VertexLayouts[i].InputBindings.Length == ShaderB.VertexLayouts[i].InputBindings.Length);
-        
+
         for (int j = 0; j < ShaderA.VertexLayouts[i].Attributes.Length; j++)
         {
             KASSERT(ShaderA.VertexLayouts[i].Attributes[j].Location == ShaderB.VertexLayouts[i].Attributes[j].Location);
@@ -1248,7 +1309,7 @@ bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
             KASSERT(ShaderA.RenderPasses[i].ShaderStages[j].CodeFragment.Name == ShaderB.RenderPasses[i].ShaderStages[j].CodeFragment.Name);
         }
     }
-    
+
     return true;
 }
 

@@ -1,26 +1,33 @@
 #include "kraft_shader_system.h"
 
+#include "containers/kraft_buffer.h"
+#include "containers/kraft_hashmap.h"
 #include "core/kraft_asserts.h"
-#include "resources/kraft_resource_types.h"
 #include "renderer/kraft_renderer_frontend.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
-#include "containers/kraft_hashmap.h"
-#include "containers/kraft_buffer.h"
+#include "resources/kraft_resource_types.h"
 
-namespace kraft
-{
+namespace kraft {
 
 using namespace renderer;
 
-static void ReleaseShaderInternal(uint32 Index);
-static uint32 AddUniform(Shader* Shader, String Name, uint32 Location, uint32 Offset, uint32 Size, ResourceType::Enum Type, ShaderUniformScope::Enum Scope);
+static void   ReleaseShaderInternal(uint32 Index);
+static uint32 AddUniform(
+    Shader*                  Shader,
+    String                   Name,
+    uint32                   Location,
+    uint32                   Offset,
+    uint32                   Size,
+    ResourceType::Enum       Type,
+    ShaderUniformScope::Enum Scope
+);
 
 struct ShaderReference
 {
-    uint32      RefCount;
-    bool        AutoRelease;
-    Shader      Shader;
+    uint32 RefCount;
+    bool   AutoRelease;
+    Shader Shader;
 };
 
 struct ShaderSystemState
@@ -30,12 +37,12 @@ struct ShaderSystemState
     HashMap<String, uint32> IndexMapping;
     uint32                  CurrentShaderID;
     Shader*                 CurrentShader;
-} *State = nullptr;
+}* State = nullptr;
 
 void ShaderSystem::Init(uint32 MaxShaderCount)
 {
     uint32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * MaxShaderCount;
-    char* RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
+    char*  RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
 
     State = (ShaderSystemState*)RawMemory;
     State->Shaders = (ShaderReference*)(RawMemory + sizeof(ShaderSystemState));
@@ -77,7 +84,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     }
 
     int FreeIndex = -1;
-    for (int i = 0; i < State->MaxShaderCount; i++)
+    for (uint32 i = 0; i < State->MaxShaderCount; i++)
     {
         if (State->Shaders[i].RefCount == 0)
         {
@@ -107,13 +114,15 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
 
     // TODO (amn): What to do with other passes?
     const uint32 PassIndex = 0;
-    uint32 GlobalResourceBindingsCount = 2; // TODO (amn): Don't hardcode
+    uint32       GlobalResourceBindingsCount = 2; // TODO (amn): Don't hardcode
     Reference->Shader.UniformCacheMapping = HashMap<String, uint32>();
     Reference->Shader.UniformCache = Array<ShaderUniform>();
-    
-    const ShaderEffect& Effect = Reference->Shader.ShaderEffect;
+
+    const ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
     const RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
-    Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + Pass.Resources->ResourceBindings.Length + Pass.ConstantBuffers->Fields.Length);
+    Reference->Shader.UniformCache.Reserve(
+        GlobalResourceBindingsCount + Pass.Resources->ResourceBindings.Length + Pass.ConstantBuffers->Fields.Length
+    );
     Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex);
 
     // Cache the uniforms
@@ -127,30 +136,32 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     {
         auto& ResourceBinding = Pass.Resources->ResourceBindings[i];
         AddUniform(
-            &Reference->Shader, 
-            ResourceBinding.Name, 
-            ResourceBinding.Binding, 
-            ResourceBinding.Type == ResourceType::UniformBuffer ? Offset : TextureCount++, 
-            ResourceBinding.Size, 
-            ResourceBinding.Type, 
+            &Reference->Shader,
+            ResourceBinding.Name,
+            ResourceBinding.Binding,
+            ResourceBinding.Type == ResourceType::UniformBuffer ? Offset : TextureCount++,
+            ResourceBinding.Size,
+            ResourceBinding.Type,
             ShaderUniformScope::Instance
         );
 
         Offset += ResourceBinding.Size;
     }
-    
-    Reference->Shader.InstanceUniformsCount = Reference->Shader.UniformCache.Size();
+
+    Reference->Shader.InstanceUniformsCount = (uint32)Reference->Shader.UniformCache.Size();
     Reference->Shader.TextureCount = TextureCount;
 
     // Cache constant buffers as local uniforms
     Offset = 0;
-    for (int i = 0; i < Pass.ConstantBuffers->Fields.Length; i++)
+    for (uint64 i = 0; i < Pass.ConstantBuffers->Fields.Length; i++)
     {
         auto& ConstantBuffer = Pass.ConstantBuffers->Fields[i];
-        
+
         // Push constants must be aligned to 4 bytes
-        uint32 AlignedSize = math::AlignUp(ShaderDataType::SizeOf(ConstantBuffer.Type), 4);
-        AddUniform(&Reference->Shader, ConstantBuffer.Name, 0, Offset, AlignedSize, ResourceType::ConstantBuffer, ShaderUniformScope::Local);
+        uint32 AlignedSize = (uint32)math::AlignUp(ShaderDataType::SizeOf(ConstantBuffer.Type), 4);
+        AddUniform(
+            &Reference->Shader, ConstantBuffer.Name, 0, Offset, AlignedSize, ResourceType::ConstantBuffer, ShaderUniformScope::Local
+        );
 
         Offset += AlignedSize;
     }
@@ -158,7 +169,15 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     return &State->Shaders[FreeIndex].Shader;
 }
 
-static uint32 AddUniform(Shader* Shader, String Name, uint32 Location, uint32 Offset, uint32 Size, ResourceType::Enum Type, ShaderUniformScope::Enum Scope)
+static uint32 AddUniform(
+    Shader*                  Shader,
+    String                   Name,
+    uint32                   Location,
+    uint32                   Offset,
+    uint32                   Size,
+    ResourceType::Enum       Type,
+    ShaderUniformScope::Enum Scope
+)
 {
     ShaderUniform Uniform = {};
     Uniform.Location = Location;
@@ -167,7 +186,7 @@ static uint32 AddUniform(Shader* Shader, String Name, uint32 Location, uint32 Of
     Uniform.Scope = Scope;
     Uniform.Type = Type;
 
-    uint32 Index = Shader->UniformCache.Size();
+    uint32 Index = (uint32)Shader->UniformCache.Size();
     Shader->UniformCacheMapping[Name] = Index;
     Shader->UniformCache.Push(Uniform);
 
@@ -230,7 +249,7 @@ void ShaderSystem::BindByID(uint32 ShaderID)
 {
     KASSERT(ShaderID < State->MaxShaderCount);
     ShaderReference* Reference = &State->Shaders[ShaderID];
-    
+
     ShaderSystem::Bind(&Reference->Shader);
 }
 
@@ -255,7 +274,8 @@ void ShaderSystem::Unbind()
 bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUniform& Uniform)
 {
     auto It = Shader->UniformCacheMapping.find(Name);
-    if (It == Shader->UniformCacheMapping.iend()) return false;
+    if (It == Shader->UniformCacheMapping.iend())
+        return false;
 
     return GetUniformByIndex(Shader, It->second.get(), Uniform);
 }
@@ -263,7 +283,8 @@ bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUn
 bool ShaderSystem::GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform& Uniform)
 {
     KASSERT(Index < Shader->UniformCache.Length);
-    if (Index >= Shader->UniformCache.Length) return false;
+    if (Index >= Shader->UniformCache.Length)
+        return false;
 
     Uniform = Shader->UniformCache[Index];
     return true;
@@ -283,10 +304,12 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, BufferView Value, bool Invali
 
 bool ShaderSystem::SetUniform(const String& Name, void* Value, bool Invalidate)
 {
-    if (State->CurrentShaderID == KRAFT_INVALID_ID) return false;
+    if (State->CurrentShaderID == KRAFT_INVALID_ID)
+        return false;
 
     auto It = State->CurrentShader->UniformCacheMapping.find(Name);
-    if (It == State->CurrentShader->UniformCacheMapping.iend()) return false;
+    if (It == State->CurrentShader->UniformCacheMapping.iend())
+        return false;
 
     return SetUniformByIndex(It->second, Value, Invalidate);
 }

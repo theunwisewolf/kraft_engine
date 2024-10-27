@@ -106,9 +106,9 @@ bool Application::Run()
 {
     kraft::Time::Start();
     State.LastTime = kraft::Time::ElapsedTime;
-    float64 targetFrameRate = 1 / 144.f;
-    uint64  frames = 0;
-    float64 timeSinceLastSecond = 0.f;
+    float64 TargetFrameTime = 1 / 60.f;
+    uint64  FrameCount = 0;
+    float64 timeSinceLastFrame = 0.f;
 
     kraft::PrintDebugMemoryInfo();
     char windowTitleBuffer[1024];
@@ -146,13 +146,15 @@ bool Application::Run()
     while (this->Running)
     {
         kraft::Time::Update();
-        float64 currentTime = kraft::Time::ElapsedTime;
+        float64 currentTime = kraft::Platform::GetAbsoluteTime();
         float64 deltaTime = currentTime - State.LastTime;
+        timeSinceLastFrame += deltaTime;
         kraft::Time::DeltaTime = deltaTime;
-        timeSinceLastSecond += deltaTime;
+        State.LastTime = currentTime;
 
         this->Running = Platform::PollEvents();
 
+        float64 FrameStartTime = kraft::Platform::GetAbsoluteTime();
         // If the app is not suspended, update & render
         if (!this->Suspended)
         {
@@ -166,28 +168,40 @@ bool Application::Run()
 
             InputSystem::Update(deltaTime);
         }
+        float64 FrameEndTime = kraft::Platform::GetAbsoluteTime();
+        float64 FrameTime = FrameEndTime - FrameStartTime;
 
-        if (timeSinceLastSecond >= 1.f)
+        if (timeSinceLastFrame >= 1.f)
         {
-            timeSinceLastSecond = 0.f;
-
             StringFormat(
-                windowTitleBuffer, sizeof(windowTitleBuffer), "%s (%d fps | %f ms frametime)", Config.WindowTitle, frames, deltaTime
+                windowTitleBuffer,
+                sizeof(windowTitleBuffer),
+                "%s (%d fps | %f ms deltaTime | %f ms targetFrameTime)",
+                Config.WindowTitle,
+                FrameCount,
+                deltaTime * 1000.f,
+                TargetFrameTime * 1000.0f
             );
             Platform::GetWindow().SetWindowTitle(windowTitleBuffer);
 
-            frames = 0;
+            timeSinceLastFrame = 0.f;
+            FrameCount = 0;
         }
 
-        if (deltaTime < targetFrameRate)
+        if (FrameTime < TargetFrameTime)
         {
-            // KINFO("Before Sleep - %f ms | Sleep time = %f", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
-            Platform::SleepMilliseconds((uint64)((targetFrameRate - deltaTime) * 1000.f));
-            // KINFO("After Sleep - %f ms", kraft::Platform::GetAbsoluteTime());
+            float64 CurrentAbsoluteTime = kraft::Platform::GetAbsoluteTime();
+            // KINFO("Before Sleep - %f s | Sleep time = %f ms", kraft::Platform::GetAbsoluteTime(), (targetFrameRate - deltaTime) * 1000.f);
+            Platform::SleepMilliseconds((uint64)((TargetFrameTime - FrameTime) * 1000.f));
+            // KINFO("After Sleep - %f s", kraft::Platform::GetAbsoluteTime());
+            // KINFO(
+            //     "Slept for - %f ms | Asked for - %f ms",
+            //     (kraft::Platform::GetAbsoluteTime() - CurrentAbsoluteTime) * 1000.f,
+            //     (TargetFrameTime - FrameTime) * 1000.f
+            // );
         }
 
-        State.LastTime = currentTime;
-        frames++;
+        FrameCount++;
     }
 #endif
 

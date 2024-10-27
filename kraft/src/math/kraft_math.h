@@ -496,9 +496,9 @@ KRAFT_INLINE const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3> b, flo
     return true;
 }
 
-typedef Vector<float, 2> Vec2f;
-typedef Vector<float, 3> Vec3f;
-typedef Vector<float, 4> Vec4f;
+typedef Vector<float32, 2> Vec2f;
+typedef Vector<float32, 3> Vec3f;
+typedef Vector<float32, 4> Vec4f;
 
 extern const Vec2f Vec2fZero;
 extern const Vec3f Vec3fZero;

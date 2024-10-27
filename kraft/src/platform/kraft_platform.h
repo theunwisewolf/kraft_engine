@@ -5,8 +5,7 @@
 #include "core/kraft_core.h"
 #include "core/kraft_input.h"
 
-namespace kraft
-{
+namespace kraft {
 
 struct Window;
 struct ApplicationConfig;
@@ -23,20 +22,20 @@ struct KRAFT_API Platform
 {
     // If the platform wants to store any internal state,
     // it should do so in this variable
-    static void *InternalState;
+    static void* InternalState;
 
     static bool Init(ApplicationConfig* config);
     static bool PollEvents();
     static void Shutdown();
 
     // Memory
-    static void *Malloc(uint64_t size, bool aligned);
-    static void *Realloc(void *region, uint64_t size, bool aligned);
-    static void Free(void *region, bool aligned);
-    static void *MemZero(void *region, uint64_t size);
-    static void *MemCpy(void *dst, const void *src, uint64_t size);
-    static void *MemSet(void *region, int value, uint64_t size);
-    static int MemCmp(const void *a, const void *b, uint64_t size);
+    static void* Malloc(uint64_t size, bool aligned);
+    static void* Realloc(void* region, uint64_t size, bool aligned);
+    static void  Free(void* region, bool aligned);
+    static void* MemZero(void* region, uint64_t size);
+    static void* MemCpy(void* dst, const void* src, uint64_t size);
+    static void* MemSet(void* region, int value, uint64_t size);
+    static int   MemCmp(const void* a, const void* b, uint64_t size);
 
     // Console
     // Foreground colors
@@ -73,20 +72,23 @@ struct KRAFT_API Platform
     static const int ConsoleColorBGLoMagenta;
     static const int ConsoleColorBGHiMagenta;
 
-    static void ConsoleOutputString(const char *str, int color);
-    static void ConsoleOutputStringError(const char *str, int color);
+    static void ConsoleOutputString(const char* str, int color);
+    static void ConsoleOutputStringError(const char* str, int color);
 
     // Time
+    // Returns the absolute time in seconds
     static float64 GetAbsoluteTime();
+
+    // Returns the elapsed time in milliseconds
     static float64 GetElapsedTime();
 
     // Misc
-    static void SleepMilliseconds(uint64_t msec);
+    static void        SleepMilliseconds(uint64_t Milliseconds);
     static const char* GetKeyName(Keys key);
-    static Window& GetWindow();
+    static Window&     GetWindow();
 
     static const char* GetEnv(const char* Key);
-    static bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
+    static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
 };
 
 }

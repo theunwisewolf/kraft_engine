@@ -1,16 +1,16 @@
 #include "kraft_vulkan_imgui.h"
 
-#include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/imgui.h>
 
 #include <imgui/backends/imgui_impl_vulkan.h>
 #include <volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
+#include "core/kraft_application.h"
+#include "core/kraft_asserts.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
-#include "core/kraft_asserts.h"
-#include "core/kraft_application.h"
 #include "platform/kraft_platform.h"
 #include "platform/kraft_window.h"
 #include "renderer/kraft_renderer_types.h"
@@ -19,18 +19,16 @@
 #include "renderer/vulkan/kraft_vulkan_renderpass.h"
 
 #include <containers/kraft_array.h>
-#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 #include <platform/kraft_filesystem.h>
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
-namespace VulkanImgui
-{
+namespace VulkanImgui {
 
 // TODO: (amn) All of this code needs rework
 static VulkanCommandBuffer CommandBuffers[3];
-static VkDescriptorPool ImGuiDescriptorPool;
+static VkDescriptorPool    ImGuiDescriptorPool;
 
 // TODO (Amn): Improve this?
 static void CheckVkResult(VkResult err)
@@ -50,9 +48,8 @@ struct ImguiBackendState
 
 bool Init()
 {
-    VulkanContext *context = VulkanRendererBackend::Context();
-    VkDescriptorPoolSize poolSizes[] =
-    {
+    VulkanContext*       context = VulkanRendererBackend::Context();
+    VkDescriptorPoolSize poolSizes[] = {
         // { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
         // { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -75,7 +72,7 @@ bool Init()
 
     KRAFT_VK_CHECK(vkCreateDescriptorPool(context->LogicalDevice.Handle, &poolInfo, context->AllocationCallbacks, &ImGuiDescriptorPool));
 
-    Window& KraftWindow = Platform::GetWindow();
+    Window&     KraftWindow = Platform::GetWindow();
     GLFWwindow* window = KraftWindow.PlatformWindowHandle;
 
     KASSERT(window);
@@ -104,9 +101,9 @@ bool Init()
     {
         uint8* Buffer = nullptr;
         uint64 Size = 0;
-        bool JakartaRegular = kraft::filesystem::ReadAllBytes("res/fonts/PlusJakartaSans-Regular.ttf", &Buffer, &Size);
+        bool   JakartaRegular = kraft::filesystem::ReadAllBytes("res/fonts/PlusJakartaSans-Regular.ttf", &Buffer, &Size);
         KASSERT(JakartaRegular);
-        IO.Fonts->AddFontFromMemoryTTF(Buffer, Size, 14);
+        IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14);
         // VulkanCommandBuffer buffer;
         // VulkanAllocateAndBeginSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer);
         // ImGui_ImplVulkan_CreateFontsTexture();
@@ -133,61 +130,61 @@ bool Init()
     // Colors
     {
         ImVec4* colors = ImGui::GetStyle().Colors;
-        colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-        colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-        colors[ImGuiCol_WindowBg]               = ImVec4(0.18f, 0.18f, 0.18f, 1.00f);
-        colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-        colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
-        colors[ImGuiCol_Border]                 = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-        colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-        colors[ImGuiCol_FrameBg]                = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-        colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-        colors[ImGuiCol_FrameBgActive]          = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
-        colors[ImGuiCol_TitleBg]                = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-        colors[ImGuiCol_TitleBgActive]          = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
-        colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
-        colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-        colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
-        colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-        colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
-        colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-        colors[ImGuiCol_CheckMark]              = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-        colors[ImGuiCol_SliderGrab]             = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
-        colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-        colors[ImGuiCol_Button]                 = ImVec4(0.90f, 0.28f, 0.30f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]          = ImVec4(0.93f, 0.36f, 0.37f, 1.00f);
-        colors[ImGuiCol_ButtonActive]           = ImVec4(0.93f, 0.36f, 0.37f, 1.00f);
-        colors[ImGuiCol_Header]                 = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
-        colors[ImGuiCol_HeaderHovered]          = ImVec4(0.26f, 0.59f, 0.98f, 0.80f);
-        colors[ImGuiCol_HeaderActive]           = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-        colors[ImGuiCol_Separator]              = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-        colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
-        colors[ImGuiCol_SeparatorActive]        = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
-        colors[ImGuiCol_ResizeGrip]             = ImVec4(0.26f, 0.59f, 0.98f, 0.20f);
-        colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
-        colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
-        colors[ImGuiCol_Tab]                    = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
-        colors[ImGuiCol_TabHovered]             = ImVec4(1.00f, 0.04f, 0.23f, 0.27f);
-        colors[ImGuiCol_TabActive]              = ImVec4(1.00f, 0.04f, 0.23f, 0.27f);
-        colors[ImGuiCol_TabUnfocused]           = ImVec4(0.07f, 0.10f, 0.15f, 0.97f);
-        colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
-        colors[ImGuiCol_DockingPreview]         = ImVec4(0.26f, 0.59f, 0.98f, 0.70f);
-        colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-        colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
-        colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-        colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-        colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-        colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
-        colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
-        colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
-        colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-        colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
-        colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
-        colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-        colors[ImGuiCol_NavHighlight]           = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-        colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-        colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-        colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+        colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+        colors[ImGuiCol_WindowBg] = ImVec4(0.18f, 0.18f, 0.18f, 1.00f);
+        colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+        colors[ImGuiCol_Border] = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_FrameBgActive] = ImVec4(0.27f, 0.27f, 0.27f, 1.00f);
+        colors[ImGuiCol_TitleBg] = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
+        colors[ImGuiCol_TitleBgActive] = ImVec4(0.13f, 0.13f, 0.13f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
+        colors[ImGuiCol_MenuBarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
+        colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+        colors[ImGuiCol_CheckMark] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_SliderGrab] = ImVec4(0.24f, 0.52f, 0.88f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_Button] = ImVec4(0.90f, 0.28f, 0.30f, 1.00f);
+        colors[ImGuiCol_ButtonHovered] = ImVec4(0.93f, 0.36f, 0.37f, 1.00f);
+        colors[ImGuiCol_ButtonActive] = ImVec4(0.93f, 0.36f, 0.37f, 1.00f);
+        colors[ImGuiCol_Header] = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
+        colors[ImGuiCol_HeaderHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.80f);
+        colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_Separator] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+        colors[ImGuiCol_SeparatorHovered] = ImVec4(0.10f, 0.40f, 0.75f, 0.78f);
+        colors[ImGuiCol_SeparatorActive] = ImVec4(0.10f, 0.40f, 0.75f, 1.00f);
+        colors[ImGuiCol_ResizeGrip] = ImVec4(0.26f, 0.59f, 0.98f, 0.20f);
+        colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
+        colors[ImGuiCol_ResizeGripActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
+        colors[ImGuiCol_Tab] = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
+        colors[ImGuiCol_TabHovered] = ImVec4(1.00f, 0.04f, 0.23f, 0.27f);
+        colors[ImGuiCol_TabActive] = ImVec4(1.00f, 0.04f, 0.23f, 0.27f);
+        colors[ImGuiCol_TabUnfocused] = ImVec4(0.07f, 0.10f, 0.15f, 0.97f);
+        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(1.00f, 0.09f, 0.25f, 0.18f);
+        colors[ImGuiCol_DockingPreview] = ImVec4(0.26f, 0.59f, 0.98f, 0.70f);
+        colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+        colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+        colors[ImGuiCol_TableHeaderBg] = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+        colors[ImGuiCol_TableBorderStrong] = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+        colors[ImGuiCol_TableBorderLight] = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+        colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+        colors[ImGuiCol_TextSelectedBg] = ImVec4(0.26f, 0.59f, 0.98f, 0.35f);
+        colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+        colors[ImGuiCol_NavHighlight] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
     }
 
     // Command Buffers
@@ -209,7 +206,7 @@ bool BeginFrame(float64 deltaTime)
 
 bool EndFrame(ImDrawData* DrawData)
 {
-    VulkanContext *Context = VulkanRendererBackend::Context();
+    VulkanContext*       Context = VulkanRendererBackend::Context();
     VulkanCommandBuffer* parentCommandBuffer = &Context->GraphicsCommandBuffers[Context->CurrentSwapchainImageIndex];
     // VulkanBeginCommandBuffer(parentCommandBuffer, true, false, false);
     // VulkanBeginRenderPass(parentCommandBuffer, &context->MainRenderPass, context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
@@ -247,18 +244,18 @@ bool EndFrame(ImDrawData* DrawData)
         // KRAFT_VK_CHECK(vkBeginCommandBuffer(commandBuffer->Handle, &bufferBeginInfo));
 
         // VkViewport viewport = {};
-		// viewport.x = 0.0f;
-		// viewport.y = (float)height;
-		// viewport.width = (float)width;
-		// viewport.height = -(float)height;
-		// viewport.minDepth = 0.0f;
-		// viewport.maxDepth = 1.0f;
-		// vkCmdSetViewport(commandBuffer->Handle, 0, 1, &viewport);
+        // viewport.x = 0.0f;
+        // viewport.y = (float)height;
+        // viewport.width = (float)width;
+        // viewport.height = -(float)height;
+        // viewport.minDepth = 0.0f;
+        // viewport.maxDepth = 1.0f;
+        // vkCmdSetViewport(commandBuffer->Handle, 0, 1, &viewport);
 
-		// VkRect2D scissor = {};
-		// scissor.extent.width = width;
-		// scissor.extent.height = height;
-		// vkCmdSetScissor(commandBuffer->Handle, 0, 1, &scissor);
+        // VkRect2D scissor = {};
+        // scissor.extent.width = width;
+        // scissor.extent.height = height;
+        // vkCmdSetScissor(commandBuffer->Handle, 0, 1, &scissor);
 
         // Record dear imgui primitives into command buffer
         ImGui_ImplVulkan_RenderDrawData(DrawData, parentCommandBuffer->Resource);
@@ -276,11 +273,11 @@ bool EndFrame(ImDrawData* DrawData)
 
 ImTextureID AddTexture(Handle<Texture> Resource)
 {
-    VulkanContext *Context = VulkanRendererBackend::Context();
-    const auto& TexturePool = Context->ResourceManager->GetTexturePool();
+    VulkanContext* Context = VulkanRendererBackend::Context();
+    const auto&    TexturePool = Context->ResourceManager->GetTexturePool();
     VulkanTexture* BackendTexture = TexturePool.Get(Resource);
-    
-    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+
+    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void RemoveTexture(ImTextureID TextureID)
@@ -300,7 +297,7 @@ void PostFrameCleanup()
 
 bool Destroy()
 {
-    VulkanContext *context = VulkanRendererBackend::Context();
+    VulkanContext* context = VulkanRendererBackend::Context();
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();

@@ -1,52 +1,54 @@
 #pragma once
 
+#include "containers/kraft_array.h"
 #include "core/kraft_core.h"
 #include "core/kraft_events.h"
 #include "core/kraft_string.h"
-#include "containers/kraft_array.h"
-#include "renderer/kraft_renderer_types.h"
 #include "renderer/kraft_renderer_frontend.h"
+#include "renderer/kraft_renderer_types.h"
 
-namespace kraft
-{
+namespace kraft {
 
 struct Window;
 
 struct ApplicationConfig
 {
-    uint32                          WindowWidth;
-    uint32                          WindowHeight;
-    const char*                     ApplicationName;
-    const char*                     WindowTitle;
-    renderer::RendererBackendType   RendererBackend = renderer::RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
-    bool                            ConsoleApp;
+    uint32                        WindowWidth;
+    uint32                        WindowHeight;
+    const char*                   ApplicationName;
+    const char*                   WindowTitle;
+    renderer::RendererBackendType RendererBackend = renderer::RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
+    bool                          ConsoleApp;
 };
 
 struct ApplicationState
 {
     renderer::RendererFrontend Renderer;
-    float64          LastTime;
+    float64                    LastTime;
 };
 
 struct ApplicationCommandLineArgs
 {
-    int             Count;
-    Array<String>   Arguments;
+    int           Count;
+    Array<String> Arguments;
 };
 
 struct KRAFT_API Application
 {
-    static Application* I;
-    inline static Application* Get() { return I; };
+    static Application*        I;
+    inline static Application* Get()
+    {
+        return I;
+    };
 
-    ApplicationConfig Config = {};
-    ApplicationState  State = {};
+    ApplicationConfig          Config = {};
+    ApplicationState           State = {};
     ApplicationCommandLineArgs CommandLineArgs = {};
 
     // The location of the executable without a trailing slash
     String BasePath;
-    bool Running = false;
-    bool Suspended = false;
+    bool   Running = false;
+    bool   Suspended = false;
 
     // These methods must be implemented by the application itself
     bool (*Init)();
@@ -57,9 +59,9 @@ struct KRAFT_API Application
     void (*OnForeground)();
     bool (*Shutdown)();
 
-    bool Create(int argc, char *argv[]);
-    bool Run();
-    void Destroy();
+    bool        Create(int argc, char* argv[]);
+    bool        Run();
+    void        Destroy();
     static bool WindowResizeListener(EventType type, void* sender, void* listener, EventData data);
 };
 

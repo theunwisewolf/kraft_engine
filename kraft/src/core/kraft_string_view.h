@@ -2,22 +2,21 @@
 
 #include "core/kraft_core.h"
 #include "core/kraft_memory.h"
-#include "math/kraft_math.h"
 #include "core/kraft_string_utils.h"
+#include "math/kraft_math.h"
 
-namespace kraft
-{
+namespace kraft {
 
 template<typename ValueType, uint64 InternalBufferSize>
 struct KString;
 
-template <typename ValueType>
+template<typename ValueType>
 struct KStringView
 {
     typedef uint64 SizeType;
 
-    const ValueType *Buffer  = 0;
-    SizeType         Length  = 0;
+    const ValueType* Buffer = 0;
+    SizeType         Length = 0;
 
     KStringView()
     {
@@ -31,7 +30,7 @@ struct KStringView
         this->Length = Str.Length;
     }
 
-    KStringView(const ValueType *Buffer, SizeType Length)
+    KStringView(const ValueType* Buffer, SizeType Length)
     {
         this->Buffer = Buffer;
         this->Length = Length;
@@ -46,7 +45,7 @@ struct KStringView
     {
         this->Buffer = other.Buffer;
         this->Length = other.Length;
-        
+
         other.Buffer = 0;
         other.Length = 0;
     }
@@ -56,9 +55,10 @@ struct KStringView
         return (int)Compare(Buffer, Length, Str, Strlen(Str));
     }
 
-    constexpr int Compare(const KStringView& Str) const
+    constexpr int Compare(KStringView Str) const
     {
-        if (Buffer == Str.Buffer && Length == Str.Length) return 0;
+        if (Buffer == Str.Buffer && Length == Str.Length)
+            return 0;
 
         return (int)Compare(Buffer, Length, Str.Buffer, Str.Length);
     }
@@ -66,16 +66,16 @@ struct KStringView
     constexpr KRAFT_INLINE SizeType Compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
     {
         const SizeType Count = math::Min(aLen, bLen);
-        SizeType Result = MemCmp(a, b, Count);
+        SizeType       Result = MemCmp(a, b, Count);
         return Result ? Result : aLen - bLen;
     }
 
-    constexpr KRAFT_INLINE bool operator==(const KStringView& Str) const
+    constexpr KRAFT_INLINE bool operator==(KStringView Str) const
     {
         return !Compare(Str);
     }
 
-    constexpr KRAFT_INLINE bool operator!=(const KStringView& Str) const
+    constexpr KRAFT_INLINE bool operator!=(KStringView Str) const
     {
         return Compare(Str);
     }
@@ -90,7 +90,7 @@ struct KStringView
         return Compare(Str);
     }
 
-    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KStringView& b) 
+    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KStringView& b)
     {
         return b == a;
     }
@@ -99,7 +99,7 @@ struct KStringView
     {
         this->Buffer = other.Buffer;
         this->Length = other.Length;
-        
+
         return *this;
     }
 

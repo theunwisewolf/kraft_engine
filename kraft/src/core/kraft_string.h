@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "core/kraft_string_view.h"
-#include "core/kraft_string_utils.h"
 #include "core/kraft_memory.h"
+#include "core/kraft_string_utils.h"
+#include "core/kraft_string_view.h"
 #include "math/kraft_math.h"
 
 /*
@@ -11,36 +11,35 @@
     "Optimizing A String Class for Computer Graphics in Cpp - Zander Majercik, Morgan McGuire CppCon 22" at CppCon
     https://www.youtube.com/watch?v=fglXeSWGVDc
  */
-#include <string.h>
 #include <ctype.h>
+#include <string.h>
 
 constexpr size_t KRAFT_STRING_SSO_ALIGNMENT = 16;
 
-namespace kraft
-{
+namespace kraft {
 
 template<typename ValueType, uint64 InternalBufferSize = 128>
-struct 
+struct
 #ifdef KRAFT_COMPILER_MSVC
     __declspec(align(KRAFT_STRING_SSO_ALIGNMENT))
 #else
     alignas(KRAFT_STRING_SSO_ALIGNMENT)
 #endif
-KString
+    KString
 {
     typedef uint64 SizeType;
 
     union BufferUnion
     {
-        ValueType    StackBuffer[InternalBufferSize];   
-        ValueType*   HeapBuffer = nullptr;
+        ValueType  StackBuffer[InternalBufferSize];
+        ValueType* HeapBuffer = nullptr;
     } Buffer;
 
     // Number of characters currently in the string
-    SizeType     Length = 0;
+    SizeType Length = 0;
 
     // Number of character that can fit in the string
-    SizeType     Allocated = 0;
+    SizeType Allocated = 0;
 
 protected:
     static_assert(InternalBufferSize % KRAFT_STRING_SSO_ALIGNMENT == 0, "KString InternalBufferSize must be a multiple of 16");
@@ -89,9 +88,9 @@ protected:
             return;
         }
 
-        bool WasInHeap = InHeap();
+        bool       WasInHeap = InHeap();
         ValueType* OldBuffer = Data();
-        SizeType OldAllocationSize = GetBufferSizeInBytes();
+        SizeType   OldAllocationSize = GetBufferSizeInBytes();
         Allocated = ChooseAllocationSize(NewCharCount);
         if (InHeap())
         {
@@ -152,10 +151,8 @@ public:
         }
     }
 
-    constexpr KString(KStringView<ValueType> View) :
-        KString(View.Buffer, View.Length) 
-    {
-    }
+    // constexpr KString(KStringView<ValueType> View) : KString(View.Buffer, View.Length)
+    // {}
 
     constexpr KString(const ValueType* Str, SizeType Count)
     {
@@ -188,8 +185,8 @@ public:
     // Move constructor
     constexpr KString(KString&& Str) noexcept
     {
-        SizeType _Length = Length;
-        SizeType _Allocated = Allocated;
+        SizeType    _Length = Length;
+        SizeType    _Allocated = Allocated;
         BufferUnion _Buffer = Buffer;
 
         // Swap!
@@ -227,7 +224,7 @@ public:
 
         MemCpy(Data(), Str, (Length + 1) * sizeof(ValueType));
         Data()[Length] = 0;
-        
+
         return *this;
     }
 
@@ -243,7 +240,7 @@ public:
 
         MemCpy(Data(), Str.Data(), Length * sizeof(ValueType));
         Data()[Length] = 0;
-        
+
         return *this;
     }
 
@@ -299,7 +296,7 @@ public:
     constexpr KRAFT_INLINE friend KString operator+(const KString& StrA, const ValueType* StrB)
     {
         SizeType StrBLength = Strlen(StrB);
-        KString Out;
+        KString  Out;
         Out.Length = StrA.Length + StrBLength;
         Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
         Out.Alloc(Out.Allocated);
@@ -374,15 +371,24 @@ public:
 
     constexpr int Compare(const KString& Str) const
     {
-        if (Data() == Str.Data() && Length == Str.Length) return 0;
+        if (Data() == Str.Data() && Length == Str.Length)
+            return 0;
 
         return (int)Compare(Data(), Length, Str.Data(), Str.Length);
+    }
+
+    constexpr int Compare(KStringView<ValueType> View) const
+    {
+        if (Data() == View.Buffer && Length == View.Length)
+            return 0;
+
+        return (int)Compare(Data(), Length, View.Buffer, View.Length);
     }
 
     constexpr KRAFT_INLINE SizeType Compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
     {
         const SizeType Count = math::Min(aLen, bLen);
-        SizeType Result = MemCmp(a, b, Count);
+        SizeType       Result = MemCmp(a, b, Count);
         return Result ? Result : aLen - bLen;
     }
 
@@ -392,6 +398,16 @@ public:
     }
 
     constexpr KRAFT_INLINE bool operator!=(const KString& Str) const
+    {
+        return Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator==(KStringView<ValueType> Str) const
+    {
+        return !Compare(Str);
+    }
+
+    constexpr KRAFT_INLINE bool operator!=(KStringView<ValueType> Str) const
     {
         return Compare(Str);
     }
@@ -406,7 +422,7 @@ public:
         return Compare(Str);
     }
 
-    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KString& b) 
+    friend constexpr KRAFT_INLINE bool operator==(const ValueType* a, const KString& b)
     {
         return b == a;
     }
@@ -423,8 +439,8 @@ public:
             return false;
         }
 
-        int64 Start = (int64)Length - (int64)Suffix.Length;
-        for (int64 i = Start, j = 0; j < Suffix.Length; i++, j++)
+        SizeType Start = Length - Suffix.Length;
+        for (SizeType i = Start, j = 0; j < Suffix.Length; i++, j++)
         {
             if (Data()[i] != Suffix.Data()[j])
             {
@@ -469,7 +485,7 @@ public:
     }
 };
 
-typedef KString<char, 128> String;
+typedef KString<char, 128>    String;
 typedef KString<wchar_t, 128> WString;
 
 #ifdef UNICODE
@@ -480,7 +496,7 @@ typedef String TString;
 
 static WString CharToWChar(const String& Source)
 {
-    uint64 BufferSize = mbstowcs(nullptr, Source.Data(), 0);
+    uint64  BufferSize = mbstowcs(nullptr, Source.Data(), 0);
     WString Output(BufferSize, 0);
     mbstowcs(Output.Data(), Source.Data(), BufferSize);
 
@@ -523,20 +539,24 @@ KRAFT_INLINE char* StringNCopy(char* dst, const char* src, uint64 length)
 
 KRAFT_INLINE const char* StringTrim(const char* in)
 {
-    if (!in) return in;
-    
+    if (!in)
+        return in;
+
     uint64 length = StringLength(in);
-    if (length == 0) return in;
+    if (length == 0)
+        return in;
 
     uint64 start = 0;
     uint64 end = length - 1;
 
-    while (start < length && isspace(in[start])) start++;
-    while (end >= start && isspace(in[end])) end--;
+    while (start < length && isspace(in[start]))
+        start++;
+    while (end >= start && isspace(in[end]))
+        end--;
 
     length = end - start + 1;
     char* out = (char*)kraft::Malloc((length + 1) * sizeof(char), MEMORY_TAG_STRING, true);
-    kraft::MemCpy(out, (void*)(in+start), length * sizeof(char));
+    kraft::MemCpy(out, (void*)(in + start), length * sizeof(char));
 
     return (const char*)out;
 }
@@ -544,21 +564,25 @@ KRAFT_INLINE const char* StringTrim(const char* in)
 // Will not work with string-literals as they are read only!
 KRAFT_INLINE char* StringTrimLight(char* in)
 {
-    if (!in) return in;
+    if (!in)
+        return in;
 
-    while (isspace(*in)) in++;
-    char *p = in;
+    while (isspace(*in))
+        in++;
+    char* p = in;
 
-    while (*p) p++;
+    while (*p)
+        p++;
     p--;
 
-    while (isspace(*p)) p--;
+    while (isspace(*p))
+        p--;
     p[1] = 0;
 
     return in;
 }
 
-KRAFT_INLINE uint64 StringEqual(const char *a, const char *b)
+KRAFT_INLINE uint64 StringEqual(const char* a, const char* b)
 {
     return strcmp(a, b) == 0;
 }
@@ -567,7 +591,7 @@ KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_lis
 
 KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char* format, ...)
 {
-    if (buffer) 
+    if (buffer)
     {
 #ifdef KRAFT_COMPILER_MSVC
         va_list args;
@@ -585,7 +609,7 @@ KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char* format, ...)
 
 KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
 {
-    if (buffer) 
+    if (buffer)
     {
         return vsnprintf(buffer, n, format, args);
     }

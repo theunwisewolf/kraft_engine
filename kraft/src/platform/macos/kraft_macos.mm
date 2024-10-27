@@ -149,7 +149,7 @@ float64 Platform::GetElapsedTime()
     return 0.f;
 }
 
-void Platform::SleepMilliseconds(uint64_t msec)
+void Platform::SleepMilliseconds(uint64_t Milliseconds)
 {
     if (msec >= 1000) 
     {

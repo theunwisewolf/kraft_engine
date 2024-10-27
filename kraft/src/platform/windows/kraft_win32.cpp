@@ -13,53 +13,52 @@
 #include <GLFW/glfw3native.h>
 #endif
 
+#include "core/kraft_application.h"
 #include "core/kraft_log.h"
 #include "core/kraft_string.h"
-#include "core/kraft_application.h"
 #include "platform/kraft_platform.h"
 
-namespace kraft
-{
+namespace kraft {
 
-Win32PlatformState* State                 = nullptr;
-void* Platform::InternalState             = nullptr;
+Win32PlatformState* State = nullptr;
+void*               Platform::InternalState = nullptr;
 
-const int Platform::ConsoleColorBlack     = 0;
-const int Platform::ConsoleColorLoWhite   = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
-const int Platform::ConsoleColorHiWhite   = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
-const int Platform::ConsoleColorLoRed     = FOREGROUND_RED;
-const int Platform::ConsoleColorHiRed     = FOREGROUND_RED | FOREGROUND_INTENSITY;
-const int Platform::ConsoleColorLoGreen   = FOREGROUND_GREEN;
-const int Platform::ConsoleColorHiGreen   = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
-const int Platform::ConsoleColorLoBlue    = FOREGROUND_BLUE;
-const int Platform::ConsoleColorHiBlue    = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
-const int Platform::ConsoleColorLoYellow  = Platform::ConsoleColorLoRed  | Platform::ConsoleColorLoGreen;
-const int Platform::ConsoleColorHiYellow  = Platform::ConsoleColorHiRed  | Platform::ConsoleColorHiGreen;
-const int Platform::ConsoleColorLoCyan    = Platform::ConsoleColorLoBlue | Platform::ConsoleColorLoGreen;
-const int Platform::ConsoleColorHiCyan    = Platform::ConsoleColorHiBlue | Platform::ConsoleColorHiGreen;
+const int Platform::ConsoleColorBlack = 0;
+const int Platform::ConsoleColorLoWhite = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+const int Platform::ConsoleColorHiWhite = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+const int Platform::ConsoleColorLoRed = FOREGROUND_RED;
+const int Platform::ConsoleColorHiRed = FOREGROUND_RED | FOREGROUND_INTENSITY;
+const int Platform::ConsoleColorLoGreen = FOREGROUND_GREEN;
+const int Platform::ConsoleColorHiGreen = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+const int Platform::ConsoleColorLoBlue = FOREGROUND_BLUE;
+const int Platform::ConsoleColorHiBlue = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+const int Platform::ConsoleColorLoYellow = Platform::ConsoleColorLoRed | Platform::ConsoleColorLoGreen;
+const int Platform::ConsoleColorHiYellow = Platform::ConsoleColorHiRed | Platform::ConsoleColorHiGreen;
+const int Platform::ConsoleColorLoCyan = Platform::ConsoleColorLoBlue | Platform::ConsoleColorLoGreen;
+const int Platform::ConsoleColorHiCyan = Platform::ConsoleColorHiBlue | Platform::ConsoleColorHiGreen;
 const int Platform::ConsoleColorLoMagenta = Platform::ConsoleColorLoBlue | Platform::ConsoleColorLoRed;
 const int Platform::ConsoleColorHiMagenta = Platform::ConsoleColorHiBlue | Platform::ConsoleColorHiRed;
 
-const int Platform::ConsoleColorBGBlack     = 0;
-const int Platform::ConsoleColorBGLoWhite   = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
-const int Platform::ConsoleColorBGHiWhite   = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
-const int Platform::ConsoleColorBGLoRed     = BACKGROUND_RED;
-const int Platform::ConsoleColorBGHiRed     = BACKGROUND_RED | BACKGROUND_INTENSITY;
-const int Platform::ConsoleColorBGLoGreen   = BACKGROUND_GREEN;
-const int Platform::ConsoleColorBGHiGreen   = BACKGROUND_GREEN | BACKGROUND_INTENSITY;
-const int Platform::ConsoleColorBGLoBlue    = BACKGROUND_BLUE;
-const int Platform::ConsoleColorBGHiBlue    = BACKGROUND_BLUE | BACKGROUND_INTENSITY;
-const int Platform::ConsoleColorBGLoYellow  = Platform::ConsoleColorBGLoRed  | Platform::ConsoleColorBGLoGreen;
-const int Platform::ConsoleColorBGHiYellow  = Platform::ConsoleColorBGHiRed  | Platform::ConsoleColorBGHiGreen;
-const int Platform::ConsoleColorBGLoCyan    = Platform::ConsoleColorBGLoBlue | Platform::ConsoleColorBGLoGreen;
-const int Platform::ConsoleColorBGHiCyan    = Platform::ConsoleColorBGHiBlue | Platform::ConsoleColorBGHiGreen;
+const int Platform::ConsoleColorBGBlack = 0;
+const int Platform::ConsoleColorBGLoWhite = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
+const int Platform::ConsoleColorBGHiWhite = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+const int Platform::ConsoleColorBGLoRed = BACKGROUND_RED;
+const int Platform::ConsoleColorBGHiRed = BACKGROUND_RED | BACKGROUND_INTENSITY;
+const int Platform::ConsoleColorBGLoGreen = BACKGROUND_GREEN;
+const int Platform::ConsoleColorBGHiGreen = BACKGROUND_GREEN | BACKGROUND_INTENSITY;
+const int Platform::ConsoleColorBGLoBlue = BACKGROUND_BLUE;
+const int Platform::ConsoleColorBGHiBlue = BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+const int Platform::ConsoleColorBGLoYellow = Platform::ConsoleColorBGLoRed | Platform::ConsoleColorBGLoGreen;
+const int Platform::ConsoleColorBGHiYellow = Platform::ConsoleColorBGHiRed | Platform::ConsoleColorBGHiGreen;
+const int Platform::ConsoleColorBGLoCyan = Platform::ConsoleColorBGLoBlue | Platform::ConsoleColorBGLoGreen;
+const int Platform::ConsoleColorBGHiCyan = Platform::ConsoleColorBGHiBlue | Platform::ConsoleColorBGHiGreen;
 const int Platform::ConsoleColorBGLoMagenta = Platform::ConsoleColorBGLoBlue | Platform::ConsoleColorBGLoRed;
 const int Platform::ConsoleColorBGHiMagenta = Platform::ConsoleColorBGHiBlue | Platform::ConsoleColorBGHiRed;
 
-static LARGE_INTEGER s_StartTime;
-static LARGE_INTEGER s_ClockFrequency;
-static HANDLE s_ConsoleOutputHandle;
-static HANDLE s_ConsoleErrorHandle;
+static LARGE_INTEGER              s_StartTime;
+static LARGE_INTEGER              s_ClockFrequency;
+static HANDLE                     s_ConsoleOutputHandle;
+static HANDLE                     s_ConsoleErrorHandle;
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
@@ -105,48 +104,48 @@ void Platform::Shutdown()
     Free(InternalState, false);
 }
 
-// ------------------------------------------ 
+// ------------------------------------------
 // Memory Specific Functions
 // ------------------------------------------
 
-void *Platform::Malloc(uint64_t size, bool aligned)
+void* Platform::Malloc(uint64_t size, bool aligned)
 {
     return malloc(size);
 }
 
-void *Platform::Realloc(void *region, uint64_t size, bool aligned)
+void* Platform::Realloc(void* region, uint64_t size, bool aligned)
 {
     return realloc(region, size);
 }
 
-void Platform::Free(void *region, bool aligned)
+void Platform::Free(void* region, bool aligned)
 {
     free(region);
 }
 
-void *Platform::MemZero(void *region, uint64_t size)
+void* Platform::MemZero(void* region, uint64_t size)
 {
     return memset(region, 0, size);
 }
 
-void *Platform::MemCpy(void *dst, const void *src, uint64_t size)
+void* Platform::MemCpy(void* dst, const void* src, uint64_t size)
 {
     return memcpy(dst, src, size);
 }
 
-void *Platform::MemSet(void *region, int value, uint64_t size)
+void* Platform::MemSet(void* region, int value, uint64_t size)
 {
     return memset(region, value, size);
 }
 
-int Platform::MemCmp(const void *a, const void *b, uint64_t size)
+int Platform::MemCmp(const void* a, const void* b, uint64_t size)
 {
     return memcmp(a, b, size);
 }
 
-// ------------------------------------------ 
+// ------------------------------------------
 // Console Specific Functions
-// ------------------------------------------ 
+// ------------------------------------------
 
 // https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
 void Platform::ConsoleOutputString(const char* str, int color)
@@ -227,9 +226,9 @@ float64 Platform::GetElapsedTime()
     return (float64)((float64)elapsed.QuadPart / (float64)s_ClockFrequency.QuadPart);
 }
 
-void Platform::SleepMilliseconds(uint64_t msec)
+void Platform::SleepMilliseconds(uint64_t Milliseconds)
 {
-    Sleep((DWORD)msec);
+    Sleep((DWORD)Milliseconds);
 }
 
 const char* Platform::GetKeyName(Keys key)
@@ -249,11 +248,7 @@ const char* Platform::GetEnv(const char* Key)
 
 bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output)
 {
-    HANDLE StdinPipeRead, StdinPipeWrite, StdoutPipeRead;
-
-    STARTUPINFO StartupInfo = {};
-	
-	return false;
+    return false;
 }
 
 }

@@ -1,18 +1,17 @@
 #include "kraft_material_system.h"
 
+#include "core/kraft_asserts.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
-#include "core/kraft_asserts.h"
-#include "platform/kraft_filesystem.h"
 #include "math/kraft_math.h"
-#include "systems/kraft_texture_system.h"
-#include "systems/kraft_shader_system.h"
+#include "platform/kraft_filesystem.h"
 #include "renderer/kraft_renderer_frontend.h"
+#include "systems/kraft_shader_system.h"
+#include "systems/kraft_texture_system.h"
 
 #include <renderer/kraft_renderer_types.h>
 
-namespace kraft
-{
+namespace kraft {
 
 struct MaterialReference
 {
@@ -40,7 +39,7 @@ KRAFT_INLINE Material* GetMaterialByName(const String& Name)
     {
         return nullptr;
     }
-    
+
     return &State->MaterialReferences[It->second.get()].Material;
 }
 
@@ -66,7 +65,7 @@ void MaterialSystem::Shutdown()
     // Free the default material
     ReleaseMaterialInternal(0);
 
-    for (int i = 1; i < State->MaxMaterialCount; ++i)
+    for (uint32 i = 1; i < State->MaxMaterialCount; ++i)
     {
         MaterialReference* Ref = &State->MaterialReferences[i];
         if (Ref->RefCount)
@@ -109,7 +108,7 @@ Material* MaterialSystem::CreateMaterialFromFile(const String& Path)
 
 Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
 {
-    int FreeIndex = -1; 
+    int FreeIndex = -1;
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
     {
         if (State->MaterialReferences[i].RefCount == 0)
@@ -133,7 +132,9 @@ Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
     Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset);
     if (!Shader)
     {
-        KERROR("[MaterialSystem::CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name);
+        KERROR(
+            "[MaterialSystem::CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name
+        );
         Shader = ShaderSystem::GetDefaultShader();
     }
 
@@ -157,7 +158,7 @@ Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
         if (Uniform.Scope == ShaderUniformScope::Instance)
         {
             const String& UniformName = It->first;
-            
+
             Instance->Properties[UniformName] = MaterialProperty();
 
             // Look to see if this property is present in the material
@@ -272,9 +273,10 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Te
     MaterialProperty& Property = It->second;
 
     // Validate the Uniform
-    Shader* Shader = Instance->Shader;
+    Shader*       Shader = Instance->Shader;
     ShaderUniform Uniform;
-    if (!ShaderSystem::GetUniform(Shader, Key, Uniform)) return false;
+    if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
+        return false;
 
     KDEBUG("Uniform offset %d", Uniform.Offset);
 
@@ -324,7 +326,7 @@ static void CreateDefaultMaterialsInternal()
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
 {
     FileHandle File;
-    bool Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &File);
+    bool       Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &File);
     if (!Result)
     {
         return false;
@@ -373,8 +375,8 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                                 return false;
                             }
 
-                            float DiffuseColor[4];
-                            int Index = 0;
+                            float32 DiffuseColor[4];
+                            int     Index = 0;
                             while (!Lexer.EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
                                 if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
@@ -383,7 +385,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                                 }
                                 else if (Token.Type == TokenType::TOKEN_TYPE_NUMBER)
                                 {
-                                    DiffuseColor[Index++] = Token.FloatValue;
+                                    DiffuseColor[Index++] = (float32)Token.FloatValue;
                                 }
                                 else
                                 {
@@ -401,11 +403,15 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                             return false;
                         }
 
-                        const String& TexturePath = Token.String();
+                        const String&   TexturePath = Token.String();
                         Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
-                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.", *TexturePath, *FilePath);
+                            KERROR(
+                                "[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.",
+                                *TexturePath,
+                                *FilePath
+                            );
                             Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 

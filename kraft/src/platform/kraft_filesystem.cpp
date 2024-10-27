@@ -1,17 +1,15 @@
 #include "kraft_filesystem.h"
 
-#include "core/kraft_log.h"
-#include "core/kraft_string.h"
 #include "core/kraft_asserts.h"
+#include "core/kraft_log.h"
 #include "core/kraft_memory.h"
+#include "core/kraft_string.h"
 
 #include <cerrno>
 
-namespace kraft
-{
+namespace kraft {
 
-namespace filesystem
-{
+namespace filesystem {
 
 bool OpenFile(const String& Path, int Mode, bool Binary, FileHandle* Out)
 {
@@ -102,7 +100,8 @@ bool FileExists(const String& Path)
 // outBuffer must be freed by the caller
 bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
 {
-    if (!handle->Handle) return false;
+    if (!handle->Handle)
+        return false;
 
     fseek((FILE*)handle->Handle, 0, SEEK_END);
     uint64 size = ftell((FILE*)handle->Handle);
@@ -143,7 +142,8 @@ bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
 
 bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
 {
-    if (!Handle->Handle) return false;
+    if (!Handle->Handle)
+        return false;
 
     fwrite(Buffer, sizeof(uint8), Size, (FILE*)Handle->Handle);
 
@@ -152,7 +152,8 @@ bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
 
 bool WriteFile(FileHandle* Handle, const Buffer& Buffer)
 {
-    if (!Handle->Handle) return false;
+    if (!Handle->Handle)
+        return false;
 
     fwrite(*Buffer, sizeof(Buffer::ValueType), Buffer.Length, (FILE*)Handle->Handle);
 
@@ -196,7 +197,7 @@ String CleanPath(const String& Path)
 void Dirname(const char* path, char* out)
 {
     uint64 Length = StringLength(path);
-    for (int i = Length - 1; i >= 0; i--)
+    for (int i = (int)Length - 1; i >= 0; i--)
     {
         if (path[i] == '/' || path[i] == '\\')
         {
@@ -208,7 +209,7 @@ void Dirname(const char* path, char* out)
 
 String Dirname(const String& Path)
 {
-    for (int i = Path.Length - 1; i >= 0; i--)
+    for (int i = (int)Path.Length - 1; i >= 0; i--)
     {
         if (Path[i] == '/' || Path[i] == '\\')
         {
@@ -222,7 +223,7 @@ String Dirname(const String& Path)
 void Basename(const char* path, char* out)
 {
     uint64 Length = StringLength(path);
-    for (int i = Length - 1; i >= 0; i--)
+    for (int i = (int)Length - 1; i >= 0; i--)
     {
         if (path[i] == '/' || path[i] == '\\')
         {
@@ -234,7 +235,7 @@ void Basename(const char* path, char* out)
 
 String Basename(const String& Path)
 {
-    for (int i = Path.Length - 1; i >= 0; i--)
+    for (int i = (int)Path.Length - 1; i >= 0; i--)
     {
         if (Path[i] == '/' || Path[i] == '\\')
         {
