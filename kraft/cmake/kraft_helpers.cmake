@@ -75,6 +75,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         ${KRAFT_PATH}/vendor/imgui 
         ${KRAFT_PATH}/vendor/glad/include 
         ${KRAFT_PATH}/vendor/glfw/include 
+        ${KRAFT_PATH}/vendor/entt/include 
     )
 
     # Compile-time definitions

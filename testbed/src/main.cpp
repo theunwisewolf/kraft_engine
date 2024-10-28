@@ -18,6 +18,9 @@
 #include "systems/kraft_geometry_system.h"
 #include "systems/kraft_material_system.h"
 #include "systems/kraft_texture_system.h"
+#include "world/kraft_components.h"
+#include "world/kraft_entity.h"
+#include "world/kraft_world.h"
 
 #include <imgui.h>
 
@@ -206,6 +209,13 @@ bool Init()
         }
     }
 
+    kraft::Entity Entity1 = DefaultWorld->CreateEntity();
+    Entity1.AddComponent<TransformComponent>(
+        kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
+        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
+        kraft::Vec3f{ 10.0f, 10.0f, 10.0f }
+    );
+
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room.obj");
     KASSERT(VikingRoom);
@@ -215,11 +225,8 @@ bool Init()
     EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
     // // EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
     EntityA.GeometryID = VikingRoom->Geometry->InternalID;
-    EntityA.SetTransform(
-        { 0.0f, 0.0f, 16.0f },
-        { kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
-        { 10.0f, 10.0f, 10.0f }
-    );
+    auto& Transform = Entity1.GetComponent<TransformComponent>();
+    EntityA.SetTransform(Transform.Position, Transform.Rotation, Transform.Scale);
     TestSceneState->AddEntity(EntityA);
 
     const float ObjectCount = 0.0f;

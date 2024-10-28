@@ -21,9 +21,9 @@ set(SRC_FILES
 )
 
 if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
+    add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
 else()
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+    add_executable(${PROJECT_NAME} ${SRC_FILES})
 endif()
 
 target_link_libraries(${PROJECT_NAME} Kraft)

@@ -96,6 +96,11 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
 
         # imgui extensions
         vendor/imgui/extensions/imguizmo/ImGuizmo.cpp
+
+        # World
+        src/world/kraft_world.cpp
+        src/world/kraft_entity.cpp
+        src/world/kraft_components.cpp
     )
 endif()
 
