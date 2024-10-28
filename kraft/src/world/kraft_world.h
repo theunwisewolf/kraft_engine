@@ -11,8 +11,6 @@ struct Entity;
 
 struct World
 {
-    entt::registry                    Registry;
-    FlatHashMap<entt::entity, Entity> Entities;
     uint64                            EntityIndex = 0;
 
     World();
@@ -20,5 +18,9 @@ struct World
 
     Entity CreateEntity();
     void   DestroyEntity(Entity Entity);
+
+private:
+    entt::registry                    Registry;
+    FlatHashMap<entt::entity, Entity> Entities;
 };
 }
