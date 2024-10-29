@@ -1389,7 +1389,7 @@ void VulkanRendererBackend::SetObjectName(uint64 Object, VkObjectType ObjectType
 
 bool createBuffers()
 {
-    const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 1024 * 256;
+    const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 256;
     s_Context.VertexBuffer = ResourceManager::Ptr->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = VertexBufferSize,
@@ -1397,7 +1397,7 @@ bool createBuffers()
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
     });
 
-    const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 1024 * 256;
+    const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 256;
     s_Context.IndexBuffer = ResourceManager::Ptr->CreateBuffer({
         .DebugName = "GlobalIndexBuffer",
         .Size = IndexBufferSize,

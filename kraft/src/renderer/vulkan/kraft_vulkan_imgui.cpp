@@ -95,6 +95,7 @@ bool Init()
     initInfo.RenderPass = context->MainRenderPass.Handle;
 
     ImGui_ImplVulkan_Init(&initInfo);
+    const float DPI = Platform::GetWindow().DPI;
 
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();
@@ -103,7 +104,7 @@ bool Init()
         uint64 Size = 0;
         bool   JakartaRegular = kraft::filesystem::ReadAllBytes("res/fonts/PlusJakartaSans-Regular.ttf", &Buffer, &Size);
         KASSERT(JakartaRegular);
-        IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14);
+        IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14.0f * DPI);
         // VulkanCommandBuffer buffer;
         // VulkanAllocateAndBeginSingleUseCommandBuffer(context, context->GraphicsCommandPool, &buffer);
         // ImGui_ImplVulkan_CreateFontsTexture();
@@ -126,6 +127,9 @@ bool Init()
 
     // Border Rounding
     ImGui::GetStyle().FrameRounding = 2.0f;
+
+    IO.DisplaySize = ImVec2(IO.DisplaySize.x * DPI, IO.DisplaySize.y * DPI);
+    ImGui::GetStyle().ScaleAllSizes(DPI);
 
     // Colors
     {

@@ -6,6 +6,7 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "containers/array.h"
+#include "containers/kraft_array.h"
 
 namespace kraft::renderer
 {
@@ -290,6 +291,8 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     arrsetlen(physicalDevices, deviceCount);
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, physicalDevices));
 
+    Array<VulkanPhysicalDevice> SuitablePhysicalDevices(deviceCount);
+    int SuitablePhysicalDevicesCount = 0;
     for (uint32 i = 0; i < deviceCount; ++i)
     {
         VkPhysicalDevice device = physicalDevices[i];
@@ -360,14 +363,24 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
         physicalDevice.SwapchainSupportInfo = swapchainSupportInfo;
         physicalDevice.SupportsDeviceLocalHostVisible = supportsDeviceLocalHostVisible;
 
-        context->PhysicalDevice = physicalDevice;
-        break;
+        SuitablePhysicalDevices[SuitablePhysicalDevicesCount++] = physicalDevice;
     }
 
-    if (!context->PhysicalDevice.Handle)
+    if (SuitablePhysicalDevicesCount == 0)
     {
         KERROR("[VulkanSelectPhysicalDevice]: Failed to find a suitable physical device!");
         return false;
+    }
+
+    // Try to pick a discrete gpu, if possible
+    context->PhysicalDevice = SuitablePhysicalDevices[0];
+    for (int i = 1; i < SuitablePhysicalDevicesCount; i++)
+    {
+        if (SuitablePhysicalDevices[i].Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            context->PhysicalDevice = SuitablePhysicalDevices[i];
+            break;
+        }
     }
 
     // Print some nice info about our physical device

@@ -51,6 +51,16 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
     glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - ((int)width / 2), (maxHeight / 2) - ((int)height / 2));
 #endif
 
+    // TODO (amn): We should fetch the monitor the window is being drawn on
+    // Currently there is no inbuilt way to do this in glfw
+    // A possible workaround is mentioned here: 
+    // https://github.com/glfw/glfw/issues/1699
+    // For now, we just use the primary monitor
+    GLFWmonitor* CurrentMonitor = glfwGetPrimaryMonitor();
+    float XScale, YScale;
+    glfwGetMonitorContentScale(CurrentMonitor, &XScale, &YScale);
+    this->DPI = XScale;
+
     // Window callbacks
     glfwSetWindowUserPointer(this->PlatformWindowHandle, this);
     glfwSetWindowSizeCallback(this->PlatformWindowHandle, WindowSizeCallback);

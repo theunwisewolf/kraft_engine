@@ -35,7 +35,8 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int3
     info.allocationSize = size;
     info.memoryTypeIndex = memoryTypeIndex;
 
-    KRAFT_VK_CHECK(vkAllocateMemory(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, out));
+    VkResult Result = vkAllocateMemory(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, out);
+    KRAFT_VK_CHECK(Result);
 
     return true;
 }

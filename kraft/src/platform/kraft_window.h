@@ -28,7 +28,9 @@ struct KRAFT_API Window
     static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
     static void CursorPositionCallback(GLFWwindow* window, double x, double y);
-    static void DragDropCallback(GLFWwindow* window, int count, const char** paths); 
+    static void DragDropCallback(GLFWwindow* window, int count, const char** paths);
+
+    float DPI; 
 };
 
 }
