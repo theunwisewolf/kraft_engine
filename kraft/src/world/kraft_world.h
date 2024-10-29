@@ -11,7 +11,8 @@ struct Entity;
 
 struct World
 {
-    uint64                            EntityIndex = 0;
+    friend struct Entity;
+    uint64 EntityIndex = 0;
 
     World();
     ~World();

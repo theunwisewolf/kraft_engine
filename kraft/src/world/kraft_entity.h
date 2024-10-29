@@ -84,8 +84,6 @@ struct Entity
 private:
     // The world this entity belongs to
     World* World;
-
-    friend class World;
 };
 
 }
