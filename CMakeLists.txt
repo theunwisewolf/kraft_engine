@@ -17,5 +17,5 @@ include(${KRAFT_PATH}/cmake/kraft_helpers.cmake)
 set(KRAFT_BUILDING_BASE TRUE)
 
 add_subdirectory(kraft ${KRAFT_BINARY_DIR}/kraft/core)
-add_subdirectory(testbed ${KRAFT_BINARY_DIR}/testbed)
+add_subdirectory(editor ${KRAFT_BINARY_DIR}/editor)
 # add_subdirectory(tools/shader_compiler ${KRAFT_BINARY_DIR}/tools/shader_compiler)

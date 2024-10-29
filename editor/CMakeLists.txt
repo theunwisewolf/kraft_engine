@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(PROJECT_NAME "KraftTestBed")
+set(PROJECT_NAME "KraftEditor")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -18,6 +18,7 @@ set(SRC_FILES
     src/scenes/simple_scene.cpp
     src/widgets.cpp
     src/main.cpp
+    src/imgui/imgui_renderer.cpp
 )
 
 if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")

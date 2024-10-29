@@ -4,15 +4,16 @@
 // #include <glad/vulkan.h>
 
 #include "core/kraft_asserts.h"
+#include "core/kraft_engine.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
-#include "core/kraft_main.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "core/kraft_time.h"
 #include "math/kraft_math.h"
 #include "platform/kraft_filesystem.h"
 #include "platform/kraft_platform.h"
+#include "platform/kraft_window.h"
 #include "renderer/kraft_renderer_types.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
 #include "systems/kraft_geometry_system.h"
@@ -24,11 +25,25 @@
 
 #include <imgui.h>
 
+#include "editor.h"
+#include "imgui/imgui_renderer.h"
 #include "scenes/simple_scene.h"
 #include "utils.h"
 #include "widgets.h"
 
 #include <systems/kraft_asset_database.h>
+
+static RendererImGui ImGuiRenderer = {};
+ApplicationState     GlobalAppState = {
+        .TestSceneState = nullptr,
+        .DefaultWorld = nullptr,
+        .LastTime = 0.0f,
+        .WindowTitleBuffer = { 0 },
+        .TargetFrameTime = 1 / 60.f,
+        .FrameCount = 0,
+        .TimeSinceLastFrame = 0.f,
+        .ImGuiRenderer = &ImGuiRenderer,
+};
 
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
 static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
@@ -178,8 +193,21 @@ bool ScrollEventListener(kraft::EventType type, void* sender, void* listener, kr
     return false;
 }
 
+bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
+{
+    uint32 Width = Data.UInt32Value[0];
+    uint32 Height = Data.UInt32Value[1];
+    KINFO("Window size changed = %d, %d", Width, Height);
+
+    GlobalAppState.ImGuiRenderer->OnResize(Width, Height);
+
+    return false;
+}
+
 bool Init()
 {
+    GlobalAppState.ImGuiRenderer->Init();
+
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
     EventSystem::Listen(EVENT_TYPE_KEY_UP, nullptr, KeyUpEventListener);
@@ -188,6 +216,7 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_MOVE, nullptr, MouseMoveEventListener);
     EventSystem::Listen(EVENT_TYPE_SCROLL, nullptr, ScrollEventListener);
     EventSystem::Listen(EVENT_TYPE_WINDOW_DRAG_DROP, nullptr, OnDragDrop);
+    EventSystem::Listen(EVENT_TYPE_WINDOW_RESIZE, nullptr, OnResize);
 
     // Drag events
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_START, nullptr, MouseDragStartEventListener);
@@ -198,10 +227,10 @@ bool Init()
 
     // Load textures
     String TexturePath;
-    if (kraft::Application::Get()->CommandLineArgs.Count > 1)
+    if (kraft::Engine::CommandLineArgs.Count > 1)
     {
         // Try loading the texture from the command line args
-        String FilePath = kraft::Application::Get()->CommandLineArgs.Arguments[1];
+        String FilePath = kraft::Engine::CommandLineArgs.Arguments[1];
         if (kraft::filesystem::FileExists(FilePath))
         {
             KINFO("Loading texture from cli path %s", FilePath.Data());
@@ -361,53 +390,125 @@ void Update(float64 deltaTime)
     // }
 }
 
-void Render(float64 deltaTime, kraft::renderer::RenderPacket& RenderPacket)
+void Render()
 {
-    kraft::Camera& Camera = TestSceneState->SceneCamera;
-    RenderPacket.ProjectionMatrix = Camera.ProjectionMatrix;
-    RenderPacket.ViewMatrix = Camera.GetViewMatrix();
-
+    kraft::Engine::Renderer.Camera = &TestSceneState->SceneCamera;
     for (uint32 i = 0; i < TestSceneState->ObjectsCount; i++)
     {
         kraft::Renderer->AddRenderable(TestSceneState->ObjectStates[i]);
     }
 }
 
-void OnResize(size_t width, size_t height)
-{
-    KINFO("Window size changed = %d, %d", width, height);
-}
-
-void OnBackground()
-{}
-
-void OnForeground()
-{}
-
-bool Shutdown()
+void Shutdown()
 {
     DestroyScene();
 
-    return true;
+    GlobalAppState.ImGuiRenderer->Destroy();
 }
 
-bool CreateApplication(kraft::Application* app, int argc, char* argv[])
+void Run()
 {
-    app->Config.ApplicationName = "Kraft!";
-    app->Config.WindowTitle = "Kraft! [VULKAN]";
-    app->Config.WindowWidth = 1280;
-    app->Config.WindowHeight = 800;
-    app->Config.RendererBackend = kraft::renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN;
-    app->Config.ConsoleApp = false;
-    app->Config.StartMaximized = true;
+    while (kraft::Engine::Running)
+    {
+        float64 FrameStartTime = kraft::Platform::GetAbsoluteTime();
+        float64 DeltaTime = FrameStartTime - GlobalAppState.LastTime;
+        kraft::Time::DeltaTime = DeltaTime;
+        GlobalAppState.TimeSinceLastFrame += DeltaTime;
+        GlobalAppState.LastTime = FrameStartTime;
 
-    app->Init = Init;
-    app->Update = Update;
-    app->Render = Render;
-    app->OnResize = OnResize;
-    app->OnBackground = OnBackground;
-    app->OnForeground = OnForeground;
-    app->Shutdown = Shutdown;
+        // Poll events
+        kraft::Engine::Tick();
 
-    return true;
+        Update(kraft::Time::DeltaTime);
+
+        if (!kraft::Engine::Suspended)
+        {
+            Render();
+            kraft::Engine::Present();
+
+            // TODO (amn): Fix this
+            // We do not have any other way to render the main renderpass right now :(
+            if (kraft::Engine::Renderer.Backend->BeginFrame())
+            {
+                GlobalAppState.ImGuiRenderer->BeginFrame();
+                GlobalAppState.ImGuiRenderer->RenderWidgets();
+                GlobalAppState.ImGuiRenderer->EndFrame();
+
+                if (!kraft::Engine::Renderer.Backend->EndFrame())
+                {
+                    KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
+                }
+            }
+
+            ImGuiRenderer.EndFrameUpdatePlatformWindows();
+        }
+
+        kraft::Time::FrameTime = kraft::Platform::GetAbsoluteTime() - FrameStartTime;
+        if (kraft::Time::FrameTime < GlobalAppState.TargetFrameTime)
+        {
+            float64 CurrentAbsoluteTime = kraft::Platform::GetAbsoluteTime();
+            kraft::Platform::SleepMilliseconds((uint64)((GlobalAppState.TargetFrameTime - kraft::Time::FrameTime) * 1000.f));
+        }
+
+        if (GlobalAppState.TimeSinceLastFrame >= 1.f)
+        {
+            kraft::StringFormat(
+                GlobalAppState.WindowTitleBuffer,
+                sizeof(GlobalAppState.WindowTitleBuffer),
+                "%s (%d fps | %f ms deltaTime | %f ms targetFrameTime)",
+                kraft::Engine::Config.WindowTitle,
+                GlobalAppState.FrameCount,
+                DeltaTime * 1000.f,
+                GlobalAppState.TargetFrameTime * 1000.0f
+            );
+
+            kraft::Platform::GetWindow().SetWindowTitle(GlobalAppState.WindowTitleBuffer);
+
+            GlobalAppState.TimeSinceLastFrame = 0.f;
+            GlobalAppState.FrameCount = 0;
+        }
+
+        GlobalAppState.FrameCount++;
+    }
+}
+
+#if defined(KRAFT_PLATFORM_WINDOWS) && !defined(KRAFT_DEBUG) && defined(KRAFT_GUI_APP)
+#define KRAFT_USE_WINMAIN 1
+#else
+#define KRAFT_USE_WINMAIN 0
+#endif
+
+#if KRAFT_USE_WINMAIN
+#include "Windows.h"
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
+#else
+int main(int argc, char* argv[])
+#endif
+{
+#if KRAFT_USE_WINMAIN
+    int    argc = __argc;
+    char** argv = __argv;
+#endif
+
+    kraft::Engine::Init(
+        argc,
+        argv,
+        {
+            .WindowWidth = 1280,
+            .WindowHeight = 800,
+            .WindowTitle = "Kraft Editor",
+            .ApplicationName = "KraftEditor",
+            .RendererBackend = kraft::renderer::RENDERER_BACKEND_TYPE_VULKAN,
+            .ConsoleApp = false,
+            .StartMaximized = true,
+        }
+    );
+
+    Init();
+    Run();
+    Shutdown();
+
+    kraft::Engine::Destroy();
+
+    return 0;
 }

@@ -1,15 +1,18 @@
 #include "widgets.h"
 
-#include "core/kraft_application.h"
+#include "core/kraft_engine.h"
 #include "math/kraft_math.h"
 #include "renderer/kraft_renderer_frontend.h"
 #include "resources/kraft_resource_types.h"
 #include "systems/kraft_material_system.h"
 #include "systems/kraft_texture_system.h"
 
+#include "editor.h"
 #include "utils.h"
+#include "imgui/imgui_renderer.h"
 
 #include <renderer/kraft_resource_manager.h>
+#include <platform/kraft_window.h>
 
 #include "imgui/extensions/imguizmo/ImGuizmo.h"
 #include <imgui/imgui.h>
@@ -27,11 +30,11 @@ static ImTextureID                             ImSceneTexture;
 
 void InitImguiWidgets(kraft::renderer::Handle<kraft::Texture> DiffuseTexture)
 {
-    TextureID = kraft::Renderer->ImGuiRenderer.AddTexture(DiffuseTexture);
-    kraft::Renderer->ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
+    TextureID = GlobalAppState.ImGuiRenderer->AddTexture(DiffuseTexture);
+    GlobalAppState.ImGuiRenderer->AddWidget("Debug", DrawImGuiWidgets);
 
     SceneTexture = kraft::Renderer->GetSceneViewTexture();
-    ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(SceneTexture);
+    ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(SceneTexture);
 
     State.CurrentOperation = ImGuizmo::TRANSLATE;
     State.Mode = ImGuizmo::LOCAL;
@@ -44,14 +47,14 @@ void DrawImGuiWidgets(bool refresh)
 
     ImGui::Begin("Debug");
 
-    static float left = -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
-                 right = (float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
-                 top = -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f,
-                 bottom = (float)kraft::Application::Get()->Config.WindowHeight * 0.5f, nearClip = -1.f, farClip = 1.f;
+    static float left = -(float)kraft::Platform::GetWindow().Width * 0.5f,
+                 right = (float)kraft::Platform::GetWindow().Width * 0.5f,
+                 top = -(float)kraft::Platform::GetWindow().Height * 0.5f,
+                 bottom = (float)kraft::Platform::GetWindow().Height * 0.5f, nearClip = -1.f, farClip = 1.f;
 
     static float fov = 45.f;
-    static float width = (float)kraft::Application::Get()->Config.WindowWidth;
-    static float height = (float)kraft::Application::Get()->Config.WindowHeight;
+    static float width = (float)kraft::Platform::GetWindow().Width;
+    static float height = (float)kraft::Platform::GetWindow().Height;
     static float nearClipP = 0.1f;
     static float farClipP = 1000.f;
 
@@ -60,8 +63,8 @@ void DrawImGuiWidgets(bool refresh)
         TestSceneState->GetSelectedEntity().MaterialInstance->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
     kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
-    kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth,
-                           (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
+    kraft::Vec2f ratio = { (float)Texture->Width / kraft::Platform::GetWindow().Width,
+                           (float)Texture->Height / kraft::Platform::GetWindow().Height };
     float        downScale = kraft::math::Max(ratio.x, ratio.y);
 
     static kraft::Vec3f rotationDeg = kraft::Vec3fZero;
@@ -228,8 +231,8 @@ void DrawImGuiWidgets(bool refresh)
     if (kraft::Renderer->SetSceneViewViewportSize(ViewPortPanelSize.x, ViewPortPanelSize.y))
     {
         // Remove the old texture
-        kraft::Renderer->ImGuiRenderer.RemoveTexture(ImSceneTexture);
-        ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(kraft::Renderer->GetSceneViewTexture());
+        GlobalAppState.ImGuiRenderer->RemoveTexture(ImSceneTexture);
+        ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(kraft::Renderer->GetSceneViewTexture());
 
         if (usePerspectiveProjection)
         {
@@ -248,9 +251,9 @@ void DrawImGuiWidgets(bool refresh)
     // auto CurrentSceneTexture = kraft::Renderer->GetSceneViewTexture();
     // if (CurrentSceneTexture->Width != SceneTexture->Width || CurrentSceneTexture->Height != SceneTexture->Height)
     // {
-    //     kraft::Renderer->ImGuiRenderer.RemoveTexture(ImSceneTexture);
+    //     GlobalAppState.ImGuiRenderer->RemoveTexture(ImSceneTexture);
     //     SceneTexture = CurrentSceneTexture;
-    //     ImSceneTexture = kraft::Renderer->ImGuiRenderer.AddTexture(SceneTexture);
+    //     ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(SceneTexture);
     // }
 
     // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);

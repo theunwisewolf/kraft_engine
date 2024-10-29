@@ -2,28 +2,26 @@
 
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
-#include "core/kraft_application.h"
 #include "core/kraft_asserts.h"
+#include "core/kraft_engine.h"
 #include "renderer/kraft_renderer_backend.h"
-#include "renderer/kraft_renderer_imgui.h"
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
+#include "renderer/kraft_camera.h"
 
 #include "systems/kraft_shader_system.h"
 #include "systems/kraft_material_system.h"
 
 #include <renderer/kraft_resource_manager.h>
 
-#define KRAFT_IMGUI_ENABLED 1
-
 namespace kraft::renderer
 {
 
 RendererFrontend* Renderer = nullptr;
 
-bool RendererFrontend::Init(ApplicationConfig* config)
+bool RendererFrontend::Init(EngineConfig* Config)
 {
     Renderer = this;
-    Type = config->RendererBackend;
+    Type = Config->RendererBackend;
     BackendMemory = MallocBlock(sizeof(RendererBackend));
     Backend = (RendererBackend*)BackendMemory.Data;
     this->Renderables.reserve(1024);
@@ -35,20 +33,17 @@ bool RendererFrontend::Init(ApplicationConfig* config)
         return false;
     }
 
-    if (!Backend->Init(config))
+    if (!Backend->Init(Config))
     {
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return false;
     }
-
-    ImGuiRenderer.Init(config);
 
     return true;
 }
 
 bool RendererFrontend::Shutdown()
 {
-    ImGuiRenderer.Destroy();
     DestroyBackend(Backend);
 
     FreeBlock(BackendMemory);
@@ -62,7 +57,6 @@ void RendererFrontend::OnResize(int width, int height)
     if (Backend)
     {
         Backend->OnResize(width, height);
-        ImGuiRenderer.OnResize(width, height);
     }
     else
     {
@@ -70,9 +64,12 @@ void RendererFrontend::OnResize(int width, int height)
     }
 }
 
-bool RendererFrontend::DrawFrame(RenderPacket* Packet)
+bool RendererFrontend::DrawFrame()
 {
     static uint64 Frame = 0;
+
+    Mat4f ProjectionMatrix = this->Camera->ProjectionMatrix;
+    Mat4f ViewMatrix = this->Camera->GetViewMatrix();
 
     Backend->PrepareFrame();
     Backend->BeginSceneView();
@@ -82,7 +79,7 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
         uint64 Count = Objects.Size();
         if (!Count) continue;
         ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
-        ShaderSystem::ApplyGlobalProperties(Packet->ProjectionMatrix, Packet->ViewMatrix);
+        ShaderSystem::ApplyGlobalProperties(ProjectionMatrix, ViewMatrix);
         for (int i = 0; i < Count; i++)
         {
             Renderable Object = Objects[i];
@@ -99,32 +96,34 @@ bool RendererFrontend::DrawFrame(RenderPacket* Packet)
     }
     Backend->EndSceneView();
 
-    if (Backend->BeginFrame(Packet->DeltaTime))
-    {
-#if KRAFT_IMGUI_ENABLED
-        ImGuiRenderer.BeginFrame(Packet->DeltaTime);
-        ImGuiRenderer.RenderWidgets();
-        ImGuiRenderer.EndFrame();
-#endif
+    return true;
 
-        if (!Backend->EndFrame(Packet->DeltaTime))
-        {
-            KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
-            return false;
-        }
+//     if (Backend->BeginFrame())
+//     {
+// #if KRAFT_IMGUI_ENABLED
+//         ImGuiRenderer.BeginFrame();
+//         ImGuiRenderer.RenderWidgets();
+//         ImGuiRenderer.EndFrame();
+// #endif
 
-#if KRAFT_IMGUI_ENABLED
-        ImGuiRenderer.EndFrameUpdatePlatformWindows();
-#endif
+//         if (!Backend->EndFrame())
+//         {
+//             KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
+//             return false;
+//         }
 
-        ResourceManager::Ptr->EndFrame(Frame);
+// #if KRAFT_IMGUI_ENABLED
+//         ImGuiRenderer.EndFrameUpdatePlatformWindows();
+// #endif
 
-        Frame++;
+//         ResourceManager::Ptr->EndFrame(Frame);
 
-        return true;
-    }
+//         Frame++;
 
-    return false;
+//         return true;
+//     }
+
+//     return false;
 }
 
 bool RendererFrontend::AddRenderable(Renderable Object)

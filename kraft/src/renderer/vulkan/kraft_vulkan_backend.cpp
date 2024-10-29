@@ -1,7 +1,7 @@
 #include "kraft_vulkan_backend.h"
 
 #include "containers/array.h"
-#include "core/kraft_application.h"
+#include "core/kraft_engine.h"
 #include "core/kraft_log.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
@@ -229,7 +229,7 @@ static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* ren
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
 static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count);
 
-bool VulkanRendererBackend::Init(ApplicationConfig* config)
+bool VulkanRendererBackend::Init(EngineConfig* config)
 {
     KRAFT_VK_CHECK(volkInitialize());
 
@@ -568,7 +568,7 @@ bool VulkanRendererBackend::PrepareFrame()
     return true;
 }
 
-bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
+bool VulkanRendererBackend::BeginFrame()
 {
     VulkanBeginRenderPass(
         &s_Context.ActiveCommandBuffer,
@@ -598,7 +598,7 @@ bool VulkanRendererBackend::BeginFrame(float64 deltaTime)
     return true;
 }
 
-bool VulkanRendererBackend::EndFrame(float64 deltaTime)
+bool VulkanRendererBackend::EndFrame()
 {
     VulkanEndRenderPass(&s_Context.ActiveCommandBuffer, &s_Context.MainRenderPass);
 

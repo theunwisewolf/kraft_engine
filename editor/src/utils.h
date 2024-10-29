@@ -4,6 +4,8 @@
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_resource_manager.h>
 
+#include <platform/kraft_window.h>
+
 #include "scenes/simple_scene.h"
 
 static void SetProjection(kraft::CameraProjectionType Type)
@@ -15,10 +17,7 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
         Camera.ProjectionMatrix = kraft::PerspectiveMatrix(
-            kraft::DegToRadians(45.0f),
-            (float)kraft::Application::Get()->Config.WindowWidth / (float)kraft::Application::Get()->Config.WindowHeight,
-            0.1f,
-            1000.f
+            kraft::DegToRadians(45.0f), (float)kraft::Platform::GetWindow().Width / (float)kraft::Platform::GetWindow().Height, 0.1f, 1000.f
         );
 
         // Camera.SetPosition({25.0f, 15.0f, 20.f});
@@ -38,10 +37,10 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Orthographic;
         Camera.ProjectionMatrix = kraft::OrthographicMatrix(
-            -(float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
-            (float)kraft::Application::Get()->Config.WindowWidth * 0.5f,
-            -(float)kraft::Application::Get()->Config.WindowHeight * 0.5f,
-            (float)kraft::Application::Get()->Config.WindowHeight * 0.5f,
+            -(float)kraft::Platform::GetWindow().Width * 0.5f,
+            (float)kraft::Platform::GetWindow().Width * 0.5f,
+            -(float)kraft::Platform::GetWindow().Height * 0.5f,
+            (float)kraft::Platform::GetWindow().Height * 0.5f,
             -1.0f,
             1.0f
         );
@@ -59,16 +58,15 @@ static void UpdateObjectScale(uint32 EntityID)
     kraft::renderer::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
     kraft::Texture*                         Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
-    float WindowWidth = kraft::Application::Get()->Config.WindowWidth;
-    float WindowHeight = kraft::Application::Get()->Config.WindowHeight;
+    float WindowWidth = kraft::Platform::GetWindow().Width;
+    float WindowHeight = kraft::Platform::GetWindow().Height;
     float RatioImage = Texture->Width / Texture->Height;
     float RatioWindow = WindowWidth / WindowHeight;
 
     kraft::Vec3f Scale;
     kraft::Vec3f Size = (RatioWindow > RatioImage) ? (kraft::Vec3f{ Texture->Width * WindowHeight / Texture->Height, WindowHeight, 1.0f })
                                                    : kraft::Vec3f{ WindowWidth, Texture->Height * WindowWidth / Texture->Width, 1.0f };
-    kraft::Vec2f ratio = { (float)Texture->Width / kraft::Application::Get()->Config.WindowWidth,
-                           (float)Texture->Height / kraft::Application::Get()->Config.WindowHeight };
+    kraft::Vec2f ratio = { (float)Texture->Width / WindowWidth, (float)Texture->Height / WindowHeight };
     float        downScale = kraft::math::Max(ratio.x, ratio.y);
     if (Camera.ProjectionType == kraft::CameraProjectionType::Orthographic)
     {

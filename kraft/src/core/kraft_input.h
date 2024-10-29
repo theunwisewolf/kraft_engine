@@ -184,7 +184,7 @@ struct KRAFT_API InputSystem
 
     static bool Init();
     static bool Shutdown();
-    static void Update(float64 dt);
+    static void Update();
     static void ProcessKeyboard(int keycode, bool pressed);
     static void ProcessMouseButton(int button, bool pressed);
     static void ProcessMouseMove(int x, int y);

@@ -18,7 +18,7 @@ set(SRC_FILES
     src/core/kraft_log.cpp
     src/core/kraft_input.cpp
     src/core/kraft_events.cpp
-    src/core/kraft_application.cpp
+    src/core/kraft_engine.cpp
     src/core/kraft_time.cpp
     src/core/kraft_memory.cpp
     src/core/kraft_string.cpp
@@ -38,12 +38,10 @@ endif()
 
 set(HEADER_FILES
     src/util.h
-    src/core/kraft_main.h
     src/core/kraft_core.h
     src/core/kraft_log.h
     src/core/kraft_memory.h
     src/core/kraft_asserts.h
-    src/core/kraft_application.h
     src/math/kraft_math.h
     src/platform/kraft_platform.h
 )
@@ -58,7 +56,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/kraft_camera.cpp
         src/renderer/kraft_renderer_backend.cpp
         src/renderer/kraft_renderer_frontend.cpp
-        src/renderer/kraft_renderer_imgui.cpp
         src/renderer/kraft_resource_manager.cpp
         src/renderer/vulkan/kraft_vulkan_volk_impl.cpp
         src/renderer/vulkan/kraft_vulkan_backend.cpp
@@ -125,7 +122,7 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC ${KRAFT_STATIC_LIBS_COMPILE_DE
 target_link_libraries(${PROJECT_NAME} ${KRAFT_STATIC_LIBS})
 
 # Disable warnings from linking shaderc
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/ignore:4099")
+target_link_options(${PROJECT_NAME} INTERFACE "/ignore:4099")
 
 # If building a shared lib
 # target_compile_definitions(${PROJECT_NAME} PRIVATE KRAFT_SHARED)

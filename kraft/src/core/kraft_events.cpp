@@ -46,8 +46,9 @@ bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
     {
         if (events[i].Listener == listener)
         {
-            KERROR("[EventSystem::Listen]: An event entry with the same listener already exists for event type %d", type);
-            return false;
+            // TODO (amn): Fix this
+            // KERROR("[EventSystem::Listen]: An event entry with the same listener already exists for event type %d", type);
+            // return false;
         }
     }
 

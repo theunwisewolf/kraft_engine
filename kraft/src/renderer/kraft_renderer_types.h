@@ -10,7 +10,7 @@ struct ImDrawData;
 
 namespace kraft {
 
-struct ApplicationConfig;
+struct EngineConfig;
 struct Texture;
 struct Material;
 struct Geometry;
@@ -85,7 +85,6 @@ struct Renderable
 
 struct RenderPacket
 {
-    float64 DeltaTime;
     Mat4f   ProjectionMatrix;
     Mat4f   ViewMatrix;
 };
@@ -101,11 +100,11 @@ enum RendererBackendType
 
 struct RendererBackend
 {
-    bool (*Init)(ApplicationConfig* config);
+    bool (*Init)(EngineConfig* Config);
     bool (*Shutdown)();
     bool (*PrepareFrame)();
-    bool (*BeginFrame)(float64 deltaTime);
-    bool (*EndFrame)(float64 deltaTime);
+    bool (*BeginFrame)();
+    bool (*EndFrame)();
     void (*OnResize)(int width, int height);
 
     void (*BeginSceneView)();
@@ -136,17 +135,6 @@ struct RendererBackend
         const uint32 IndexSize
     );
     void (*DestroyGeometry)(Geometry* Geometry);
-};
-
-struct RendererImguiBackend
-{
-    bool (*Init)();
-    bool (*Destroy)();
-    bool (*BeginFrame)(float64 deltaTime);
-    bool (*EndFrame)(ImDrawData* DrawData);
-    ImTextureID (*AddTexture)(Handle<Texture> Resource);
-    void (*RemoveTexture)(ImTextureID TextureID);
-    void (*PostFrameCleanup)();
 };
 
 struct Vertex3D

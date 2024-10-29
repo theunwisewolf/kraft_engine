@@ -2,12 +2,12 @@
 
 #include "platform/kraft_platform.h"
 
-namespace kraft
-{
+namespace kraft {
 
-float64 Time::StartTime     = 0;
-float64 Time::ElapsedTime   = 0;
-float64 Time::DeltaTime   = 0;
+float64 Time::StartTime = 0;
+float64 Time::ElapsedTime = 0;
+float64 Time::DeltaTime = 0;
+float64 Time::FrameTime = 0;
 
 void Time::Start()
 {

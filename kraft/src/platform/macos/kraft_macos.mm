@@ -9,7 +9,7 @@
 #include <mach/mach_time.h>
 
 #include "core/kraft_log.h"
-#include "core/kraft_application.h"
+#include "core/kraft_engine.h"
 #include "platform/kraft_platform.h"
 
 namespace kraft
@@ -52,7 +52,7 @@ const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
 static uint64_t s_ClockFrequency;
 
-bool Platform::Init(ApplicationConfig* config)
+bool Platform::Init(EngineConfig* config)
 {
     InternalState = Malloc(sizeof(MacOSPlatformState), false);
     State = (MacOSPlatformState*)InternalState;

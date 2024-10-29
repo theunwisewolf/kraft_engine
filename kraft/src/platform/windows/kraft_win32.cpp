@@ -13,7 +13,7 @@
 #include <GLFW/glfw3native.h>
 #endif
 
-#include "core/kraft_application.h"
+#include "core/kraft_engine.h"
 #include "core/kraft_log.h"
 #include "core/kraft_string.h"
 #include "platform/kraft_platform.h"
@@ -62,7 +62,7 @@ static HANDLE                     s_ConsoleErrorHandle;
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
-bool Platform::Init(ApplicationConfig* config)
+bool Platform::Init(EngineConfig* config)
 {
     InternalState = Malloc(sizeof(Win32PlatformState), false);
     State = (Win32PlatformState*)InternalState;

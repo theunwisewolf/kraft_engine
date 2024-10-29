@@ -11,7 +11,7 @@ namespace VulkanImgui
 {
 
 bool Init();
-bool BeginFrame(float64 deltaTime);
+bool BeginFrame();
 bool EndFrame(ImDrawData* DrawData);
 bool Destroy();
 

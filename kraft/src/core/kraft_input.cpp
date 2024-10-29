@@ -28,7 +28,7 @@ bool InputSystem::Shutdown()
     return true;
 }
 
-void InputSystem::Update(float64 dt)
+void InputSystem::Update()
 {
     MemCpy(&State.PreviousKeyboardState, &State.CurrentKeyboardState, sizeof(KeyboardState));
     MemCpy(&State.PreviousMouseState, &State.CurrentMouseState, sizeof(MouseState));

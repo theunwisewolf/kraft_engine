@@ -8,7 +8,7 @@
 namespace kraft {
 
 struct Window;
-struct ApplicationConfig;
+struct EngineConfig;
 
 // #if defined(KRAFT_PLATFORM_WINDOWS)
 // struct Win32PlatformState;
@@ -24,7 +24,7 @@ struct KRAFT_API Platform
     // it should do so in this variable
     static void* InternalState;
 
-    static bool Init(ApplicationConfig* config);
+    static bool Init(EngineConfig* config);
     static bool PollEvents();
     static void Shutdown();
 
