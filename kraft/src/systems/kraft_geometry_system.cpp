@@ -95,17 +95,18 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     Reference->ReferenceCount = 1;
     Reference->AutoRelease = AutoRelease;
     Reference->Geometry.ID = Index;
-    
+
     if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
         Reference->Geometry.InternalID = State->MaxGeometriesCount;
-        StringCopy(Reference->Geometry.Name, *Data.Name);
 
         KERROR("[GeometrySystem::AcquireGeometryWithData]: Failed to create geometry!");
         return nullptr;
     }
+
+    StringCopy(Reference->Geometry.Name, *Data.Name);
     
     return &Reference->Geometry;
 }
@@ -150,10 +151,10 @@ void _createDefaultGeometries()
     GeometryReference* Ref = &State->Geometries[0];
     Vertex3D Vertices[] = 
     {
-        { Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f} },
-        { Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f} },
-        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f} },
-        { Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f} },
+        { Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}, {0, 0, 0} },
+        { Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}, {0, 0, 0} },
+        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}, {0, 0, 0} },
+        { Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}, {0, 0, 0} },
     };
 
     uint32 Indices[] = {0, 1, 2, 2, 3, 0};

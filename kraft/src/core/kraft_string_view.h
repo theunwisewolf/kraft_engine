@@ -30,6 +30,16 @@ struct KStringView
         this->Length = Str.Length;
     }
 
+    // C-style strings
+    KStringView(const ValueType* CStr)
+    {
+        if (CStr)
+        {
+            this->Buffer = CStr;
+            this->Length = Strlen(CStr);
+        }
+    }
+
     KStringView(const ValueType* Buffer, SizeType Length)
     {
         this->Buffer = Buffer;

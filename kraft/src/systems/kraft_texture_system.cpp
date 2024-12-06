@@ -29,7 +29,7 @@ struct TextureReference
     TextureReference() : RefCount(0), AutoRelease(true), Resource(Handle<Texture>::Invalid())
     {}
 
-    TextureReference(Handle<Texture> Resource, bool AutoRelease = true) : RefCount(0), Resource(Resource), AutoRelease(AutoRelease)
+    TextureReference(Handle<Texture> Resource, bool AutoRelease = true) : RefCount(0), AutoRelease(AutoRelease), Resource(Resource)
     {}
 };
 

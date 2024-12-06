@@ -97,33 +97,6 @@ bool RendererFrontend::DrawFrame()
     Backend->EndSceneView();
 
     return true;
-
-//     if (Backend->BeginFrame())
-//     {
-// #if KRAFT_IMGUI_ENABLED
-//         ImGuiRenderer.BeginFrame();
-//         ImGuiRenderer.RenderWidgets();
-//         ImGuiRenderer.EndFrame();
-// #endif
-
-//         if (!Backend->EndFrame())
-//         {
-//             KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
-//             return false;
-//         }
-
-// #if KRAFT_IMGUI_ENABLED
-//         ImGuiRenderer.EndFrameUpdatePlatformWindows();
-// #endif
-
-//         ResourceManager::Ptr->EndFrame(Frame);
-
-//         Frame++;
-
-//         return true;
-//     }
-
-//     return false;
 }
 
 bool RendererFrontend::AddRenderable(Renderable Object)

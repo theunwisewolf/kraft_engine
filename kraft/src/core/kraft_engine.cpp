@@ -118,11 +118,11 @@ bool Engine::Tick()
 
 bool Engine::Present()
 {
+#if defined(KRAFT_GUI_APP)
     // TODO (amn): This should happen at the end of the frame
     // Clear out the resources
     renderer::ResourceManager::Ptr->EndFrame(0);
 
-#if defined(KRAFT_GUI_APP)
     return Engine::Renderer.DrawFrame();
 #endif
 

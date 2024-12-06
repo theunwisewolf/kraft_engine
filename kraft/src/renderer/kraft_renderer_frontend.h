@@ -5,6 +5,7 @@
 #include "core/kraft_memory.h"
 #include "renderer/kraft_renderer_types.h"
 #include "resources/kraft_resource_types.h"
+#include "world/kraft_world.h"
 
 namespace kraft {
 
@@ -22,6 +23,7 @@ struct RendererFrontend
     RendererBackendType                    Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     HashMap<ResourceID, Array<Renderable>> Renderables;
     kraft::Camera*                         Camera = nullptr;
+    kraft::World*                          CurrentWorld = nullptr;
 
     bool Init(EngineConfig* Config);
     bool Shutdown();

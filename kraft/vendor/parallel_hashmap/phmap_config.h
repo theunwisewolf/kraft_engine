@@ -210,7 +210,7 @@
     !(defined(_MSC_VER) && !defined(_CPPUNWIND))
     #define PHMAP_HAVE_EXCEPTIONS 1
 #endif
-
+#define PHMAP_HAVE_EXCEPTIONS 0
 
 // -----------------------------------------------------------------------
 // Checks whether the platform has an mmap(2) implementation as defined in

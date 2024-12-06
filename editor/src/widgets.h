@@ -5,6 +5,7 @@
 
 #include <renderer/kraft_renderer_types.h>
 
-void InitImguiWidgets(kraft::renderer::Handle<kraft::Texture> DiffuseTexture);
+void InitImguiWidgets();
 void DrawImGuiWidgets(bool refresh);
 void PipelineDebugger();
+void HierarchyPanel();

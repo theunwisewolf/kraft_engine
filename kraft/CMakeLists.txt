@@ -122,13 +122,18 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC ${KRAFT_STATIC_LIBS_COMPILE_DE
 target_link_libraries(${PROJECT_NAME} ${KRAFT_STATIC_LIBS})
 
 # Disable warnings from linking shaderc
+if (MSVC)
 target_link_options(${PROJECT_NAME} INTERFACE "/ignore:4099")
+endif()
 
 # If building a shared lib
 # target_compile_definitions(${PROJECT_NAME} PRIVATE KRAFT_SHARED)
 
 # If building a static lib
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)
+
+# Compiler options
+target_compile_options(${PROJECT_NAME} PUBLIC -Wno-unused-function -Wno-unused-variable)
 
 # find_package(OpenGL REQUIRED)
 

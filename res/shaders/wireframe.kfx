@@ -5,9 +5,10 @@ Shader Basic
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 20 vertex
+            Binding     0 32 vertex
             Attribute   float3 Position 0 0 0
             Attribute   float2 UV 0 1 12
+            Attribute   float3 Normal 0 2 20
         }
 
         // Uniform buffers
@@ -32,6 +33,7 @@ Shader Basic
         // Inputs
         layout (location = 0) in vec3 inPosition;
         layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec3 inNormal;
 
         // Written to; using descriptor sets
         layout (set = 0, binding = 0) uniform GlobalUniformBuffer

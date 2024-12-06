@@ -4,11 +4,11 @@ namespace kraft
 {
 
 Camera::Camera() :
-    Up(Vec3f(0.0f, 1.0f, 0.0f)),
-    Yaw(-90.0f),
     Pitch(0.0f),
+    Yaw(-90.0f),
     Roll(0.0f),
-    ViewMatrix(Mat4f(Identity))
+    ViewMatrix(Mat4f(Identity)),
+    Up(Vec3f(0.0f, 1.0f, 0.0f))
 {
     // Reset();
 }

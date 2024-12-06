@@ -1,13 +1,7 @@
-#include <stdio.h>
-
-// #define GLAD_VULKAN_IMPLEMENTATION
-// #include <glad/vulkan.h>
-
 #include "core/kraft_asserts.h"
 #include "core/kraft_engine.h"
 #include "core/kraft_events.h"
 #include "core/kraft_input.h"
-#include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "core/kraft_time.h"
 #include "math/kraft_math.h"
@@ -15,7 +9,6 @@
 #include "platform/kraft_platform.h"
 #include "platform/kraft_window.h"
 #include "renderer/kraft_renderer_types.h"
-#include "renderer/shaderfx/kraft_shaderfx.h"
 #include "systems/kraft_geometry_system.h"
 #include "systems/kraft_material_system.h"
 #include "systems/kraft_texture_system.h"
@@ -27,7 +20,6 @@
 
 #include "editor.h"
 #include "imgui/imgui_renderer.h"
-#include "scenes/simple_scene.h"
 #include "utils.h"
 #include "widgets.h"
 
@@ -35,8 +27,6 @@
 
 static RendererImGui ImGuiRenderer = {};
 ApplicationState     GlobalAppState = {
-        .TestSceneState = nullptr,
-        .DefaultWorld = nullptr,
         .LastTime = 0.0f,
         .WindowTitleBuffer = { 0 },
         .TargetFrameTime = 1 / 60.f,
@@ -45,43 +35,45 @@ ApplicationState     GlobalAppState = {
         .ImGuiRenderer = &ImGuiRenderer,
 };
 
+static EditorState Editor = EditorState();
+
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
 static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
 bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
-    int          count = (int)data.Int64Value[0];
-    const char** paths = (const char**)data.Int64Value[1];
+    // int          count = (int)data.Int64Value[0];
+    // const char** paths = (const char**)data.Int64Value[1];
 
-    // Try loading the texture from the command line args
-    const char* TexturePath = paths[count - 1];
-    if (kraft::filesystem::FileExists(TexturePath))
-    {
-        KINFO("Loading texture from path %s", TexturePath);
-        kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
-        UpdateObjectScale(1);
-    }
-    else
-    {
-        KWARN("%s path does not exist", TexturePath)
-    }
+    // // Try loading the texture from the command line args
+    // const char* TexturePath = paths[count - 1];
+    // if (kraft::filesystem::FileExists(TexturePath))
+    // {
+    //     KINFO("Loading texture from path %s", TexturePath);
+    //     kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
+    //     UpdateObjectScale(1);
+    // }
+    // else
+    // {
+    //     KWARN("%s path does not exist", TexturePath)
+    // }
 
     return false;
 }
 
 bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
-    kraft::Keys KeyCode = (kraft::Keys)data.Int32Value[0];
-    KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
+    // kraft::Keys KeyCode = (kraft::Keys)data.Int32Value[0];
+    // KINFO("%s key pressed (code = %d)", kraft::Platform::GetKeyName(KeyCode), KeyCode);
 
-    static bool DefaultTexture = false;
-    if (KeyCode == kraft::KEY_C)
-    {
-        kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
-        kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
-        DefaultTexture = !DefaultTexture;
-        UpdateObjectScale(1);
-    }
+    // static bool DefaultTexture = false;
+    // if (KeyCode == kraft::KEY_C)
+    // {
+    //     kraft::String TexturePath = DefaultTexture ? TextureName : TextureNameWide;
+    //     kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
+    //     DefaultTexture = !DefaultTexture;
+    //     UpdateObjectScale(1);
+    // }
 
     return false;
 }
@@ -89,7 +81,7 @@ bool KeyDownEventListener(kraft::EventType type, void* sender, void* listener, k
 bool KeyUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     kraft::Keys keycode = (kraft::Keys)data.Int32Value[0];
-    KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
+    // KINFO("%s key released (code = %d)", kraft::Platform::GetKeyName(keycode), keycode);
 
     return false;
 }
@@ -106,7 +98,7 @@ bool MouseMoveEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int button = data.Int32Value[0];
-    KINFO("%d mouse button pressed", button);
+    // KINFO("%d mouse button pressed", button);
 
     return false;
 }
@@ -114,7 +106,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
 bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     int button = data.Int32Value[0];
-    KINFO("%d mouse button released", button);
+    // KINFO("%d mouse button released", button);
 
     return false;
 }
@@ -130,7 +122,7 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
-    kraft::Camera& Camera = TestSceneState->SceneCamera;
+    kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
     if (kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         const float32        Sensitivity = 0.1f;
@@ -207,6 +199,8 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
 bool Init()
 {
     GlobalAppState.ImGuiRenderer->Init();
+    EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
+    new (EditorState::Ptr->CurrentWorld) kraft::World();
 
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
@@ -223,8 +217,6 @@ bool Init()
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_DRAGGING, nullptr, MouseDragDraggingEventListener);
     EventSystem::Listen(EVENT_TYPE_MOUSE_DRAG_END, nullptr, MouseDragEndEventListener);
 
-    SetupScene();
-
     // Load textures
     String TexturePath;
     if (kraft::Engine::CommandLineArgs.Count > 1)
@@ -238,58 +230,113 @@ bool Init()
         }
     }
 
-    kraft::Entity Entity1 = DefaultWorld->CreateEntity();
-    Entity1.AddComponent<TransformComponent>(
-        kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
-        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
-        kraft::Vec3f{ 10.0f, 10.0f, 10.0f }
-    );
-
+    kraft::Entity WorldRoot = EditorState::Ptr->CurrentWorld->GetRoot();
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room.obj");
+    kraft::Entity     VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
+    VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
+        kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
+        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
+        kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+    );
+    EditorState::Ptr->SelectedEntity = VikingRoomMeshParent.EntityHandle;
     KASSERT(VikingRoom);
-    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
-
-    SimpleObjectState EntityA;
-    EntityA.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
-    // // EntityA.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityA.GeometryID = VikingRoom->Geometry->InternalID;
-    auto& Transform = Entity1.GetComponent<TransformComponent>();
-    EntityA.SetTransform(Transform.Position, Transform.Rotation, Transform.Scale);
-    TestSceneState->AddEntity(EntityA);
-
-    const float ObjectCount = 0.0f;
-    const float ObjectWidth = 50.0f;
-    const float ObjectHeight = 50.0f;
-    const float Spacing = 0.0f;
-    for (int i = 0; i < ObjectCount; i++)
+    for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
     {
-        SimpleObjectState Object;
-        Object.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
-        Object.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
+        MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
+        Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
 
-        float x = ((ObjectCount * ObjectWidth + Spacing) * -0.5f) + i * ObjectWidth + Spacing;
-        Object.SetTransform({ x, 200.0f, 0.0f }, kraft::Vec3fZero, { ObjectWidth, ObjectHeight, 50.0f });
-        TestSceneState->AddEntity(Object);
+        kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
+        VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
+        Transform.ComputeModelMatrix();
     }
 
-    SimpleObjectState EntityB;
-    EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
-    EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
-    EntityB.SetTransform({ 0.0f, 0.0f, 0.0f }, kraft::Vec3fZero, { 200.0f, 200.0f, 200.0f });
-    TestSceneState->AddEntity(EntityB);
+    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue.fbx");
+    KASSERT(RogueSkeleton);
+    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
+
+    kraft::Entity MeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("RogueSkeletonParent", WorldRoot);
+    EditorState::Ptr->SelectedEntity = MeshParent.EntityHandle;
+    MeshParent.GetComponent<TransformComponent>().SetScale({ 20.0f, 20.0f, 20.0f });
+#if 0
+    Array<kraft::Entity> NodeEntityHierarchy(RogueSkeleton->NodeHierarchy.Length);
+    for (int i = 0; i < RogueSkeleton->NodeHierarchy.Length; i++)
+    {
+        auto&          Node = RogueSkeleton->NodeHierarchy[i];
+        kraft::Entity& ParentEntity = Node.ParentNodeIdx == -1 ? MeshParent : NodeEntityHierarchy[Node.ParentNodeIdx];
+        kraft::Entity  NodeEntity = EditorState::Ptr->CurrentWorld->CreateEntity(Node.Name, ParentEntity);
+        NodeEntityHierarchy[i] = NodeEntity;
+        if (Node.MeshIdx != -1)
+        {
+            kraft::MeshT&  SubMesh = RogueSkeleton->SubMeshes[Node.MeshIdx];
+            MeshComponent& Mesh = NodeEntity.AddComponent<MeshComponent>();
+            Mesh.GeometryID = SubMesh.Geometry->InternalID;
+            Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
+
+            if (SubMesh.Textures.Length > 0)
+            {
+                MaterialSystem::SetTexture(Mesh.MaterialInstance, "DiffuseSampler", SubMesh.Textures[0]);
+            }
+
+            kraft::TransformComponent& Transform = NodeEntity.GetComponent<TransformComponent>();
+            ImGuizmo::DecomposeMatrixToComponents(
+                SubMesh.Transform, Transform.Position._data, Transform.Rotation._data, Transform.Scale._data
+            );
+            Transform.Rotation.x = kraft::DegToRadians(Transform.Rotation.x);
+            Transform.Rotation.y = kraft::DegToRadians(Transform.Rotation.y);
+            Transform.Rotation.z = kraft::DegToRadians(Transform.Rotation.z);
+            Transform.ModelMatrix = SubMesh.Transform;
+        }
+    }
+#endif
+#if 1
+    for (int i = 0; i < RogueSkeleton->SubMeshes.Length; i++)
+    {
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent);
+        MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
+        Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
+
+        if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
+        {
+            MaterialSystem::SetTexture(Mesh.MaterialInstance, "DiffuseSampler", RogueSkeleton->SubMeshes[i].Textures[0]);
+        }
+
+        kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
+        RogueSkeleton->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
+        Transform.ComputeModelMatrix();
+    }
+#endif
+    // const float ObjectCount = 0.0f;
+    // const float ObjectWidth = 50.0f;
+    // const float ObjectHeight = 50.0f;
+    // const float Spacing = 0.0f;
+    // for (int i = 0; i < ObjectCount; i++)
+    // {
+    //     SimpleObjectState Object;
+    //     Object.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    //     Object.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+
+    //     float x = ((ObjectCount * ObjectWidth + Spacing) * -0.5f) + i * ObjectWidth + Spacing;
+    //     Object.SetTransform({ x, 200.0f, 0.0f }, kraft::Vec3fZero, { ObjectWidth, ObjectHeight, 50.0f });
+    //     // TestSceneState->AddEntity(Object);
+    // }
+
+    // SimpleObjectState EntityB;
+    // EntityB.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt");
+    // EntityB.GeometryID = kraft::GeometrySystem::GetDefaultGeometry()->InternalID;
+    // EntityB.SetTransform({ 0.0f, 0.0f, 0.0f }, kraft::Vec3fZero, { 200.0f, 200.0f, 200.0f });
+    // TestSceneState->AddEntity(EntityB);
 
     // MaterialSystem::SetTexture(EntityB.MaterialInstance, "DiffuseSampler", TextureSystem::AcquireTexture(TextureNameWide));
-    TestSceneState->SelectedObjectIndex = 0;
-
     SetProjection(kraft::CameraProjectionType::Perspective);
 
     // To preserve the aspect ratio of the texture
-    UpdateObjectScale(1);
+    // UpdateObjectScale(1);
 
-    const kraft::Material* Material = TestSceneState->GetSelectedEntity().MaterialInstance;
-    Handle<Texture>        DiffuseTexture = Material->GetUniform<Handle<Texture>>("DiffuseSampler");
-    InitImguiWidgets(DiffuseTexture);
+    InitImguiWidgets();
 
     return true;
 }
@@ -297,7 +344,7 @@ bool Init()
 void Update(float64 deltaTime)
 {
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
-    kraft::Camera& Camera = TestSceneState->SceneCamera;
+    kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
     // if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         float32      Speed = 50.f * deltaTime;
@@ -392,16 +439,19 @@ void Update(float64 deltaTime)
 
 void Render()
 {
-    kraft::Engine::Renderer.Camera = &TestSceneState->SceneCamera;
-    for (uint32 i = 0; i < TestSceneState->ObjectsCount; i++)
-    {
-        kraft::Renderer->AddRenderable(TestSceneState->ObjectStates[i]);
-    }
+    // kraft::Engine::Renderer.Camera = &TestSceneState->SceneCamera;
+    // kraft::Engine::Renderer.CurrentWorld = DefaultWorld;
+    // for (uint32 i = 0; i < TestSceneState->ObjectsCount; i++)
+    // {
+    //     kraft::Engine::Renderer.AddRenderable(TestSceneState->ObjectStates[i]);
+    // }
+
+    EditorState::Ptr->CurrentWorld->Render();
 }
 
 void Shutdown()
 {
-    DestroyScene();
+    kraft::Free(EditorState::Ptr->CurrentWorld, sizeof(kraft::World), kraft::MEMORY_TAG_NONE);
 
     GlobalAppState.ImGuiRenderer->Destroy();
 }

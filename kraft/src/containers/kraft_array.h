@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/kraft_asserts.h"
 #include "core/kraft_core.h"
 #include "core/kraft_memory.h"
 
@@ -7,7 +8,8 @@
 
 namespace kraft {
 
-template<typename ValueType> struct Array
+template<typename ValueType>
+struct Array
 {
     typedef uint64 SizeType;
 
@@ -20,9 +22,15 @@ template<typename ValueType> struct Array
     SizeType Allocated = 0;
 
 protected:
-    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size) { return 2 * Size; }
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
+    {
+        return 2 * Size;
+    }
 
-    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes() { return Allocated * sizeof(ValueType); }
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
+    {
+        return Allocated * sizeof(ValueType);
+    }
 
     constexpr void EnlargeBufferIfRequired(SizeType NewSize, bool ExactFit = false)
     {
@@ -140,11 +148,20 @@ public:
         return *this;
     }
 
-    ~Array() { Free(InternalBuffer, GetBufferSizeInBytes(), MEMORY_TAG_ARRAY); }
+    ~Array()
+    {
+        Free(InternalBuffer, GetBufferSizeInBytes(), MEMORY_TAG_ARRAY);
+    }
 
-    constexpr const ValueType* Data() const noexcept { return InternalBuffer; }
+    constexpr const ValueType* Data() const noexcept
+    {
+        return InternalBuffer;
+    }
 
-    constexpr ValueType* Data() noexcept { return InternalBuffer; }
+    constexpr ValueType* Data() noexcept
+    {
+        return InternalBuffer;
+    }
 
     // constexpr const ValueType* operator*() const noexcept
     // {
@@ -156,11 +173,22 @@ public:
     //     return InternalBuffer;
     // }
 
-    constexpr ValueType& operator[](SizeType Index) { return Data()[Index]; }
+    constexpr ValueType& operator[](SizeType Index)
+    {
+        KASSERT(Index >= 0 && Index < Length);
+        return Data()[Index];
+    }
 
-    constexpr const ValueType& operator[](SizeType Index) const { return Data()[Index]; }
+    constexpr const ValueType& operator[](SizeType Index) const
+    {
+        KASSERT(Index >= 0 && Index < Length);
+        return Data()[Index];
+    }
 
-    inline SizeType Size() const { return Length; }
+    inline SizeType Size() const
+    {
+        return Length;
+    }
 
     KRAFT_INLINE void Alloc(SizeType Size)
     {
@@ -171,7 +199,16 @@ public:
         }
     }
 
-    KRAFT_INLINE void Reserve(SizeType Size) { EnlargeBufferIfRequired(Size, true); }
+    KRAFT_INLINE void Reserve(SizeType Size)
+    {
+        EnlargeBufferIfRequired(Size, true);
+    }
+
+    KRAFT_INLINE void Resize(SizeType Size)
+    {
+        EnlargeBufferIfRequired(Size, true);
+        Length = Size;
+    }
 
     void Push(const ValueType& Value)
     {
@@ -180,7 +217,24 @@ public:
         Length++;
     }
 
-    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept { return Length * sizeof(ValueType); }
+    bool Pop(SizeType Index)
+    {
+        if (Index >= 0 && Index < Length)
+        {
+            Data()[Index].~ValueType();
+            Data()[Index] = Data()[Length - 1];
+            Length--;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept
+    {
+        return Length * sizeof(ValueType);
+    }
 
     /**
      * Sets the length of the array to Zero

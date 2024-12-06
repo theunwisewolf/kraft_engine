@@ -15,8 +15,8 @@ if (NOT KRAFT_BUILDING_BASE)
 endif()
 
 set(SRC_FILES 
-    src/scenes/simple_scene.cpp
     src/widgets.cpp
+    src/editor.cpp
     src/main.cpp
     src/imgui/imgui_renderer.cpp
 )
@@ -28,6 +28,9 @@ else()
 endif()
 
 target_link_libraries(${PROJECT_NAME} Kraft)
+
+# Compiler options
+target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
 
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

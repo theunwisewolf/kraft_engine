@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_NAME "KraftShaderCompiler")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(${PROJECT_NAME})
@@ -19,11 +19,7 @@ set(SRC_FILES
     src/main.cpp
 )
 
-if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
-else()
 add_executable(${PROJECT_NAME} ${SRC_FILES})
-endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../src)
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)

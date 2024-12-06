@@ -26,12 +26,12 @@ endif()
 
 
 add_subdirectory(${KRAFT_PATH}/vendor/volk ${KRAFT_BINARY_DIR}/vendor/volk)
-add_subdirectory(${KRAFT_PATH}/vendor/glfw ${KRAFT_BINARY_DIR}/vendor/glfw)
+# add_subdirectory(${KRAFT_PATH}/vendor/glfw ${KRAFT_BINARY_DIR}/vendor/glfw)
 
-set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
-set(BUILD_SHARED_LIBS OFF)
-add_subdirectory(${KRAFT_PATH}/vendor/assimp ${KRAFT_BINARY_DIR}/vendor/assimp)
-set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
+# set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
+# set(BUILD_SHARED_LIBS OFF)
+# add_subdirectory(${KRAFT_PATH}/vendor/assimp ${KRAFT_BINARY_DIR}/vendor/assimp)
+# set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(KRAFT_LIBRARY_ARCH_PREFIX "x64")
@@ -49,7 +49,14 @@ elseif (UNIX)
 endif ()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(KRAFT_LIBRARY_COMPILER_PREFIX "clang")
+    if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-msvc")
+    elseif (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+        set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-gnu")
+    else()
+        set(KRAFT_LIBRARY_COMPILER_PREFIX "clang")
+    endif()
+
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(KRAFT_LIBRARY_COMPILER_PREFIX "msvc")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -64,18 +71,32 @@ else()
     set(KRAFT_DEBUG_BUILD OFF)
 endif()
 
-set(KRAFT_STATIC_LIBS assimp::assimp)
+set(KRAFT_PREBUILT_LIB_PATH "${KRAFT_PATH}/vendor/prebuilt")
+set(KRAFT_PREBUILT_LIB_FOLDER "${KRAFT_LIBRARY_OS_PREFIX}-${KRAFT_LIBRARY_COMPILER_PREFIX}-${KRAFT_LIBRARY_ARCH_PREFIX}-${KRAFT_LIBRARY_BUILD_TYPE_PREFIX}")
+message(${KRAFT_PREBUILT_LIB_FOLDER})
+# set(KRAFT_STATIC_LIBS assimp::assimp)
+set(KRAFT_STATIC_LIBS)
+list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp.lib)
+# list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/assimp.lib)
+list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic.lib)
+
 set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor vendor/assimp/include)
+list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include)
+# list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/include)
+
 set(KRAFT_STATIC_LIBS_COMPILE_DEFINITIONS)
 set(KRAFT_COMPILE_DEFINITIONS _ENABLE_EXTENDED_ALIGNED_STORAGE)
 
 if (KRAFT_APP_TYPE STREQUAL "GUI")
+    add_subdirectory(${KRAFT_PATH}/vendor/ufbx)
+
     # Include paths
     list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS 
         ${KRAFT_PATH}/vendor/imgui 
         ${KRAFT_PATH}/vendor/glad/include 
         ${KRAFT_PATH}/vendor/glfw/include 
         ${KRAFT_PATH}/vendor/entt/include 
+        ${KRAFT_PATH}/vendor/ufbx/include 
     )
 
     # Compile-time definitions
@@ -83,7 +104,8 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
 
     # Libraries
     # list(APPEND KRAFT_STATIC_LIBS glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARY})
-    list(APPEND KRAFT_STATIC_LIBS glfw ${GLFW_LIBRARIES} volk::volk_headers)
+    list(APPEND KRAFT_STATIC_LIBS volk::volk_headers Ufbx)
+    list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/glfw/${KRAFT_PREBUILT_LIB_FOLDER}/glfw3.lib)
 
     # Kraft compile time definitions
     list(APPEND KRAFT_COMPILE_DEFINITIONS KRAFT_GUI_APP VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_USE_VOLK)

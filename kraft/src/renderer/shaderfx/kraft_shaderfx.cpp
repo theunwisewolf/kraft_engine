@@ -664,7 +664,7 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition& State)
             {
                 State.CullMode = CullModeFlags::FrontAndBack;
             }
-            else if (Token.MatchesKeyword("Off"))
+            else if (Token.MatchesKeyword("Off") || Token.MatchesKeyword("None"))
             {
                 State.CullMode = CullModeFlags::None;
             }
