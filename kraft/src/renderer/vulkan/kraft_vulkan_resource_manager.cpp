@@ -70,25 +70,44 @@ VulkanResourceManager::~VulkanResourceManager()
     VulkanContext* Context = VulkanRendererBackend::Context();
     VkDevice       Device = Context->LogicalDevice.Handle;
 
+    // We don't have to check if the handle to any resource is invalid here in any of the cleanup code
+    // because vk___ functions don't do anything if the passed handle is "NULL"
+
+    for (int i = 0; i < VulkanResourceManagerData.RenderPassPool.GetSize(); i++)
+    {
+        VulkanRenderPass& RenderPass = VulkanResourceManagerData.RenderPassPool.Data[i];
+        vkDeviceWaitIdle(Device);
+
+        vkDestroyFramebuffer(Device, RenderPass.Framebuffer.Handle, Context->AllocationCallbacks);
+        vkDestroyRenderPass(Device, RenderPass.Handle, Context->AllocationCallbacks);
+
+        RenderPass.Framebuffer.Handle = 0;
+        RenderPass.Handle = 0;
+    }
+
     for (int i = 0; i < VulkanResourceManagerData.TexturePool.GetSize(); i++)
     {
         VulkanTexture Texture = VulkanResourceManagerData.TexturePool.Data[i];
         if (Texture.View)
         {
             vkDestroyImageView(Device, Texture.View, Context->AllocationCallbacks);
+            Texture.View = 0;
         }
 
         if (Texture.Memory)
         {
             vkFreeMemory(Device, Texture.Memory, Context->AllocationCallbacks);
+            Texture.Memory = 0;
         }
 
         if (Texture.Image)
         {
             vkDestroyImage(Device, Texture.Image, Context->AllocationCallbacks);
+            Texture.Image = 0;
         }
 
         vkDestroySampler(Device, Texture.Sampler, Context->AllocationCallbacks);
+        Texture.Sampler = 0;
     }
 
     for (int i = 0; i < VulkanResourceManagerData.BufferPool.GetSize(); i++)
@@ -96,6 +115,9 @@ VulkanResourceManager::~VulkanResourceManager()
         VulkanBuffer Buffer = VulkanResourceManagerData.BufferPool.Data[i];
         vkFreeMemory(Device, Buffer.Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, Buffer.Handle, Context->AllocationCallbacks);
+
+        Buffer.Memory = 0;
+        Buffer.Handle = 0;
     }
 }
 
@@ -545,6 +567,9 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
 
         vkDestroyFramebuffer(Device, RenderPass->Framebuffer.Handle, Context->AllocationCallbacks);
         vkDestroyRenderPass(Device, RenderPass->Handle, Context->AllocationCallbacks);
+
+        RenderPass->Framebuffer.Handle = 0;
+        RenderPass->Handle = 0;
     });
 
     VulkanResourceManagerData.TexturePool.Cleanup([](VulkanTexture* Texture) {
@@ -570,6 +595,7 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
         }
 
         vkDestroySampler(Device, Texture->Sampler, Context->AllocationCallbacks);
+        Texture->Sampler = 0;
     });
 
     VulkanResourceManagerData.BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
@@ -578,6 +604,9 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
 
         vkFreeMemory(Device, GPUResource->Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, GPUResource->Handle, Context->AllocationCallbacks);
+
+        GPUResource->Memory = 0;
+        GPUResource->Handle = 0;
     });
 }
 

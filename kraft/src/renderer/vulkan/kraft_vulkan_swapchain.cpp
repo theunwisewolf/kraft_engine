@@ -160,10 +160,26 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // Depth buffer if required
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
+        Format::Enum DepthBufferFormat;
+        switch (context->PhysicalDevice.DepthBufferFormat)
+        {
+            case VK_FORMAT_D16_UNORM:          DepthBufferFormat = Format::D16_UNORM; break;
+
+            case VK_FORMAT_D32_SFLOAT:         DepthBufferFormat = Format::D32_SFLOAT; break;
+
+            case VK_FORMAT_D16_UNORM_S8_UINT:  DepthBufferFormat = Format::D16_UNORM_S8_UINT; break;
+
+            case VK_FORMAT_D24_UNORM_S8_UINT:  DepthBufferFormat = Format::D24_UNORM_S8_UINT; break;
+
+            case VK_FORMAT_D32_SFLOAT_S8_UINT: DepthBufferFormat = Format::D32_SFLOAT_S8_UINT; break;
+
+            default:                           KFATAL("Unsupported depth buffer format %d", context->PhysicalDevice.DepthBufferFormat);
+        }
+
         context->Swapchain.DepthAttachment = ResourceManager::Ptr->CreateTexture({
             .DebugName = "Swapchain-Depth",
             .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
-            .Format = ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+            .Format = DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
             .CreateSampler = false,
         });

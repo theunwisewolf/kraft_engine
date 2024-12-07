@@ -259,7 +259,7 @@ bool Init()
         Transform.ComputeModelMatrix();
     }
 
-    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue.fbx");
+    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue_binary.fbx");
     KASSERT(RogueSkeleton);
     // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
 

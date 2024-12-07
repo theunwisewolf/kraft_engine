@@ -199,13 +199,14 @@ void PostFrameCleanup()
 
 bool Destroy()
 {
-    VulkanContext* context = VulkanRendererBackend::Context();
+    VulkanContext* Context = VulkanRendererBackend::Context();
+    vkDeviceWaitIdle(Context->LogicalDevice.Handle);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    vkDestroyDescriptorPool(context->LogicalDevice.Handle, ImGuiDescriptorPool, context->AllocationCallbacks);
+    vkDestroyDescriptorPool(Context->LogicalDevice.Handle, ImGuiDescriptorPool, Context->AllocationCallbacks);
 
     return true;
 }
