@@ -1,10 +1,5 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "core/kraft_string.h"
-#include "containers/kraft_buffer.h"
-#include "containers/kraft_hashmap.h"
-#include "math/kraft_math.h"
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
 #include "renderer/kraft_renderer_types.h"
 

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "core/kraft_asserts.h"
-#include "core/kraft_core.h"
-#include "core/kraft_memory.h"
+#include <core/kraft_asserts.h>
+#include <core/kraft_core.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
 
 #include <initializer_list>
 

@@ -5,17 +5,22 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_string.h"
 #include "core/kraft_time.h"
+#include "core/kraft_log.h"
+#include "containers/kraft_array.h"
 #include "math/kraft_math.h"
 #include "platform/kraft_filesystem.h"
 #include "platform/kraft_platform.h"
 #include "renderer/shaderfx/kraft_shaderfx.h"
+
+#include "platform/kraft_filesystem_types.h"
 
 struct ApplicationState
 {};
 
 bool Init()
 {
-    if (kraft::Engine::CommandLineArgs.Count < 2)
+    auto& CliArgs = kraft::Engine::GetCommandLineArgs();
+    if (CliArgs.Length < 2)
     {
         KWARN("No command line arguments provided. At least one parameter is required!");
         return false;

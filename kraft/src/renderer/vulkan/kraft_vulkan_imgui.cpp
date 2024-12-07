@@ -1,25 +1,24 @@
 #include "kraft_vulkan_imgui.h"
 
 #include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/imgui.h>
-
 #include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui/imgui.h>
 #include <volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#include "core/kraft_engine.h"
-#include "core/kraft_asserts.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "platform/kraft_platform.h"
-#include "platform/kraft_window.h"
-#include "renderer/kraft_renderer_types.h"
-#include "renderer/vulkan/kraft_vulkan_backend.h"
-#include "renderer/vulkan/kraft_vulkan_command_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_renderpass.h"
-
 #include <containers/kraft_array.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_engine.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
+#include <renderer/kraft_renderer_types.h>
+#include <renderer/vulkan/kraft_vulkan_backend.h>
+#include <renderer/vulkan/kraft_vulkan_command_buffer.h>
+#include <renderer/vulkan/kraft_vulkan_renderpass.h>
 #include <platform/kraft_filesystem.h>
+#include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
 namespace kraft::renderer {

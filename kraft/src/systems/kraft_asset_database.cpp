@@ -17,7 +17,20 @@
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_texture_system.h>
 
+#include <systems/kraft_asset_types.h>
+#include <resources/kraft_resource_types.h>
+
 namespace kraft {
+
+struct AssetDatabaseStateT
+{
+    kraft::FlatHashMap<String, uint16> AssetsIndexMap;
+    Array<Asset>                       Assets;
+    Array<MeshAsset>                   Meshes;
+    uint16                             MeshCount = 0;
+
+    AssetDatabaseStateT() : Meshes(1024) {};
+} AssetDatabaseState;
 
 AssetDatabase* AssetDatabase::Ptr = new AssetDatabase();
 
@@ -197,7 +210,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
         return nullptr;
     }
 
-    MeshAsset& Mesh = this->Meshes[this->MeshCount];
+    MeshAsset& Mesh = AssetDatabaseState.Meshes[AssetDatabaseState.MeshCount];
     Mesh.Directory = filesystem::Dirname(Path);
     Mesh.Filename = filesystem::Basename(Path);
     Mesh.SubMeshes.Reserve(Scene->meshes.count);
@@ -286,14 +299,14 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
                 return nullptr;
             }
 
-            kraft::GeometryData Geometry = {};
+            GeometryData Geometry = {};
             Geometry.IndexCount = NumIndices;
             Geometry.IndexSize = sizeof(uint32);
             Geometry.Indices = Indices.Data();
             Geometry.VertexCount = NumVertices;
             Geometry.VertexSize = sizeof(Vertex3D);
             Geometry.Vertices = Vertices.Data();
-            Geometry.Name = kraft::String(UfbxMesh->name.data, UfbxMesh->name.length);
+            StringNCopy(Geometry.Name, UfbxMesh->name.data, UfbxMesh->name.length);
 
             for (int j = 0; j < UfbxMesh->instances.count; j++)
             {
@@ -302,7 +315,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
 
                 Mesh.SubMeshes.Push(MeshT());
                 MeshT& SubMesh = Mesh.SubMeshes[Mesh.SubMeshes.Length - 1];
-                SubMesh.Geometry = kraft::GeometrySystem::AcquireGeometryWithData(Geometry);
+                SubMesh.Geometry = GeometrySystem::AcquireGeometryWithData(Geometry);
 
                 ufbx_material* UfbxMaterial = UfbxMesh->materials[UfbxMeshPart->index];
                 ufbx_texture*  UfbxTexture = UfbxMaterial->pbr.base_color.texture;
@@ -381,7 +394,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
     ufbx_free_scene(Scene);
 #endif
 
-    return &this->Meshes[this->MeshCount++];
+    return &AssetDatabaseState.Meshes[AssetDatabaseState.MeshCount++];
 }
 
 }

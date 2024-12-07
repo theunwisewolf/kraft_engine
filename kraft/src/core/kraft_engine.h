@@ -1,11 +1,12 @@
 #pragma once
 
-#include "containers/kraft_array.h"
 #include "core/kraft_core.h"
-#include "core/kraft_events.h"
-#include "core/kraft_string.h"
-#include "renderer/kraft_renderer_frontend.h"
-#include "renderer/kraft_renderer_types.h"
+
+namespace kraft::renderer {
+struct RendererFrontend;
+
+enum RendererBackendType : int;
+}
 
 namespace kraft {
 
@@ -17,22 +18,18 @@ struct EngineConfig
     uint32                        WindowHeight;
     const char*                   WindowTitle;
     const char*                   ApplicationName;
-    renderer::RendererBackendType RendererBackend = renderer::RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
+    renderer::RendererBackendType RendererBackend;
     bool                          ConsoleApp;
     bool                          StartMaximized;
-};
-
-struct CommandLineArgs
-{
-    int           Count;
-    Array<String> Arguments;
 };
 
 struct KRAFT_API Engine
 {
     static EngineConfig               Config;
-    static CommandLineArgs            CommandLineArgs;
+
+#if defined(KRAFT_GUI_APP)
     static renderer::RendererFrontend Renderer;
+#endif
 
     // The location of the executable without a trailing slash
     static String BasePath;
@@ -53,6 +50,8 @@ struct KRAFT_API Engine
 
     // Shutdown
     static void Destroy();
+
+    static const Array<String>& GetCommandLineArgs();
 };
 
 }

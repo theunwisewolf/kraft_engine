@@ -1,29 +1,21 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "math/kraft_math.h"
-#include "renderer/shaderfx/kraft_shaderfx.h"
-#include "resources/kraft_resource_types.h"
+#include <core/kraft_core.h>
+
+namespace kraft::renderer {
+template<typename>
+struct Handle;
+}
 
 namespace kraft {
+
+struct MaterialData;
+struct Material;
+struct Texture;
 
 struct MaterialSystemConfig
 {
     uint32 MaxMaterialsCount;
-};
-
-struct MaterialData
-{
-    bool                              AutoRelease;
-    String                            Name;
-    String                            FilePath;
-    String                            ShaderAsset;
-    HashMap<String, MaterialProperty> Properties;
-
-    MaterialData()
-    {
-        Properties = HashMap<String, MaterialProperty>();
-    }
 };
 
 struct MaterialSystem
@@ -33,15 +25,15 @@ struct MaterialSystem
 
     static Material* GetDefaultMaterial();
     static Material* CreateMaterialFromFile(const String& Path);
-    static Material* CreateMaterialWithData(MaterialData Data);
+    static Material* CreateMaterialWithData(const MaterialData& Data);
     static void      DestroyMaterial(const String& Name);
     static void      DestroyMaterial(Material* material);
-    static void      ApplyGlobalProperties(Material* Material, const Mat4f& Projection, const Mat4f& View);
+    static void      ApplyGlobalProperties(Material* Material, const Matrix<float32, 4, 4>& Projection, const Matrix<float32, 4, 4>& View);
     static void      ApplyInstanceProperties(Material* Material);
-    static void      ApplyLocalProperties(Material* Material, const Mat4f& Model);
+    static void      ApplyLocalProperties(Material* Material, const Matrix<float32, 4, 4>& Model);
 
     static bool SetTexture(Material* Instance, const String& Key, const String& TexturePath);
-    static bool SetTexture(Material* Instance, const String& Key, Handle<Texture> Texture);
+    static bool SetTexture(Material* Instance, const String& Key, renderer::Handle<Texture> Texture);
 
     template<typename T>
     static bool SetProperty(Material* Instance, const String& Name, T Value)

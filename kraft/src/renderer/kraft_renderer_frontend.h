@@ -1,35 +1,38 @@
 #pragma once
 
-#include "containers/kraft_hashmap.h"
 #include "core/kraft_core.h"
-#include "core/kraft_memory.h"
-#include "renderer/kraft_renderer_types.h"
-#include "resources/kraft_resource_types.h"
-#include "world/kraft_world.h"
 
 namespace kraft {
 
+struct World;
 struct EngineConfig;
 struct Camera;
+struct Shader;
+struct Geometry;
+struct Material;
+struct ShaderUniform;
+struct Texture;
 
 namespace renderer {
 
 struct ShaderEffect;
+struct RendererBackend;
+struct Renderable;
+template<typename T>
+struct Handle;
 
 struct RendererFrontend
 {
-    kraft::Block                           BackendMemory;
-    RendererBackend*                       Backend = nullptr;
-    RendererBackendType                    Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
-    HashMap<ResourceID, Array<Renderable>> Renderables;
-    kraft::Camera*                         Camera = nullptr;
-    kraft::World*                          CurrentWorld = nullptr;
+    kraft::Camera* Camera = nullptr;
 
     bool Init(EngineConfig* Config);
     bool Shutdown();
     void OnResize(int Width, int Height);
     bool DrawFrame();
-    bool AddRenderable(Renderable Object);
+    bool AddRenderable(const Renderable& Object);
+
+    bool BeginMainRenderpass();
+    bool EndMainRenderpass();
 
     // API
     Handle<Texture> GetSceneViewTexture();

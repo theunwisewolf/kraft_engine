@@ -8,7 +8,7 @@ namespace kraft
 {
 
 // Codes are same as in GLFW3
-enum Keys
+enum Keys : uint32
 {
     /* Printable keys */
     KRAFT_DEFINE_KEYCODE(SPACE,             32),

@@ -1,5 +1,7 @@
 #include "kraft_macos.h"
 
+#include <core/kraft_core.h>
+
 #ifdef KRAFT_PLATFORM_MACOS
 
 #include <GLFW/glfw3.h>

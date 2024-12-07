@@ -1,17 +1,20 @@
 #include "widgets.h"
 
-#include "core/kraft_engine.h"
-#include "math/kraft_math.h"
-#include "renderer/kraft_renderer_frontend.h"
-#include "resources/kraft_resource_types.h"
-#include "systems/kraft_material_system.h"
-#include "systems/kraft_texture_system.h"
+#include <containers/kraft_array.h>
+#include <containers/kraft_hashmap.h>
+#include <core/kraft_engine.h>
+#include <math/kraft_math.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <resources/kraft_resource_types.h>
+#include <systems/kraft_material_system.h>
+#include <systems/kraft_texture_system.h>
 #include <world/kraft_entity.h>
 
 #include "editor.h"
 #include "imgui/imgui_renderer.h"
 #include "utils.h"
 
+#include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
 #include <renderer/kraft_resource_manager.h>
 
@@ -290,8 +293,8 @@ void DrawImGuiWidgets(bool refresh)
         {
             // ImGuizmo::DecomposeMatrixToComponents(Transform.ModelMatrix._data, Translation._data, Rotation._data, Scale._data);
             kraft::Entity ParentEntity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity.GetParent());
-            kraft::Mat4f EntityParentWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(ParentEntity);
-            kraft::Mat4f EntityLocalTransform = EntityWorldTransform * kraft::Inverse(EntityParentWorldTransform);
+            kraft::Mat4f  EntityParentWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(ParentEntity);
+            kraft::Mat4f  EntityLocalTransform = EntityWorldTransform * kraft::Inverse(EntityParentWorldTransform);
 
             EntityLocalTransform.Decompose(Translation, Rotation, Scale);
         }

@@ -1,10 +1,17 @@
 #include "kraft_geometry_system.h"
 
-#include "renderer/kraft_renderer_frontend.h"
-#include "systems/kraft_material_system.h"
+#include <renderer/kraft_renderer_frontend.h>
+#include <systems/kraft_material_system.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_log.h>
+#include <core/kraft_string.h>
+#include <containers/kraft_array.h>
+#include <containers/kraft_hashmap.h>
 
-namespace kraft
-{
+#include <renderer/kraft_renderer_types.h>
+#include <resources/kraft_resource_types.h>
+
+namespace kraft {
 
 using namespace renderer;
 
@@ -17,9 +24,9 @@ struct GeometryReference
 
 struct GeometrySystemState
 {
-    uint32              MaxGeometriesCount;
-    GeometryReference*  Geometries;
-}; 
+    uint32             MaxGeometriesCount;
+    GeometryReference* Geometries;
+};
 
 GeometrySystemState* State = nullptr;
 
@@ -68,7 +75,7 @@ Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
     }
 
     KERROR("[GeometrySystem::AcquireGeometry]: Geometry with id %d not found", ID);
-    
+
     return nullptr;
 }
 
@@ -96,7 +103,9 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     Reference->AutoRelease = AutoRelease;
     Reference->Geometry.ID = Index;
 
-    if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
+    if (!Renderer->CreateGeometry(
+            &Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize
+        ))
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
@@ -106,8 +115,8 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
         return nullptr;
     }
 
-    StringCopy(Reference->Geometry.Name, *Data.Name);
-    
+    StringCopy(Reference->Geometry.Name, Data.Name);
+
     return &Reference->Geometry;
 }
 
@@ -149,16 +158,15 @@ void GeometrySystem::DestroyGeometry(Geometry* Geometry)
 void _createDefaultGeometries()
 {
     GeometryReference* Ref = &State->Geometries[0];
-    Vertex3D Vertices[] = 
-    {
-        { Vec3f(+0.5f, +0.5f, +0.0f), {1.f, 1.f}, {0, 0, 0} },
-        { Vec3f(+0.5f, -0.5f, +0.0f), {1.f, 0.f}, {0, 0, 0} },
-        { Vec3f(-0.5f, -0.5f, +0.0f), {0.f, 0.f}, {0, 0, 0} },
-        { Vec3f(-0.5f, +0.5f, +0.0f), {0.f, 1.f}, {0, 0, 0} },
+    Vertex3D           Vertices[] = {
+        { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 } },
+        { Vec3f(+0.5f, -0.5f, +0.0f), { 1.f, 0.f }, { 0, 0, 0 } },
+        { Vec3f(-0.5f, -0.5f, +0.0f), { 0.f, 0.f }, { 0, 0, 0 } },
+        { Vec3f(-0.5f, +0.5f, +0.0f), { 0.f, 1.f }, { 0, 0, 0 } },
     };
 
-    uint32 Indices[] = {0, 1, 2, 2, 3, 0};
-    
+    uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
+
     Ref->Geometry.ID = 0;
     Ref->AutoRelease = false;
     Ref->ReferenceCount = 1;

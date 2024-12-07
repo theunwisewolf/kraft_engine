@@ -1,10 +1,6 @@
 #pragma once
 
-#include <containers/kraft_buffer.h>
-#include <containers/kraft_hashmap.h>
 #include <core/kraft_core.h>
-#include <core/kraft_string.h>
-#include <math/kraft_math.h>
 
 #if USE_ASSIMP
 struct aiScene;
@@ -25,64 +21,17 @@ enum TextureMapType : uint8;
 struct Geometry;
 struct Material;
 struct Texture;
+struct MeshAsset;
+
 namespace renderer {
 template<typename T>
 struct Handle;
 }
 
-struct Asset
+KRAFT_API struct AssetDatabase
 {
-    enum Type
-    {
-        Image,
-        Mesh,
-    } Type;
-
-    String Directory;
-    String Filename;
-};
-
-struct MeshT
-{
-    kraft::Geometry*                 Geometry;
-    kraft::Material*                 MaterialInstance;
-    Array<renderer::Handle<Texture>> Textures;
-    kraft::Mat4f                     Transform;
-    int32                            NodeIdx;
-};
-
-struct MeshAsset : public Asset
-{
-    struct Node
-    {
-        char  Name[128];
-        Mat4f WorldTransform;
-        int32 MeshIdx;
-        int32 ParentNodeIdx;
-    };
-
-    Array<MeshT> SubMeshes;
-    Array<Node>  NodeHierarchy;
-};
-
-KRAFT_API class AssetDatabase
-{
-private:
-    kraft::FlatHashMap<String, uint16> AssetsIndexMap;
-    Array<Asset>                       Assets;
-    Array<MeshAsset>                   Meshes;
-    uint16                             MeshCount;
-
-public:
     static AssetDatabase* Ptr;
-
-    AssetDatabase() : Meshes(1024), MeshCount(0)
-    {}
-
-    ~AssetDatabase()
-    {}
-
-    MeshAsset* LoadMesh(const String& Path);
+    MeshAsset*            LoadMesh(const String& Path);
 
 private:
 #if USE_ASSIMP

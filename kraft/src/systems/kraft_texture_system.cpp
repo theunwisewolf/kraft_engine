@@ -6,6 +6,7 @@
 #include "renderer/kraft_renderer_frontend.h"
 #include "renderer/kraft_resource_manager.h"
 #include <containers/kraft_hashmap.h>
+#include <resources/kraft_resource_types.h>
 
 #define STBI_FAILURE_USERMSG
 #ifdef UNICODE
@@ -189,7 +190,7 @@ void TextureSystem::ReleaseTexture(Handle<Texture> Resource)
     // }
 }
 
-Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription Description, uint8* Data)
+Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Description, uint8* Data)
 {
     Description.Usage |= TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
     Handle<Texture> TextureResource = ResourceManager::Get()->CreateTexture(Description);
@@ -198,7 +199,7 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription Descript
 
     uint64 TextureSize =
         (uint64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
-    TempBuffer StagingBuffer = ResourceManager::Get()->CreateTempBuffer(TextureSize);
+    GPUBuffer StagingBuffer = ResourceManager::Get()->CreateTempBuffer(TextureSize);
     MemCpy(StagingBuffer.Ptr, Data, TextureSize);
 
     if (!ResourceManager::Get()->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))

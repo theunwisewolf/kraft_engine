@@ -1,26 +1,29 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
+struct ImDrawData;
 
-#include "renderer/vulkan/kraft_vulkan_types.h"
-#include "resources/kraft_resource_types.h"
+namespace kraft {
+struct Texture;
+}
 
-namespace kraft::renderer
-{
-namespace VulkanImgui
-{
+namespace kraft::renderer {
+
+template<typename>
+struct Handle;
+
+namespace VulkanImgui {
 
 bool Init();
 bool BeginFrame();
 bool EndFrame(ImDrawData* DrawData);
 bool Destroy();
 
-// 
+//
 // API
 //
-ImTextureID AddTexture(Handle<Texture> Texture);
-void RemoveTexture(ImTextureID TextureID);
-void PostFrameCleanup();
+void* AddTexture(Handle<Texture> Texture);
+void  RemoveTexture(void* TextureID);
+void  PostFrameCleanup();
 
 }
 }

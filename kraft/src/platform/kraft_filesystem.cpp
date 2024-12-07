@@ -1,11 +1,13 @@
 #include "kraft_filesystem.h"
 
-#include "core/kraft_asserts.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-
 #include <cerrno>
+
+#include <containers/kraft_buffer.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <platform/kraft_filesystem_types.h>
 
 namespace kraft {
 
@@ -150,12 +152,12 @@ bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
     return true;
 }
 
-bool WriteFile(FileHandle* Handle, const Buffer& Buffer)
+bool WriteFile(FileHandle* Handle, const Buffer& DataBuffer)
 {
     if (!Handle->Handle)
         return false;
 
-    fwrite(*Buffer, sizeof(Buffer::ValueType), Buffer.Length, (FILE*)Handle->Handle);
+    fwrite(*DataBuffer, sizeof(Buffer::ValueType), DataBuffer.Length, (FILE*)Handle->Handle);
 
     return true;
 }

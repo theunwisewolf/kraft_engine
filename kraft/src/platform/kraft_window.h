@@ -1,12 +1,15 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "renderer/kraft_renderer_types.h"
+#include <core/kraft_core.h>
 
 #define KRAFT_ERROR_GLFW_INIT_FAILED          1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
 
 struct GLFWwindow;
+
+namespace kraft::renderer {
+enum RendererBackendType : int;
+}
 
 namespace kraft {
 

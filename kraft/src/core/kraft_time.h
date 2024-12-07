@@ -1,9 +1,8 @@
 #pragma once
 
-#include "core/kraft_core.h"
+#include <core/kraft_core.h>
 
-namespace kraft
-{
+namespace kraft {
 
 struct Time
 {

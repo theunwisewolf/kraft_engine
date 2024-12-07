@@ -2,9 +2,8 @@
 
 #include "core/kraft_memory.h"
 
-namespace kraft::renderer
-{
-    
+namespace kraft::renderer {
+
 void VulkanAllocateCommandBuffer(VulkanContext* context, VkCommandPool pool, bool primary, VulkanCommandBuffer* out)
 {
     MemZero(out, sizeof(VulkanCommandBuffer));
@@ -36,7 +35,7 @@ void VulkanBeginCommandBuffer(VulkanCommandBuffer* buffer, bool singleUse, bool 
     {
         info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     }
-    
+
     if (renderPassContinue)
     {
         info.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;

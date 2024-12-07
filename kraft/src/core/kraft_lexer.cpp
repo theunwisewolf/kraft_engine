@@ -1,7 +1,28 @@
 #include "kraft_lexer.h"
 
-namespace kraft
+#include <core/kraft_string.h>
+#include <core/kraft_string_view.h>
+
+#include <core/kraft_lexer_types.h>
+
+namespace kraft {
+
+bool Token::MatchesKeyword(const String& ExpectedKeyword) const
 {
+    if (this->Length != ExpectedKeyword.Length)
+        return false;
+    return MemCmp(this->Text, *ExpectedKeyword, this->Length) == 0;
+}
+
+kraft::String Token::ToString() const
+{
+    return kraft::String(Text, Length);
+}
+
+kraft::StringView Token::ToStringView() const
+{
+    return kraft::StringView(Text, Length);
+}
 
 void Lexer::Create(char* Text)
 {
@@ -32,65 +53,80 @@ Token Lexer::NextToken()
         case 0:
         {
             Token.Type = TokenType::TOKEN_TYPE_END_OF_STREAM;
-        } break;
+        }
+        break;
 
         // Symbols
         case '(':
         {
             Token.Type = TokenType::TOKEN_TYPE_OPEN_PARENTHESIS;
-        } break;
+        }
+        break;
         case ')':
         {
             Token.Type = TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS;
-        } break;
+        }
+        break;
         case '{':
         {
             Token.Type = TokenType::TOKEN_TYPE_OPEN_BRACE;
-        } break;
+        }
+        break;
         case '}':
         {
             Token.Type = TokenType::TOKEN_TYPE_CLOSE_BRACE;
-        } break;
+        }
+        break;
         case '[':
         {
             Token.Type = TokenType::TOKEN_TYPE_OPEN_BRACKET;
-        } break;
+        }
+        break;
         case ']':
         {
             Token.Type = TokenType::TOKEN_TYPE_CLOSE_BRACKET;
-        } break;
+        }
+        break;
         case '<':
         {
             Token.Type = TokenType::TOKEN_TYPE_OPEN_ANGLE_BRACKET;
-        } break;
+        }
+        break;
         case '>':
         {
             Token.Type = TokenType::TOKEN_TYPE_CLOSE_ANGLE_BRACKET;
-        } break;
+        }
+        break;
         case '=':
         {
             Token.Type = TokenType::TOKEN_TYPE_EQUALS;
-        } break;
+        }
+        break;
         case '#':
         {
             Token.Type = TokenType::TOKEN_TYPE_HASH;
-        } break;
+        }
+        break;
         case ',':
         {
             Token.Type = TokenType::TOKEN_TYPE_COMMA;
-        } break;
+        }
+        break;
         case ':':
         {
             Token.Type = TokenType::TOKEN_TYPE_COLON;
-        } break;
+        }
+        break;
         case ';':
         {
             Token.Type = TokenType::TOKEN_TYPE_SEMICOLON;
-        } break;
+        }
+        break;
         case '*':
         {
             Token.Type = TokenType::TOKEN_TYPE_ASTERISK;
-        } break;
+        }
+        break;
 
         case '"':
         {
@@ -99,7 +135,7 @@ Token Lexer::NextToken()
             while (this->Text[this->Position] && Text[this->Position] != '"')
             {
                 // Handle escape character
-                if (Text[this->Position] == '\\' && Text[this->Position+1])
+                if (Text[this->Position] == '\\' && Text[this->Position + 1])
                     this->Position++;
 
                 this->Position++;
@@ -107,7 +143,8 @@ Token Lexer::NextToken()
 
             Token.Length = this->Text + this->Position - Token.Text;
             this->Position++; // Skip the end quote
-        } break;
+        }
+        break;
 
         default:
         {
@@ -129,7 +166,8 @@ Token Lexer::NextToken()
                 Token.FloatValue = ParseNumber(Token);
                 Token.Length = this->Text + this->Position - Token.Text;
             }
-        } break;
+        }
+        break;
     }
 
     return Token;
@@ -193,21 +231,21 @@ void Lexer::ConsumeWhitespaces()
         {
             if (IsNewLine(this->Text[this->Position]))
                 Line++;
-            
+
             this->Position++;
         }
         // Comments - Single-line
-        else if (this->Text[this->Position] == '/' && this->Text[this->Position+1] == '/')
+        else if (this->Text[this->Position] == '/' && this->Text[this->Position + 1] == '/')
         {
             this->Position += 2;
             while (this->Text[this->Position] && !IsNewLine(this->Text[this->Position]))
                 this->Position++;
         }
         // Comments - Multi-line
-        else if (this->Text[this->Position] == '/' && this->Text[this->Position+1] == '*')
+        else if (this->Text[this->Position] == '/' && this->Text[this->Position + 1] == '*')
         {
             this->Position += 2;
-            while (this->Text[this->Position] != '*' && this->Text[this->Position+1] != '/')
+            while (this->Text[this->Position] != '*' && this->Text[this->Position + 1] != '/')
             {
                 if (IsNewLine(this->Text[this->Position]))
                     Line++;
@@ -215,7 +253,7 @@ void Lexer::ConsumeWhitespaces()
                 this->Position++;
             }
 
-            if (this->Text[this->Position] == '*' && this->Text[this->Position+1] == '/') 
+            if (this->Text[this->Position] == '*' && this->Text[this->Position + 1] == '/')
             {
                 this->Position += 2;
             }
@@ -229,10 +267,10 @@ void Lexer::ConsumeWhitespaces()
 
 // Expect the token to be of the given type
 // Sets an error if types do not match
-bool Lexer::ExpectToken(Token& Token, TokenType::Enum ExpectedType)
+bool Lexer::ExpectToken(Token* Token, TokenType::Enum ExpectedType)
 {
-    Token = this->NextToken();
-    if (Token.Type != ExpectedType)
+    *Token = this->NextToken();
+    if (Token->Type != ExpectedType)
     {
         this->Error = true;
         this->ErrorLine = this->Line;
@@ -242,16 +280,16 @@ bool Lexer::ExpectToken(Token& Token, TokenType::Enum ExpectedType)
     return true;
 }
 
-bool Lexer::ExpectToken(Token& Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword)
+bool Lexer::ExpectToken(Token* Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword)
 {
-    return ExpectToken(Token, ExpectedType) && Token.MatchesKeyword(ExpectedKeyword);
+    return ExpectToken(Token, ExpectedType) && Token->MatchesKeyword(ExpectedKeyword);
 }
 
 // Check if the token is of the given type
-bool Lexer::EqualsToken(Token& Token, TokenType::Enum ExpectedType)
+bool Lexer::EqualsToken(Token* Token, TokenType::Enum ExpectedType)
 {
-    Token = this->NextToken();
-    if (Token.Type != ExpectedType)
+    *Token = this->NextToken();
+    if (Token->Type != ExpectedType)
     {
         return false;
     }
@@ -260,10 +298,18 @@ bool Lexer::EqualsToken(Token& Token, TokenType::Enum ExpectedType)
 }
 
 // Check the current token for errors
-bool Lexer::CheckToken(Token& Token, TokenType::Enum ExpectedType)
+bool Lexer::CheckToken(const Token& Token, TokenType::Enum ExpectedType)
 {
-	// TODO:
-	return true;
+    // TODO:
+    return true;
+}
+
+bool Lexer::ExpectKeyword(const Token& Token, String ExpectedKeyword)
+{
+    if (Token.Length != ExpectedKeyword.Length)
+        return false;
+
+    return MemCmp(Token.Text, *ExpectedKeyword, Token.Length) == 0;
 }
 
 }

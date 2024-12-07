@@ -1,11 +1,5 @@
 #pragma once
 
-#include "containers/kraft_array.h"
-#include "core/kraft_core.h"
-#include "core/kraft_string.h"
-#include "imgui/imgui.h"
-#include "math/kraft_math.h"
-
 struct ImDrawData;
 
 namespace kraft {
@@ -85,11 +79,11 @@ struct Renderable
 
 struct RenderPacket
 {
-    Mat4f   ProjectionMatrix;
-    Mat4f   ViewMatrix;
+    Mat4f ProjectionMatrix;
+    Mat4f ViewMatrix;
 };
 
-enum RendererBackendType
+enum RendererBackendType : int
 {
     RENDERER_BACKEND_TYPE_NONE,
     RENDERER_BACKEND_TYPE_VULKAN,
@@ -145,7 +139,7 @@ struct Vertex3D
 };
 
 namespace ShaderDataType {
-enum Enum
+enum Enum : int
 {
     Float,
     Float2,
@@ -276,7 +270,7 @@ static const char* String(Enum Value)
 }
 
 namespace BlendFactor {
-enum Enum
+enum Enum : int
 {
     Zero,
     One,
@@ -307,7 +301,7 @@ static const char* String(Enum Value)
 }
 
 namespace BlendOp {
-enum Enum
+enum Enum : int
 {
     Add,
     Subtract,
@@ -539,7 +533,7 @@ enum MemoryPropertyFlags
     MEMORY_PROPERTY_FLAGS_HOST_CACHED = 1 << 3,
 };
 
-enum ShaderStageFlags
+enum ShaderStageFlags : int
 {
     SHADER_STAGE_FLAGS_VERTEX = 1 << 0,
     SHADER_STAGE_FLAGS_GEOMETRY = 1 << 1,
@@ -664,6 +658,13 @@ struct Buffer
     void*  Ptr = nullptr;
 
     // TODO (amn): Figure out what other fields we need here
+};
+
+struct GPUBuffer
+{
+    Handle<Buffer> GPUBuffer;
+    uint8*         Ptr;    // Location of data inside the GPUBuffer
+    uint64         Offset; // Offset from the start of the buffer
 };
 
 struct RenderPassSubpass

@@ -1,15 +1,23 @@
 #include "kraft_material_system.h"
 
-#include "core/kraft_asserts.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "math/kraft_math.h"
-#include "platform/kraft_filesystem.h"
-#include "renderer/kraft_renderer_frontend.h"
-#include "systems/kraft_shader_system.h"
-#include "systems/kraft_texture_system.h"
+#include <core/kraft_log.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <core/kraft_lexer.h>
+#include <math/kraft_math.h>
+#include <containers/kraft_array.h>
+#include <containers/kraft_hashmap.h>
+#include <platform/kraft_filesystem.h>
+#include <platform/kraft_filesystem_types.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <systems/kraft_shader_system.h>
+#include <systems/kraft_texture_system.h>
 
+#include <systems/kraft_material_system_types.h>
+#include <resources/kraft_resource_types.h>
 #include <renderer/kraft_renderer_types.h>
+#include <core/kraft_lexer_types.h>
 
 namespace kraft {
 
@@ -106,7 +114,7 @@ Material* MaterialSystem::CreateMaterialFromFile(const String& Path)
     return CreateMaterialWithData(Data);
 }
 
-Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
+Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data)
 {
     int FreeIndex = -1;
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
@@ -169,14 +177,17 @@ Material* MaterialSystem::CreateMaterialWithData(MaterialData Data)
             }
             else
             {
+                auto DataIt = Data.Properties.find(UniformName);
+                KASSERTM(DataIt != Data.Properties.end(), "Material data is missing a uniform");
+
                 // Copy over the value
                 if (Uniform.Type == ResourceType::Sampler)
                 {
-                    MemCpy(Instance->Properties[UniformName].Memory, Data.Properties[UniformName].Memory, sizeof(Texture));
+                    MemCpy(Instance->Properties[UniformName].Memory, DataIt->second.ptr->Memory, sizeof(Texture));
                 }
                 else
                 {
-                    MemCpy(Instance->Properties[UniformName].Memory, Data.Properties[UniformName].Memory, Uniform.Stride);
+                    MemCpy(Instance->Properties[UniformName].Memory, DataIt->second.ptr->Memory, Uniform.Stride);
                 }
 
                 Instance->Properties[UniformName].UniformIndex = It->second;
@@ -325,15 +336,15 @@ static void CreateDefaultMaterialsInternal()
 
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
 {
-    FileHandle File;
-    bool       Result = filesystem::OpenFile(FilePath, kraft::FILE_OPEN_MODE_READ, true, &File);
+    filesystem::FileHandle File;
+    bool                   Result = filesystem::OpenFile(FilePath, filesystem::FILE_OPEN_MODE_READ, true, &File);
     if (!Result)
     {
         return false;
     }
 
-    uint64 BufferSize = kraft::filesystem::GetFileSize(&File) + 1;
-    uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
+    uint64 BufferSize = filesystem::GetFileSize(&File) + 1;
+    uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, MEMORY_TAG_FILE_BUF, true);
     filesystem::ReadAllBytes(&File, &FileDataBuffer);
     filesystem::CloseFile(&File);
 
@@ -347,37 +358,37 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
         {
             if (Token.MatchesKeyword("Material"))
             {
-                if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 {
                     return false;
                 }
 
-                Data->Name = Token.String();
-                if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+                Data->Name = Token.ToString();
+                if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
                 {
                     return false;
                 }
 
                 // Parse material block
-                while (!Lexer.EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+                while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
                     if (Token.MatchesKeyword("DiffuseColor"))
                     {
-                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
                             return false;
                         }
 
                         if (Token.MatchesKeyword("vec4"))
                         {
-                            if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
                                 return false;
                             }
 
                             float32 DiffuseColor[4];
                             int     Index = 0;
-                            while (!Lexer.EqualsToken(Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
                                 if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
                                 {
@@ -398,12 +409,12 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                     }
                     else if (Token.MatchesKeyword("DiffuseMapName"))
                     {
-                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_STRING))
+                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        const String&   TexturePath = Token.String();
+                        const String&   TexturePath = Token.ToString();
                         Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
@@ -419,16 +430,16 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                     }
                     else if (Token.MatchesKeyword("Shader"))
                     {
-                        if (!Lexer.ExpectToken(Token, TokenType::TOKEN_TYPE_STRING))
+                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        Data->ShaderAsset = Token.String();
+                        Data->ShaderAsset = Token.ToString();
                     }
                     else
                     {
-                        KERROR("Material has an invalid field %s", *Token.String());
+                        KERROR("Material has an invalid field %s", *Token.ToString());
                     }
                 }
             }

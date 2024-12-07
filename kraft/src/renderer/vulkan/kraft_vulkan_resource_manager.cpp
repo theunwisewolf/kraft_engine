@@ -1,19 +1,46 @@
 #include "kraft_vulkan_resource_manager.h"
 
+#include <containers/kraft_array.h>
+#include <containers/kraft_hashmap.h>
+#include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>
 #include <renderer/vulkan/kraft_vulkan_helpers.h>
 #include <renderer/vulkan/kraft_vulkan_image.h>
 #include <renderer/vulkan/kraft_vulkan_memory.h>
 
+#include <resources/kraft_resource_types.h>
+
 namespace kraft::renderer {
+
+struct VulkanResourceManagerDataT
+{
+    Pool<VulkanTexture, Texture>       TexturePool = Pool<VulkanTexture, Texture>(1024);
+    Pool<VulkanBuffer, Buffer>         BufferPool = Pool<VulkanBuffer, Buffer>(1024);
+    Pool<VulkanRenderPass, RenderPass> RenderPassPool = Pool<VulkanRenderPass, RenderPass>(1024);
+} VulkanResourceManagerData;
+
+const Pool<VulkanTexture, Texture>& VulkanResourceManager::GetTexturePool() const
+{
+    return VulkanResourceManagerData.TexturePool;
+}
+
+const Pool<VulkanBuffer, Buffer>& VulkanResourceManager::GetBufferPool() const
+{
+    return VulkanResourceManagerData.BufferPool;
+}
+
+const Pool<VulkanRenderPass, RenderPass>& VulkanResourceManager::GetRenderPassPool() const
+{
+    return VulkanResourceManagerData.RenderPassPool;
+}
 
 VulkanTempMemoryBlockAllocator::VulkanTempMemoryBlockAllocator(uint64 BlockSize)
 {
     this->BlockSize = BlockSize;
 }
 
-VulkanTempMemoryBlockAllocator::Block VulkanTempMemoryBlockAllocator::GetNextFreeBlock()
+GPUBuffer VulkanTempMemoryBlockAllocator::GetNextFreeBlock()
 {
     Handle<Buffer> Buf = ResourceManager::Get()->CreateBuffer({
         .DebugName = "VulkanTempMemoryBlockAllocator",
@@ -25,13 +52,13 @@ VulkanTempMemoryBlockAllocator::Block VulkanTempMemoryBlockAllocator::GetNextFre
 
     KASSERT(Buf != Handle<Buffer>::Invalid());
 
-    return Block{
-        .Ptr = ResourceManager::Get()->GetBufferData(Buf),
+    return GPUBuffer{
         .GPUBuffer = Buf,
+        .Ptr = ResourceManager::Get()->GetBufferData(Buf),
     };
 }
 
-VulkanResourceManager::VulkanResourceManager() : TexturePool(1024), BufferPool(1024), RenderPassPool(1024)
+VulkanResourceManager::VulkanResourceManager()
 {
     TempGPUAllocator.Allocator = new VulkanTempMemoryBlockAllocator(1024 * 1024 * 128);
 }
@@ -41,11 +68,11 @@ VulkanResourceManager::~VulkanResourceManager()
     delete TempGPUAllocator.Allocator;
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = VulkanRendererBackend::Device();
+    VkDevice       Device = Context->LogicalDevice.Handle;
 
-    for (int i = 0; i < this->TexturePool.GetSize(); i++)
+    for (int i = 0; i < VulkanResourceManagerData.TexturePool.GetSize(); i++)
     {
-        VulkanTexture Texture = this->TexturePool.Data[i];
+        VulkanTexture Texture = VulkanResourceManagerData.TexturePool.Data[i];
         if (Texture.View)
         {
             vkDestroyImageView(Device, Texture.View, Context->AllocationCallbacks);
@@ -64,20 +91,20 @@ VulkanResourceManager::~VulkanResourceManager()
         vkDestroySampler(Device, Texture.Sampler, Context->AllocationCallbacks);
     }
 
-    for (int i = 0; i < this->BufferPool.GetSize(); i++)
+    for (int i = 0; i < VulkanResourceManagerData.BufferPool.GetSize(); i++)
     {
-        VulkanBuffer Buffer = this->BufferPool.Data[i];
+        VulkanBuffer Buffer = VulkanResourceManagerData.BufferPool.Data[i];
         vkFreeMemory(Device, Buffer.Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, Buffer.Handle, Context->AllocationCallbacks);
     }
 }
 
-Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Description)
+Handle<Texture> VulkanResourceManager::CreateTexture(const TextureDescription& Description)
 {
     KASSERT(Description.Dimensions.x > 0 && Description.Dimensions.y > 0 && Description.Dimensions.z > 0 && Description.Dimensions.w > 0);
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = VulkanRendererBackend::Device();
+    VkDevice       Device = Context->LogicalDevice.Handle;
     VulkanTexture  Output = {};
 
     // Create a VkImage
@@ -197,7 +224,7 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
         Context->SetObjectName((uint64)Output.Sampler, VK_OBJECT_TYPE_SAMPLER, Description.DebugName);
     }
 
-    return TexturePool.Insert(
+    return VulkanResourceManagerData.TexturePool.Insert(
         {
             .Width = Description.Dimensions.x,
             .Height = Description.Dimensions.y,
@@ -209,10 +236,10 @@ Handle<Texture> VulkanResourceManager::CreateTexture(TextureDescription Descript
     );
 }
 
-Handle<Buffer> VulkanResourceManager::CreateBuffer(BufferDescription Description)
+Handle<Buffer> VulkanResourceManager::CreateBuffer(const BufferDescription& Description)
 {
     VulkanContext*        Context = VulkanRendererBackend::Context();
-    VkDevice              Device = VulkanRendererBackend::Device();
+    VkDevice              Device = Context->LogicalDevice.Handle;
     VulkanBuffer          Output = {};
     VkMemoryPropertyFlags MemoryProperties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
 
@@ -240,16 +267,16 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(BufferDescription Description
     void* Ptr = nullptr;
     if (Description.MapMemory)
     {
-        vkMapMemory(VulkanRendererBackend::Device(), Output.Memory, 0, VK_WHOLE_SIZE, 0, &Ptr);
+        vkMapMemory(Device, Output.Memory, 0, VK_WHOLE_SIZE, 0, &Ptr);
     }
 
-    return BufferPool.Insert({ .Size = Description.Size, .Ptr = Ptr }, Output);
+    return VulkanResourceManagerData.BufferPool.Insert({ .Size = Description.Size, .Ptr = Ptr }, Output);
 }
 
-Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription Description)
+Handle<RenderPass> VulkanResourceManager::CreateRenderPass(const RenderPassDescription& Description)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = VulkanRendererBackend::Device();
+    VkDevice       Device = Context->LogicalDevice.Handle;
 
     VkSubpassDescription    Subpasses[8];
     uint32                  SubpassesIndex = 0;
@@ -296,8 +323,8 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
     for (int i = 0; i < Description.ColorTargets.Size(); i++)
     {
         const ColorTarget& Target = Description.ColorTargets[i];
-        Texture*           ColorTexture = this->TexturePool.GetAuxiliaryData(Target.Texture);
-        VulkanTexture*     VkColorTexture = this->TexturePool.Get(Target.Texture);
+        Texture*           ColorTexture = VulkanResourceManagerData.TexturePool.GetAuxiliaryData(Target.Texture);
+        VulkanTexture*     VkColorTexture = VulkanResourceManagerData.TexturePool.Get(Target.Texture);
 
         Attachments[AttachmentsIndex] = {};
         Attachments[AttachmentsIndex].format = ToVulkanFormat(ColorTexture->TextureFormat);
@@ -314,8 +341,8 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
 
     if (HasDepthTarget)
     {
-        Texture*       DepthTexture = this->TexturePool.GetAuxiliaryData(Description.DepthTarget.Texture);
-        VulkanTexture* VkDepthTexture = this->TexturePool.Get(Description.DepthTarget.Texture);
+        Texture*       DepthTexture = VulkanResourceManagerData.TexturePool.GetAuxiliaryData(Description.DepthTarget.Texture);
+        VulkanTexture* VkDepthTexture = VulkanResourceManagerData.TexturePool.Get(Description.DepthTarget.Texture);
 
         Attachments[AttachmentsIndex] = {};
         Attachments[AttachmentsIndex].format = ToVulkanFormat(DepthTexture->TextureFormat);
@@ -381,41 +408,43 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(RenderPassDescription
     KRAFT_VK_CHECK(vkCreateFramebuffer(Device, &Info, Context->AllocationCallbacks, &Out.Framebuffer.Handle));
     Context->SetObjectName((uint64)Out.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, Description.DebugName);
 
-    return this->RenderPassPool.Insert(
+    return VulkanResourceManagerData.RenderPassPool.Insert(
         { .Dimensions = Description.Dimensions, .DepthTarget = Description.DepthTarget, .ColorTargets = Description.ColorTargets }, Out
     );
 }
 
 void VulkanResourceManager::DestroyTexture(Handle<Texture> Resource)
 {
-    this->TexturePool.MarkForDelete(Resource);
+    VulkanResourceManagerData.TexturePool.MarkForDelete(Resource);
 }
 
 void VulkanResourceManager::DestroyBuffer(Handle<Buffer> Resource)
 {
-    this->BufferPool.MarkForDelete(Resource);
+    VulkanResourceManagerData.BufferPool.MarkForDelete(Resource);
 }
 
 void VulkanResourceManager::DestroyRenderPass(Handle<RenderPass> Resource)
 {
-    this->RenderPassPool.MarkForDelete(Resource);
+    VulkanResourceManagerData.RenderPassPool.MarkForDelete(Resource);
 }
 
 uint8* VulkanResourceManager::GetBufferData(Handle<Buffer> BufferHandle)
 {
-    Buffer*       Buffer = BufferPool.GetAuxiliaryData(BufferHandle);
-    VulkanBuffer* GPUBuffer = BufferPool.Get(BufferHandle);
+    VulkanContext* Context = VulkanRendererBackend::Context();
+    VkDevice       Device = Context->LogicalDevice.Handle;
+    Buffer*        Buffer = VulkanResourceManagerData.BufferPool.GetAuxiliaryData(BufferHandle);
+    VulkanBuffer*  GPUBuffer = VulkanResourceManagerData.BufferPool.Get(BufferHandle);
 
     // Map the buffer first if it not mapped yet
     if (!Buffer->Ptr)
     {
-        KRAFT_VK_CHECK(vkMapMemory(VulkanRendererBackend::Device(), GPUBuffer->Memory, 0, VK_WHOLE_SIZE, 0, &Buffer->Ptr));
+        KRAFT_VK_CHECK(vkMapMemory(Device, GPUBuffer->Memory, 0, VK_WHOLE_SIZE, 0, &Buffer->Ptr));
     }
 
     return (uint8*)Buffer->Ptr;
 }
 
-TempBuffer VulkanResourceManager::CreateTempBuffer(uint64 Size)
+GPUBuffer VulkanResourceManager::CreateTempBuffer(uint64 Size)
 {
     return this->TempGPUAllocator.Allocate(Size, 128);
 }
@@ -423,13 +452,13 @@ TempBuffer VulkanResourceManager::CreateTempBuffer(uint64 Size)
 bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffer> BufferHandle, uint64 BufferOffset)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    Texture*       TextureMetadata = this->TexturePool.GetAuxiliaryData(Resource);
+    Texture*       TextureMetadata = VulkanResourceManagerData.TexturePool.GetAuxiliaryData(Resource);
     KASSERT(TextureMetadata);
 
-    VulkanTexture* GPUTexture = this->TexturePool.Get(Resource);
+    VulkanTexture* GPUTexture = VulkanResourceManagerData.TexturePool.Get(Resource);
     KASSERT(GPUTexture);
 
-    VulkanBuffer* GPUBuffer = BufferPool.Get(BufferHandle);
+    VulkanBuffer* GPUBuffer = VulkanResourceManagerData.BufferPool.Get(BufferHandle);
     KASSERT(GPUBuffer);
 
     // Init a single use command buffer
@@ -466,22 +495,22 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
     return true;
 }
 
-bool VulkanResourceManager::UploadBuffer(UploadBufferDescription Description)
+bool VulkanResourceManager::UploadBuffer(const UploadBufferDescription& Description)
 {
-    VulkanBuffer* Src = this->BufferPool.Get(Description.SrcBuffer);
+    VulkanBuffer* Src = VulkanResourceManagerData.BufferPool.Get(Description.SrcBuffer);
     if (!Src)
     {
         return false;
     }
 
-    VulkanBuffer* Dst = this->BufferPool.Get(Description.DstBuffer);
+    VulkanBuffer* Dst = VulkanResourceManagerData.BufferPool.Get(Description.DstBuffer);
     if (!Dst)
     {
         return false;
     }
 
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = VulkanRendererBackend::Device();
+    VkDevice       Device = Context->LogicalDevice.Handle;
     vkDeviceWaitIdle(Device);
 
     VulkanCommandBuffer TempCmdBuffer;
@@ -500,7 +529,7 @@ bool VulkanResourceManager::UploadBuffer(UploadBufferDescription Description)
 
 Texture* VulkanResourceManager::GetTextureMetadata(Handle<Texture> Resource)
 {
-    return TexturePool.GetAuxiliaryData(Resource);
+    return VulkanResourceManagerData.TexturePool.GetAuxiliaryData(Resource);
 }
 
 void VulkanResourceManager::StartFrame(uint64 FrameNumber)
@@ -509,18 +538,18 @@ void VulkanResourceManager::StartFrame(uint64 FrameNumber)
 void VulkanResourceManager::EndFrame(uint64 FrameNumber)
 {
     // Render passes will be destroyed first because they may be referencing images
-    this->RenderPassPool.Cleanup([](VulkanRenderPass* RenderPass) {
+    VulkanResourceManagerData.RenderPassPool.Cleanup([](VulkanRenderPass* RenderPass) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = VulkanRendererBackend::Device();
+        VkDevice       Device = Context->LogicalDevice.Handle;
         vkDeviceWaitIdle(Device);
 
         vkDestroyFramebuffer(Device, RenderPass->Framebuffer.Handle, Context->AllocationCallbacks);
         vkDestroyRenderPass(Device, RenderPass->Handle, Context->AllocationCallbacks);
     });
 
-    this->TexturePool.Cleanup([](VulkanTexture* Texture) {
+    VulkanResourceManagerData.TexturePool.Cleanup([](VulkanTexture* Texture) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = VulkanRendererBackend::Device();
+        VkDevice       Device = Context->LogicalDevice.Handle;
 
         if (Texture->View)
         {
@@ -543,9 +572,9 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
         vkDestroySampler(Device, Texture->Sampler, Context->AllocationCallbacks);
     });
 
-    this->BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
+    VulkanResourceManagerData.BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
         VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = VulkanRendererBackend::Device();
+        VkDevice       Device = Context->LogicalDevice.Handle;
 
         vkFreeMemory(Device, GPUResource->Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, GPUResource->Handle, Context->AllocationCallbacks);

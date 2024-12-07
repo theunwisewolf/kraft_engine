@@ -1,13 +1,12 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "systems/kraft_material_system.h"
-#include "resources/kraft_resource_types.h"
 
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
 
-namespace kraft
-{
+namespace kraft {
+
+struct Geometry;
 
 struct GeometrySystemConfig
 {
@@ -16,13 +15,13 @@ struct GeometrySystemConfig
 
 struct GeometryData
 {
-    uint32  VertexCount;
-    uint32  IndexCount;
-    uint32  VertexSize; // Size of a single vertex
-    uint32  IndexSize; // Size of a single index
-    void*   Vertices;
-    void*   Indices;
-    String  Name;
+    uint32 VertexCount;
+    uint32 IndexCount;
+    uint32 VertexSize; // Size of a single vertex
+    uint32 IndexSize;  // Size of a single index
+    void*  Vertices;
+    void*  Indices;
+    char   Name[KRAFT_GEOMETRY_NAME_MAX_LENGTH];
 };
 
 struct GeometrySystem
@@ -33,9 +32,9 @@ struct GeometrySystem
     static Geometry* GetDefaultGeometry();
     static Geometry* AcquireGeometry(uint32 ID);
     static Geometry* AcquireGeometryWithData(GeometryData Data, bool AutoRelease = true);
-    static void ReleaseGeometry(Geometry* Geometry);
-    static void ReleaseGeometry(uint32 ID);
-    static void DestroyGeometry(Geometry* Geometry);
+    static void      ReleaseGeometry(Geometry* Geometry);
+    static void      ReleaseGeometry(uint32 ID);
+    static void      DestroyGeometry(Geometry* Geometry);
 };
 
 }

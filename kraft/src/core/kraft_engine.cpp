@@ -1,14 +1,15 @@
 #include "kraft_engine.h"
 
-#include "containers/array.h"
-#include "core/kraft_input.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "core/kraft_time.h"
-#include "platform/kraft_filesystem.h"
-#include "platform/kraft_platform.h"
-#include "platform/kraft_window.h"
+#include <containers/kraft_array.h>
+#include <core/kraft_events.h>
+#include <core/kraft_input.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <core/kraft_time.h>
+#include <platform/kraft_filesystem.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
 
 #if defined(KRAFT_GUI_APP)
 #include "renderer/kraft_renderer_frontend.h"
@@ -21,12 +22,19 @@
 
 namespace kraft {
 
+struct EngineStateT
+{
+    Array<String> CliArgs;
+} EngineState;
+
 EngineConfig               Engine::Config = {};
-CommandLineArgs            Engine::CommandLineArgs = {};
-renderer::RendererFrontend Engine::Renderer = {};
 bool                       Engine::Running = false;
 bool                       Engine::Suspended = false;
 String                     Engine::BasePath = {};
+
+#if defined(KRAFT_GUI_APP)
+renderer::RendererFrontend Engine::Renderer = {};
+#endif
 
 static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData Data)
 {
@@ -57,19 +65,16 @@ static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, E
     return false;
 }
 
-bool Engine::Init(int argc, char* argv[], EngineConfig Config)
+bool Engine::Init(int ArgC, char* ArgV[], EngineConfig Config)
 {
     Engine::Config = Config;
-    CommandLineArgs = {};
-    CommandLineArgs.Count = argc;
-
-    CommandLineArgs.Arguments = Array<String>(argc);
-    for (int i = 0; i < argc; i++)
+    EngineState.CliArgs = Array<String>(ArgC);
+    for (int i = 0; i < ArgC; i++)
     {
-        CommandLineArgs.Arguments[i] = argv[i];
+        EngineState.CliArgs[i] = ArgV[i];
     }
 
-    BasePath = filesystem::Dirname(CommandLineArgs.Arguments[0]);
+    BasePath = filesystem::Dirname(EngineState.CliArgs[0]);
     BasePath = filesystem::CleanPath(BasePath);
 
     Platform::Init(&Engine::Config);
@@ -148,6 +153,11 @@ void Engine::Destroy()
     Time::Stop();
 
     KSUCCESS("[Engine]: Engine shutdown complete");
+}
+
+const Array<String>& Engine::GetCommandLineArgs()
+{
+    return EngineState.CliArgs;
 }
 
 }

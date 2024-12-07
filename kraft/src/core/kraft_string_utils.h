@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cstring>
-
-#include "core/kraft_core.h"
+#include <core/kraft_core.h>
 
 namespace kraft
 {

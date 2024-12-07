@@ -1,20 +1,25 @@
-#include "core/kraft_asserts.h"
-#include "core/kraft_engine.h"
-#include "core/kraft_events.h"
-#include "core/kraft_input.h"
-#include "core/kraft_string.h"
-#include "core/kraft_time.h"
-#include "math/kraft_math.h"
-#include "platform/kraft_filesystem.h"
-#include "platform/kraft_platform.h"
-#include "platform/kraft_window.h"
-#include "renderer/kraft_renderer_types.h"
-#include "systems/kraft_geometry_system.h"
-#include "systems/kraft_material_system.h"
-#include "systems/kraft_texture_system.h"
-#include "world/kraft_components.h"
-#include "world/kraft_entity.h"
-#include "world/kraft_world.h"
+#include <containers/kraft_array.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_engine.h>
+#include <core/kraft_events.h>
+#include <core/kraft_input.h>
+#include <core/kraft_string.h>
+#include <core/kraft_time.h>
+#include <math/kraft_math.h>
+#include <platform/kraft_filesystem.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
+#include <systems/kraft_geometry_system.h>
+#include <systems/kraft_material_system.h>
+#include <systems/kraft_texture_system.h>
+#include <world/kraft_components.h>
+#include <world/kraft_entity.h>
+#include <world/kraft_world.h>
+#include <systems/kraft_asset_database.h>
+
+#include <resources/kraft_resource_types.h>
+#include <systems/kraft_asset_types.h>
+#include <renderer/kraft_renderer_types.h>
 
 #include <imgui.h>
 
@@ -22,8 +27,6 @@
 #include "imgui/imgui_renderer.h"
 #include "utils.h"
 #include "widgets.h"
-
-#include <systems/kraft_asset_database.h>
 
 static RendererImGui ImGuiRenderer = {};
 ApplicationState     GlobalAppState = {
@@ -219,10 +222,11 @@ bool Init()
 
     // Load textures
     String TexturePath;
-    if (kraft::Engine::CommandLineArgs.Count > 1)
+    auto&  CliArgs = kraft::Engine::GetCommandLineArgs();
+    if (CliArgs.Length > 1)
     {
         // Try loading the texture from the command line args
-        String FilePath = kraft::Engine::CommandLineArgs.Arguments[1];
+        String FilePath = CliArgs[1];
         if (kraft::filesystem::FileExists(FilePath))
         {
             KINFO("Loading texture from cli path %s", FilePath.Data());
@@ -243,7 +247,9 @@ bool Init()
     KASSERT(VikingRoom);
     for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
     {
-        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
+        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
+            VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent
+        );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
@@ -294,7 +300,9 @@ bool Init()
 #if 1
     for (int i = 0; i < RogueSkeleton->SubMeshes.Length; i++)
     {
-        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent);
+        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
+            RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent
+        );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
@@ -478,13 +486,13 @@ void Run()
 
             // TODO (amn): Fix this
             // We do not have any other way to render the main renderpass right now :(
-            if (kraft::Engine::Renderer.Backend->BeginFrame())
+            if (kraft::Engine::Renderer.BeginMainRenderpass())
             {
                 GlobalAppState.ImGuiRenderer->BeginFrame();
                 GlobalAppState.ImGuiRenderer->RenderWidgets();
                 GlobalAppState.ImGuiRenderer->EndFrame();
 
-                if (!kraft::Engine::Renderer.Backend->EndFrame())
+                if (!kraft::Engine::Renderer.EndMainRenderpass())
                 {
                     KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
                 }

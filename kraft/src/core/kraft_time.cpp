@@ -1,6 +1,6 @@
 #include "kraft_time.h"
 
-#include "platform/kraft_platform.h"
+#include <platform/kraft_platform.h>
 
 namespace kraft {
 

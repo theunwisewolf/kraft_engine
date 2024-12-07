@@ -1,6 +1,7 @@
 #include "kraft_vulkan_renderpass.h"
 
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+#include <renderer/kraft_resource_pool.inl>
 
 namespace kraft::renderer
 {

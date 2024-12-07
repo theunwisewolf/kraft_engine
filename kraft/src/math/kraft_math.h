@@ -738,19 +738,20 @@ struct Matrix
     {
         static_assert(cols == 4);
         Matrix<T, rows, cols> CopyM = M;
-        Scale[0] = CopyM.V.Right.Length();
-        Scale[1] = CopyM.V.Up.Length();
-        Scale[2] = CopyM.V.Dir.Length();
+        Scale._data[0] = CopyM.V.Right.Length();
+        Scale._data[1] = CopyM.V.Up.Length();
+        Scale._data[2] = CopyM.V.Dir.Length();
 
         CopyM.OrthoNormalize();
 
-        Rotation[0] = atan2f(mat.m[1][2], mat.m[2][2]);
-        Rotation[1] = atan2f(-mat.m[0][2], Sqrt(mat.m[1][2] * mat.m[1][2] + mat.m[2][2] * mat.m[2][2]));
-        Rotation[2] = atan2f(mat.m[0][1], mat.m[0][0]);
+        Rotation._data[0] = atan2f(CopyM._data4x4[1][2], CopyM._data4x4[2][2]);
+        Rotation._data[1] =
+            atan2f(-CopyM._data4x4[0][2], Sqrt(CopyM._data4x4[1][2] * CopyM._data4x4[1][2] + CopyM._data4x4[2][2] * CopyM._data4x4[2][2]));
+        Rotation._data[2] = atan2f(CopyM._data4x4[0][1], CopyM._data4x4[0][0]);
 
-        Translation[0] = CopyM.V.Position.x;
-        Translation[1] = CopyM.V.Position.y;
-        Translation[2] = CopyM.V.Position.z;
+        Translation._data[0] = CopyM.V.Position.x;
+        Translation._data[1] = CopyM.V.Position.y;
+        Translation._data[2] = CopyM.V.Position.z;
     }
 
     // Disallow bool conversions (without this, they'd happen implicitly via the array conversions)

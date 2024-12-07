@@ -2,7 +2,7 @@
 
 #include <entt/entt.h>
 
-#include "core/kraft_asserts.h"
+// #include "core/kraft_asserts.h"
 #include "world/kraft_components.h"
 #include "world/kraft_entity_types.h"
 #include "world/kraft_world.h"

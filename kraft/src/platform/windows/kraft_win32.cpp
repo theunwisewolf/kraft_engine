@@ -1,7 +1,10 @@
 #include "kraft_win32.h"
 
+#include <core/kraft_core.h>
+
 #ifdef KRAFT_PLATFORM_WINDOWS
 
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <memory>
 
@@ -13,10 +16,12 @@
 #include <GLFW/glfw3native.h>
 #endif
 
-#include "core/kraft_engine.h"
-#include "core/kraft_log.h"
-#include "core/kraft_string.h"
-#include "platform/kraft_platform.h"
+#include <core/kraft_engine.h>
+#include <core/kraft_log.h>
+#include <core/kraft_string.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
+#include <platform/windows/kraft_win32_types.h>
 
 namespace kraft {
 

@@ -2,18 +2,19 @@
 
 #include <GLFW/glfw3.h>
 
-#include "core/kraft_core.h"
-#include "core/kraft_events.h"
-#include "core/kraft_input.h"
-#include "core/kraft_log.h"
-#include "core/kraft_string.h"
+#include <containers/kraft_array.h>
+#include <core/kraft_core.h>
+#include <core/kraft_events.h>
+#include <core/kraft_input.h>
+#include <core/kraft_log.h>
+#include <core/kraft_string.h>
+#include <renderer/kraft_renderer_types.h>
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include <Windows.h>
 #endif
 
-namespace kraft
-{
+namespace kraft {
 
 int Window::Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType)
 {
@@ -29,7 +30,6 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
     }
     else if (backendType == renderer::RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
     {
-
     }
 
     // Remove the title bar
@@ -53,11 +53,11 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
 
     // TODO (amn): We should fetch the monitor the window is being drawn on
     // Currently there is no inbuilt way to do this in glfw
-    // A possible workaround is mentioned here: 
+    // A possible workaround is mentioned here:
     // https://github.com/glfw/glfw/issues/1699
     // For now, we just use the primary monitor
     GLFWmonitor* CurrentMonitor = glfwGetPrimaryMonitor();
-    float XScale, YScale;
+    float        XScale, YScale;
     glfwGetMonitorContentScale(CurrentMonitor, &XScale, &YScale);
     this->DPI = XScale;
 
@@ -105,7 +105,7 @@ void Window::WindowSizeCallback(GLFWwindow* window, int Width, int Height)
 {
     Window* Self = (Window*)glfwGetWindowUserPointer(window);
     Self->Width = Width;
-    Self->Height= Height;
+    Self->Height = Height;
 
     EventData data;
     data.UInt32Value[0] = Width;
@@ -122,7 +122,7 @@ void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
 
     Window* Self = (Window*)glfwGetWindowUserPointer(window);
     Self->Width = Width;
-    Self->Height= Height;
+    Self->Height = Height;
 
     EventData data;
     data.UInt32Value[0] = Width;
@@ -134,7 +134,8 @@ void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)
 {
-    if (keycode == GLFW_KEY_UNKNOWN) return;
+    if (keycode == GLFW_KEY_UNKNOWN)
+        return;
 
     bool pressed = action != GLFW_RELEASE;
     InputSystem::ProcessKeyboard(keycode, pressed);

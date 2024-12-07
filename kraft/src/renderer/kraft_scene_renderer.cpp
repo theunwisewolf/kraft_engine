@@ -1,1 +1,0 @@
-#include "kraft_scene_renderer.h"

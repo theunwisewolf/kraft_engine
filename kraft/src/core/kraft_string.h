@@ -532,9 +532,19 @@ KRAFT_INLINE char* StringCopy(char* dst, const char* src)
     return strcpy(dst, src);
 }
 
-KRAFT_INLINE char* StringNCopy(char* dst, const char* src, uint64 length)
+KRAFT_INLINE char* StringNCopy(char* dst, const char* src, uint64 src_length_to_cpy)
 {
-    return strncpy(dst, src, length);
+    return strncpy(dst, src, src_length_to_cpy);
+}
+
+KRAFT_INLINE char* StringConcat(char* dst, const char* src)
+{
+    return strcat(dst, src);
+}
+
+KRAFT_INLINE char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
+{
+    return strncat(dst, src, src_length_to_cpy);
 }
 
 KRAFT_INLINE const char* StringTrim(const char* in)
@@ -589,23 +599,7 @@ KRAFT_INLINE uint64 StringEqual(const char* a, const char* b)
 
 KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args);
 
-KRAFT_INLINE int32 StringFormat(char* buffer, int n, const char* format, ...)
-{
-    if (buffer)
-    {
-#ifdef KRAFT_COMPILER_MSVC
-        va_list args;
-#else
-        __builtin_va_list args;
-#endif
-        va_start(args, format);
-        int32 written = StringFormatV(buffer, n, format, args);
-        va_end(args);
-        return written;
-    }
-
-    return -1;
-}
+int32 StringFormat(char* buffer, int n, const char* format, ...);
 
 KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
 {

@@ -2,29 +2,29 @@
 
 // Platform detection
 #if defined(WIN32) || defined(_WIN32)
-    #define KRAFT_PLATFORM_WINDOWS
+#define KRAFT_PLATFORM_WINDOWS
 #elif __linux__
-    #define KRAFT_PLATFORM_LINUX
+#define KRAFT_PLATFORM_LINUX
 #elif __ANDROID__
-    #define KRAFT_PLATFORM_ANDROID
+#define KRAFT_PLATFORM_ANDROID
 #elif __APPLE__ // This might look wrong, but this is the correct way!
-    #include <TargetConditionals.h>
-    #if TARGET_IPHONE_SIMULATOR
-        #define KRAFT_PLATFORM_IOS
-        #define KRAFT_PLATFORM_IOS_SIMULATOR
-    #elif TARGET_OS_IPHONE
-        #define KRAFT_PLATFORM_IOS
-    #elif TARGET_OS_MAC
-        #define KRAFT_PLATFORM_MACOS
-    #else
-        #error "Unknown apple platform"
-    #endif
+#include <TargetConditionals.h>
+#if TARGET_IPHONE_SIMULATOR
+#define KRAFT_PLATFORM_IOS
+#define KRAFT_PLATFORM_IOS_SIMULATOR
+#elif TARGET_OS_IPHONE
+#define KRAFT_PLATFORM_IOS
+#elif TARGET_OS_MAC
+#define KRAFT_PLATFORM_MACOS
+#else
+#error "Unknown apple platform"
+#endif
 #endif
 
 // Debug
 #if defined(_DEBUG) || defined(DEBUG)
-    #define KRAFT_DEBUG
-    #define KRAFT_RENDERER_DEBUG
+#define KRAFT_DEBUG
+#define KRAFT_RENDERER_DEBUG
 #endif
 
 // Comment out for disabling debugging features in the renderer
@@ -32,68 +32,68 @@
 
 // Compiler
 #if defined(_MSC_VER)
-    #define KRAFT_COMPILER_MSVC
+#define KRAFT_COMPILER_MSVC
 #elif defined(__clang__)
-    #define KRAFT_COMPILER_CLANG
+#define KRAFT_COMPILER_CLANG
 #elif defined(__gcc__)
-    #define KRAFT_COMPILER_GCC
+#define KRAFT_COMPILER_GCC
 #endif
 
 // Inlining
 #if defined(_MSC_VER)
-    #define KRAFT_INLINE __forceinline
-    #define KRAFT_NOINLINE __declspec(noinline)
+#define KRAFT_INLINE   __forceinline
+#define KRAFT_NOINLINE __declspec(noinline)
 #elif defined(__clang__) || defined(__gcc__)
-    #define KRAFT_INLINE __attribute__((always_inline)) inline
-    #define KRAFT_NOINLINE __attribute__((noinline))
+#define KRAFT_INLINE   __attribute__((always_inline)) inline
+#define KRAFT_NOINLINE __attribute__((noinline))
 #else
-    #define KRAFT_INLINE inline
-    #define KRAFT_NOINLINE
+#define KRAFT_INLINE inline
+#define KRAFT_NOINLINE
 #endif
 
 // Library export
 #if defined(KRAFT_STATIC)
-    #define KRAFT_API 
+#define KRAFT_API
 #elif defined(KRAFT_SHARED)
-    #ifdef _MSC_VER
-        #define KRAFT_API __declspec(dllexport)
-    #else
-        #define KRAFT_API __attribute__((visibility("default")))
-    #endif
+#ifdef _MSC_VER
+#define KRAFT_API __declspec(dllexport)
 #else
-    #ifdef _MSC_VER
-        #define KRAFT_API __declspec(dllimport)
-    #else
-        #define KRAFT_API
-    #endif
+#define KRAFT_API __attribute__((visibility("default")))
+#endif
+#else
+#ifdef _MSC_VER
+#define KRAFT_API __declspec(dllimport)
+#else
+#define KRAFT_API
+#endif
 #endif
 
 // Some types
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
-typedef double      float64;
-typedef double      Float64;
-typedef float       float32;
-typedef float       Float32;
-typedef int8_t      int8;
-typedef int8_t      Int8;
-typedef int16_t     int16;
-typedef int16_t     Int16;
-typedef int         int32;
-typedef int         Int32;
-typedef int64_t     int64;
-typedef int64_t     Int64;
-typedef uint8_t     byte;
-typedef uint8_t     Byte;
-typedef uint8_t     uint8;
-typedef uint8_t     UInt8;
-typedef uint16_t    uint16;
-typedef uint16_t    UInt16;
-typedef uint32_t    uint32;
-typedef uint32_t    UInt32;
-typedef uint64_t    uint64;
-typedef uint64_t    UInt64;
+typedef double   float64;
+typedef double   Float64;
+typedef float    float32;
+typedef float    Float32;
+typedef int8_t   int8;
+typedef int8_t   Int8;
+typedef int16_t  int16;
+typedef int16_t  Int16;
+typedef int      int32;
+typedef int      Int32;
+typedef int64_t  int64;
+typedef int64_t  Int64;
+typedef uint8_t  byte;
+typedef uint8_t  Byte;
+typedef uint8_t  uint8;
+typedef uint8_t  UInt8;
+typedef uint16_t uint16;
+typedef uint16_t UInt16;
+typedef uint32_t uint32;
+typedef uint32_t UInt32;
+typedef uint64_t uint64;
+typedef uint64_t UInt64;
 
 // TODO (amn): Unicode
 // #ifdef _UNICODE
@@ -105,10 +105,28 @@ typedef uint64_t    UInt64;
 //         #define StrError strerror
 //     #endif
 // #else
-    #define StrError strerror
+#define StrError strerror
 // #endif
 
-#define KRAFT_INVALID_ID        4294967295U
-#define KRAFT_INVALID_ID_UINT8  255U
+#define KRAFT_INVALID_ID       4294967295U
+#define KRAFT_INVALID_ID_UINT8 255U
 
 #define KRAFT_C_ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])
+
+// Some forward declares for most-used types
+namespace kraft {
+template<typename T, uint64 InternalBufferSize>
+struct KString;
+
+template<typename T>
+struct KStringView;
+
+typedef KString<char, 128> String;
+typedef KStringView<char>  StringView;
+
+template<typename T>
+struct Array;
+
+template<typename T, int rows, int cols>
+struct Matrix;
+}

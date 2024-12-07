@@ -1,44 +1,41 @@
 #include "kraft_log.h"
 
-#include "core/kraft_string.h"
-#include "platform/kraft_platform.h"
+#include <cstdarg>
 
-namespace kraft
-{
+#include <core/kraft_string.h>
+#include <platform/kraft_platform.h>
 
-struct Logger LoggerInstance = kraft::Logger(); 
+namespace kraft {
 
-bool Logger::Init() 
+struct Logger LoggerInstance = kraft::Logger();
+
+bool Logger::Init()
 {
     return true;
 }
 
-void Logger::Shutdown() {}
+void Logger::Shutdown()
+{}
 
 void Logger::Log(LogLevel level, const char* message, ...)
 {
-    const int BUFFER_SIZE = 32000;
-    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
-        "[FATAL]:", 
-        "[ERROR]:", 
-        "[WARN]:", 
-        "[INFO]:", 
-        "[SUCCESS]:",
-        "[DEBUG]:",
+    const int          BUFFER_SIZE = 32000;
+    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
+        "[FATAL]:", "[ERROR]:", "[WARN]:", "[INFO]:", "[SUCCESS]:", "[DEBUG]:",
     };
 
-    static int colors[LogLevel::LOG_LEVEL_NUM_COUNT] = { 
-        Platform::ConsoleColorBGLoRed | Platform::ConsoleColorHiWhite,  // Fatal
-        Platform::ConsoleColorHiRed,                                    // Error
-        Platform::ConsoleColorHiYellow,                                 // Warning
-        Platform::ConsoleColorHiCyan,                                   // Info
-        Platform::ConsoleColorHiGreen,                                  // Success
-        Platform::ConsoleColorHiWhite,                                  // Debug
+    static int colors[LogLevel::LOG_LEVEL_NUM_COUNT] = {
+        Platform::ConsoleColorBGLoRed | Platform::ConsoleColorHiWhite, // Fatal
+        Platform::ConsoleColorHiRed,                                   // Error
+        Platform::ConsoleColorHiYellow,                                // Warning
+        Platform::ConsoleColorHiCyan,                                  // Info
+        Platform::ConsoleColorHiGreen,                                 // Success
+        Platform::ConsoleColorHiWhite,                                 // Debug
     };
 
-    int prefixLength = (int)StringLength(levelsPrefix[level]);
-    int reservedSize = prefixLength + this->Padding;
-    char out[BUFFER_SIZE] = {0};
+    int  prefixLength = (int)StringLength(levelsPrefix[level]);
+    int  reservedSize = prefixLength + this->Padding;
+    char out[BUFFER_SIZE] = { 0 };
 
     va_list args;
     va_start(args, message);

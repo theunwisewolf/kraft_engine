@@ -1,10 +1,8 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "core/kraft_string.h"
 
-namespace kraft
-{
+namespace kraft {
 
 struct Shader;
 struct Material;
@@ -16,7 +14,7 @@ struct ShaderSystem
     static void Shutdown();
 
     static Shader* AcquireShader(const String& ShaderPath, bool AutoRelease = true);
-    static void ReleaseShader(Shader* Shader);
+    static void    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
 
     static void Bind(Shader* Shader);
@@ -46,7 +44,7 @@ struct ShaderSystem
 
     static bool SetUniform(const String& Name, void* Value, bool Invalidate = false);
 
-    static void ApplyGlobalProperties(const Mat4f& Projection, const Mat4f& View);
+    static void ApplyGlobalProperties(const Matrix<float32, 4, 4>& Projection, const Matrix<float32, 4, 4>& View);
     static void ApplyInstanceProperties();
 };
 

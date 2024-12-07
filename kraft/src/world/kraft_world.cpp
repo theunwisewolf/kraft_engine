@@ -2,9 +2,11 @@
 
 #include <entt/entt.h>
 
-#include "renderer/kraft_renderer_frontend.h"
-#include "world/kraft_components.h"
-#include "world/kraft_entity.h"
+#include <containers/kraft_array.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <renderer/kraft_renderer_types.h>
+#include <world/kraft_components.h>
+#include <world/kraft_entity.h>
 
 static entt::basic_registry<kraft::EntityHandleT> Registry = entt::basic_registry<kraft::EntityHandleT>();
 static kraft::Entity                              WorldRoot = kraft::Entity();
@@ -92,7 +94,7 @@ Entity& World::GetEntity(EntityHandleT Handle)
 void World::Render()
 {
     kraft::renderer::Renderer->Camera = &this->Camera;
-    kraft::renderer::Renderer->CurrentWorld = this;
+    // kraft::renderer::Renderer->CurrentWorld = this;
 
     auto Group = Registry.group<MeshComponent, TransformComponent>();
     for (auto EntityHandle : Group)

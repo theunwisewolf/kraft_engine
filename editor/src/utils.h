@@ -1,11 +1,12 @@
 #pragma once
 
+#include "editor.h"
+#include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
 #include <renderer/kraft_camera.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_resource_manager.h>
 #include <world/kraft_components.h>
-#include "editor.h"
 
 static void SetProjection(kraft::CameraProjectionType Type)
 {

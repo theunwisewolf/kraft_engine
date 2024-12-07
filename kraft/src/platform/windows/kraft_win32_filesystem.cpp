@@ -3,19 +3,21 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>
+#include <core/kraft_string.h>
+#include <platform/kraft_filesystem_types.h>
 
-namespace kraft::filesystem
-{
+namespace kraft::filesystem {
 
 FileMMapHandle MMap(const String& Path)
 {
-    HANDLE File = CreateFileA(*Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    HANDLE File =
+        CreateFileA(*Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
     if (File == INVALID_HANDLE_VALUE)
     {
-        return {0};
+        return { 0 };
     }
 
     HANDLE FileMapping = CreateFileMapping(File, NULL, PAGE_READONLY, 0, 0, NULL);
@@ -40,15 +42,21 @@ bool ReadDir(const String& Path, Array<FileInfo>& OutFiles)
     }
 
     WIN32_FIND_DATA FindData;
-    HANDLE hFind = FindFirstFile(*Dir, &FindData);
-    LARGE_INTEGER FileSize;
+    HANDLE          hFind = FindFirstFile(*Dir, &FindData);
+    LARGE_INTEGER   FileSize;
 
-    if (INVALID_HANDLE_VALUE == hFind) 
+    if (INVALID_HANDLE_VALUE == hFind)
     {
         kraft::String ErrorMessage(1024, 0);
-        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
-                    *ErrorMessage, ErrorMessage.Length, NULL);
+        FormatMessage(
+            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            *ErrorMessage,
+            ErrorMessage.Length,
+            NULL
+        );
 
         KERROR("[Win32]: FindFirstFile failed with error %s", *ErrorMessage);
         return false;

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "renderer/kraft_renderer_types.h"
-#include "resources/kraft_resource_types.h"
 
-namespace kraft
-{
+namespace kraft {
 
-namespace renderer
-{
+namespace renderer {
+
+struct RendererBackend;
+enum RendererBackendType : int;
 
 bool CreateBackend(RendererBackendType type, RendererBackend* out);
 void DestroyBackend(RendererBackend* backend);

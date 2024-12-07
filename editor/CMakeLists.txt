@@ -30,17 +30,21 @@ endif()
 target_link_libraries(${PROJECT_NAME} Kraft)
 
 # Compiler options
+if (MSVC)
+# target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
+else()
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
+endif()
 
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 )
 
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 
-    ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
-)
+# add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+#     COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 
+#     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+# )
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES

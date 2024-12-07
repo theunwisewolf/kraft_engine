@@ -9,13 +9,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(${PROJECT_NAME} LANGUAGES CXX C)
 
-message(${KRAFT_PATH})
-
 set(SRC_FILES 
     src/containers/array.cpp
     src/containers/kraft_array.cpp
     src/containers/kraft_buffer.cpp
     src/core/kraft_log.cpp
+    src/core/kraft_asserts.cpp
     src/core/kraft_input.cpp
     src/core/kraft_events.cpp
     src/core/kraft_engine.cpp
@@ -57,6 +56,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/kraft_renderer_backend.cpp
         src/renderer/kraft_renderer_frontend.cpp
         src/renderer/kraft_resource_manager.cpp
+        src/renderer/kraft_resource_pool.cpp
         src/renderer/vulkan/kraft_vulkan_volk_impl.cpp
         src/renderer/vulkan/kraft_vulkan_backend.cpp
         src/renderer/vulkan/kraft_vulkan_device.cpp
@@ -133,7 +133,11 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)
 
 # Compiler options
+if (MSVC)
+# target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
+else()
 target_compile_options(${PROJECT_NAME} PUBLIC -Wno-unused-function -Wno-unused-variable)
+endif()
 
 # find_package(OpenGL REQUIRED)
 

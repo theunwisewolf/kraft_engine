@@ -1,39 +1,47 @@
 #include "kraft_renderer_frontend.h"
 
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_asserts.h"
-#include "core/kraft_engine.h"
-#include "renderer/kraft_renderer_backend.h"
-#include "renderer/shaderfx/kraft_shaderfx_types.h"
-#include "renderer/kraft_camera.h"
-
-#include "systems/kraft_shader_system.h"
-#include "systems/kraft_material_system.h"
-
+#include <containers/kraft_hashmap.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_engine.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <renderer/kraft_camera.h>
+#include <renderer/kraft_renderer_backend.h>
+#include <systems/kraft_material_system.h>
+#include <systems/kraft_shader_system.h>
 #include <renderer/kraft_resource_manager.h>
 
-namespace kraft::renderer
+#include <resources/kraft_resource_types.h>
+#include <renderer/shaderfx/kraft_shaderfx_types.h>
+
+namespace kraft::renderer {
+
+struct RendererDataT
 {
+    kraft::Block                           BackendMemory;
+    RendererBackendType                    Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
+    HashMap<ResourceID, Array<Renderable>> Renderables;
+    RendererBackend*                       Backend = nullptr;
+} RendererData;
 
 RendererFrontend* Renderer = nullptr;
 
 bool RendererFrontend::Init(EngineConfig* Config)
 {
     Renderer = this;
-    Type = Config->RendererBackend;
-    BackendMemory = MallocBlock(sizeof(RendererBackend));
-    Backend = (RendererBackend*)BackendMemory.Data;
-    this->Renderables.reserve(1024);
+    RendererData.Type = Config->RendererBackend;
+    RendererData.BackendMemory = MallocBlock(sizeof(RendererBackend), MEMORY_TAG_RENDERER);
+    RendererData.Backend = (RendererBackend*)RendererData.BackendMemory.Data;
+    RendererData.Renderables.reserve(1024);
 
-    KASSERTM(Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
+    KASSERTM(RendererData.Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
-    if (!CreateBackend(Type, Backend))
+    if (!CreateBackend(RendererData.Type, RendererData.Backend))
     {
         return false;
     }
 
-    if (!Backend->Init(Config))
+    if (!RendererData.Backend->Init(Config))
     {
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return false;
@@ -44,19 +52,19 @@ bool RendererFrontend::Init(EngineConfig* Config)
 
 bool RendererFrontend::Shutdown()
 {
-    DestroyBackend(Backend);
+    DestroyBackend(RendererData.Backend);
 
-    FreeBlock(BackendMemory);
-    Backend = nullptr;
+    FreeBlock(RendererData.BackendMemory);
+    RendererData.Backend = nullptr;
 
     return true;
 }
 
 void RendererFrontend::OnResize(int width, int height)
 {
-    if (Backend)
+    if (RendererData.Backend)
     {
-        Backend->OnResize(width, height);
+        RendererData.Backend->OnResize(width, height);
     }
     else
     {
@@ -71,13 +79,14 @@ bool RendererFrontend::DrawFrame()
     Mat4f ProjectionMatrix = this->Camera->ProjectionMatrix;
     Mat4f ViewMatrix = this->Camera->GetViewMatrix();
 
-    Backend->PrepareFrame();
-    Backend->BeginSceneView();
-    for (auto It = this->Renderables.vbegin(); It != this->Renderables.vend(); It++)
+    RendererData.Backend->PrepareFrame();
+    RendererData.Backend->BeginSceneView();
+    for (auto It = RendererData.Renderables.vbegin(); It != RendererData.Renderables.vend(); It++)
     {
-        auto& Objects = *It;
+        auto&  Objects = *It;
         uint64 Count = Objects.Size();
-        if (!Count) continue;
+        if (!Count)
+            continue;
         ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
         ShaderSystem::ApplyGlobalProperties(ProjectionMatrix, ViewMatrix);
         for (int i = 0; i < Count; i++)
@@ -88,98 +97,116 @@ bool RendererFrontend::DrawFrame()
             MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
             MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
 
-            Backend->DrawGeometryData(Object.GeometryID);
+            RendererData.Backend->DrawGeometryData(Object.GeometryID);
         }
         ShaderSystem::Unbind();
 
         Objects.Clear();
     }
-    Backend->EndSceneView();
+    RendererData.Backend->EndSceneView();
 
     return true;
 }
 
-bool RendererFrontend::AddRenderable(Renderable Object)
+bool RendererFrontend::AddRenderable(const Renderable& Object)
 {
     ResourceID Key = Object.MaterialInstance->Shader->ID;
-    if (!this->Renderables.has(Key))
+    if (!RendererData.Renderables.has(Key))
     {
-        this->Renderables[Key] = Array<Renderable>();
-        this->Renderables[Key].Reserve(1024);
+        RendererData.Renderables[Key] = Array<Renderable>();
+        RendererData.Renderables[Key].Reserve(1024);
     }
 
-    this->Renderables[Key].Push(Object);
+    RendererData.Renderables[Key].Push(Object);
 
     return true;
 }
 
-// 
+bool RendererFrontend::BeginMainRenderpass()
+{
+    return RendererData.Backend->BeginFrame();
+}
+
+bool RendererFrontend::EndMainRenderpass()
+{
+    return RendererData.Backend->EndFrame();
+}
+
+//
 // API
 //
 
 bool RendererFrontend::SetSceneViewViewportSize(uint32 Width, uint32 Height)
 {
-    return Backend->SetSceneViewViewportSize(Width, Height);
+    return RendererData.Backend->SetSceneViewViewportSize(Width, Height);
 }
 
 Handle<Texture> RendererFrontend::GetSceneViewTexture()
 {
-    return Backend->GetSceneViewTexture();
+    return RendererData.Backend->GetSceneViewTexture();
 }
 
 void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex)
 {
-    Backend->CreateRenderPipeline(Shader, PassIndex);
+    RendererData.Backend->CreateRenderPipeline(Shader, PassIndex);
 }
 
 void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
 {
-    Backend->DestroyRenderPipeline(Shader);
+    RendererData.Backend->DestroyRenderPipeline(Shader);
 }
 
 void RendererFrontend::CreateMaterial(Material* Material)
 {
-    Backend->CreateMaterial(Material);
+    RendererData.Backend->CreateMaterial(Material);
 }
 
 void RendererFrontend::DestroyMaterial(Material* Instance)
 {
-    Backend->DestroyMaterial(Instance);
+    RendererData.Backend->DestroyMaterial(Instance);
 }
 
 void RendererFrontend::UseShader(const Shader* Shader)
 {
-    Backend->UseShader(Shader);
+    RendererData.Backend->UseShader(Shader);
 }
 
 void RendererFrontend::SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
 {
-    Backend->SetUniform(ActiveShader, Uniform, Value, Invalidate);
+    RendererData.Backend->SetUniform(ActiveShader, Uniform, Value, Invalidate);
 }
 
 void RendererFrontend::DrawGeometry(uint32 GeometryID)
 {
-    Backend->DrawGeometryData(GeometryID);
+    RendererData.Backend->DrawGeometryData(GeometryID);
 }
 
 void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader)
 {
-    Backend->ApplyGlobalShaderProperties(ActiveShader);
+    RendererData.Backend->ApplyGlobalShaderProperties(ActiveShader);
 }
 
 void RendererFrontend::ApplyInstanceShaderProperties(Shader* ActiveShader)
 {
-    Backend->ApplyInstanceShaderProperties(ActiveShader);
+    RendererData.Backend->ApplyInstanceShaderProperties(ActiveShader);
 }
 
-bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
+bool RendererFrontend::CreateGeometry(
+    Geometry*    Geometry,
+    uint32       VertexCount,
+    const void*  Vertices,
+    uint32       VertexSize,
+    uint32       IndexCount,
+    const void*  Indices,
+    const uint32 IndexSize
+)
 {
-    return Backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
+    return RendererData.Backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
 }
 
 void RendererFrontend::DestroyGeometry(Geometry* Geometry)
 {
-    Backend->DestroyGeometry(Geometry);
+    RendererData.Backend->DestroyGeometry(Geometry);
 }
 
 }

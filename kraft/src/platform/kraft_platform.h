@@ -1,22 +1,12 @@
 #pragma once
 
-#include <cstdint>
-
-#include "core/kraft_core.h"
-#include "core/kraft_input.h"
+#include <core/kraft_core.h>
 
 namespace kraft {
 
 struct Window;
 struct EngineConfig;
-
-// #if defined(KRAFT_PLATFORM_WINDOWS)
-// struct Win32PlatformState;
-// #elif defined(KRAFT_PLATFORM_MACOS)
-// struct MacOSPlatformState;
-// #elif defined(KRAFT_PLATFORM_LINUX)
-// struct LinuxPlatformState;
-// #endif
+enum Keys : uint32;
 
 struct KRAFT_API Platform
 {

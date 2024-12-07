@@ -100,7 +100,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     }
 
     ShaderReference* Reference = &State->Shaders[FreeIndex];
-    if (!kraft::renderer::LoadShaderFX(ShaderPath, Reference->Shader.ShaderEffect))
+    if (!kraft::renderer::LoadShaderFX(ShaderPath, &Reference->Shader.ShaderEffect))
     {
         KWARN("[ShaderSystem::AcquireShader]: Failed to load %s", *ShaderPath);
         return nullptr;

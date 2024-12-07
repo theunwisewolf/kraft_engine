@@ -1,29 +1,34 @@
 #include "kraft_vulkan_backend.h"
 
-#include "containers/array.h"
-#include "core/kraft_engine.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "kraft_vulkan_image.h"
-#include "renderer/kraft_renderer_types.h"
-#include "renderer/shaderfx/kraft_shaderfx_types.h"
-#include "renderer/vulkan/kraft_vulkan_command_buffer.h"
-#include "renderer/vulkan/kraft_vulkan_device.h"
-#include "renderer/vulkan/kraft_vulkan_fence.h"
-#include "renderer/vulkan/kraft_vulkan_framebuffer.h"
-#include "renderer/vulkan/kraft_vulkan_helpers.h"
-#include "renderer/vulkan/kraft_vulkan_pipeline.h"
-#include "renderer/vulkan/kraft_vulkan_renderpass.h"
-#include "renderer/vulkan/kraft_vulkan_shader.h"
-#include "renderer/vulkan/kraft_vulkan_surface.h"
-#include "renderer/vulkan/kraft_vulkan_swapchain.h"
-
+#include <containers/array.h>
+#include <containers/kraft_hashmap.h>
+#include <core/kraft_engine.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <renderer/vulkan/kraft_vulkan_image.h>
+#include <renderer/vulkan/kraft_vulkan_command_buffer.h>
+#include <renderer/vulkan/kraft_vulkan_device.h>
+#include <renderer/vulkan/kraft_vulkan_fence.h>
+#include <renderer/vulkan/kraft_vulkan_framebuffer.h>
+#include <renderer/vulkan/kraft_vulkan_helpers.h>
+#include <renderer/vulkan/kraft_vulkan_pipeline.h>
+#include <renderer/vulkan/kraft_vulkan_renderpass.h>
+#include <renderer/vulkan/kraft_vulkan_shader.h>
+#include <renderer/vulkan/kraft_vulkan_surface.h>
+#include <renderer/vulkan/kraft_vulkan_swapchain.h>
+#include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+
+#include <renderer/kraft_renderer_types.h>
+#include <resources/kraft_resource_types.h>
+#include <renderer/shaderfx/kraft_shaderfx_types.h>
 
 #include <vulkan/vulkan.h>
 
 #include <volk/volk.h>
+
+namespace kraft::renderer {
 
 #ifdef KRAFT_RENDERER_DEBUG
 // PFN_vkDebugMarkerSetObjectTagEXT vkDebugMarkerSetObjectTag;
@@ -31,9 +36,15 @@ PFN_vkSetDebugUtilsObjectNameEXT KRAFT_vkSetDebugUtilsObjectNameEXT;
 // PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin;
 // PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd;
 // PFN_vkCmdDebugMarkerInsertEXT vkCmdDebugMarkerInsert;
-#endif
+static VkBool32 DebugUtilsMessenger(
+    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void*                                       pUserData
+);
 
-namespace kraft::renderer {
+static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name);
+#endif
 
 static VulkanContext         s_Context = {};
 static VkDescriptorPool      GlobalDescriptorPool;
@@ -217,11 +228,6 @@ VulkanContext* VulkanRendererBackend::Context()
     return &s_Context;
 }
 
-VkDevice VulkanRendererBackend::Device()
-{
-    return s_Context.LogicalDevice.Handle;
-}
-
 static bool createBuffers();
 static void createCommandBuffers();
 static void destroyCommandBuffers();
@@ -332,7 +338,7 @@ bool VulkanRendererBackend::Init(EngineConfig* config)
         createInfo.messageSeverity = logLevel;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                  VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = VulkanRendererBackend::DebugUtilsMessenger;
+        createInfo.pfnUserCallback = DebugUtilsMessenger;
         createInfo.pUserData = 0;
 
         PFN_vkCreateDebugUtilsMessengerEXT func =
@@ -344,7 +350,7 @@ bool VulkanRendererBackend::Init(EngineConfig* config)
 
     KRAFT_vkSetDebugUtilsObjectNameEXT =
         (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(s_Context.Instance, "vkSetDebugUtilsObjectNameEXT");
-    s_Context.SetObjectName = VulkanRendererBackend::SetObjectName;
+    s_Context.SetObjectName = SetObjectName;
 #endif
 
     // TODO: These requirements should come from a config or something
@@ -378,8 +384,6 @@ bool VulkanRendererBackend::Init(EngineConfig* config)
 
             default:                           KFATAL("Unsupported depth buffer format %d", s_Context.PhysicalDevice.DepthBufferFormat);
         }
-
-        s_Context.ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
     }
 
     //
@@ -1259,7 +1263,7 @@ void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 
 static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
 {
-    TempBuffer StagingBuffer = ResourceManager::Ptr->CreateTempBuffer(Size);
+    GPUBuffer StagingBuffer = ResourceManager::Ptr->CreateTempBuffer(Size);
     MemCpy(StagingBuffer.Ptr, Data, Size);
 
     ResourceManager::Ptr->UploadBuffer({
@@ -1337,7 +1341,7 @@ void VulkanRendererBackend::DestroyGeometry(Geometry* Geometry)
 }
 
 #ifdef KRAFT_RENDERER_DEBUG
-VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
+static VkBool32 DebugUtilsMessenger(
     VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -1376,7 +1380,7 @@ VkBool32 VulkanRendererBackend::DebugUtilsMessenger(
     return VK_FALSE;
 }
 
-void VulkanRendererBackend::SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name)
+static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name)
 {
     VkDebugUtilsObjectNameInfoEXT NameInfo = {};
     NameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;

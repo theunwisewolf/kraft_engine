@@ -1,14 +1,15 @@
 #include "imgui_renderer.h"
 
-#include "containers/kraft_array.h"
-#include "core/kraft_core.h"
-#include "core/kraft_engine.h"
-#include "core/kraft_log.h"
-#include "core/kraft_string.h"
-#include "platform/kraft_filesystem.h"
-#include "platform/kraft_window.h"
-#include "renderer/kraft_renderer_types.h"
-#include "renderer/vulkan/kraft_vulkan_imgui.h"
+#include <containers/kraft_array.h>
+#include <core/kraft_core.h>
+#include <core/kraft_engine.h>
+#include <core/kraft_log.h>
+#include <core/kraft_string.h>
+#include <platform/kraft_filesystem.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
+#include <renderer/kraft_renderer_types.h>
+#include <renderer/vulkan/kraft_vulkan_imgui.h>
 
 #include <imgui/extensions/imguizmo/ImGuizmo.h>
 #include <imgui/imgui.h>
@@ -143,7 +144,7 @@ void RendererImGui::AddWidget(const kraft::String& Name, ImGuiRenderCallback Cal
     KINFO("Added imgui widget %s", *Name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::Handle<kraft::Texture> Resource)
+ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> Resource)
 {
     return kraft::renderer::VulkanImgui::AddTexture(Resource);
 }

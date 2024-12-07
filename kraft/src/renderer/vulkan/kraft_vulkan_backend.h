@@ -1,17 +1,23 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "renderer/kraft_renderer_types.h"
-#include "renderer/vulkan/kraft_vulkan_types.h"
-#include "resources/kraft_resource_types.h"
+#include <core/kraft_core.h>
 
 namespace kraft {
 
+struct Texture;
+struct Shader;
+struct ShaderUniform;
+struct Material;
 struct EngineConfig;
+struct Geometry;
 
 namespace renderer {
 
 struct ShaderEffect;
+struct VulkanContext;
+
+template<typename T>
+struct Handle;
 
 namespace VulkanRendererBackend {
 
@@ -53,17 +59,6 @@ bool CreateGeometry(
 void DestroyGeometry(Geometry* Geometry);
 
 VulkanContext* Context();
-VkDevice       Device();
-#ifdef KRAFT_RENDERER_DEBUG
-VkBool32 DebugUtilsMessenger(
-    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void*                                       pUserData
-);
-
-void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name);
-#endif
 };
 
 }

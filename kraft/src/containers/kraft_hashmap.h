@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/kraft_memory.h"
-
 // TODO:
 // #define EXLBR_ALLOC(sizeInBytes, alignment)
 // #define EXLBR_FREE
