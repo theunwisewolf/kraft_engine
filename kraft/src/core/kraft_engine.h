@@ -12,7 +12,7 @@ namespace kraft {
 
 struct Window;
 
-struct EngineConfig
+struct EngineConfigT
 {
     uint32                        WindowWidth;
     uint32                        WindowHeight;
@@ -25,7 +25,7 @@ struct EngineConfig
 
 struct KRAFT_API Engine
 {
-    static EngineConfig               Config;
+    static EngineConfigT Config;
 
 #if defined(KRAFT_GUI_APP)
     static renderer::RendererFrontend Renderer;
@@ -40,7 +40,7 @@ struct KRAFT_API Engine
     static bool Suspended;
 
     // Initializes the engine
-    static bool Init(int argc, char* argv[], EngineConfig Config);
+    static bool Init(int argc, char* argv[], EngineConfigT Config);
 
     // Ticks one frame
     static bool Tick();

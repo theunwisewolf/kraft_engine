@@ -12,12 +12,12 @@
 #include <platform/kraft_window.h>
 
 #if defined(KRAFT_GUI_APP)
-#include "renderer/kraft_renderer_frontend.h"
-#include "renderer/kraft_resource_manager.h"
-#include "systems/kraft_geometry_system.h"
-#include "systems/kraft_material_system.h"
-#include "systems/kraft_shader_system.h"
-#include "systems/kraft_texture_system.h"
+#include <renderer/kraft_renderer_frontend.h>
+#include <renderer/kraft_resource_manager.h>
+#include <systems/kraft_geometry_system.h>
+#include <systems/kraft_material_system.h>
+#include <systems/kraft_shader_system.h>
+#include <systems/kraft_texture_system.h>
 #endif
 
 namespace kraft {
@@ -27,10 +27,10 @@ struct EngineStateT
     Array<String> CliArgs;
 } EngineState;
 
-EngineConfig               Engine::Config = {};
-bool                       Engine::Running = false;
-bool                       Engine::Suspended = false;
-String                     Engine::BasePath = {};
+EngineConfigT Engine::Config = {};
+bool          Engine::Running = false;
+bool          Engine::Suspended = false;
+String        Engine::BasePath = {};
 
 #if defined(KRAFT_GUI_APP)
 renderer::RendererFrontend Engine::Renderer = {};
@@ -65,7 +65,7 @@ static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, E
     return false;
 }
 
-bool Engine::Init(int ArgC, char* ArgV[], EngineConfig Config)
+bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
 {
     Engine::Config = Config;
     EngineState.CliArgs = Array<String>(ArgC);

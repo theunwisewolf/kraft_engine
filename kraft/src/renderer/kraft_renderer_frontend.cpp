@@ -26,7 +26,7 @@ struct RendererDataT
 
 RendererFrontend* Renderer = nullptr;
 
-bool RendererFrontend::Init(EngineConfig* Config)
+bool RendererFrontend::Init(EngineConfigT* Config)
 {
     Renderer = this;
     RendererData.Type = Config->RendererBackend;

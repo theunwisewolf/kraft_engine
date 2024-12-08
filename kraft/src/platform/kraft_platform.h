@@ -5,7 +5,7 @@
 namespace kraft {
 
 struct Window;
-struct EngineConfig;
+struct EngineConfigT;
 enum Keys : uint32;
 
 struct KRAFT_API Platform
@@ -14,7 +14,7 @@ struct KRAFT_API Platform
     // it should do so in this variable
     static void* InternalState;
 
-    static bool Init(EngineConfig* config);
+    static bool Init(EngineConfigT* config);
     static bool PollEvents();
     static void Shutdown();
 

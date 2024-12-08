@@ -67,7 +67,7 @@ static HANDLE                     s_ConsoleErrorHandle;
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
-bool Platform::Init(EngineConfig* config)
+bool Platform::Init(EngineConfigT* config)
 {
     InternalState = Malloc(sizeof(Win32PlatformState), false);
     State = (Win32PlatformState*)InternalState;

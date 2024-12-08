@@ -4,7 +4,7 @@ struct ImDrawData;
 
 namespace kraft {
 
-struct EngineConfig;
+struct EngineConfigT;
 struct Texture;
 struct Material;
 struct Geometry;
@@ -94,7 +94,7 @@ enum RendererBackendType : int
 
 struct RendererBackend
 {
-    bool (*Init)(EngineConfig* Config);
+    bool (*Init)(EngineConfigT* Config);
     bool (*Shutdown)();
     bool (*PrepareFrame)();
     bool (*BeginFrame)();

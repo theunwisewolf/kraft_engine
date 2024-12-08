@@ -54,7 +54,7 @@ const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
 static uint64_t s_ClockFrequency;
 
-bool Platform::Init(EngineConfig* config)
+bool Platform::Init(EngineConfigT* config)
 {
     InternalState = Malloc(sizeof(MacOSPlatformState), false);
     State = (MacOSPlatformState*)InternalState;

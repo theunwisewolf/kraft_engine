@@ -8,7 +8,7 @@ struct Texture;
 struct Shader;
 struct ShaderUniform;
 struct Material;
-struct EngineConfig;
+struct EngineConfigT;
 struct Geometry;
 
 namespace renderer {
@@ -21,7 +21,7 @@ struct Handle;
 
 namespace VulkanRendererBackend {
 
-bool Init(EngineConfig* config);
+bool Init(EngineConfigT* config);
 bool Shutdown();
 bool PrepareFrame();
 bool BeginFrame();

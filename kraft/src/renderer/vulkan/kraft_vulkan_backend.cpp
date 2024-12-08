@@ -113,7 +113,7 @@ void SceneViewPass::InitSceneViewPass(uint32 Width, uint32 Height)
 
 void SceneViewPass::CreateRenderPass()
 {
-    ColorPassTexture = s_Context.ResourceManager->CreateTexture({
+    ColorPassTexture = ResourceManager::Ptr->CreateTexture({
         .DebugName = "ColorPassTexture",
         .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
         .Format = Format::BGRA8_UNORM,
@@ -126,10 +126,10 @@ void SceneViewPass::CreateRenderPass()
         },
     });
 
-    DepthPassTexture = s_Context.ResourceManager->CreateTexture({
+    DepthPassTexture = ResourceManager::Ptr->CreateTexture({
         .DebugName = "DepthPassTexture",
         .Dimensions = { (float32)this->Width, (float32)this->Height, 1, 4 },
-        .Format = s_Context.ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+        .Format = ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
         .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
         .Sampler = {
             .WrapModeU = TextureWrapMode::ClampToEdge,
@@ -235,7 +235,7 @@ static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* ren
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
 static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count);
 
-bool VulkanRendererBackend::Init(EngineConfig* config)
+bool VulkanRendererBackend::Init(EngineConfigT* config)
 {
     KRAFT_VK_CHECK(volkInitialize());
 

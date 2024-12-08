@@ -5,7 +5,7 @@
 namespace kraft {
 
 struct World;
-struct EngineConfig;
+struct EngineConfigT;
 struct Camera;
 struct Shader;
 struct Geometry;
@@ -25,7 +25,7 @@ struct RendererFrontend
 {
     kraft::Camera* Camera = nullptr;
 
-    bool Init(EngineConfig* Config);
+    bool Init(EngineConfigT* Config);
     bool Shutdown();
     void OnResize(int Width, int Height);
     bool DrawFrame();
