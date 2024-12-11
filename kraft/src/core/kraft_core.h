@@ -113,6 +113,24 @@ typedef uint64_t UInt64;
 
 #define KRAFT_C_ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])
 
+// Architecture
+#if _WIN32 || _WIN64
+#if _WIN64
+#define KRAFT_64BIT
+#else
+#define KRAFT_32BIT
+#endif
+#endif
+
+// Check GCC
+#if __GNUC__
+#if __x86_64__ || __ppc64__
+#define KRAFT_64BIT
+#else
+#define KRAFT_32BIT
+#endif
+#endif
+
 // Some forward declares for most-used types
 namespace kraft {
 template<typename T, uint64 InternalBufferSize>

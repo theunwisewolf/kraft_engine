@@ -106,6 +106,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 if (APPLE)
     list(APPEND SRC_FILES src/platform/macos/kraft_macos.mm)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_MACOS_MVK")
+elseif (UNIX)
+    list(APPEND SRC_FILES src/platform/linux/kraft_linux.cpp)
 endif()
 
 set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})

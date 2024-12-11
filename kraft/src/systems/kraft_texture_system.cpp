@@ -1,10 +1,11 @@
 #include "kraft_texture_system.h"
 
-#include "core/kraft_asserts.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "renderer/kraft_renderer_frontend.h"
-#include "renderer/kraft_resource_manager.h"
+#include <core/kraft_asserts.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <core/kraft_log.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <renderer/kraft_resource_manager.h>
 #include <containers/kraft_hashmap.h>
 #include <resources/kraft_resource_types.h>
 

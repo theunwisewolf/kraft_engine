@@ -5,6 +5,7 @@
 #include <core/kraft_input.h>
 #include <core/kraft_string.h>
 #include <core/kraft_time.h>
+#include <core/kraft_log.h>
 #include <math/kraft_math.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>

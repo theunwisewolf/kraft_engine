@@ -1,9 +1,9 @@
 #pragma once
 
-#include "containers/kraft_array.h"
-#include "containers/kraft_buffer.h"
-#include "core/kraft_string.h"
-#include "renderer/kraft_renderer_types.h"
+#include <containers/kraft_array.h>
+#include <containers/kraft_buffer.h>
+#include <core/kraft_string.h>
+#include <renderer/kraft_renderer_types.h>
 
 namespace kraft::renderer {
 

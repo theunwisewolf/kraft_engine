@@ -1,7 +1,8 @@
 #include "kraft_vulkan_surface.h"
 
-#include "platform/kraft_platform.h"
-#include "platform/kraft_window.h"
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
+#include <core/kraft_log.h>
 
 // #define VK_USE_PLATFORM_METAL_EXT
 // #include <volk/volk.h>

@@ -101,9 +101,9 @@ void *Platform::MemZero(void *region, uint64_t size)
     return memset(region, 0, size);
 }
 
-void *Platform::MemCpy(void *dst, void *src, uint64_t size)
+void *Platform::MemCpy(void* Dst, const void* Src, uint64 Size)
 {
-    return memcpy(dst, src, size);
+    return memcpy(Dst, Src, Size);
 }
 
 void *Platform::MemSet(void *region, int value, uint64_t size)
@@ -153,12 +153,12 @@ float64 Platform::GetElapsedTime()
 
 void Platform::SleepMilliseconds(uint64_t Milliseconds)
 {
-    if (msec >= 1000) 
+    if (Milliseconds >= 1000) 
     {
-        sleep(msec / 1000);
+        sleep(Milliseconds / 1000);
     }
 
-    usleep((msec % 1000) * 1000);
+    usleep((Milliseconds % 1000) * 1000);
 }
 
 const char* Platform::GetKeyName(Keys key)

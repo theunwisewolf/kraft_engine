@@ -19,11 +19,11 @@ struct KRAFT_API Platform
     static void Shutdown();
 
     // Memory
-    static void* Malloc(uint64_t size, bool aligned);
+    static void* Malloc(uint64 size, bool aligned);
     static void* Realloc(void* region, uint64_t size, bool aligned);
     static void  Free(void* region, bool aligned);
     static void* MemZero(void* region, uint64_t size);
-    static void* MemCpy(void* dst, const void* src, uint64_t size);
+    static void* MemCpy(void* dst, const void* src, uint64 size);
     static void* MemSet(void* region, int value, uint64_t size);
     static int   MemCmp(const void* a, const void* b, uint64_t size);
 

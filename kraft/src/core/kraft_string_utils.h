@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstring>
+#include <wchar.h>
+
 #include <core/kraft_core.h>
 
 namespace kraft

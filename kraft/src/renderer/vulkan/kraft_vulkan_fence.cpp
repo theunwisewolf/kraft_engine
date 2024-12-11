@@ -1,5 +1,7 @@
 #include "kraft_vulkan_fence.h"
 
+#include <core/kraft_log.h>
+
 namespace kraft::renderer
 {
 

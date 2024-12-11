@@ -210,6 +210,7 @@
     !(defined(_MSC_VER) && !defined(_CPPUNWIND))
     #define PHMAP_HAVE_EXCEPTIONS 1
 #endif
+#undef PHMAP_HAVE_EXCEPTIONS
 #define PHMAP_HAVE_EXCEPTIONS 0
 
 // -----------------------------------------------------------------------

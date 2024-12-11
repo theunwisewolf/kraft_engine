@@ -1,6 +1,7 @@
 #include "kraft_string.h"
 
 #include <cstdarg>
+#include <wctype.h>
 
 namespace kraft {
 

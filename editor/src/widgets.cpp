@@ -3,6 +3,7 @@
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_engine.h>
+#include <core/kraft_log.h>
 #include <math/kraft_math.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <resources/kraft_resource_types.h>
@@ -330,7 +331,7 @@ void PipelineDebugger()
     bool                 Recreate = false;
 
     ImGui::Begin("Pipeline Debugger");
-    ImGui::Text(*Effect.Name);
+    ImGui::Text("%s", *Effect.Name);
     ImGui::Separator();
     for (int i = 0; i < Effect.RenderStates.Length; i++)
     {

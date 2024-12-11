@@ -22,6 +22,9 @@
             },
             "sourceFileMap": {},
             // "preLaunchTask": "kraft: Compile Shaders"
+            "linux": {
+                "type": "lldb",
+            }
         }
     ]
 }

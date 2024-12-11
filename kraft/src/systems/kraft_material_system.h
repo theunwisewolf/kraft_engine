@@ -38,15 +38,7 @@ struct MaterialSystem
     static bool SetTexture(Material* Instance, const String& Key, renderer::Handle<Texture> Texture);
 
     template<typename T>
-    static bool SetProperty(Material* Instance, const String& Name, T Value)
-    {
-        MaterialProperty& Property = Instance->Properties[Name];
-        Property.Set(Value);
-        Instance->Dirty = true;
-
-        return true;
-    }
-
+    static bool SetProperty(Material* Instance, const String& Name, T Value);
     static bool SetProperty(Material* Instance, const String& Name, void* Value);
 };
 

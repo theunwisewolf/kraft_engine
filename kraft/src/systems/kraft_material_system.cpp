@@ -453,4 +453,25 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
     return true;
 }
 
+#define MATERIAL_SYSTEM_SET_PROPERTY(Type) \
+template<> bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value) \
+{ \
+    MaterialProperty& Property = Instance->Properties[Name]; \
+    Property.Set(Value); \
+    Instance->Dirty = true; \
+    return true; \
+}
+
+MATERIAL_SYSTEM_SET_PROPERTY(Mat4f);
+MATERIAL_SYSTEM_SET_PROPERTY(Vec4f);
+MATERIAL_SYSTEM_SET_PROPERTY(Vec3f);
+MATERIAL_SYSTEM_SET_PROPERTY(Vec2f);
+MATERIAL_SYSTEM_SET_PROPERTY(Float32);
+MATERIAL_SYSTEM_SET_PROPERTY(Float64);
+MATERIAL_SYSTEM_SET_PROPERTY(UInt8);
+MATERIAL_SYSTEM_SET_PROPERTY(UInt16);
+MATERIAL_SYSTEM_SET_PROPERTY(UInt32);
+MATERIAL_SYSTEM_SET_PROPERTY(UInt64);
+MATERIAL_SYSTEM_SET_PROPERTY(Handle<Texture>);
+
 }

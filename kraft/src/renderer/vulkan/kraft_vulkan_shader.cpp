@@ -2,6 +2,7 @@
 
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
+#include <core/kraft_log.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_filesystem_types.h>
 

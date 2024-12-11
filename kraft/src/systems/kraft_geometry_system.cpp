@@ -28,7 +28,7 @@ struct GeometrySystemState
     GeometryReference* Geometries;
 };
 
-GeometrySystemState* State = nullptr;
+static GeometrySystemState* State = nullptr;
 
 static void _createDefaultGeometries();
 

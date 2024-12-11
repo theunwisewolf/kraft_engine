@@ -49,10 +49,13 @@ elseif (UNIX)
 endif ()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-        set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-msvc")
-    elseif (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
-        set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-gnu")
+    # Windows has 2 variants of the clang compiler
+    if (WIN32)
+        if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+            set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-msvc")
+        elseif (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+            set(KRAFT_LIBRARY_COMPILER_PREFIX "clang-gnu")
+        endif()
     else()
         set(KRAFT_LIBRARY_COMPILER_PREFIX "clang")
     endif()
@@ -75,9 +78,9 @@ set(KRAFT_PREBUILT_LIB_FOLDER "${KRAFT_LIBRARY_OS_PREFIX}-${KRAFT_LIBRARY_COMPIL
 message(${KRAFT_PREBUILT_LIB_FOLDER})
 # set(KRAFT_STATIC_LIBS assimp::assimp)
 set(KRAFT_STATIC_LIBS)
-list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp.lib)
+list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp${CMAKE_STATIC_LIBRARY_SUFFIX})
 # list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/assimp.lib)
-list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic.lib)
+list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor vendor/assimp/include)
 list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include)
@@ -104,7 +107,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
     # Libraries
     # list(APPEND KRAFT_STATIC_LIBS glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARY})
     list(APPEND KRAFT_STATIC_LIBS volk::volk_headers Ufbx)
-    list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/glfw/${KRAFT_PREBUILT_LIB_FOLDER}/glfw3.lib)
+    list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/glfw/${KRAFT_PREBUILT_LIB_FOLDER}/glfw3${CMAKE_STATIC_LIBRARY_SUFFIX})
 
     # Kraft compile time definitions
     list(APPEND KRAFT_COMPILE_DEFINITIONS KRAFT_GUI_APP VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_USE_VOLK)
@@ -114,6 +117,14 @@ else()
 endif()
 
 # Common stuff
+if (NOT Vulkan_shaderc_combined_FOUND)
+    if (KRAFT_DEBUG_BUILD)
+        set(Vulkan_shaderc_combined_DEBUG_LIBRARY ${KRAFT_PREBUILT_LIB_PATH}/shaderc/${KRAFT_PREBUILT_LIB_FOLDER}/shaderc_combined${CMAKE_STATIC_LIBRARY_SUFFIX})
+    else()
+        find_library(Vulkan_shaderc_combined_LIBRARY NAMES shaderc_combined)
+    endif()
+endif()
+
 if (KRAFT_DEBUG_BUILD)
     list(APPEND KRAFT_STATIC_LIBS ${Vulkan_shaderc_combined_DEBUG_LIBRARY})
 else()

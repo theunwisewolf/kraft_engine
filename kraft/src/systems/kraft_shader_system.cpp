@@ -1,12 +1,13 @@
 #include "kraft_shader_system.h"
 
-#include "containers/kraft_buffer.h"
-#include "containers/kraft_hashmap.h"
-#include "core/kraft_asserts.h"
-#include "renderer/kraft_renderer_frontend.h"
-#include "renderer/shaderfx/kraft_shaderfx.h"
-#include "renderer/shaderfx/kraft_shaderfx_types.h"
-#include "resources/kraft_resource_types.h"
+#include <containers/kraft_buffer.h>
+#include <containers/kraft_hashmap.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
+#include <renderer/kraft_renderer_frontend.h>
+#include <renderer/shaderfx/kraft_shaderfx.h>
+#include <renderer/shaderfx/kraft_shaderfx_types.h>
+#include <resources/kraft_resource_types.h>
 
 namespace kraft {
 
@@ -37,7 +38,9 @@ struct ShaderSystemState
     HashMap<String, uint32> IndexMapping;
     uint32                  CurrentShaderID;
     Shader*                 CurrentShader;
-}* State = nullptr;
+};
+
+static ShaderSystemState* State = nullptr;
 
 void ShaderSystem::Init(uint32 MaxShaderCount)
 {

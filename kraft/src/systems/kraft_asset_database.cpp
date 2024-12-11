@@ -12,6 +12,7 @@
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
 #include <platform/kraft_filesystem.h>
 #include <renderer/kraft_renderer_types.h>
 #include <systems/kraft_geometry_system.h>
