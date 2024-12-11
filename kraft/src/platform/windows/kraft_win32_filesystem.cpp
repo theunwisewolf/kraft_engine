@@ -6,6 +6,7 @@
 #include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_string.h>
+#include <core/kraft_log.h>
 #include <platform/kraft_filesystem_types.h>
 
 namespace kraft::filesystem {
