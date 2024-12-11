@@ -38,8 +38,6 @@ ApplicationState     GlobalAppState = {
         .ImGuiRenderer = &ImGuiRenderer,
 };
 
-static EditorState Editor = EditorState();
-
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
 static char TextureNameWide[] = "res/textures/test-wide-image-1.jpg";
 
@@ -201,6 +199,7 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
 
 bool Init()
 {
+    EditorState* Editor = new EditorState();
     GlobalAppState.ImGuiRenderer->Init();
     EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
     new (EditorState::Ptr->CurrentWorld) kraft::World();
@@ -252,20 +251,13 @@ bool Init()
         );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
         VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
         Transform.ComputeModelMatrix();
     }
 
-    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue_binary.fbx");
-    KASSERT(RogueSkeleton);
-    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
-
-    kraft::Entity MeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("RogueSkeletonParent", WorldRoot);
-    EditorState::Ptr->SelectedEntity = MeshParent.EntityHandle;
-    MeshParent.GetComponent<TransformComponent>().SetScale({ 20.0f, 20.0f, 20.0f });
 #if 0
     Array<kraft::Entity> NodeEntityHierarchy(RogueSkeleton->NodeHierarchy.Length);
     for (int i = 0; i < RogueSkeleton->NodeHierarchy.Length; i++)
@@ -298,6 +290,13 @@ bool Init()
     }
 #endif
 #if 1
+    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue_binary.fbx");
+    KASSERT(RogueSkeleton);
+    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
+
+    kraft::Entity MeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("RogueSkeletonParent", WorldRoot);
+    EditorState::Ptr->SelectedEntity = MeshParent.EntityHandle;
+    MeshParent.GetComponent<TransformComponent>().SetScale({ 20.0f, 20.0f, 20.0f });
     for (int i = 0; i < RogueSkeleton->SubMeshes.Length; i++)
     {
         kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
@@ -305,7 +304,7 @@ bool Init()
         );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
         {
@@ -454,7 +453,9 @@ void Render()
     //     kraft::Engine::Renderer.AddRenderable(TestSceneState->ObjectStates[i]);
     // }
 
+    kraft::Engine::Renderer.BeginRenderSurface(EditorState::Ptr->RenderSurface);
     EditorState::Ptr->CurrentWorld->Render();
+    kraft::Engine::Renderer.EndRenderSurface(EditorState::Ptr->RenderSurface);
 }
 
 void Shutdown()

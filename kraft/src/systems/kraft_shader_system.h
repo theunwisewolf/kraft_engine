@@ -4,6 +4,13 @@
 
 namespace kraft {
 
+namespace renderer {
+template<typename>
+struct Handle;
+
+struct RenderPass;
+}
+
 struct Shader;
 struct Material;
 struct ShaderUniform;
@@ -13,7 +20,7 @@ struct ShaderSystem
     static void Init(uint32 MaxShadersCount);
     static void Shutdown();
 
-    static Shader* AcquireShader(const String& ShaderPath, bool AutoRelease = true);
+    static Shader* AcquireShader(const String& ShaderPath, renderer::Handle<renderer::RenderPass> RenderPassHandle, bool AutoRelease = true);
     static void    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
 

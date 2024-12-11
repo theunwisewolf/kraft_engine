@@ -95,7 +95,7 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->MaterialReferences[0].Material;
 }
 
-Material* MaterialSystem::CreateMaterialFromFile(const String& Path)
+Material* MaterialSystem::CreateMaterialFromFile(const String& Path, Handle<RenderPass> RenderPassHandle)
 {
     String FilePath = Path;
     if (!FilePath.EndsWith(".kmt"))
@@ -111,10 +111,10 @@ Material* MaterialSystem::CreateMaterialFromFile(const String& Path)
         return nullptr;
     }
 
-    return CreateMaterialWithData(Data);
+    return CreateMaterialWithData(Data, RenderPassHandle);
 }
 
-Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data)
+Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handle<RenderPass> RenderPassHandle)
 {
     int FreeIndex = -1;
     for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
@@ -137,7 +137,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data)
     Reference->RefCount = 1;
 
     // Load the shader
-    Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset);
+    Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset, RenderPassHandle);
     if (!Shader)
     {
         KERROR(
@@ -331,7 +331,7 @@ static void CreateDefaultMaterialsInternal()
     Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
     Data.Properties["DiffuseSampler"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
 
-    KASSERT(MaterialSystem::CreateMaterialWithData(Data));
+    KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
 }
 
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)

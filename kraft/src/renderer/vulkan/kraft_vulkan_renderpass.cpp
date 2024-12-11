@@ -177,65 +177,10 @@ void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass*
     commandBuffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 }
 
-void VulkanBeginRenderPass(VulkanContext* Context, VulkanCommandBuffer* CmdBuffer, Handle<RenderPass> PassHandle, VkSubpassContents Contents)
-{
-    VulkanRenderPass* GPURenderPass = Context->ResourceManager->GetRenderPassPool().Get(PassHandle);
-    RenderPass* RenderPass = Context->ResourceManager->GetRenderPassPool().GetAuxiliaryData(PassHandle);
-
-    VkRenderPassBeginInfo BeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-    BeginInfo.framebuffer = GPURenderPass->Framebuffer.Handle;
-    BeginInfo.renderPass = GPURenderPass->Handle;
-    BeginInfo.renderArea.offset.x = 0;
-    BeginInfo.renderArea.offset.y = 0;
-    BeginInfo.renderArea.extent.width = (uint32)RenderPass->Dimensions.x;
-    BeginInfo.renderArea.extent.height = (uint32)RenderPass->Dimensions.y;
-
-    VkClearValue ClearValues[32] = {};
-    uint32 ColorValuesIndex = 0;
-    for (int i = 0; i < RenderPass->ColorTargets.Size(); i++)
-    {
-        const ColorTarget& Target = RenderPass->ColorTargets[i];
-        ClearValues[i].color.float32[0] = Target.ClearColor.r;
-        ClearValues[i].color.float32[1] = Target.ClearColor.g;
-        ClearValues[i].color.float32[2] = Target.ClearColor.b;
-        ClearValues[i].color.float32[3] = Target.ClearColor.a;
-
-        ColorValuesIndex++;
-    }
-
-    ClearValues[ColorValuesIndex].depthStencil.depth = RenderPass->DepthTarget.Depth;
-    ClearValues[ColorValuesIndex].depthStencil.stencil = RenderPass->DepthTarget.Stencil;
-    ColorValuesIndex++;
-
-    BeginInfo.clearValueCount = ColorValuesIndex;
-    BeginInfo.pClearValues = ClearValues;
-
-    vkCmdBeginRenderPass(CmdBuffer->Resource, &BeginInfo, Contents);
-    CmdBuffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
-
-    VkViewport Viewport = {};
-    Viewport.width = RenderPass->Dimensions.x;
-    Viewport.height = RenderPass->Dimensions.y;
-    Viewport.maxDepth = 1.0f;
-
-    vkCmdSetViewport(CmdBuffer->Resource, 0, 1, &Viewport);
-
-    VkRect2D Scissor = {};
-    Scissor.extent = { (uint32)RenderPass->Dimensions.x, (uint32)RenderPass->Dimensions.y };
-
-    vkCmdSetScissor(CmdBuffer->Resource, 0, 1, &Scissor);
-}
-
 void VulkanEndRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass)
 {
     vkCmdEndRenderPass(commandBuffer->Resource);
     commandBuffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING;
-}
-
-void VulkanEndRenderPass(VulkanCommandBuffer* CmdBuffer)
-{
-    vkCmdEndRenderPass(CmdBuffer->Resource);
-    CmdBuffer->State = VULKAN_COMMAND_BUFFER_STATE_RECORDING;
 }
 
 void VulkanDestroyRenderPass(VulkanContext* context, VulkanRenderPass* pass)

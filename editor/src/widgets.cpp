@@ -28,15 +28,12 @@ struct GizmosState
     bool                Snap;
 } State = {};
 
-static kraft::renderer::Handle<kraft::Texture> SceneTexture;
-static ImTextureID                             ImSceneTexture;
+static ImTextureID ImSceneTexture;
 
 void InitImguiWidgets()
 {
     GlobalAppState.ImGuiRenderer->AddWidget("Debug", DrawImGuiWidgets);
-
-    SceneTexture = kraft::Renderer->GetSceneViewTexture();
-    ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(SceneTexture);
+    ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
     State.CurrentOperation = ImGuizmo::TRANSLATE;
     State.Mode = ImGuizmo::LOCAL;
@@ -91,13 +88,16 @@ void DrawImGuiWidgets(bool refresh)
         SetProjection(kraft::CameraProjectionType::Orthographic);
     }
 
-    // kraft::MeshComponent Mesh = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::MeshComponent>();
-    // auto                 Instance = Mesh.MaterialInstance;
-    // static kraft::Vec4f  DiffuseColor = Instance->GetUniform<kraft::Vec4f>("DiffuseColor");
-    // if (ImGui::ColorEdit4("Diffuse Color", DiffuseColor))
-    // {
-    //     kraft::MaterialSystem::SetProperty(Instance, "DiffuseColor", DiffuseColor);
-    // }
+    if (EditorState::Ptr->GetSelectedEntity().HasComponent<kraft::MeshComponent>())
+    {
+        kraft::MeshComponent Mesh = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::MeshComponent>();
+        auto                 Instance = Mesh.MaterialInstance;
+        static kraft::Vec4f  DiffuseColor = Instance->GetUniform<kraft::Vec4f>("DiffuseColor");
+        if (ImGui::ColorEdit4("Diffuse Color", DiffuseColor))
+        {
+            kraft::MaterialSystem::SetProperty(Instance, "DiffuseColor", DiffuseColor);
+        }
+    }
 
     if (usePerspectiveProjection)
     {
@@ -227,11 +227,16 @@ void DrawImGuiWidgets(bool refresh)
     //     ImGui::GetColorU32(ImVec4(1, 0, 0, 1))
     // );
 
-    if (kraft::Renderer->SetSceneViewViewportSize(ViewPortPanelSize.x, ViewPortPanelSize.y))
+    bool ViewportNeedsResize =
+        EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
+    if (ViewportNeedsResize)
     {
+        EditorState::Ptr->RenderSurface =
+            kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+
         // Remove the old texture
         GlobalAppState.ImGuiRenderer->RemoveTexture(ImSceneTexture);
-        ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(kraft::Renderer->GetSceneViewTexture());
+        ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
         if (usePerspectiveProjection)
         {
@@ -509,7 +514,7 @@ void PipelineDebugger()
     {
         // Can't destroy the pipeline in this frame
         // Renderer->DestroyRenderPipeline(ShaderInstance);
-        Renderer->CreateRenderPipeline(ShaderInstance, 0);
+        Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->RenderSurface.RenderPass);
     }
 
     ImGui::End();

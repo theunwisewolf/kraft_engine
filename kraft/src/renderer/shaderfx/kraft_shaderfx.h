@@ -42,6 +42,7 @@ struct ShaderFXParser
     uint64 ErrorLine;
     bool   Error;
     char   ErrorString[1024];
+    bool   Verbose = false;
 
     ShaderEffect Parse(const String& SourceFilePath, kraft::Lexer* Lexer);
 
@@ -66,8 +67,8 @@ struct ShaderFXParser
     bool ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPassDefinition* Pass, renderer::ShaderStageFlags ShaderStage);
 };
 
-bool CompileShaderFX(const String& InputPath, const String& OutputPath);
-bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath);
+bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose = false);
+bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
 bool LoadShaderFX(const String& Path, ShaderEffect* Shader);
 bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB);
 

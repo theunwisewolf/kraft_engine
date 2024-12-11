@@ -20,7 +20,8 @@
                 "trace": false,
                 "traceResponse": false
             },
-            "sourceFileMap": {}
+            "sourceFileMap": {},
+            // "preLaunchTask": "kraft: Compile Shaders"
         }
     ]
 }

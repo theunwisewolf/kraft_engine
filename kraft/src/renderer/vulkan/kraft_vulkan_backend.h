@@ -15,6 +15,8 @@ namespace renderer {
 
 struct ShaderEffect;
 struct VulkanContext;
+struct CommandBuffer;
+struct RenderPass;
 
 template<typename T>
 struct Handle;
@@ -23,19 +25,12 @@ namespace VulkanRendererBackend {
 
 bool Init(EngineConfigT* config);
 bool Shutdown();
-bool PrepareFrame();
+int  PrepareFrame();
 bool BeginFrame();
 bool EndFrame();
 void OnResize(int width, int height);
 
-// SceneView (Temp stuff: Need to figure this out properly)
-void            BeginSceneView();
-void            OnSceneViewViewportResize(uint32 Width, uint32 Height);
-void            EndSceneView();
-bool            SetSceneViewViewportSize(uint32 Width, uint32 Height);
-Handle<Texture> GetSceneViewTexture();
-
-void CreateRenderPipeline(Shader* Shader, int PassIndex);
+void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
 void DestroyRenderPipeline(Shader* Shader);
 void CreateMaterial(Material* Material);
 void DestroyMaterial(Material* Material);
@@ -57,6 +52,10 @@ bool CreateGeometry(
     const uint32 IndexSize
 );
 void DestroyGeometry(Geometry* Geometry);
+
+// Render Passes
+void BeginRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
+void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
 
 VulkanContext* Context();
 };

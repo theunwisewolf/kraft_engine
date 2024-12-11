@@ -81,7 +81,8 @@ Shader Basic
 
         void main() 
         {
-            outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+            // outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+            outColor  = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
         }
 
         #endif // FRAGMENT

@@ -15,9 +15,11 @@ struct Texture;
 
 namespace renderer {
 
+struct RenderSurfaceT;
 struct ShaderEffect;
 struct RendererBackend;
 struct Renderable;
+struct RenderPass;
 template<typename T>
 struct Handle;
 
@@ -35,9 +37,7 @@ struct RendererFrontend
     bool EndMainRenderpass();
 
     // API
-    Handle<Texture> GetSceneViewTexture();
-    bool            SetSceneViewViewportSize(uint32 Width, uint32 Height);
-    void            CreateRenderPipeline(Shader* Shader, int PassIndex);
+    void            CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void            DestroyRenderPipeline(Shader* Shader);
     void            CreateMaterial(Material* Material);
     void            DestroyMaterial(Material* Material);
@@ -56,6 +56,11 @@ struct RendererFrontend
                    const uint32 IndexSize
                );
     void DestroyGeometry(Geometry* Geometry);
+
+    RenderSurfaceT CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth = false);
+    void BeginRenderSurface(const RenderSurfaceT& Surface);
+    RenderSurfaceT ResizeRenderSurface(RenderSurfaceT& Surface, uint32 Width, uint32 Height);
+    void EndRenderSurface(const RenderSurfaceT& Surface);
 };
 
 extern RendererFrontend* Renderer;

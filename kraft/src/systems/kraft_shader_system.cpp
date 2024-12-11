@@ -52,7 +52,7 @@ void ShaderSystem::Init(uint32 MaxShaderCount)
     State->CurrentShader = nullptr;
 
     // Load the default shader
-    KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx"));
+    // KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx", Handle<RenderPass>::Invalid()));
 
     KINFO("[ShaderSystem::Init]: Initialized shader system");
 }
@@ -68,7 +68,7 @@ void ShaderSystem::Shutdown()
     KINFO("[ShaderSystem::Shutdown]: Shutting down shader system");
 }
 
-Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
+Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass> RenderPassHandle, bool AutoRelease)
 {
     auto It = State->IndexMapping.find(ShaderPath);
     if (It != State->IndexMapping.iend())
@@ -123,7 +123,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, bool AutoRelease)
     Reference->Shader.UniformCache.Reserve(
         GlobalResourceBindingsCount + Pass.Resources->ResourceBindings.Length + Pass.ConstantBuffers->Fields.Length
     );
-    Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex);
+    Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, RenderPassHandle);
 
     // Cache the uniforms
     // The instance uniforms begin after the global data

@@ -88,6 +88,7 @@ void World::DestroyEntity(Entity Entity)
 
 Entity& World::GetEntity(EntityHandleT Handle)
 {
+    KASSERT(Handle != EntityHandleInvalid);
     return Entities.at(Handle);
 }
 

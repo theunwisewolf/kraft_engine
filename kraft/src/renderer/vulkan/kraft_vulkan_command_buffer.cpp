@@ -4,27 +4,6 @@
 
 namespace kraft::renderer {
 
-void VulkanAllocateCommandBuffer(VulkanContext* context, VkCommandPool pool, bool primary, VulkanCommandBuffer* out)
-{
-    MemZero(out, sizeof(VulkanCommandBuffer));
-
-    VkCommandBufferAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocateInfo.commandPool = pool;
-    allocateInfo.level = primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    allocateInfo.commandBufferCount = 1;
-
-    KRAFT_VK_CHECK(vkAllocateCommandBuffers(context->LogicalDevice.Handle, &allocateInfo, &out->Resource));
-    out->State = VULKAN_COMMAND_BUFFER_STATE_READY;
-}
-
-void VulkanFreeCommandBuffer(VulkanContext* context, VkCommandPool pool, VulkanCommandBuffer* buffer)
-{
-    vkFreeCommandBuffers(context->LogicalDevice.Handle, pool, 1, &buffer->Resource);
-    buffer->Resource = 0;
-    buffer->State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
-}
-
 void VulkanBeginCommandBuffer(VulkanCommandBuffer* buffer, bool singleUse, bool renderPassContinue, bool simultaneousUse)
 {
     VkCommandBufferBeginInfo info = {};
@@ -66,15 +45,6 @@ void VulkanResetCommandBuffer(VulkanCommandBuffer* buffer)
     buffer->State = VULKAN_COMMAND_BUFFER_STATE_READY;
 }
 
-void VulkanAllocateAndBeginSingleUseCommandBuffer(VulkanContext* context, VkCommandPool pool, VulkanCommandBuffer* out)
-{
-    // Allocate the command buffer
-    VulkanAllocateCommandBuffer(context, pool, true, out);
-
-    // End the command buffer
-    VulkanBeginCommandBuffer(out, true, false, false);
-}
-
 void VulkanEndAndSubmitSingleUseCommandBuffer(VulkanContext* context, VkCommandPool pool, VulkanCommandBuffer* buffer, VkQueue queue)
 {
     // End the command buffer
@@ -91,9 +61,6 @@ void VulkanEndAndSubmitSingleUseCommandBuffer(VulkanContext* context, VkCommandP
 
     // Wait for it to finish
     KRAFT_VK_CHECK(vkQueueWaitIdle(queue));
-
-    // Free the buffer
-    VulkanFreeCommandBuffer(context, pool, buffer);
 }
 
 }

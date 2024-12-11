@@ -109,66 +109,9 @@ bool BeginFrame()
 bool EndFrame(ImDrawData* DrawData)
 {
     VulkanContext*       Context = VulkanRendererBackend::Context();
-    VulkanCommandBuffer* parentCommandBuffer = &Context->GraphicsCommandBuffers[Context->CurrentSwapchainImageIndex];
-    // VulkanBeginCommandBuffer(parentCommandBuffer, true, false, false);
-    // VulkanBeginRenderPass(parentCommandBuffer, &context->MainRenderPass, context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+    VulkanCommandBuffer* ParentCommandBuffer = Context->ResourceManager->GetCommandBufferPool().Get(Context->ActiveCommandBuffer);
 
-    // VkClearValue clearValues[2];
-    // clearValues[0].color = { {0.1f, 0.1f, 0.1f, 1.0f} };
-    // clearValues[1].depthStencil = { 1.0f, 0 };
-
-    // VkRenderPassBeginInfo renderPassBeginInfo = {};
-    // renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    // renderPassBeginInfo.pNext = nullptr;
-    // renderPassBeginInfo.renderPass = context->MainRenderPass.Handle;
-    // renderPassBeginInfo.renderArea.offset.x = 0;
-    // renderPassBeginInfo.renderArea.offset.y = 0;
-    // renderPassBeginInfo.renderArea.extent.width = width;
-    // renderPassBeginInfo.renderArea.extent.height = height;
-    // renderPassBeginInfo.clearValueCount = 2; // Color + depth
-    // renderPassBeginInfo.pClearValues = clearValues;
-    // renderPassBeginInfo.framebuffer = context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle;
-
-    // vkCmdBeginRenderPass(parentCommandBuffer->Handle, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-
-    {
-        // VulkanCommandBuffer* commandBuffer = &CommandBuffers[context->CurrentSwapchainImageIndex];
-        // VkCommandBufferInheritanceInfo inheritanceInfo = {};
-        // inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-        // inheritanceInfo.renderPass = context->MainRenderPass.Handle;
-        // inheritanceInfo.framebuffer = context->Swapchain.Framebuffers[context->CurrentSwapchainImageIndex].Handle;
-
-        // VkCommandBufferBeginInfo bufferBeginInfo = {};
-        // bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        // bufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-        // bufferBeginInfo.pInheritanceInfo = &inheritanceInfo;
-
-        // KRAFT_VK_CHECK(vkBeginCommandBuffer(commandBuffer->Handle, &bufferBeginInfo));
-
-        // VkViewport viewport = {};
-        // viewport.x = 0.0f;
-        // viewport.y = (float)height;
-        // viewport.width = (float)width;
-        // viewport.height = -(float)height;
-        // viewport.minDepth = 0.0f;
-        // viewport.maxDepth = 1.0f;
-        // vkCmdSetViewport(commandBuffer->Handle, 0, 1, &viewport);
-
-        // VkRect2D scissor = {};
-        // scissor.extent.width = width;
-        // scissor.extent.height = height;
-        // vkCmdSetScissor(commandBuffer->Handle, 0, 1, &scissor);
-
-        // Record dear imgui primitives into command buffer
-        ImGui_ImplVulkan_RenderDrawData(DrawData, parentCommandBuffer->Resource);
-
-        // KRAFT_VK_CHECK(vkEndCommandBuffer(commandBuffer->Handle));
-
-        // vkCmdExecuteCommands(parentCommandBuffer->Handle, 1, &commandBuffer->Handle);
-    }
-
-    // VulkanEndRenderPass(parentCommandBuffer, &context->MainRenderPass);
-    // VulkanEndCommandBuffer(parentCommandBuffer);
+    ImGui_ImplVulkan_RenderDrawData(DrawData, ParentCommandBuffer->Resource);
 
     return true;
 }

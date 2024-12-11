@@ -8,16 +8,16 @@
 
 #include <volk/volk.h>
 
-#define KRAFT_VK_CHECK(expression) \
-    do { \
-        KRAFT_ASSERT(expression == VK_SUCCESS) \
+#define KRAFT_VK_CHECK(expression)                                                                                                         \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                             \
     } while (0)
 
-#define KRAFT_VULKAN_MAX_GEOMETRIES         1024
-#define KRAFT_VULKAN_MAX_BINDINGS           32
+#define KRAFT_VULKAN_MAX_GEOMETRIES 1024
+#define KRAFT_VULKAN_MAX_BINDINGS   32
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
 class VulkanResourceManager;
 
@@ -34,16 +34,8 @@ struct VulkanTexture
     VkDeviceMemory Memory;
     VkSampler      Sampler;
 
-    VulkanTexture() : 
-        Width(0),
-        Height(0),
-        Image(0),
-        View(0),
-        Memory(0),
-        Sampler(0)
-    {
-
-    }
+    VulkanTexture() : Width(0), Height(0), Image(0), View(0), Memory(0), Sampler(0)
+    {}
 };
 
 struct VulkanGeometryData
@@ -59,13 +51,13 @@ struct VulkanGeometryData
 
 struct VulkanBuffer
 {
-    VkBuffer                Handle;
-    uint64                  Size;
-    VkDeviceMemory          Memory;
-    VkBufferUsageFlags      UsageFlags;
-    bool                    IsLocked;
-    int32                   MemoryIndex;
-    VkMemoryPropertyFlags   MemoryPropertyFlags;
+    VkBuffer              Handle;
+    uint64                Size;
+    VkDeviceMemory        Memory;
+    VkBufferUsageFlags    UsageFlags;
+    bool                  IsLocked;
+    int32                 MemoryIndex;
+    VkMemoryPropertyFlags MemoryPropertyFlags;
 };
 
 //
@@ -80,15 +72,15 @@ struct VulkanPipeline
 
 struct VulkanPipelineDescription
 {
-    VkVertexInputAttributeDescription*  Attributes;
-    uint32                              AttributeCount;
-    VkDescriptorSetLayout*              DescriptorSetLayouts;
-    uint32                              DescriptorSetLayoutCount;
-    VkPipelineShaderStageCreateInfo*    ShaderStages;
-    uint32                              ShaderStageCount;
-    VkViewport                          Viewport;
-    VkRect2D                            Scissor;
-    bool                                IsWireframe;
+    VkVertexInputAttributeDescription* Attributes;
+    uint32                             AttributeCount;
+    VkDescriptorSetLayout*             DescriptorSetLayouts;
+    uint32                             DescriptorSetLayoutCount;
+    VkPipelineShaderStageCreateInfo*   ShaderStages;
+    uint32                             ShaderStageCount;
+    VkViewport                         Viewport;
+    VkRect2D                           Scissor;
+    bool                               IsWireframe;
 };
 
 struct VulkanFence
@@ -110,7 +102,13 @@ enum VulkanCommandBufferState
 struct VulkanCommandBuffer
 {
     VkCommandBuffer          Resource;
+    VkCommandPool            Pool;
     VulkanCommandBufferState State;
+};
+
+struct VulkanCommandPool
+{
+    VkCommandPool Resource;
 };
 
 enum VulkanRenderPassState
@@ -125,11 +123,11 @@ enum VulkanRenderPassState
 
 struct VulkanFramebuffer
 {
-    VkFramebuffer       Handle;
-    uint32              Width;
-    uint32              Height;
-    uint32              AttachmentCount;
-    VkImageView*        Attachments;
+    VkFramebuffer Handle;
+    uint32        Width;
+    uint32        Height;
+    uint32        AttachmentCount;
+    VkImageView*  Attachments;
 };
 
 struct VulkanRenderPass
@@ -153,86 +151,87 @@ struct VulkanQueueFamilyInfo
 
 struct VulkanSwapchainSupportInfo
 {
-    uint32                      FormatCount;
-    uint32                      PresentModeCount;
-    VkSurfaceCapabilitiesKHR    SurfaceCapabilities;
-    VkSurfaceFormatKHR*         Formats;
-    VkPresentModeKHR*           PresentModes;
+    uint32                   FormatCount;
+    uint32                   PresentModeCount;
+    VkSurfaceCapabilitiesKHR SurfaceCapabilities;
+    VkSurfaceFormatKHR*      Formats;
+    VkPresentModeKHR*        PresentModes;
 };
 
 struct VulkanPhysicalDevice
 {
-    VkPhysicalDevice                    Handle;
-    VkPhysicalDeviceProperties          Properties; 
-    VkPhysicalDeviceFeatures            Features;
-    VkPhysicalDeviceMemoryProperties    MemoryProperties;
-    VulkanQueueFamilyInfo               QueueFamilyInfo;
-    VulkanSwapchainSupportInfo          SwapchainSupportInfo;
-    VkFormat                            DepthBufferFormat;
-    bool                                SupportsDeviceLocalHostVisible;
+    VkPhysicalDevice                 Handle;
+    VkPhysicalDeviceProperties       Properties;
+    VkPhysicalDeviceFeatures         Features;
+    VkPhysicalDeviceMemoryProperties MemoryProperties;
+    VulkanQueueFamilyInfo            QueueFamilyInfo;
+    VulkanSwapchainSupportInfo       SwapchainSupportInfo;
+    VkFormat                         DepthBufferFormat;
+    bool                             SupportsDeviceLocalHostVisible;
 };
 
 struct VulkanLogicalDevice
 {
-    VulkanPhysicalDevice    PhysicalDevice;
-    VkDevice                Handle;
-    VkQueue                 GraphicsQueue;
-    VkQueue                 ComputeQueue;
-    VkQueue                 TransferQueue;
-    VkQueue                 PresentQueue;
+    VulkanPhysicalDevice PhysicalDevice;
+    VkDevice             Handle;
+    VkQueue              GraphicsQueue;
+    VkQueue              ComputeQueue;
+    VkQueue              TransferQueue;
+    VkQueue              PresentQueue;
 };
 
 struct VulkanSwapchain
 {
-    VkSwapchainKHR      Resource;
-    VkSurfaceFormatKHR  ImageFormat;
-    VkImage*            Images;
-    VkImageView*        ImageViews;
-    uint8               CurrentFrame;               
-    uint8               MaxFramesInFlight;               
-    uint32              ImageCount;
-    Handle<Texture>     DepthAttachment;
-    VulkanFramebuffer*  Framebuffers;
+    VkSwapchainKHR     Resource;
+    VkSurfaceFormatKHR ImageFormat;
+    VkImage*           Images;
+    VkImageView*       ImageViews;
+    uint8              CurrentFrame;
+    uint8              MaxFramesInFlight;
+    uint32             ImageCount;
+    Handle<Texture>    DepthAttachment;
+    VulkanFramebuffer* Framebuffers;
 };
 
 struct VulkanContext
 {
-    VkInstance               Instance;
-    VkAllocationCallbacks*   AllocationCallbacks;
-    VulkanPhysicalDevice     PhysicalDevice;
-    VulkanLogicalDevice      LogicalDevice;
-    VkSurfaceKHR             Surface;
-    uint32                   FramebufferWidth;
-    uint32                   FramebufferHeight;
-    VulkanSwapchain          Swapchain;
-    VulkanRenderPass         MainRenderPass;
-    VkCommandPool            GraphicsCommandPool;
-    VulkanCommandBuffer*     GraphicsCommandBuffers;
-    VulkanCommandBuffer      ActiveCommandBuffer;
-    VulkanFence*             WaitFences;
+    VkInstance             Instance;
+    VkAllocationCallbacks* AllocationCallbacks;
+    VulkanPhysicalDevice   PhysicalDevice;
+    VulkanLogicalDevice    LogicalDevice;
+    VkSurfaceKHR           Surface;
+    uint32                 FramebufferWidth;
+    uint32                 FramebufferHeight;
+    VulkanSwapchain        Swapchain;
+    VulkanRenderPass       MainRenderPass;
+    Handle<CommandPool>    GraphicsCommandPool;
+    Handle<CommandBuffer>  GraphicsCommandBuffers[3];
+    Handle<CommandBuffer>  ActiveCommandBuffer;
+    VulkanFence*           WaitFences;
+    // VkCommandPool          GraphicsCommandPool;
     // If everything was perfect, this mapping below would not be needed
     // but, what I saw happening was on an M1 Mac, vkAcquireNextImageKHR
-    // was returning an image for which the associated command buffers 
+    // was returning an image for which the associated command buffers
     // were still active. So it was just spitting errors. The fix was to
     // associate a fence with each image and before rendering begins,
-    // just wait on the acquired image's corresponding fence. This works 
+    // just wait on the acquired image's corresponding fence. This works
     // both on Mac and Windows. Maybe I am doing something wrong.
-    VulkanFence**            InFlightImageToFenceMap;
-    VkSemaphore*             ImageAvailableSemaphores;
-    VkSemaphore*             RenderCompleteSemaphores;
-    uint32                   CurrentSwapchainImageIndex;
+    VulkanFence** InFlightImageToFenceMap;
+    VkSemaphore*  ImageAvailableSemaphores;
+    VkSemaphore*  RenderCompleteSemaphores;
+    uint32        CurrentSwapchainImageIndex;
 
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
     void (*SetObjectName)(uint64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
-    Handle<Buffer>           VertexBuffer;
-    Handle<Buffer>           IndexBuffer;
-    uint32                   CurrentVertexBufferOffset;
-    uint32                   CurrentIndexBufferOffset;
-    VulkanGeometryData       Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
-    VulkanResourceManager*   ResourceManager;
+    Handle<Buffer>         VertexBuffer;
+    Handle<Buffer>         IndexBuffer;
+    uint32                 CurrentVertexBufferOffset;
+    uint32                 CurrentIndexBufferOffset;
+    VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
+    VulkanResourceManager* ResourceManager;
 };
 
 struct VulkanPhysicalDeviceRequirements
@@ -258,18 +257,21 @@ struct VulkanShaderResources
     VkDescriptorSet              GlobalDescriptorSets[3];
     Handle<Buffer>               UniformBuffer;
     void*                        UniformBufferMemory;
-    
+
     // This is used to figure out where in memory the next material
     // uniform data will be stored
-    struct Slot { bool Used; };
-    Slot                         UsedSlots[128];
+    struct Slot
+    {
+        bool Used;
+    };
+    Slot UsedSlots[128];
 };
 
 struct VulkanShader
 {
-    VkPipeline             Pipeline;
-    VkPipelineLayout       PipelineLayout;
-    VulkanShaderResources  ShaderResources;
+    VkPipeline            Pipeline;
+    VkPipelineLayout      PipelineLayout;
+    VulkanShaderResources ShaderResources;
 };
 
 struct VulkanMaterialData

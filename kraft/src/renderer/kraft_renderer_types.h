@@ -13,6 +13,9 @@ struct ShaderUniform;
 
 namespace renderer {
 
+struct RenderPass;
+struct CommandBuffer;
+
 // Templated only for type-safety
 template<typename T>
 struct Handle
@@ -27,7 +30,7 @@ private:
     {}
 
 public:
-    Handle() : Index(0), Generation(0)
+    Handle() : Index(0), Generation(0xffff)
     {}
 
     static Handle Invalid()
@@ -37,7 +40,12 @@ public:
 
     bool IsInvalid()
     {
-        return *this == Handle::Invalid();
+        return this->Generation == 0xffff;
+    }
+
+    explicit operator bool() const
+    {
+        return this->Generation != 0xffff;
     }
 
     bool operator==(const Handle<T> Other)
@@ -92,27 +100,24 @@ enum RendererBackendType : int
     RENDERER_BACKEND_TYPE_NUM_COUNT
 };
 
+struct DeviceInfoT
+{};
+
 struct RendererBackend
 {
     bool (*Init)(EngineConfigT* Config);
     bool (*Shutdown)();
-    bool (*PrepareFrame)();
+    int (*PrepareFrame)();
     bool (*BeginFrame)();
     bool (*EndFrame)();
     void (*OnResize)(int width, int height);
-
-    void (*BeginSceneView)();
-    void (*EndSceneView)();
-    void (*OnSceneViewViewportResize)(uint32 width, uint32 height);
-    bool (*SetSceneViewViewportSize)(uint32 Width, uint32 Height);
-    Handle<Texture> (*GetSceneViewTexture)();
 
     // Shader
     void (*UseShader)(const Shader* Shader);
     void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
     void (*ApplyGlobalShaderProperties)(Shader* ActiveShader);
     void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
-    void (*CreateRenderPipeline)(Shader* Shader, int PassIndex);
+    void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*CreateMaterial)(Material* Material);
     void (*DestroyMaterial)(Material* Material);
@@ -129,6 +134,12 @@ struct RendererBackend
         const uint32 IndexSize
     );
     void (*DestroyGeometry)(Geometry* Geometry);
+
+    // Render Passes
+    void (*BeginRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
+    void (*EndRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
+
+    DeviceInfoT DeviceInfo;
 };
 
 struct Vertex3D
@@ -663,8 +674,8 @@ struct Buffer
 struct GPUBuffer
 {
     Handle<Buffer> GPUBuffer;
-    uint8*         Ptr;    // Location of data inside the GPUBuffer
-    uint64         Offset; // Offset from the start of the buffer
+    uint8*         Ptr = 0;    // Location of data inside the GPUBuffer
+    uint64         Offset = 0; // Offset from the start of the buffer
 };
 
 struct RenderPassSubpass
@@ -695,6 +706,54 @@ struct RenderPass
     Array<ColorTarget> ColorTargets;
 };
 
+enum CommandPoolCreateFlags : int32
+{
+    COMMAND_POOL_CREATE_FLAGS_TRANSIENT_BIT = 0x00000001,
+    COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT = 0x00000002,
+    COMMAND_POOL_CREATE_FLAGS_PROTECTED_BIT = 0x00000004,
+};
+
+struct CommandPool
+{};
+
+struct CommandPoolDescription
+{
+    const char* DebugName;
+
+    uint32                 QueueFamilyIndex;
+    CommandPoolCreateFlags Flags;
+};
+
+struct CommandBuffer
+{
+    /// The GPU command pool this CmdBuffer was allocated from
+    Handle<CommandPool> Pool;
+};
+
+struct CommandBufferDescription
+{
+    const char* DebugName;
+
+    /// The GPU command pool to allocate this CmdBuffer from
+    Handle<CommandPool> CommandPool;
+
+    /// false if the buffer is supposed to be a secondary command buffer
+    bool Primary = true;
+
+    /// true if you want to begin the buffer right away
+    bool Begin = false;
+
+    /// Is this a single-use command buffer?
+    /// Only valid if `CommandBufferDescription.Begin` is true
+    bool SingleUse = false;
+
+    /// Only valid if `CommandBufferDescription.Begin` is true
+    bool RenderPassContinue = false;
+
+    /// Only valid if `CommandBufferDescription.Begin` is true
+    bool SimultaneousUse = false;
+};
+
 struct UploadBufferDescription
 {
     Handle<Buffer> DstBuffer;
@@ -708,6 +767,18 @@ struct PhysicalDeviceFormatSpecs
 {
     Format::Enum SwapchainFormat;
     Format::Enum DepthBufferFormat;
+};
+
+struct RenderSurfaceT
+{
+    const char* DebugName;
+
+    uint32                Width;
+    uint32                Height;
+    Handle<CommandBuffer> CmdBuffers[3];
+    Handle<RenderPass>    RenderPass;
+    Handle<Texture>       ColorPassTexture;
+    Handle<Texture>       DepthPassTexture;
 };
 
 } // namespace::renderer

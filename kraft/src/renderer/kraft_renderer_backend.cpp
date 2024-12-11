@@ -20,11 +20,6 @@ bool CreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->BeginFrame = VulkanRendererBackend::BeginFrame;
         backend->EndFrame = VulkanRendererBackend::EndFrame;
         backend->OnResize = VulkanRendererBackend::OnResize;
-        backend->BeginSceneView = VulkanRendererBackend::BeginSceneView;
-        backend->EndSceneView = VulkanRendererBackend::EndSceneView;
-        backend->OnSceneViewViewportResize = VulkanRendererBackend::OnSceneViewViewportResize;
-        backend->GetSceneViewTexture = VulkanRendererBackend::GetSceneViewTexture;
-        backend->SetSceneViewViewportSize = VulkanRendererBackend::SetSceneViewViewportSize;
 
         backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
         backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
@@ -38,7 +33,9 @@ bool CreateBackend(RendererBackendType type, RendererBackend* backend)
         backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
         backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
-        ResourceManager::Ptr = new VulkanResourceManager();
+        // Render Passes
+        backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
+        backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
 
         return true;
     }
@@ -51,8 +48,6 @@ bool CreateBackend(RendererBackendType type, RendererBackend* backend)
 
 void DestroyBackend(RendererBackend* Backend)
 {
-    delete ResourceManager::Ptr;
-
     bool ret = Backend->Shutdown();
     MemZero(Backend, sizeof(RendererBackend));
 }

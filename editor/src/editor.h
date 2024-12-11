@@ -4,6 +4,9 @@
 #include "world/kraft_entity_types.h"
 #include "world/kraft_world.h"
 
+#include <containers/kraft_array.h>
+#include <renderer/kraft_renderer_types.h>
+
 namespace kraft {
 struct Entity;
 }
@@ -22,15 +25,12 @@ struct ApplicationState
 
 struct EditorState
 {
-    static EditorState*  Ptr;
-    kraft::EntityHandleT SelectedEntity = kraft::EntityHandleInvalid;
-    kraft::World*        CurrentWorld;
+    static EditorState*             Ptr;
+    kraft::EntityHandleT            SelectedEntity = kraft::EntityHandleInvalid;
+    kraft::World*                   CurrentWorld;
+    kraft::renderer::RenderSurfaceT RenderSurface;
 
-    EditorState()
-    {
-        EditorState::Ptr = this;
-    }
-
+    EditorState();
     kraft::Entity& GetSelectedEntity();
 };
 

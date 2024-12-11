@@ -1,5 +1,7 @@
 #include "kraft_vulkan_resource_manager.h"
 
+#include <volk/volk.h>
+
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <renderer/kraft_resource_pool.inl>
@@ -15,9 +17,11 @@ namespace kraft::renderer {
 
 struct VulkanResourceManagerDataT
 {
-    Pool<VulkanTexture, Texture>       TexturePool = Pool<VulkanTexture, Texture>(1024);
-    Pool<VulkanBuffer, Buffer>         BufferPool = Pool<VulkanBuffer, Buffer>(1024);
-    Pool<VulkanRenderPass, RenderPass> RenderPassPool = Pool<VulkanRenderPass, RenderPass>(1024);
+    Pool<VulkanTexture, Texture>             TexturePool = Pool<VulkanTexture, Texture>(1024);
+    Pool<VulkanBuffer, Buffer>               BufferPool = Pool<VulkanBuffer, Buffer>(1024);
+    Pool<VulkanRenderPass, RenderPass>       RenderPassPool = Pool<VulkanRenderPass, RenderPass>(16);
+    Pool<VulkanCommandBuffer, CommandBuffer> CmdBufferPool = Pool<VulkanCommandBuffer, CommandBuffer>(16);
+    Pool<VulkanCommandPool, CommandPool>     CmdPoolPool = Pool<VulkanCommandPool, CommandPool>(1);
 } VulkanResourceManagerData;
 
 const Pool<VulkanTexture, Texture>& VulkanResourceManager::GetTexturePool() const
@@ -33,6 +37,16 @@ const Pool<VulkanBuffer, Buffer>& VulkanResourceManager::GetBufferPool() const
 const Pool<VulkanRenderPass, RenderPass>& VulkanResourceManager::GetRenderPassPool() const
 {
     return VulkanResourceManagerData.RenderPassPool;
+}
+
+const Pool<VulkanCommandBuffer, CommandBuffer>& VulkanResourceManager::GetCommandBufferPool() const
+{
+    return VulkanResourceManagerData.CmdBufferPool;
+}
+
+const Pool<VulkanCommandPool, CommandPool>& VulkanResourceManager::GetCommandPoolPool() const
+{
+    return VulkanResourceManagerData.CmdPoolPool;
 }
 
 VulkanTempMemoryBlockAllocator::VulkanTempMemoryBlockAllocator(uint64 BlockSize)
@@ -63,7 +77,7 @@ VulkanResourceManager::VulkanResourceManager()
     TempGPUAllocator.Allocator = new VulkanTempMemoryBlockAllocator(1024 * 1024 * 128);
 }
 
-VulkanResourceManager::~VulkanResourceManager()
+void VulkanResourceManager::Clear()
 {
     delete TempGPUAllocator.Allocator;
 
@@ -87,7 +101,7 @@ VulkanResourceManager::~VulkanResourceManager()
 
     for (int i = 0; i < VulkanResourceManagerData.TexturePool.GetSize(); i++)
     {
-        VulkanTexture Texture = VulkanResourceManagerData.TexturePool.Data[i];
+        VulkanTexture& Texture = VulkanResourceManagerData.TexturePool.Data[i];
         if (Texture.View)
         {
             vkDestroyImageView(Device, Texture.View, Context->AllocationCallbacks);
@@ -112,12 +126,31 @@ VulkanResourceManager::~VulkanResourceManager()
 
     for (int i = 0; i < VulkanResourceManagerData.BufferPool.GetSize(); i++)
     {
-        VulkanBuffer Buffer = VulkanResourceManagerData.BufferPool.Data[i];
+        VulkanBuffer& Buffer = VulkanResourceManagerData.BufferPool.Data[i];
         vkFreeMemory(Device, Buffer.Memory, Context->AllocationCallbacks);
         vkDestroyBuffer(Device, Buffer.Handle, Context->AllocationCallbacks);
 
         Buffer.Memory = 0;
         Buffer.Handle = 0;
+    }
+
+    // We don't have to release command buffers individually, we can just delete the pool they were allocated from
+    // for (int i = 0; i < VulkanResourceManagerData.CmdBufferPool.GetSize(); i++)
+    // {
+    //     CommandBuffer&       CmdBufferMetadata = VulkanResourceManagerData.CmdBufferPool.AuxiliaryData[i];
+    //     VulkanCommandBuffer& CmdBuffer = VulkanResourceManagerData.CmdBufferPool.Data[i];
+
+    //     vkFreeCommandBuffers(Device, CmdBuffer.Pool, 1, &CmdBuffer.Resource);
+    //     CmdBuffer.Resource = 0;
+    //     CmdBuffer.Pool = 0;
+    //     CmdBuffer.State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
+    // }
+
+    for (int i = 0; i < VulkanResourceManagerData.CmdPoolPool.GetSize(); i++)
+    {
+        VulkanCommandPool& CmdPool = VulkanResourceManagerData.CmdPoolPool.Data[i];
+        vkDestroyCommandPool(Device, CmdPool.Resource, Context->AllocationCallbacks);
+        CmdPool.Resource = 0;
     }
 }
 
@@ -264,9 +297,10 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(const BufferDescription& Desc
     VkDevice              Device = Context->LogicalDevice.Handle;
     VulkanBuffer          Output = {};
     VkMemoryPropertyFlags MemoryProperties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
+    uint64 ActualSize = Description.Size; // TODO: Fix
 
     VkBufferCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-    CreateInfo.size = Description.Size;
+    CreateInfo.size = ActualSize;
     CreateInfo.sharingMode = ToVulkanSharingMode(Description.SharingMode);
     CreateInfo.usage = ToVulkanBufferUsage(Description.UsageFlags);
 
@@ -292,7 +326,7 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(const BufferDescription& Desc
         vkMapMemory(Device, Output.Memory, 0, VK_WHOLE_SIZE, 0, &Ptr);
     }
 
-    return VulkanResourceManagerData.BufferPool.Insert({ .Size = Description.Size, .Ptr = Ptr }, Output);
+    return VulkanResourceManagerData.BufferPool.Insert({ .Size = ActualSize, .Ptr = Ptr }, Output);
 }
 
 Handle<RenderPass> VulkanResourceManager::CreateRenderPass(const RenderPassDescription& Description)
@@ -435,6 +469,66 @@ Handle<RenderPass> VulkanResourceManager::CreateRenderPass(const RenderPassDescr
     );
 }
 
+Handle<CommandBuffer> VulkanResourceManager::CreateCommandBuffer(const CommandBufferDescription& Description)
+{
+    VulkanContext* Context = VulkanRendererBackend::Context();
+    VkDevice       Device = Context->LogicalDevice.Handle;
+
+    // If no command pool is specified, use the default one
+    VulkanCommandPool* CmdPool;
+    if (Description.CommandPool)
+    {
+        CmdPool = VulkanResourceManagerData.CmdPoolPool.Get(Description.CommandPool);
+    }
+    else
+    {
+        CmdPool = VulkanResourceManagerData.CmdPoolPool.Get(Context->GraphicsCommandPool);
+    }
+
+    VkCommandBufferAllocateInfo AllocateInfo = {};
+    AllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    AllocateInfo.commandPool = CmdPool->Resource;
+    AllocateInfo.level = Description.Primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    AllocateInfo.commandBufferCount = 1;
+
+    VulkanCommandBuffer Out;
+    KRAFT_VK_CHECK(vkAllocateCommandBuffers(Device, &AllocateInfo, &Out.Resource));
+    Out.State = VULKAN_COMMAND_BUFFER_STATE_READY;
+    Out.Pool = CmdPool->Resource;
+
+    Context->SetObjectName((uint64)Out.Resource, VK_OBJECT_TYPE_COMMAND_BUFFER, Description.DebugName);
+
+    if (Description.Begin)
+    {
+        VulkanBeginCommandBuffer(&Out, Description.SingleUse, Description.RenderPassContinue, Description.SimultaneousUse);
+    }
+
+    return VulkanResourceManagerData.CmdBufferPool.Insert(
+        {
+            .Pool = Description.CommandPool,
+        },
+        Out
+    );
+}
+
+Handle<CommandPool> VulkanResourceManager::CreateCommandPool(const CommandPoolDescription& Description)
+{
+    VulkanContext*    Context = VulkanRendererBackend::Context();
+    VkDevice          Device = Context->LogicalDevice.Handle;
+    VulkanCommandPool Out;
+
+    VkCommandPoolCreateInfo Info = {};
+    Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    Info.queueFamilyIndex = Description.QueueFamilyIndex;
+    Info.flags = ToVulkanCommandPoolCreateFlags(Description.Flags);
+
+    KRAFT_VK_CHECK(vkCreateCommandPool(Device, &Info, Context->AllocationCallbacks, &Out.Resource));
+
+    Context->SetObjectName((uint64)Out.Resource, VK_OBJECT_TYPE_COMMAND_POOL, Description.DebugName);
+
+    return VulkanResourceManagerData.CmdPoolPool.Insert({}, Out);
+}
+
 void VulkanResourceManager::DestroyTexture(Handle<Texture> Resource)
 {
     VulkanResourceManagerData.TexturePool.MarkForDelete(Resource);
@@ -448,6 +542,17 @@ void VulkanResourceManager::DestroyBuffer(Handle<Buffer> Resource)
 void VulkanResourceManager::DestroyRenderPass(Handle<RenderPass> Resource)
 {
     VulkanResourceManagerData.RenderPassPool.MarkForDelete(Resource);
+}
+
+void VulkanResourceManager::DestroyCommandBuffer(Handle<CommandBuffer> Resource)
+{
+    // TODO: Should single-use command buffers be destroyed immediately?
+    VulkanResourceManagerData.CmdBufferPool.MarkForDelete(Resource);
+}
+
+void VulkanResourceManager::DestroyCommandPool(Handle<CommandPool> Resource)
+{
+    VulkanResourceManagerData.CmdPoolPool.MarkForDelete(Resource);
 }
 
 uint8* VulkanResourceManager::GetBufferData(Handle<Buffer> BufferHandle)
@@ -483,13 +588,21 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
     VulkanBuffer* GPUBuffer = VulkanResourceManagerData.BufferPool.Get(BufferHandle);
     KASSERT(GPUBuffer);
 
-    // Init a single use command buffer
-    VulkanCommandBuffer TempCmdBuffer;
-    VulkanAllocateAndBeginSingleUseCommandBuffer(Context, Context->GraphicsCommandPool, &TempCmdBuffer);
+    // Allocate a single use command buffer
+    Handle<CommandBuffer> TempCmdBuffer = this->CreateCommandBuffer({
+        .CommandPool = Context->GraphicsCommandPool,
+        .Primary = true,
+        .Begin = true,
+        .SingleUse = true,
+    });
+
+    VulkanCommandBuffer* VkTempCmdBuffer = VulkanResourceManagerData.CmdBufferPool.Get(TempCmdBuffer);
 
     // Default image layout is undefined, so make it transfer dst optimal
     // This will change the image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-    VulkanTransitionImageLayout(Context, TempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VulkanTransitionImageLayout(
+        Context, VkTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+    );
 
     // Copy the image pixels from the staging buffer to the image using the temp command buffer
     VkBufferImageCopy Region = {};
@@ -503,16 +616,19 @@ bool VulkanResourceManager::UploadTexture(Handle<Texture> Resource, Handle<Buffe
     Region.imageExtent.height = (uint32)TextureMetadata->Height;
     Region.imageExtent.depth = 1;
 
-    vkCmdCopyBufferToImage(TempCmdBuffer.Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
+    vkCmdCopyBufferToImage(
+        VkTempCmdBuffer->Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region
+    );
 
     // Transition the layout from VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     // so the image turns into a suitable format for the shader to read
     VulkanTransitionImageLayout(
-        Context, TempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        Context, VkTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
 
     // End our temp command buffer
-    VulkanEndAndSubmitSingleUseCommandBuffer(Context, Context->GraphicsCommandPool, &TempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
+    VulkanEndAndSubmitSingleUseCommandBuffer(Context, VkTempCmdBuffer->Pool, VkTempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
+    this->DestroyCommandBuffer(TempCmdBuffer);
 
     return true;
 }
@@ -535,16 +651,24 @@ bool VulkanResourceManager::UploadBuffer(const UploadBufferDescription& Descript
     VkDevice       Device = Context->LogicalDevice.Handle;
     vkDeviceWaitIdle(Device);
 
-    VulkanCommandBuffer TempCmdBuffer;
-    VulkanAllocateAndBeginSingleUseCommandBuffer(Context, Context->GraphicsCommandPool, &TempCmdBuffer);
+    // Allocate a single use command buffer
+    Handle<CommandBuffer> TempCmdBuffer = this->CreateCommandBuffer({
+        .CommandPool = Context->GraphicsCommandPool,
+        .Primary = true,
+        .Begin = true,
+        .SingleUse = true,
+    });
+
+    VulkanCommandBuffer* VkTempCmdBuffer = VulkanResourceManagerData.CmdBufferPool.Get(TempCmdBuffer);
 
     VkBufferCopy BufferCopyInfo = {};
     BufferCopyInfo.size = Description.SrcSize;
     BufferCopyInfo.srcOffset = Description.SrcOffset;
     BufferCopyInfo.dstOffset = Description.DstOffset;
 
-    vkCmdCopyBuffer(TempCmdBuffer.Resource, Src->Handle, Dst->Handle, 1, &BufferCopyInfo);
-    VulkanEndAndSubmitSingleUseCommandBuffer(Context, Context->GraphicsCommandPool, &TempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
+    vkCmdCopyBuffer(VkTempCmdBuffer->Resource, Src->Handle, Dst->Handle, 1, &BufferCopyInfo);
+    VulkanEndAndSubmitSingleUseCommandBuffer(Context, VkTempCmdBuffer->Pool, VkTempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
+    this->DestroyCommandBuffer(TempCmdBuffer);
 
     return true;
 }
@@ -607,6 +731,24 @@ void VulkanResourceManager::EndFrame(uint64 FrameNumber)
 
         GPUResource->Memory = 0;
         GPUResource->Handle = 0;
+    });
+
+    VulkanResourceManagerData.CmdBufferPool.Cleanup([](VulkanCommandBuffer* GPUResource) {
+        VulkanContext* Context = VulkanRendererBackend::Context();
+        VkDevice       Device = Context->LogicalDevice.Handle;
+        VkCommandPool  CmdPool = GPUResource->Pool;
+
+        vkFreeCommandBuffers(Device, CmdPool, 1, &GPUResource->Resource);
+        GPUResource->Resource = 0;
+        GPUResource->State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
+    });
+
+    VulkanResourceManagerData.CmdPoolPool.Cleanup([](VulkanCommandPool* GPUResource) {
+        VulkanContext* Context = VulkanRendererBackend::Context();
+        VkDevice       Device = Context->LogicalDevice.Handle;
+
+        vkDestroyCommandPool(Device, GPUResource->Resource, Context->AllocationCallbacks);
+        GPUResource->Resource = 0;
     });
 }
 

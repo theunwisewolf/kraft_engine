@@ -621,7 +621,11 @@ void ShaderFXParser::ParseGLSLBlock(ShaderEffect* Effect)
     Effect->CodeFragments.Push(CodeFragment);
 
     String CodeStr(CodeFragment.Code.Buffer, CodeFragment.Code.Length);
-    KDEBUG("%s", *CodeStr);
+
+    if (this->Verbose)
+    {
+        KDEBUG("%s", *CodeStr);
+    }
 }
 
 void ShaderFXParser::ParseRenderStateBlock(ShaderEffect* Effect)
@@ -1074,7 +1078,7 @@ bool ShaderFXParser::ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPass
 #define KRAFT_COMPUTE_DEFINE      "COMPUTE"
 #define KRAFT_SHADERFX_ENABLE_VAL "1"
 
-bool CompileShaderFX(const String& InputPath, const String& OutputPath)
+bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose)
 {
     KINFO("Compiling shaderfx %s", *InputPath);
 
@@ -1093,6 +1097,7 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath)
     Lexer Lexer;
     Lexer.Create((char*)FileDataBuffer);
     renderer::ShaderFXParser Parser;
+    Parser.Verbose = Verbose;
 
     ShaderEffect Effect = Parser.Parse(InputPath, &Lexer);
     if (!CompileShaderFX(Effect, OutputPath))
@@ -1105,7 +1110,7 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath)
     return true;
 }
 
-bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
+bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath, bool Verbose)
 {
     shaderc_compiler_t           Compiler = shaderc_compiler_initialize();
     shaderc_compilation_result_t Result;
@@ -1139,7 +1144,10 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath)
         for (int j = 0; j < Pass.ShaderStages.Length; j++)
         {
             const RenderPassDefinition::ShaderDefinition& Stage = Pass.ShaderStages[j];
-            KDEBUG("Compiling shaderstage %d for %s", Stage.Stage, *Shader.ResourcePath);
+            if (Verbose)
+            {
+                KDEBUG("Compiling shaderstage %d for %s", Stage.Stage, *Shader.ResourcePath);
+            }
 
             CompileOptions = shaderc_compile_options_initialize();
             shaderc_shader_kind ShaderKind;

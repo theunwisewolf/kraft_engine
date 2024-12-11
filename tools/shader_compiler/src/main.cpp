@@ -26,7 +26,13 @@ bool Init()
         return false;
     }
 
-    kraft::String                             BasePath = "Z:/Dev/kraft/res/shaders";
+    kraft::String                             BasePath = CliArgs[1];
+    bool Verbose = false;
+    if (CliArgs.Length > 2 && CliArgs[2] == "--verbose")
+    {
+        Verbose = true;
+    }
+
     kraft::Array<kraft::filesystem::FileInfo> Files;
     kraft::filesystem::ReadDir(BasePath, Files);
 
@@ -36,11 +42,10 @@ bool Init()
         {
             kraft::String ShaderFXFilePath = BasePath + "/" + Files[i].Name;
             kraft::String OutFilePath = ShaderFXFilePath + ".bkfx";
-            bool          Result = kraft::renderer::CompileShaderFX(ShaderFXFilePath, OutFilePath);
+            bool          Result = kraft::renderer::CompileShaderFX(ShaderFXFilePath, OutFilePath, Verbose);
             if (true == Result)
             {
-                KSUCCESS("Compiled shader %s successfully", *ShaderFXFilePath);
-                KSUCCESS("Output file: %s", *OutFilePath);
+                KSUCCESS("Compiled %s to %s", *ShaderFXFilePath, *OutFilePath);
             }
             else
             {
@@ -49,27 +54,6 @@ bool Init()
         }
     }
 
-    return true;
-
-    // kraft::String ShaderFXFilePath = App->CommandLineArgs.Arguments[1];
-    // kraft::String OutFilePath = ShaderFXFilePath + ".bkfx";
-    // bool Result = kraft::renderer::CompileShaderFX(ShaderFXFilePath, OutFilePath);
-    // if (true == Result)
-    // {
-    //     KSUCCESS("Compiled shader %s successfully", *ShaderFXFilePath);
-    //     KSUCCESS("Output file: %s", *OutFilePath);
-    // }
-    // else
-    // {
-    //     KERROR("Failed to compile %s", *ShaderFXFilePath);
-    // }
-
-    // kraft::renderer::ShaderEffect Output;
-    // KASSERT(kraft::renderer::LoadShaderFX(kraft::Application::Get()->BasePath + "/res/shaders/basic.kfx.bkfx", Output));
-}
-
-bool Shutdown()
-{
     return true;
 }
 

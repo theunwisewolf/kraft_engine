@@ -66,13 +66,13 @@ bool ReadDir(const String& Path, Array<FileInfo>& OutFiles)
     {
         if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            KDEBUG("[Dir]: %s", FindData.cFileName);
+            // KDEBUG("[Dir]: %s", FindData.cFileName);
         }
         else
         {
             FileSize.LowPart = FindData.nFileSizeLow;
             FileSize.HighPart = FindData.nFileSizeHigh;
-            KDEBUG("  %s   %ld bytes", FindData.cFileName, FileSize.QuadPart);
+            // KDEBUG("  %s   %ld bytes", FindData.cFileName, FileSize.QuadPart);
 
             OutFiles.Push({ .Name = FindData.cFileName, .FileSize = (uint64)FileSize.QuadPart });
         }

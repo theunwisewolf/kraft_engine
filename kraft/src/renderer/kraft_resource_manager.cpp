@@ -10,7 +10,7 @@ namespace kraft::renderer {
 
 struct TempAllocatorStateT
 {
-    GPUBuffer CurrentBlock;
+    GPUBuffer CurrentBlock = {};
 } TempAllocatorState;
 
 GPUBuffer TempAllocator::Allocate(uint64 Size, uint64 Alignment)
@@ -25,6 +25,8 @@ GPUBuffer TempAllocator::Allocate(uint64 Size, uint64 Alignment)
         Offset = 0;
         CurrentOffset = Size;
     }
+
+    KASSERT(TempAllocatorState.CurrentBlock.GPUBuffer);
 
     Allocator->AllocationCount++;
     KDEBUG("Allocation Count: %d", Allocator->AllocationCount);

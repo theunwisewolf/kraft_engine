@@ -34,5 +34,7 @@ VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(uint64 Flags);
 VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Op);
 VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Op);
 VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Layout);
+VkCommandPoolCreateFlagBits ToVulkanCommandPoolCreateFlagBits(CommandPoolCreateFlags Flag);
+VkCommandPoolCreateFlags ToVulkanCommandPoolCreateFlags(int32 Flags);
 
 }

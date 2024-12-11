@@ -1,28 +1,14 @@
 #include "kraft_vulkan_helpers.h"
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
 
 VkFormat ToVulkanFormat(ShaderDataType::Enum Format)
 {
-    static VkFormat Mapping[ShaderDataType::Count] = 
-    {
-        VK_FORMAT_R32_SFLOAT, 
-        VK_FORMAT_R32G32_SFLOAT, 
-        VK_FORMAT_R32G32B32_SFLOAT, 
-        VK_FORMAT_R32G32B32A32_SFLOAT, 
-        VK_FORMAT_R32G32B32A32_SFLOAT, 
-        VK_FORMAT_R8_SINT, 
-        VK_FORMAT_R8G8B8A8_SNORM, 
-        VK_FORMAT_R8_UINT, 
-        VK_FORMAT_R8G8B8A8_UINT, 
-        VK_FORMAT_R16G16_SINT, 
-        VK_FORMAT_R16G16_SNORM, 
-        VK_FORMAT_R16G16B16A16_SINT, 
-        VK_FORMAT_R16G16B16A16_SNORM, 
-        VK_FORMAT_R32_UINT, 
-        VK_FORMAT_R32G32_UINT, 
-        VK_FORMAT_R32G32B32A32_UINT 
+    static VkFormat Mapping[ShaderDataType::Count] = {
+        VK_FORMAT_R32_SFLOAT,          VK_FORMAT_R32G32_SFLOAT, VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8_SINT,       VK_FORMAT_R8G8B8A8_SNORM,   VK_FORMAT_R8_UINT,
+        VK_FORMAT_R8G8B8A8_UINT,       VK_FORMAT_R16G16_SINT,   VK_FORMAT_R16G16_SNORM,     VK_FORMAT_R16G16B16A16_SINT,
+        VK_FORMAT_R16G16B16A16_SNORM,  VK_FORMAT_R32_UINT,      VK_FORMAT_R32G32_UINT,      VK_FORMAT_R32G32B32A32_UINT
     };
 
     return Mapping[Format];
@@ -30,8 +16,7 @@ VkFormat ToVulkanFormat(ShaderDataType::Enum Format)
 
 VkFormat ToVulkanFormat(Format::Enum Format)
 {
-    static VkFormat Mapping[Format::Count] = 
-    {
+    static VkFormat Mapping[Format::Count] = {
         // Color formats
         VK_FORMAT_R8_UNORM,
         VK_FORMAT_R8G8B8A8_UNORM,
@@ -41,10 +26,10 @@ VkFormat ToVulkanFormat(Format::Enum Format)
 
         // Depth-Stencil formats
         VK_FORMAT_D16_UNORM,
-        VK_FORMAT_D32_SFLOAT, 
+        VK_FORMAT_D32_SFLOAT,
         VK_FORMAT_D16_UNORM_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT, 
-        VK_FORMAT_D32_SFLOAT_S8_UINT, 
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
     };
 
     return Mapping[Format];
@@ -52,10 +37,14 @@ VkFormat ToVulkanFormat(Format::Enum Format)
 
 VkShaderStageFlagBits ToVulkanShaderStageFlagBits(ShaderStageFlags Value)
 {
-    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX) return VK_SHADER_STAGE_VERTEX_BIT;
-    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT) return VK_SHADER_STAGE_FRAGMENT_BIT;
-    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE) return VK_SHADER_STAGE_COMPUTE_BIT;
-    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY) return VK_SHADER_STAGE_GEOMETRY_BIT;
+    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX)
+        return VK_SHADER_STAGE_VERTEX_BIT;
+    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT)
+        return VK_SHADER_STAGE_FRAGMENT_BIT;
+    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE)
+        return VK_SHADER_STAGE_COMPUTE_BIT;
+    if (Value & ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY)
+        return VK_SHADER_STAGE_GEOMETRY_BIT;
 
     KASSERTM(false, "Invalid shader stage");
     return VkShaderStageFlagBits(0);
@@ -75,55 +64,33 @@ VkShaderStageFlags ToVulkanShaderStageFlags(uint64 Flags)
 
 VkDescriptorType ToVulkanResourceType(ResourceType::Enum Value)
 {
-    static VkDescriptorType Mapping[ResourceType::Count] = 
-    {
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-    };
+    static VkDescriptorType Mapping[ResourceType::Count] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER };
 
     return Mapping[Value];
 }
 
 VkPolygonMode ToVulkanPolygonMode(PolygonMode::Enum Value)
 {
-    static VkPolygonMode Mapping[PolygonMode::Count] = 
-    {
-        VK_POLYGON_MODE_FILL, 
-        VK_POLYGON_MODE_LINE,
-        VK_POLYGON_MODE_POINT
-    };
+    static VkPolygonMode Mapping[PolygonMode::Count] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 
     return Mapping[Value];
 }
 
 VkBlendFactor ToVulkanBlendFactor(BlendFactor::Enum Value)
 {
-    static VkBlendFactor Mapping[BlendFactor::Count] = 
-    {
-        VK_BLEND_FACTOR_ZERO, 
-        VK_BLEND_FACTOR_ONE, 
-        VK_BLEND_FACTOR_SRC_COLOR, 
-        VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, 
-        VK_BLEND_FACTOR_DST_COLOR, 
-        VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
-        VK_BLEND_FACTOR_SRC_ALPHA, 
-        VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, 
-        VK_BLEND_FACTOR_DST_ALPHA, 
-        VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA
-    };
+    static VkBlendFactor Mapping[BlendFactor::Count] = { VK_BLEND_FACTOR_ZERO,      VK_BLEND_FACTOR_ONE,
+                                                         VK_BLEND_FACTOR_SRC_COLOR, VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+                                                         VK_BLEND_FACTOR_DST_COLOR, VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+                                                         VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                                         VK_BLEND_FACTOR_DST_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA };
 
     return Mapping[Value];
 }
 
 VkBlendOp ToVulkanBlendOp(BlendOp::Enum Value)
 {
-    static VkBlendOp Mapping[BlendOp::Count] = 
-    {
-        VK_BLEND_OP_ADD, 
-        VK_BLEND_OP_SUBTRACT, 
-        VK_BLEND_OP_REVERSE_SUBTRACT, 
-        VK_BLEND_OP_MIN, 
-        VK_BLEND_OP_MAX
+    static VkBlendOp Mapping[BlendOp::Count] = {
+        VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT, VK_BLEND_OP_MIN, VK_BLEND_OP_MAX
     };
 
     return Mapping[Value];
@@ -131,12 +98,11 @@ VkBlendOp ToVulkanBlendOp(BlendOp::Enum Value)
 
 VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags::Enum Value)
 {
-    static VkCullModeFlagBits Mapping[CullModeFlags::Count] = 
-    {
-        VK_CULL_MODE_NONE, 
-        VK_CULL_MODE_FRONT_BIT, 
-        VK_CULL_MODE_BACK_BIT, 
-        VK_CULL_MODE_FRONT_AND_BACK, 
+    static VkCullModeFlagBits Mapping[CullModeFlags::Count] = {
+        VK_CULL_MODE_NONE,
+        VK_CULL_MODE_FRONT_BIT,
+        VK_CULL_MODE_BACK_BIT,
+        VK_CULL_MODE_FRONT_AND_BACK,
     };
 
     return Mapping[Value];
@@ -156,30 +122,27 @@ VkCullModeFlags ToVulkanCullModeFlags(uint64 Flags)
 
 VkCompareOp ToVulkanCompareOp(CompareOp::Enum Value)
 {
-    static VkCompareOp Mapping[CompareOp::Count] = 
-    {
-        VK_COMPARE_OP_NEVER, 
-        VK_COMPARE_OP_LESS, 
-        VK_COMPARE_OP_EQUAL, 
-        VK_COMPARE_OP_LESS_OR_EQUAL, 
-        VK_COMPARE_OP_GREATER, 
-        VK_COMPARE_OP_NOT_EQUAL, 
-        VK_COMPARE_OP_GREATER_OR_EQUAL, 
-        VK_COMPARE_OP_ALWAYS
-    };
+    static VkCompareOp Mapping[CompareOp::Count] = { VK_COMPARE_OP_NEVER,
+                                                     VK_COMPARE_OP_LESS,
+                                                     VK_COMPARE_OP_EQUAL,
+                                                     VK_COMPARE_OP_LESS_OR_EQUAL,
+                                                     VK_COMPARE_OP_GREATER,
+                                                     VK_COMPARE_OP_NOT_EQUAL,
+                                                     VK_COMPARE_OP_GREATER_OR_EQUAL,
+                                                     VK_COMPARE_OP_ALWAYS };
 
     return Mapping[Value];
 }
 
 // VkImageUsageFlagBits ToVulkanImageUsageFlagBits(TextureUsageFlags::Enum Value)
 // {
-//     static VkImageUsageFlagBits Mapping[TextureUsageFlags::Count] = 
+//     static VkImageUsageFlagBits Mapping[TextureUsageFlags::Count] =
 //     {
-//         VK_IMAGE_USAGE_TRANSFER_SRC_BIT, 
-//         VK_IMAGE_USAGE_TRANSFER_DST_BIT, 
-//         VK_IMAGE_USAGE_SAMPLED_BIT, 
-//         VK_IMAGE_USAGE_STORAGE_BIT, 
-//         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
+//         VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+//         VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+//         VK_IMAGE_USAGE_SAMPLED_BIT,
+//         VK_IMAGE_USAGE_STORAGE_BIT,
+//         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 //         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
 //     };
 
@@ -202,31 +165,21 @@ VkImageUsageFlags ToVulkanImageUsageFlags(uint64 Flags)
 
 VkImageTiling ToVulkanImageTiling(TextureTiling::Enum Value)
 {
-    static VkImageTiling Mapping[TextureTiling::Count] =
-    {
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_TILING_LINEAR
-    };
+    static VkImageTiling Mapping[TextureTiling::Count] = { VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_TILING_LINEAR };
 
     return Mapping[Value];
 }
 
 VkImageType ToVulkanImageType(TextureType::Enum Value)
 {
-    static VkImageType Mapping[TextureType::Count] =
-    {
-        VK_IMAGE_TYPE_1D,
-        VK_IMAGE_TYPE_2D,
-        VK_IMAGE_TYPE_3D
-    };
+    static VkImageType Mapping[TextureType::Count] = { VK_IMAGE_TYPE_1D, VK_IMAGE_TYPE_2D, VK_IMAGE_TYPE_3D };
 
     return Mapping[Value];
 }
 
 VkFilter ToVulkanFilter(TextureFilter::Enum Value)
 {
-    static VkFilter Mapping[] =
-    {
+    static VkFilter Mapping[] = {
         VK_FILTER_NEAREST,
         VK_FILTER_LINEAR,
     };
@@ -236,8 +189,7 @@ VkFilter ToVulkanFilter(TextureFilter::Enum Value)
 
 VkSamplerAddressMode ToVulkanSamplerAddressMode(TextureWrapMode::Enum Value)
 {
-    static VkSamplerAddressMode Mapping[] =
-    {
+    static VkSamplerAddressMode Mapping[] = {
         VK_SAMPLER_ADDRESS_MODE_REPEAT,
         VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -253,7 +205,7 @@ VkSampleCountFlagBits ToVulkanSampleCountFlagBits(TextureSampleCountFlags Value)
     {
         return VK_SAMPLE_COUNT_1_BIT;
     }
-    
+
     if (Value & TextureSampleCountFlags::TEXTURE_SAMPLE_COUNT_FLAGS_2)
     {
         return VK_SAMPLE_COUNT_2_BIT;
@@ -305,8 +257,7 @@ VkSampleCountFlags ToVulkanSampleCountFlags(uint64 Flags)
 
 VkSamplerMipmapMode ToVulkanSamplerMipMapMode(TextureMipMapMode::Enum Value)
 {
-    static VkSamplerMipmapMode Mapping[] =
-    {
+    static VkSamplerMipmapMode Mapping[] = {
         VK_SAMPLER_MIPMAP_MODE_NEAREST,
         VK_SAMPLER_MIPMAP_MODE_LINEAR,
     };
@@ -316,8 +267,7 @@ VkSamplerMipmapMode ToVulkanSamplerMipMapMode(TextureMipMapMode::Enum Value)
 
 VkSharingMode ToVulkanSharingMode(SharingMode::Enum Value)
 {
-    static VkSharingMode Mapping[SharingMode::Count] =
-    {
+    static VkSharingMode Mapping[SharingMode::Count] = {
         VK_SHARING_MODE_EXCLUSIVE,
         VK_SHARING_MODE_CONCURRENT,
     };
@@ -377,18 +327,17 @@ VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(uint64 Flags)
 {
     VkMemoryPropertyFlags Result = 0;
 
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL)  ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT  : 0;
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_VISIBLE)  ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT  : 0;
+    Result |= (Flags & MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL) ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_VISIBLE) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0;
     Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_COHERENT) ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0;
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_CACHED)   ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT   : 0;
+    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_CACHED) ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
 
     return Result;
 }
 
 VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Value)
 {
-    static VkAttachmentLoadOp Mapping[] = 
-    {
+    static VkAttachmentLoadOp Mapping[] = {
         VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,
         VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR,
         VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -399,8 +348,7 @@ VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Value)
 
 VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Value)
 {
-    static VkAttachmentStoreOp Mapping[] = 
-    {
+    static VkAttachmentStoreOp Mapping[] = {
         VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,
         VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,
     };
@@ -410,8 +358,7 @@ VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Value)
 
 VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Value)
 {
-    static VkImageLayout Mapping[] = 
-    {
+    static VkImageLayout Mapping[] = {
         VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,
         VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VkImageLayout::VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -420,6 +367,22 @@ VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Value)
     };
 
     return Mapping[Value];
+}
+
+VkCommandPoolCreateFlagBits ToVulkanCommandPoolCreateFlagBits(CommandPoolCreateFlags Flag)
+{
+    // We have a 1-1 mapping to the vulkan type
+    return (VkCommandPoolCreateFlagBits)Flag;
+}
+
+VkCommandPoolCreateFlags ToVulkanCommandPoolCreateFlags(int32 Flags)
+{
+    VkCommandPoolCreateFlags Result = 0;
+    Result |= (Flags & COMMAND_POOL_CREATE_FLAGS_TRANSIENT_BIT) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT : 0;
+    Result |= (Flags & COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT) ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : 0;
+    Result |= (Flags & COMMAND_POOL_CREATE_FLAGS_PROTECTED_BIT) ? VK_COMMAND_POOL_CREATE_PROTECTED_BIT : 0;
+
+    return Result;
 }
 
 }

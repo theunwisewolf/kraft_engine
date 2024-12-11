@@ -126,10 +126,17 @@ namespace kraft::renderer {
 struct VulkanTexture;
 struct VulkanBuffer;
 struct VulkanRenderPass;
+struct VulkanCommandBuffer;
+struct VulkanCommandPool;
 struct Buffer;
 struct RenderPass;
+struct CommandBuffer;
+struct CommandPool;
 
 extern template struct Pool<VulkanTexture, Texture>;
 extern template struct Pool<VulkanBuffer, Buffer>;
 extern template struct Pool<VulkanRenderPass, RenderPass>;
+extern template struct Pool<VulkanCommandBuffer, CommandBuffer>;
+extern template struct Pool<VulkanCommandPool, CommandPool>;
+
 }

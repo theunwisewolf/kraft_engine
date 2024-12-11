@@ -468,8 +468,8 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     // Device features to be requested
     VkPhysicalDeviceFeatures FeatureRequests = 
     {
-        .fillModeNonSolid = VK_TRUE,
-        .wideLines = VK_TRUE,
+        .fillModeNonSolid = context->PhysicalDevice.Features.fillModeNonSolid,
+        .wideLines = context->PhysicalDevice.Features.wideLines,
     };
 
     // As per the vulkan spec, if the device supports VK_KHR_portability_subset
@@ -504,23 +504,12 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     vkGetDeviceQueue(context->LogicalDevice.Handle, familyInfo.PresentQueueIndex, 0, &context->LogicalDevice.PresentQueue);
     KDEBUG("[VulkanCreateLogicalDevice]: Required queues obtained");
 
-    VkCommandPoolCreateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    info.queueFamilyIndex = familyInfo.GraphicsQueueIndex;
-    info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-
-    KRAFT_VK_CHECK(vkCreateCommandPool(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->GraphicsCommandPool));
-    KDEBUG("[VulkanCreateLogicalDevice]: Graphics command pool created");
-
     if (out)    *out = context->LogicalDevice;
 }
 
 void VulkanDestroyLogicalDevice(VulkanContext* context)
 {
     context->PhysicalDevice.QueueFamilyInfo = {0};
-
-    vkDestroyCommandPool(context->LogicalDevice.Handle, context->GraphicsCommandPool, context->AllocationCallbacks);
-    context->GraphicsCommandPool = 0;
 
     vkDestroyDevice(context->LogicalDevice.Handle, context->AllocationCallbacks);
     context->LogicalDevice.Handle  = 0;

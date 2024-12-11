@@ -149,6 +149,23 @@ public:
         return *this;
     }
 
+    constexpr Array& operator=(Array&& Arr)
+    {
+        SizeType   _Length = Length;
+        SizeType   _Allocated = Allocated;
+        ValueType* _Buffer = InternalBuffer;
+
+        Length = Arr.Length;
+        InternalBuffer = Arr.InternalBuffer;
+        Allocated = Arr.Allocated;
+
+        Arr.Length = _Length;
+        Arr.Allocated = _Allocated;
+        Arr.InternalBuffer = _Buffer;
+
+        return *this;
+    }
+
     ~Array()
     {
         Free(InternalBuffer, GetBufferSizeInBytes(), MEMORY_TAG_ARRAY);
@@ -211,11 +228,16 @@ public:
         Length = Size;
     }
 
-    void Push(const ValueType& Value)
+    /// @brief Inserts a new element at the back of the array
+    /// @param Value The value to insert
+    /// @return Returns the index the value was inserted at
+    SizeType Push(const ValueType& Value)
     {
         EnlargeBufferIfRequired(Length + 1);
         InternalBuffer[Length] = Value;
         Length++;
+
+        return Length - 1;
     }
 
     bool Pop(SizeType Index)
