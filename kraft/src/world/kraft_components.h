@@ -89,4 +89,12 @@ struct MeshComponent
     MeshComponent() = default;
 };
 
+struct LightComponent
+{
+    kraft::Vec4f LightColor = kraft::Vec4fOne;
+
+    LightComponent() = default;
+    LightComponent(kraft::Vec4f Color) : LightColor(Color) {};
+};
+
 }

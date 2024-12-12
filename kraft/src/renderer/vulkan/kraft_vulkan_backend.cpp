@@ -289,7 +289,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
         GlobalDescriptorSetLayoutBinding.descriptorCount = 1;
         GlobalDescriptorSetLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         GlobalDescriptorSetLayoutBinding.pImmutableSamplers = 0;
-        GlobalDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        GlobalDescriptorSetLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
         VkDescriptorSetLayoutCreateInfo GlobalDescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         GlobalDescriptorSetLayoutCreateInfo.bindingCount = 1;
@@ -585,7 +585,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     uint64 ResourceBindingsCount = Pass.Resources->ResourceBindings.Length;
     uint64 ConstantBuffersCount = Pass.ConstantBuffers->Fields.Length;
 
-    uint64 InstanceUBOSize = 0;
+    uint64 InstanceUBOSize = 128; // TODO: DONT HARDCODE
     auto   DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
     for (int j = 0; j < ResourceBindingsCount; j++)
     {
@@ -603,7 +603,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
 
         if (Binding.Type == ResourceType::UniformBuffer)
         {
-            InstanceUBOSize += Binding.Size;
+            // InstanceUBOSize += Binding.Size;
         }
     }
 
@@ -1035,7 +1035,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
     uint32 BindingIndex = 0;
     // Material data
-    // if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
+    if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
         DescriptorBufferInfo.buffer = s_ResourceManager.GetBufferPool().Get(ShaderData->ShaderResources.UniformBuffer)->Handle;
         DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;

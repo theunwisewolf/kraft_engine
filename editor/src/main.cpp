@@ -234,7 +234,14 @@ bool Init()
         }
     }
 
-    kraft::Entity WorldRoot = EditorState::Ptr->CurrentWorld->GetRoot();
+    kraft::Entity         WorldRoot = EditorState::Ptr->CurrentWorld->GetRoot();
+    kraft::Entity         GlobalLightEntity = EditorState::Ptr->CurrentWorld->CreateEntity("GlobalLight", WorldRoot);
+    kraft::LightComponent GlobalLight = GlobalLightEntity.AddComponent<kraft::LightComponent>();
+    GlobalLight.LightColor = kraft::Vec4fOne;
+    GlobalLightEntity.GetComponent<TransformComponent>().SetPosition({38.0f, 38.0f, 54.0f});
+
+    EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
+
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room.obj");
     kraft::Entity     VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
@@ -252,7 +259,8 @@ bool Init()
         );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+        Mesh.MaterialInstance =
+            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
         VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
@@ -305,7 +313,8 @@ bool Init()
         );
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+        Mesh.MaterialInstance =
+            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
         {
@@ -454,6 +463,7 @@ void Render()
     //     kraft::Engine::Renderer.AddRenderable(TestSceneState->ObjectStates[i]);
     // }
 
+    EditorState::Ptr->RenderSurface.World = EditorState::Ptr->CurrentWorld;
     kraft::Engine::Renderer.BeginRenderSurface(EditorState::Ptr->RenderSurface);
     EditorState::Ptr->CurrentWorld->Render();
     kraft::Engine::Renderer.EndRenderSurface(EditorState::Ptr->RenderSurface);

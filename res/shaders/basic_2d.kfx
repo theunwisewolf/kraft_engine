@@ -10,11 +10,16 @@ Shader Basic
             Attribute   float2 UV 0 1 12
         }
 
+        UniformBuffer LocalUniformBuffer
+        {
+            float4 DiffuseColor;
+        }
+
         // Uniform buffers
         Resource Main
         {
-            UniformBuffer DiffuseColor      Stage(Fragment) Binding(0) Size(16);
-            Sampler       DiffuseSampler    Stage(Fragment) Binding(1);
+            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(16);
+            Sampler       DiffuseSampler        Stage(Fragment) Binding(1);
         }
 
         // Constant buffers/Push constants

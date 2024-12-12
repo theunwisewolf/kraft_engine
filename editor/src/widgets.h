@@ -6,3 +6,4 @@ void InitImguiWidgets();
 void DrawImGuiWidgets(bool refresh);
 void PipelineDebugger();
 void HierarchyPanel();
+void MaterialEditor();

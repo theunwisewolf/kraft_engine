@@ -10,6 +10,7 @@ struct Material;
 struct Geometry;
 struct Shader;
 struct ShaderUniform;
+struct World;
 
 namespace renderer {
 
@@ -61,14 +62,17 @@ public:
 
 struct ShaderEffect;
 
-struct GlobalUniformData
+struct alignas(16) GlobalUniformData
 {
     union
     {
-        struct
+        struct alignas(16)
         {
             Mat4f Projection;
             Mat4f View;
+            Vec3f GlobalLightPosition;
+            Vec4f GlobalLightColor = kraft::Vec4fOne;
+            Vec3f CameraPosition;
         };
 
         char _[256];
@@ -779,6 +783,7 @@ struct RenderSurfaceT
     Handle<RenderPass>    RenderPass;
     Handle<Texture>       ColorPassTexture;
     Handle<Texture>       DepthPassTexture;
+    World*                World;
 };
 
 } // namespace::renderer

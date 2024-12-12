@@ -100,6 +100,17 @@ void DrawImGuiWidgets(bool refresh)
         }
     }
 
+    if (EditorState::Ptr->GetSelectedEntity().HasComponent<kraft::LightComponent>())
+    {
+        kraft::LightComponent& Light = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::LightComponent>();
+        if (ImGui::ColorEdit4("Light Color", Light.LightColor._data))
+        {
+            KDEBUG("Color changed, %d %d", sizeof(float), sizeof(float32));
+        }
+    }
+
+    MaterialEditor();
+
     if (usePerspectiveProjection)
     {
         ImGui::Text("Perspective Projection Matrix");
@@ -665,4 +676,48 @@ void HierarchyPanel()
         ImGui::TreePop();
     }
 #endif
+}
+
+void MaterialEditor()
+{
+    kraft::Entity SelectedEntity = EditorState::Ptr->GetSelectedEntity();
+    if (!SelectedEntity.HasComponent<kraft::MeshComponent>())
+        return;
+
+    ImGui::Separator();
+    ImGui::Text("Material Properties");
+    ImGui::Separator();
+
+    kraft::MeshComponent&                  Mesh = SelectedEntity.GetComponent<kraft::MeshComponent>();
+    kraft::Material*                       Material = Mesh.MaterialInstance;
+    kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
+    kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
+
+    for (auto It = Material->Properties.ibegin(); It != Material->Properties.iend(); It++)
+    {
+        kraft::MaterialProperty& Property = It->second;
+        kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
+
+        if (Uniform.DataType == kraft::renderer::ShaderDataType::Float3)
+        {
+            if (ImGui::DragFloat3(It->first.get().Data(), Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
+            {
+                Material->Dirty = true;
+            }
+        }
+        else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float4)
+        {
+            if (ImGui::DragFloat4(It->first.get().Data(), Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
+            {
+                Material->Dirty = true;
+            }
+        }
+        else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float)
+        {
+            if (ImGui::DragFloat(It->first.get().Data(), &Property.Float32Value))
+            {
+                Material->Dirty = true;
+            }
+        }
+    }
 }

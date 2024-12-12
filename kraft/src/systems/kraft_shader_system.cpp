@@ -21,6 +21,7 @@ static uint32 AddUniform(
     uint32                   Offset,
     uint32                   Size,
     ResourceType::Enum       Type,
+    ShaderDataType::Enum     DataType,
     ShaderUniformScope::Enum Scope
 );
 
@@ -130,25 +131,96 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
 
     // Cache the uniforms
     // The instance uniforms begin after the global data
-    AddUniform(&Reference->Shader, "Projection", 0, 0, sizeof(Mat4f), ResourceType::UniformBuffer, ShaderUniformScope::Global);
-    AddUniform(&Reference->Shader, "View", 1, sizeof(Mat4f), sizeof(Mat4f), ResourceType::UniformBuffer, ShaderUniformScope::Global);
+
+    // Check what uniforms are required from the global UBO stuff
+    if (Effect.UniformBuffers.Length > 0 && Effect.UniformBuffers[0].Name == "GlobalUniformBuffer")
+    {
+        uint32                         Offset = 0;
+        const UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[0];
+        for (int FieldIdx = 0; FieldIdx < UniformBufferDef.Fields.Length; FieldIdx++)
+        {
+            const UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
+            AddUniform(
+                &Reference->Shader,
+                Field.Name,
+                FieldIdx,
+                Offset,
+                ShaderDataType::SizeOf(Field.Type),
+                ResourceType::UniformBuffer,
+                Field.Type,
+                ShaderUniformScope::Global
+            );
+
+            // 16-byte alignment
+            Offset += math::AlignUp(ShaderDataType::SizeOf(Field.Type), 16);
+        }
+    }
+    else
+    {
+        // We always add Projection and view
+        // Mat4s are already 16-byte aligned
+        AddUniform(
+            &Reference->Shader,
+            "Projection",
+            0,
+            0,
+            sizeof(Mat4f),
+            ResourceType::UniformBuffer,
+            ShaderDataType::Mat4,
+            ShaderUniformScope::Global
+        );
+        AddUniform(
+            &Reference->Shader,
+            "View",
+            1,
+            sizeof(Mat4f),
+            sizeof(Mat4f),
+            ResourceType::UniformBuffer,
+            ShaderDataType::Mat4,
+            ShaderUniformScope::Global
+        );
+    }
 
     uint32 Offset = 0;
     uint32 TextureCount = 0;
     for (int i = 0; i < Pass.Resources->ResourceBindings.Length; i++)
     {
         auto& ResourceBinding = Pass.Resources->ResourceBindings[i];
-        AddUniform(
-            &Reference->Shader,
-            ResourceBinding.Name,
-            ResourceBinding.Binding,
-            ResourceBinding.Type == ResourceType::UniformBuffer ? Offset : TextureCount++,
-            ResourceBinding.Size,
-            ResourceBinding.Type,
-            ShaderUniformScope::Instance
-        );
+        if (ResourceBinding.Type == ResourceType::UniformBuffer)
+        {
+            KASSERT(ResourceBinding.ParentIndex != -1);
+            const UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[ResourceBinding.ParentIndex];
+            for (int FieldIdx = 0; FieldIdx < UniformBufferDef.Fields.Length; FieldIdx++)
+            {
+                const UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
+                AddUniform(
+                    &Reference->Shader,
+                    Field.Name,
+                    ResourceBinding.Binding,
+                    Offset,
+                    ShaderDataType::SizeOf(Field.Type),
+                    ResourceType::UniformBuffer,
+                    Field.Type,
+                    ShaderUniformScope::Instance
+                );
 
-        Offset += ResourceBinding.Size;
+                // 16-byte alignment
+                Offset += math::AlignUp(ShaderDataType::SizeOf(Field.Type), 16);
+            }
+        }
+        else
+        {
+            AddUniform(
+                &Reference->Shader,
+                ResourceBinding.Name,
+                ResourceBinding.Binding,
+                TextureCount++,
+                ResourceBinding.Size,
+                ResourceBinding.Type,
+                ShaderDataType::Count,
+                ShaderUniformScope::Instance
+            );
+        }
     }
 
     Reference->Shader.InstanceUniformsCount = (uint32)Reference->Shader.UniformCache.Size();
@@ -163,7 +235,14 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
         // Push constants must be aligned to 4 bytes
         uint32 AlignedSize = (uint32)math::AlignUp(ShaderDataType::SizeOf(ConstantBuffer.Type), 4);
         AddUniform(
-            &Reference->Shader, ConstantBuffer.Name, 0, Offset, AlignedSize, ResourceType::ConstantBuffer, ShaderUniformScope::Local
+            &Reference->Shader,
+            ConstantBuffer.Name,
+            0,
+            Offset,
+            AlignedSize,
+            ResourceType::ConstantBuffer,
+            ShaderDataType::Count,
+            ShaderUniformScope::Local
         );
 
         Offset += AlignedSize;
@@ -179,6 +258,7 @@ static uint32 AddUniform(
     uint32                   Offset,
     uint32                   Size,
     ResourceType::Enum       Type,
+    ShaderDataType::Enum     DataType,
     ShaderUniformScope::Enum Scope
 )
 {
@@ -188,6 +268,7 @@ static uint32 AddUniform(
     Uniform.Stride = Size;
     Uniform.Scope = Scope;
     Uniform.Type = Type;
+    Uniform.DataType = DataType;
 
     uint32 Index = (uint32)Shader->UniformCache.Size();
     Shader->UniformCacheMapping[Name] = Index;
@@ -327,12 +408,38 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
     return true;
 }
 
-void ShaderSystem::ApplyGlobalProperties(const Mat4f& Projection, const Mat4f& View)
+void ShaderSystem::ApplyGlobalProperties(const GlobalUniformData& GlobalShaderData)
 {
     KASSERT(State->CurrentShader);
 
-    SetUniformByIndex(0, Projection);
-    SetUniformByIndex(1, View);
+    // TODO: This is very YOLO for now
+    if (State->CurrentShader->UniformCache.Length >= 5 && State->CurrentShader->UniformCache[4].Scope == ShaderUniformScope::Global)
+    {
+        SetUniformByIndex(0, GlobalShaderData.Projection);
+        SetUniformByIndex(1, GlobalShaderData.View);
+        SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
+        SetUniformByIndex(3, GlobalShaderData.GlobalLightColor);
+        SetUniformByIndex(4, GlobalShaderData.CameraPosition);
+    }
+    else if (State->CurrentShader->UniformCache.Length >= 4 && State->CurrentShader->UniformCache[3].Scope == ShaderUniformScope::Global)
+    {
+        SetUniformByIndex(0, GlobalShaderData.Projection);
+        SetUniformByIndex(1, GlobalShaderData.View);
+        SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
+        SetUniformByIndex(3, GlobalShaderData.GlobalLightColor);
+    }
+    else if (State->CurrentShader->UniformCache.Length >= 3 && State->CurrentShader->UniformCache[2].Scope == ShaderUniformScope::Global)
+    {
+        SetUniformByIndex(0, GlobalShaderData.Projection);
+        SetUniformByIndex(1, GlobalShaderData.View);
+        SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
+    }
+    else
+    {
+        SetUniformByIndex(0, GlobalShaderData.Projection);
+        SetUniformByIndex(1, GlobalShaderData.View);
+    }
+
     Renderer->ApplyGlobalShaderProperties(State->CurrentShader);
 }
 

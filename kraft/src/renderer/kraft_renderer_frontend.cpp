@@ -10,6 +10,8 @@
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
 #include <renderer/kraft_resource_manager.h>
+#include <world/kraft_world.h>
+#include <world/kraft_entity.h>
 
 #include <resources/kraft_resource_types.h>
 #include <renderer/shaderfx/kraft_shaderfx_types.h>
@@ -84,14 +86,24 @@ void RendererFrontend::OnResize(int width, int height)
 
 bool RendererFrontend::DrawFrame()
 {
-    Mat4f ProjectionMatrix = this->Camera->ProjectionMatrix;
-    Mat4f ViewMatrix = this->Camera->GetViewMatrix();
+    GlobalUniformData GlobalShaderData = {};
+    GlobalShaderData.Projection = this->Camera->ProjectionMatrix;
+    GlobalShaderData.View = this->Camera->GetViewMatrix();
+    GlobalShaderData.CameraPosition = this->Camera->Position;
 
     int CurrentFrame = RendererData.Backend->PrepareFrame();
     for (int i = 0; i < RendererData.RenderSurfaces.Length; i++)
     {
         RenderDataT&    SurfaceRenderData = RendererData.RenderSurfaces[i];
         RenderSurfaceT& Surface = SurfaceRenderData.Surface;
+
+        if (Surface.World->GlobalLight != EntityHandleInvalid)
+        {
+            Entity GlobalLight = Surface.World->GetEntity(Surface.World->GlobalLight);
+            GlobalShaderData.GlobalLightColor = GlobalLight.GetComponent<LightComponent>().LightColor;
+            GlobalShaderData.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
+        }
+
         RendererData.Backend->BeginRenderPass(Surface.CmdBuffers[CurrentFrame], Surface.RenderPass);
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
         {
@@ -100,7 +112,7 @@ bool RendererFrontend::DrawFrame()
             if (!Count)
                 continue;
             ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
-            ShaderSystem::ApplyGlobalProperties(ProjectionMatrix, ViewMatrix);
+            ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
             for (int i = 0; i < Count; i++)
             {
                 Renderable Object = Objects[i];

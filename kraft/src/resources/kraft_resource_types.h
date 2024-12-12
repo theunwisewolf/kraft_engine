@@ -26,6 +26,7 @@ struct ShaderUniform
     uint32                   Offset;
     uint32                   Stride;
     ResourceType::Enum       Type;
+    ShaderDataType::Enum     DataType;
     ShaderUniformScope::Enum Scope;
 };
 

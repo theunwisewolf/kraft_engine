@@ -36,10 +36,19 @@ else()
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
 endif()
 
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+# add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+# )
+
+add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/bin/res
+    COMMENT "Copying resources..."
 )
+
+add_dependencies(${PROJECT_NAME} copy_resources)
 
 # add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 #     COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 

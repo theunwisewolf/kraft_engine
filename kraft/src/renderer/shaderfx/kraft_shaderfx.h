@@ -19,6 +19,7 @@ struct VertexLayoutDefinition;
 struct ResourceBindingsDefinition;
 struct ResourceBindingsDefinition;
 struct ConstantBufferDefinition;
+struct UniformBufferDefinition;
 struct RenderStateDefinition;
 struct RenderPassDefinition;
 
@@ -58,6 +59,7 @@ struct ShaderFXParser
     void                 ParseVertexInputBinding(VertexLayoutDefinition* Layout);
     void                 ParseResourceBindings(ResourceBindingsDefinition* ResourceBindings);
     void                 ParseConstantBuffer(ConstantBufferDefinition* CBufferDefinition);
+    void                 ParseUniformBuffer(UniformBufferDefinition* UBufferDefinition);
     void                 ParseRenderStateBlock(ShaderEffect* Effect);
     void                 ParseRenderState(RenderStateDefinition* State);
     bool                 ParseBlendFactor(const Token& Token, BlendFactor::Enum& Factor);
@@ -68,7 +70,7 @@ struct ShaderFXParser
 };
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose = false);
-bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
+bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
 bool LoadShaderFX(const String& Path, ShaderEffect* Shader);
 bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB);
 

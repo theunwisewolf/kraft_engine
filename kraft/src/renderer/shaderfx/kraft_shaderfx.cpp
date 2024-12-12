@@ -217,6 +217,18 @@ void ShaderFXParser::ParseLayoutBlock(ShaderEffect* Effect)
 
             Effect->ConstantBuffers.Push(CBufferDefinition);
         }
+        else if (Token.MatchesKeyword("UniformBuffer"))
+        {
+            // Consume "UniformBuffer"
+            Token = this->Lexer->NextToken();
+
+            UniformBufferDefinition UBufferDefinition;
+            UBufferDefinition.Name = String(Token.Text, Token.Length);
+
+            this->ParseUniformBuffer(&UBufferDefinition);
+
+            Effect->UniformBuffers.Push(UBufferDefinition);
+        }
     }
 }
 
@@ -339,6 +351,41 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition* CBufferDefini
         }
 
         CBufferDefinition->Fields.Push(Entry);
+    }
+}
+
+void ShaderFXParser::ParseUniformBuffer(UniformBufferDefinition* UBufferDefinition)
+{
+    Token Token;
+    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    {
+        return;
+    }
+
+    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    {
+        // TODO: Errors when something other than an identifier is found
+        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+            continue;
+
+        UniformBufferEntry Entry;
+
+        // Parse the data type
+        Entry.Type = this->ParseDataType(Token);
+        if (Entry.Type == ShaderDataType::Count)
+        {
+            MARK_ERROR_WITH_FIELD("Invalid data type for uniform buffer entry", Token.Text);
+            return;
+        }
+
+        // Parse the name
+        if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+        {
+            return;
+        }
+
+        Entry.Name = Token.ToString();
+        UBufferDefinition->Fields.Push(Entry);
     }
 }
 
@@ -1110,8 +1157,70 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
     return true;
 }
 
-bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+uint64 GetUniformBufferSize(const kraft::renderer::UniformBufferDefinition& UniformBuffer)
 {
+    uint64 SizeInBytes = 0;
+    for (int FieldIdx = 0; FieldIdx < UniformBuffer.Fields.Length; FieldIdx++)
+    {
+        const UniformBufferEntry& Field = UniformBuffer.Fields[FieldIdx];
+        SizeInBytes += ShaderDataType::SizeOf(Field.Type);
+    }
+
+    return SizeInBytes;
+}
+
+bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+{
+    // Basic verification
+    auto& Resources = Shader.Resources;
+    auto& UniformBuffers = Shader.UniformBuffers;
+    for (int i = 0; i < Resources.Length; i++)
+    {
+        auto& Resource = Resources[i];
+        for (int j = 0; j < Resource.ResourceBindings.Length; j++)
+        {
+            if (Resource.ResourceBindings[j].Type == ResourceType::UniformBuffer)
+            {
+                bool UniformBufferDefExists = false;
+                for (int UBIdx = 0; UBIdx < UniformBuffers.Length; UBIdx++)
+                {
+                    if (UniformBuffers[UBIdx].Name == Resource.ResourceBindings[j].Name)
+                    {
+                        UniformBufferDefExists = true;
+
+                        // Check if the size is incorrect
+                        uint64 ExpectedSize = GetUniformBufferSize(UniformBuffers[UBIdx]);
+                        // TODO: Maybe auto fix? 
+                        if (Resource.ResourceBindings[j].Size != ExpectedSize)
+                        {
+                            KERROR(
+                                "'%s' shader compilation failed with error: Incorrect UniformBuffer size: '%d bytes'. Expected '%d bytes'.",
+                                *Shader.ResourcePath,
+                                Resource.ResourceBindings[j].Size,
+                                ExpectedSize
+                            );
+                            return false;
+                        }
+
+                        // Update the parent index
+                        Resource.ResourceBindings[j].ParentIndex = UBIdx;
+                        break;
+                    }
+                }
+
+                if (!UniformBufferDefExists)
+                {
+                    KERROR(
+                        "'%s' shader compilation failed with error: Missing UniformBufferDefinition for %s",
+                        *Shader.ResourcePath,
+                        *Resource.ResourceBindings[j].Name
+                    );
+                    return false;
+                }
+            }
+        }
+    }
+
     shaderc_compiler_t           Compiler = shaderc_compiler_initialize();
     shaderc_compilation_result_t Result;
     shaderc_compile_options_t    CompileOptions;
@@ -1122,6 +1231,7 @@ bool CompileShaderFX(const ShaderEffect& Shader, const String& OutputPath, bool 
     BinaryOutput.Write(Shader.VertexLayouts);
     BinaryOutput.Write(Shader.Resources);
     BinaryOutput.Write(Shader.ConstantBuffers);
+    BinaryOutput.Write(Shader.UniformBuffers);
     BinaryOutput.Write(Shader.RenderStates);
     BinaryOutput.Write(Shader.RenderPasses.Length);
 
@@ -1270,6 +1380,7 @@ bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
     Reader.Read(&Shader->VertexLayouts);
     Reader.Read(&Shader->Resources);
     Reader.Read(&Shader->ConstantBuffers);
+    Reader.Read(&Shader->UniformBuffers);
     Reader.Read(&Shader->RenderStates);
 
     uint64 RenderPassesCount;

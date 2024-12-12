@@ -48,6 +48,7 @@ struct ResourceBinding
     String             Name;
     uint16             Binding = 0;
     uint16             Size = 0;
+    int16              ParentIndex = -1; // If this is a uniform buffer, index into the actual buffer
     ResourceType::Enum Type;
     ShaderStageFlags   Stage;
 
@@ -56,6 +57,7 @@ struct ResourceBinding
         Out->Write(Name);
         Out->Write(Binding);
         Out->Write(Size);
+        Out->Write(ParentIndex);
         Out->Write(Type);
         Out->Write(Stage);
     }
@@ -65,6 +67,7 @@ struct ResourceBinding
         In->Read(&Name);
         In->Read(&Binding);
         In->Read(&Size);
+        In->Read(&ParentIndex);
         In->Read(&Type);
         In->Read(&Stage);
     }
@@ -178,6 +181,42 @@ struct ConstantBufferDefinition
     }
 };
 
+struct UniformBufferEntry
+{
+    ShaderDataType::Enum Type;
+    String               Name;
+
+    void WriteTo(kraft::Buffer* Out)
+    {
+        Out->Write(Name);
+        Out->Write(Type);
+    }
+
+    void ReadFrom(kraft::Buffer* In)
+    {
+        In->Read(&Name);
+        In->Read(&Type);
+    }
+};
+
+struct UniformBufferDefinition
+{
+    String                    Name;
+    Array<UniformBufferEntry> Fields;
+
+    void WriteTo(kraft::Buffer* Out)
+    {
+        Out->Write(Name);
+        Out->Write(Fields);
+    }
+
+    void ReadFrom(kraft::Buffer* In)
+    {
+        In->Read(&Name);
+        In->Read(&Fields);
+    }
+};
+
 struct RenderPassDefinition
 {
     struct ShaderDefinition
@@ -213,6 +252,7 @@ struct ShaderEffect
     Array<VertexLayoutDefinition>     VertexLayouts;
     Array<ResourceBindingsDefinition> Resources;
     Array<ConstantBufferDefinition>   ConstantBuffers;
+    Array<UniformBufferDefinition>    UniformBuffers;
     Array<RenderStateDefinition>      RenderStates;
     Array<ShaderCodeFragment>         CodeFragments;
     Array<RenderPassDefinition>       RenderPasses;

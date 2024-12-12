@@ -10,7 +10,7 @@
             },
             "presentation": {
                 "reveal": "silent",
-                "panel": "new",
+                "panel": "shared",
                 "close": true,
             },
             "command": "${workspaceFolder}/tools/shader_compiler/bin/KraftShaderCompiler.exe",

@@ -20,6 +20,7 @@ struct World
     friend struct Entity;
     uint64        EntityCount = 0;
     EntityHandleT Root;
+    EntityHandleT GlobalLight = EntityHandleInvalid;
     Camera        Camera;
 
     World();

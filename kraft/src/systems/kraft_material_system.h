@@ -39,7 +39,6 @@ struct MaterialSystem
 
     template<typename T>
     static bool SetProperty(Material* Instance, const String& Name, T Value);
-    static bool SetProperty(Material* Instance, const String& Name, void* Value);
 };
 
 }

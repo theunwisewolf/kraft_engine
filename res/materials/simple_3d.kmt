@@ -2,5 +2,9 @@ Material Simple2D
 {
     Shader          "res/shaders/basic.kfx.bkfx"
     DiffuseColor    vec4(1.0, 1.0, 1.0, 1.0)
+    Ambient         vec3(0.5, 0.5, 0.5)
+    Diffuse         vec3(1.0, 1.0, 1.0)
+    Specular        vec3(0.5, 0.5, 0.5)
+    Shininess       float32(32)
     DiffuseMapName  "res/textures/viking_room.png"
 }

@@ -165,9 +165,8 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
         ShaderUniform Uniform = Shader->UniformCache[It->second];
         if (Uniform.Scope == ShaderUniformScope::Instance)
         {
-            const String& UniformName = It->first;
-
-            Instance->Properties[UniformName] = MaterialProperty();
+            const String&    UniformName = It->first;
+            MaterialProperty Property = MaterialProperty();
 
             // Look to see if this property is present in the material
             auto _MaterialIt = Data.Properties.find(UniformName);
@@ -183,14 +182,15 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
                 // Copy over the value
                 if (Uniform.Type == ResourceType::Sampler)
                 {
-                    MemCpy(Instance->Properties[UniformName].Memory, DataIt->second.ptr->Memory, sizeof(Texture));
+                    MemCpy(Property.Memory, DataIt->second.ptr->Memory, sizeof(Handle<Texture>));
                 }
                 else
                 {
-                    MemCpy(Instance->Properties[UniformName].Memory, DataIt->second.ptr->Memory, Uniform.Stride);
+                    MemCpy(Property.Memory, DataIt->second.ptr->Memory, Uniform.Stride);
                 }
 
-                Instance->Properties[UniformName].UniformIndex = It->second;
+                Property.UniformIndex = It->second;
+                Instance->Properties[UniformName] = Property;
             }
         }
     }
@@ -253,6 +253,7 @@ void MaterialSystem::ApplyInstanceProperties(Material* Instance)
 
         Instance->Dirty = false;
     }
+
     ShaderSystem::ApplyInstanceProperties();
 }
 
@@ -439,7 +440,87 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                     }
                     else
                     {
-                        KERROR("Material has an invalid field %s", *Token.ToString());
+                        String Key = Token.ToString();
+                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                        {
+                            return false;
+                        }
+
+                        if (Token.MatchesKeyword("vec4") || Token.MatchesKeyword("vec3") || Token.MatchesKeyword("vec2"))
+                        {
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            {
+                                return false;
+                            }
+
+                            float32 Components[4];
+                            int     ComponentCount = 0;
+                            while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            {
+                                if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
+                                {
+                                    continue;
+                                }
+                                else if (Token.Type == TokenType::TOKEN_TYPE_NUMBER)
+                                {
+                                    Components[ComponentCount++] = (float32)Token.FloatValue;
+                                }
+                                else
+                                {
+                                    return false;
+                                }
+                            }
+
+                            if (ComponentCount == 4)
+                                Data->Properties[Key] = Vec4f(Components[0], Components[1], Components[2], Components[3]);
+                            if (ComponentCount == 3)
+                                Data->Properties[Key] = Vec3f(Components[0], Components[1], Components[2]);
+                            if (ComponentCount == 2)
+                                Data->Properties[Key] = Vec2f(Components[0], Components[1]);
+                        }
+                        else if (Token.MatchesKeyword("float32"))
+                        {
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            {
+                                return false;
+                            }
+
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+                            {
+                                return false;
+                            }
+
+                            Data->Properties[Key] = float32(Token.FloatValue);
+
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            {
+                                return false;
+                            }
+                        }
+                        else if (Token.MatchesKeyword("float64"))
+                        {
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            {
+                                return false;
+                            }
+
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+                            {
+                                return false;
+                            }
+
+                            Data->Properties[Key] = float64(Token.FloatValue);
+
+                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            {
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            KERROR("Material has an invalid field %s", *Token.ToString());
+                            return false;
+                        }
                     }
                 }
             }
@@ -453,14 +534,15 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
     return true;
 }
 
-#define MATERIAL_SYSTEM_SET_PROPERTY(Type) \
-template<> bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value) \
-{ \
-    MaterialProperty& Property = Instance->Properties[Name]; \
-    Property.Set(Value); \
-    Instance->Dirty = true; \
-    return true; \
-}
+#define MATERIAL_SYSTEM_SET_PROPERTY(Type)                                                                                                 \
+    template<>                                                                                                                             \
+    bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value)                                                   \
+    {                                                                                                                                      \
+        MaterialProperty& Property = Instance->Properties[Name];                                                                           \
+        Property.Set(Value);                                                                                                               \
+        Instance->Dirty = true;                                                                                                            \
+        return true;                                                                                                                       \
+    }
 
 MATERIAL_SYSTEM_SET_PROPERTY(Mat4f);
 MATERIAL_SYSTEM_SET_PROPERTY(Vec4f);

@@ -9,6 +9,7 @@ template<typename>
 struct Handle;
 
 struct RenderPass;
+struct GlobalUniformData;
 }
 
 struct Shader;
@@ -51,7 +52,7 @@ struct ShaderSystem
 
     static bool SetUniform(const String& Name, void* Value, bool Invalidate = false);
 
-    static void ApplyGlobalProperties(const Matrix<float32, 4, 4>& Projection, const Matrix<float32, 4, 4>& View);
+    static void ApplyGlobalProperties(const renderer::GlobalUniformData& GlobalShaderData);
     static void ApplyInstanceProperties();
 };
 
