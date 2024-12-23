@@ -1,25 +1,33 @@
 #pragma once
 
+#include <containers/kraft_array.h>
 #include <core/kraft_core.h>
 #include <world/kraft_entity_types.h>
 #include <world/kraft_world.h>
-#include <containers/kraft_array.h>
+
 #include <renderer/kraft_renderer_types.h>
 
 #include "imgui/imgui_renderer.h"
 
 namespace kraft {
 struct Entity;
+struct Camera;
 }
 
 struct ApplicationState
 {
     float64       LastTime = 0.0f;
     char          WindowTitleBuffer[1024];
-    float64       TargetFrameTime = 1 / 60.f;
+    float64       TargetFrameTime = 1 / 144.f;
     uint64        FrameCount = 0;
     float64       TimeSinceLastFrame = 0.f;
     RendererImGui ImGuiRenderer;
+};
+
+struct EditorCamera : kraft::Camera
+{
+    bool    Flying = false;
+    float32 Sensitivity = 10.0f;
 };
 
 struct EditorState
@@ -28,9 +36,12 @@ struct EditorState
     kraft::EntityHandleT            SelectedEntity = kraft::EntityHandleInvalid;
     kraft::World*                   CurrentWorld;
     kraft::renderer::RenderSurfaceT RenderSurface;
+    EditorCamera                    ViewportCamera;
 
     EditorState();
     kraft::Entity GetSelectedEntity();
+
+    void SetCamera(const EditorCamera& Camera);
 };
 
 extern ApplicationState GlobalAppState;

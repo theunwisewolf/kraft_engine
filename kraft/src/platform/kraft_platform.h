@@ -75,7 +75,7 @@ struct KRAFT_API Platform
     // Misc
     static void        SleepMilliseconds(uint64_t Milliseconds);
     static const char* GetKeyName(Keys key);
-    static Window&     GetWindow();
+    static Window*     GetWindow();
 
     static const char* GetEnv(const char* Key);
     static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);

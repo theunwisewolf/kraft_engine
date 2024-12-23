@@ -47,7 +47,7 @@ bool RendererImGui::Init()
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    const float DPI = kraft::Platform::GetWindow().DPI;
+    const float DPI = kraft::Platform::GetWindow()->DPI;
 
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();

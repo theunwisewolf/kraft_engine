@@ -1,0 +1,13 @@
+#pragma once
+
+namespace kraft {
+
+enum CursorMode
+{
+    CURSOR_MODE_NORMAL = 0x00034001,
+    CURSOR_MODE_HIDDEN = 0x00034002,
+    CURSOR_MODE_DISABLED = 0x00034003,
+    CURSOR_MODE_LOCKED_TO_WINDOW = 0x00034004,
+};
+
+}

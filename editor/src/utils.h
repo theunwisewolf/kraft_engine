@@ -17,7 +17,7 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
         Camera.ProjectionMatrix = kraft::PerspectiveMatrix(
-            kraft::DegToRadians(45.0f), (float)kraft::Platform::GetWindow().Width / (float)kraft::Platform::GetWindow().Height, 0.1f, 1000.f
+            kraft::DegToRadians(45.0f), (float)kraft::Platform::GetWindow()->Width / (float)kraft::Platform::GetWindow()->Height, 0.1f, 1000.f
         );
 
         // Camera.SetPosition({25.0f, 15.0f, 20.f});
@@ -36,10 +36,10 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Orthographic;
         Camera.ProjectionMatrix = kraft::OrthographicMatrix(
-            -(float)kraft::Platform::GetWindow().Width * 0.5f,
-            (float)kraft::Platform::GetWindow().Width * 0.5f,
-            -(float)kraft::Platform::GetWindow().Height * 0.5f,
-            (float)kraft::Platform::GetWindow().Height * 0.5f,
+            -(float)kraft::Platform::GetWindow()->Width * 0.5f,
+            (float)kraft::Platform::GetWindow()->Width * 0.5f,
+            -(float)kraft::Platform::GetWindow()->Height * 0.5f,
+            (float)kraft::Platform::GetWindow()->Height * 0.5f,
             -1.0f,
             1.0f
         );
@@ -57,8 +57,8 @@ static void UpdateObjectScale(uint32 EntityID)
     // kraft::renderer::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
     // kraft::Texture*                         Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
-    // float WindowWidth = kraft::Platform::GetWindow().Width;
-    // float WindowHeight = kraft::Platform::GetWindow().Height;
+    // float WindowWidth = kraft::Platform::GetWindow()->Width;
+    // float WindowHeight = kraft::Platform::GetWindow()->Height;
     // float RatioImage = Texture->Width / Texture->Height;
     // float RatioWindow = WindowWidth / WindowHeight;
 

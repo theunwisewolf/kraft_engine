@@ -1,6 +1,7 @@
 #pragma once
 
 #include <core/kraft_core.h>
+#include <platform/kraft_window_types.h>
 
 #define KRAFT_ERROR_GLFW_INIT_FAILED          1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
@@ -17,12 +18,16 @@ struct KRAFT_API Window
 {
     GLFWwindow* PlatformWindowHandle;
 
-    int  Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType);
-    bool PollEvents(); // Returns false if the window wants to close
-    void SetWindowTitle(const char* title);
-    void Minimize();
-    void Maximize();
-    void Destroy();
+    int        Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType);
+    bool       PollEvents(); // Returns false if the window wants to close
+    void       SetWindowTitle(const char* title);
+    void       Minimize();
+    void       Maximize();
+    void       SetCursorMode(CursorMode Mode);
+    CursorMode GetCursorMode();
+    void       SetCursorPosition(float64 X, float64 Y);
+    void       GetCursorPosition(float64* X, float64* Y);
+    void       Destroy();
 
     static void WindowSizeCallback(GLFWwindow* window, int width, int height);
     static void WindowMaximizeCallback(GLFWwindow* window, int maximized);

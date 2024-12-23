@@ -17,7 +17,7 @@
 struct ApplicationState
 {};
 
-bool Init()
+int Init()
 {
     auto& CliArgs = kraft::Engine::GetCommandLineArgs();
     if (CliArgs.Length < 2)
@@ -36,6 +36,7 @@ bool Init()
     kraft::Array<kraft::filesystem::FileInfo> Files;
     kraft::filesystem::ReadDir(BasePath, Files);
 
+    int ErrorCount = 0;
     for (int i = 0; i < Files.Length; i++)
     {
         if (Files[i].Name.EndsWith(".kfx"))
@@ -50,11 +51,12 @@ bool Init()
             else
             {
                 KERROR("Failed to compile %s", *ShaderFXFilePath);
+                ErrorCount++;
             }
         }
     }
 
-    return true;
+    return ErrorCount;
 }
 
 int main(int argc, char* argv[])
@@ -67,9 +69,9 @@ int main(int argc, char* argv[])
         }
     );
 
-    Init();
+    int ErrorCount = Init();
 
     kraft::Engine::Destroy();
 
-    return 0;
+    return ErrorCount;
 }

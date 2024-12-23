@@ -98,7 +98,7 @@ bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
     EventSystem::Listen(EventType::EVENT_TYPE_WINDOW_RESIZE, nullptr, WindowResizeListener);
     if (Engine::Config.StartMaximized)
     {
-        Platform::GetWindow().Maximize();
+        Platform::GetWindow()->Maximize();
     }
 #endif
 

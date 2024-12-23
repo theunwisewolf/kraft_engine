@@ -15,7 +15,7 @@
 
 namespace kraft {
 
-Window& Platform::GetWindow()
+Window* Platform::GetWindow()
 {
 #if defined(KRAFT_PLATFORM_WINDOWS)
     Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
@@ -25,7 +25,7 @@ Window& Platform::GetWindow()
     LinuxPlatformState* State = (LinuxPlatformState*)Platform::InternalState;
 #endif
 
-    return State->Window;
+    return &State->Window;
 }
 
 }

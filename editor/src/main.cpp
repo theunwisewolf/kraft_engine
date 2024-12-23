@@ -32,7 +32,7 @@
 ApplicationState GlobalAppState = {
     .LastTime = 0.0f,
     .WindowTitleBuffer = { 0 },
-    .TargetFrameTime = 1 / 60.f,
+    .TargetFrameTime = 1 / 144.f,
     .FrameCount = 0,
     .TimeSinceLastFrame = 0.f,
     // .ImGuiRenderer = RendererImGui(),
@@ -101,6 +101,16 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
     int button = data.Int32Value[0];
     // KINFO("%d mouse button pressed", button);
 
+    if (button == kraft::MouseButtons::MOUSE_BUTTON_RIGHT)
+    {
+        kraft::Platform::GetWindow()->SetCursorMode(kraft::CURSOR_MODE_DISABLED);
+
+        ImGuiIO& IO = ImGui::GetIO();
+        IO.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+        IO.ConfigFlags |= ImGuiConfigFlags_NavNoCaptureKeyboard;
+        EditorState::Ptr->ViewportCamera.Flying = true;
+    }
+
     return false;
 }
 
@@ -108,6 +118,16 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
 {
     int button = data.Int32Value[0];
     // KINFO("%d mouse button released", button);
+
+    if (button == kraft::MouseButtons::MOUSE_BUTTON_RIGHT)
+    {
+        kraft::Platform::GetWindow()->SetCursorMode(kraft::CURSOR_MODE_NORMAL);
+        ImGuiIO& IO = ImGui::GetIO();
+
+        IO.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+        IO.ConfigFlags &= ~ImGuiConfigFlags_NavNoCaptureKeyboard;
+        EditorState::Ptr->ViewportCamera.Flying = false;
+    }
 
     return false;
 }
@@ -124,15 +144,19 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
-    if (kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
+    if (EditorState::Ptr->ViewportCamera.Flying)
     {
-        const float32        Sensitivity = 0.1f;
         kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
-        float32              x = float32(data.Int32Value[0] - MousePositionPrev.x) * Sensitivity;
-        float32              y = -float32(data.Int32Value[1] - MousePositionPrev.y) * Sensitivity;
+        float32              X = float32(data.Int32Value[0] - MousePositionPrev.x);
+        float32              Y = -float32(data.Int32Value[1] - MousePositionPrev.y);
 
-        Camera.Yaw += x;
-        Camera.Pitch += y;
+        // float64 X, Y;
+        // kraft::Platform::GetWindow()->GetCursorPosition(&X, &Y);
+        X = X * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
+        Y = Y * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
+
+        Camera.Yaw += float32(X);
+        Camera.Pitch += float32(Y);
         Camera.Pitch = kraft::math::Clamp(Camera.Pitch, -89.0f, 89.0f);
 
         Camera.UpdateVectors();
@@ -204,6 +228,8 @@ bool Init()
     EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
     new (EditorState::Ptr->CurrentWorld) kraft::World();
 
+    EditorState::Ptr->SetCamera(EditorCamera());
+
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
     EventSystem::Listen(EVENT_TYPE_KEY_UP, nullptr, KeyUpEventListener);
@@ -243,14 +269,37 @@ bool Init()
 
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
-    kraft::Entity     VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
+    KASSERT(VikingRoom);
+
+    kraft::Entity VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
         kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
         kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
         kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
     );
+
     EditorState::Ptr->SelectedEntity = VikingRoomMeshParent.EntityHandle;
-    KASSERT(VikingRoom);
+    for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
+    {
+        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
+            VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent
+        );
+        MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
+        Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+        Mesh.MaterialInstance =
+            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+
+        kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
+        VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
+        Transform.ComputeModelMatrix();
+    }
+
+    VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent2", WorldRoot);
+    VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
+        kraft::Vec3f{ 30.0f, 0.0f, 16.0f },
+        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
+        kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+    );
     for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
     {
         kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
@@ -533,7 +582,7 @@ void Run()
                 kraft::GetMemoryStats().AllocatedMiB
             );
 
-            kraft::Platform::GetWindow().SetWindowTitle(GlobalAppState.WindowTitleBuffer);
+            kraft::Platform::GetWindow()->SetWindowTitle(GlobalAppState.WindowTitleBuffer);
 
             GlobalAppState.TimeSinceLastFrame = 0.f;
             GlobalAppState.FrameCount = 0;

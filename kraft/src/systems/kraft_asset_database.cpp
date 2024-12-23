@@ -42,6 +42,8 @@ void AssetDatabase::Init()
     uint64       MemoryRequirement = sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)) + (MaxMeshes * sizeof(MeshAsset));
     AssetDatabaseMemory = MallocBlock(MemoryRequirement, MEMORY_TAG_ASSET_DB, true);
     AssetDatabaseStatePtr = (AssetDatabaseStateT*)AssetDatabaseMemory.Data;
+    new (AssetDatabaseStatePtr) AssetDatabaseStateT;
+
     AssetDatabaseStatePtr->Assets = (Asset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT));
     AssetDatabaseStatePtr->Meshes = (MeshAsset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)));
 }
@@ -191,6 +193,12 @@ void AssetDatabase::ProcessAINode(MeshAsset& BaseMesh, aiNode* Node, const aiSce
 
 MeshAsset* AssetDatabase::LoadMesh(const String& Path)
 {
+    auto It = AssetDatabaseStatePtr->AssetsIndexMap.find(Path);
+    if (It != AssetDatabaseStatePtr->AssetsIndexMap.end())
+    {
+        return &AssetDatabaseStatePtr->Meshes[It->second];
+    }
+
 #if USE_ASSIMP
     const struct aiScene* Scene =
         // aiImportFile(*Path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType);

@@ -10,6 +10,7 @@
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_texture_system.h>
 #include <world/kraft_entity.h>
+#include <core/kraft_input.h>
 
 #include "editor.h"
 #include "imgui/imgui_renderer.h"
@@ -22,12 +23,13 @@
 #include "imgui/extensions/imguizmo/ImGuizmo.h"
 #include <imgui/imgui.h>
 
-struct GizmosState
+static struct GizmoStateT
 {
     ImGuizmo::OPERATION CurrentOperation;
     ImGuizmo::MODE      Mode;
     bool                Snap;
-} State = {};
+    kraft::Vec3f        Snapping;
+} GizmoState = {};
 
 static ImTextureID ImSceneTexture;
 
@@ -36,9 +38,10 @@ void InitImguiWidgets()
     GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
     ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
-    State.CurrentOperation = ImGuizmo::TRANSLATE;
-    State.Mode = ImGuizmo::LOCAL;
-    State.Snap = false;
+    GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
+    GizmoState.Mode = ImGuizmo::LOCAL;
+    GizmoState.Snap = false;
+    GizmoState.Snapping = {1.0f, 1.0f, 1.0f};
 }
 
 void DrawImGuiWidgets(bool refresh)
@@ -47,13 +50,13 @@ void DrawImGuiWidgets(bool refresh)
 
     ImGui::Begin("Debug");
 
-    static float left = -(float)kraft::Platform::GetWindow().Width * 0.5f, right = (float)kraft::Platform::GetWindow().Width * 0.5f,
-                 top = -(float)kraft::Platform::GetWindow().Height * 0.5f, bottom = (float)kraft::Platform::GetWindow().Height * 0.5f,
+    static float left = -(float)kraft::Platform::GetWindow()->Width * 0.5f, right = (float)kraft::Platform::GetWindow()->Width * 0.5f,
+                 top = -(float)kraft::Platform::GetWindow()->Height * 0.5f, bottom = (float)kraft::Platform::GetWindow()->Height * 0.5f,
                  nearClip = -1.f, farClip = 1.f;
 
     static float fov = 45.f;
-    static float width = (float)kraft::Platform::GetWindow().Width;
-    static float height = (float)kraft::Platform::GetWindow().Height;
+    static float width = (float)kraft::Platform::GetWindow()->Width;
+    static float height = (float)kraft::Platform::GetWindow()->Height;
     static float nearClipP = 0.1f;
     static float farClipP = 1000.f;
 
@@ -62,8 +65,8 @@ void DrawImGuiWidgets(bool refresh)
     //     EditorState::Ptr->GetSelectedEntity().MaterialInstance->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
     // kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
 
-    // kraft::Vec2f ratio = { (float)Texture->Width / kraft::Platform::GetWindow().Width,
-    //                        (float)Texture->Height / kraft::Platform::GetWindow().Height };
+    // kraft::Vec2f ratio = { (float)Texture->Width / kraft::Platform::GetWindow()->Width,
+    //                        (float)Texture->Height / kraft::Platform::GetWindow()->Height };
     // float        downScale = kraft::math::Max(ratio.x, ratio.y);
 
     static kraft::Vec3f rotationDeg = kraft::Vec3fZero;
@@ -274,16 +277,28 @@ void DrawImGuiWidgets(bool refresh)
 
     // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
     {
+        if (!EditorState::Ptr->ViewportCamera.Flying)
+        {
+            if (kraft::InputSystem::IsKeyDown(kraft::KEY_Q))
+                GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
+            else if (kraft::InputSystem::IsKeyDown(kraft::KEY_W))
+                GizmoState.CurrentOperation = ImGuizmo::ROTATE;
+            else if (kraft::InputSystem::IsKeyDown(kraft::KEY_E))
+                GizmoState.CurrentOperation = ImGuizmo::SCALE;
+
+            GizmoState.Snap = kraft::InputSystem::IsKeyDown(kraft::KEY_LEFT_CONTROL);
+        }
+
         auto  SelectedEntity = EditorState::Ptr->GetSelectedEntity();
         auto& Transform = SelectedEntity.GetComponent<kraft::TransformComponent>();
-        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Q))
-            State.CurrentOperation = ImGuizmo::TRANSLATE;
+        // if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Q))
+        //     GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
 
-        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_W))
-            State.CurrentOperation = ImGuizmo::ROTATE;
+        // if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_W))
+        //     GizmoState.CurrentOperation = ImGuizmo::ROTATE;
 
-        if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_E))
-            State.CurrentOperation = ImGuizmo::SCALE;
+        // if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_E))
+        //     GizmoState.CurrentOperation = ImGuizmo::SCALE;
 
         ImGuizmo::SetOrthographic(Camera.ProjectionType == kraft::CameraProjectionType::Orthographic);
         // ImGuizmo::SetOrthographic(false);
@@ -298,10 +313,15 @@ void DrawImGuiWidgets(bool refresh)
         //     ImGui::GetColorU32(ImVec4(1, 1, 0, 1))
         // );
 
-        // ImGuizmo::Manipulate(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, State.CurrentOperation, State.Mode, Matrix._data, nullptr, State.Snap ? Snap._data : nullptr);
         kraft::Mat4f EntityWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
         ImGuizmo::Manipulate(
-            Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, State.CurrentOperation, State.Mode, EntityWorldTransform
+            Camera.ViewMatrix._data,
+            Camera.ProjectionMatrix._data,
+            GizmoState.CurrentOperation,
+            GizmoState.Mode,
+            EntityWorldTransform,
+            nullptr,
+            GizmoState.Snap ? GizmoState.Snapping._data : nullptr
         );
         // ImGuizmo::DrawCubes(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, SelectedEntity.ModelMatrix._data, 1);
         // ImGuizmo::DrawCubes(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, SelectedEntity.ModelMatrix._data, 1);

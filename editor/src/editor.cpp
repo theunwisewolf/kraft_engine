@@ -16,3 +16,9 @@ kraft::Entity EditorState::GetSelectedEntity()
 {
     return this->CurrentWorld->GetEntity(SelectedEntity);
 }
+
+void EditorState::SetCamera(const EditorCamera& Camera)
+{
+    this->ViewportCamera = Camera;
+    this->CurrentWorld->Camera = Camera;
+}

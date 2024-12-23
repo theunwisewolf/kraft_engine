@@ -101,6 +101,26 @@ void Window::Maximize()
     glfwMaximizeWindow(this->PlatformWindowHandle);
 }
 
+void Window::SetCursorMode(CursorMode Mode)
+{
+    glfwSetInputMode(this->PlatformWindowHandle, GLFW_CURSOR, (int)Mode);
+}
+
+CursorMode Window::GetCursorMode()
+{
+    return CursorMode(glfwGetInputMode(this->PlatformWindowHandle, GLFW_CURSOR));
+}
+
+void Window::SetCursorPosition(float64 X, float64 Y)
+{
+    glfwSetCursorPos(this->PlatformWindowHandle, (double)X, (double)Y);
+}
+
+void Window::GetCursorPosition(float64* X, float64* Y)
+{
+    glfwGetCursorPos(this->PlatformWindowHandle, X, Y);
+}
+
 void Window::WindowSizeCallback(GLFWwindow* window, int Width, int Height)
 {
     Window* Self = (Window*)glfwGetWindowUserPointer(window);

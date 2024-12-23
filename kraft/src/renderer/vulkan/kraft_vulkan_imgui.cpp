@@ -71,8 +71,8 @@ bool Init()
 
     KRAFT_VK_CHECK(vkCreateDescriptorPool(context->LogicalDevice.Handle, &poolInfo, context->AllocationCallbacks, &ImGuiDescriptorPool));
 
-    Window&     KraftWindow = Platform::GetWindow();
-    GLFWwindow* Window = KraftWindow.PlatformWindowHandle;
+    Window*     KraftWindow = Platform::GetWindow();
+    GLFWwindow* Window = KraftWindow->PlatformWindowHandle;
 
     KASSERT(Window);
 

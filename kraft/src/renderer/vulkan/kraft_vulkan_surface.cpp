@@ -14,7 +14,7 @@ namespace kraft::renderer
 
 void CreateVulkanSurface(VulkanContext* context)
 {
-    GLFWwindow* window = Platform::GetWindow().PlatformWindowHandle;
+    GLFWwindow* window = Platform::GetWindow()->PlatformWindowHandle;
     KRAFT_VK_CHECK(glfwCreateWindowSurface(context->Instance, window, context->AllocationCallbacks, &context->Surface));
 
     KSUCCESS("[CreateVulkanSurface]: Successfully created VkSurface");

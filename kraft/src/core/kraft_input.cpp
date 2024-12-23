@@ -7,7 +7,7 @@
 namespace kraft {
 
 bool             InputSystem::Initialized = false;
-InputSystemState InputSystem::State;
+InputSystemState InputSystem::State = { 0 };
 
 bool InputSystem::Init()
 {
@@ -58,7 +58,7 @@ void InputSystem::ProcessMouseButton(int button, bool pressed)
     }
 
     // Check if the mouse was being dragged
-    if (button == MOUSE_BUTTON_LEFT && !pressed)
+    if ((button == MOUSE_BUTTON_LEFT || button == MOUSE_BUTTON_RIGHT) && !pressed)
     {
         if (State.CurrentMouseState.Dragging)
         {
@@ -77,30 +77,28 @@ void InputSystem::ProcessMouseMove(int x, int y)
 {
     if (State.CurrentMouseState.Position.x != x || State.CurrentMouseState.Position.y != y)
     {
+        EventData Data;
+        Data.Int32Value[0] = x;
+        Data.Int32Value[1] = y;
+
         // Check drag
         if (State.CurrentMouseState.Buttons[MOUSE_BUTTON_LEFT] == true || State.CurrentMouseState.Buttons[MOUSE_BUTTON_RIGHT] == true)
         {
-            EventData DragData;
-            DragData.Int32Value[0] = x;
-            DragData.Int32Value[1] = y;
             if (State.CurrentMouseState.Dragging == false)
             {
                 State.CurrentMouseState.Dragging = true;
-                EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_DRAG_START, DragData, 0);
+                EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_DRAG_START, Data, 0);
             }
             else
             {
-                EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_DRAG_DRAGGING, DragData, 0);
+                EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_DRAG_DRAGGING, Data, 0);
             }
         }
 
         State.CurrentMouseState.Position.x = x;
         State.CurrentMouseState.Position.y = y;
 
-        EventData data;
-        data.Int32Value[0] = x;
-        data.Int32Value[1] = y;
-        EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_MOVE, data, 0);
+        EventSystem::Dispatch(EventType::EVENT_TYPE_MOUSE_MOVE, Data, 0);
     }
 }
 
