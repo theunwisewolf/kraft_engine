@@ -18,6 +18,18 @@ Pool<ConcreteType, Type>::Pool(uint16 ElementCount) : FreeListTop(0)
 }
 
 template<typename ConcreteType, typename Type>
+Pool<ConcreteType, Type>::~Pool()
+{
+    uint64 AuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
+    uint64 DataArraySize = sizeof(ConcreteType) * this->PoolSize;
+    uint64 HandlesArraySize = sizeof(HandleType) * this->PoolSize;
+    uint64 FreeListArraySize = sizeof(uint16) * this->PoolSize;
+    uint64 Size = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+
+    Free(this->AuxiliaryData, Size, MEMORY_TAG_RESOURCE_POOL);
+}
+
+template<typename ConcreteType, typename Type>
 void Pool<ConcreteType, Type>::Grow(uint16 ElementCount)
 {
     // For now we only support enlarging the pool
@@ -35,7 +47,8 @@ void Pool<ConcreteType, Type>::Grow(uint16 ElementCount)
     uint64 OldDataArraySize = sizeof(ConcreteType) * this->PoolSize;
     uint64 OldHandlesArraySize = sizeof(HandleType) * this->PoolSize;
     uint64 OldFreeListArraySize = sizeof(uint16) * this->PoolSize;
-    uint64 OldSize = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+    uint64 OldSize = this->AllocatedSizeInBytes;
+    this->AllocatedSizeInBytes = NewSize;
 
     uint8*        OldBuffer = (uint8*)this->AuxiliaryData;
     Type*         OldAuxiliaryData = (Type*)OldBuffer;

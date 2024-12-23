@@ -93,8 +93,8 @@ struct ResourceBindingsDefinition
 
 struct ShaderCodeFragment
 {
-    String     Name;
-    StringView Code;
+    String Name;
+    String Code;
 
     void WriteTo(kraft::Buffer* Out)
     {

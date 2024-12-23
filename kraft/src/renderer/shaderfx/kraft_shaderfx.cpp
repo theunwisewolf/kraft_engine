@@ -644,7 +644,7 @@ void ShaderFXParser::ParseGLSLBlock(ShaderEffect* Effect)
     }
 
     Token = this->Lexer->NextToken();
-    CodeFragment.Code.Buffer = Token.Text;
+    char* ShaderCodeStart = Token.Text;
 
     int OpenBraceCount = 1;
     while (OpenBraceCount)
@@ -664,14 +664,12 @@ void ShaderFXParser::ParseGLSLBlock(ShaderEffect* Effect)
         }
     }
 
-    CodeFragment.Code.Length = Token.Text - CodeFragment.Code.Buffer;
+    uint64 ShaderCodeLength = Token.Text - ShaderCodeStart;
+    CodeFragment.Code = String(ShaderCodeStart, ShaderCodeLength);
     Effect->CodeFragments.Push(CodeFragment);
-
-    String CodeStr(CodeFragment.Code.Buffer, CodeFragment.Code.Length);
-
     if (this->Verbose)
     {
-        KDEBUG("%s", *CodeStr);
+        KDEBUG("%s", *CodeFragment.Code);
     }
 }
 
@@ -1190,7 +1188,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
 
                         // Check if the size is incorrect
                         uint64 ExpectedSize = GetUniformBufferSize(UniformBuffers[UBIdx]);
-                        // TODO: Maybe auto fix? 
+                        // TODO: Maybe auto fix?
                         if (Resource.ResourceBindings[j].Size != ExpectedSize)
                         {
                             KERROR(
@@ -1323,7 +1321,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
             {
                 ShaderCodeFragment SpirvBinary;
                 SpirvBinary.Name = Stage.CodeFragment.Name;
-                SpirvBinary.Code = StringView(shaderc_result_get_bytes(Result), shaderc_result_get_length(Result));
+                SpirvBinary.Code = String(shaderc_result_get_bytes(Result), shaderc_result_get_length(Result));
                 BinaryOutput.Write(Stage.Stage);
                 BinaryOutput.Write(SpirvBinary);
 
@@ -1369,8 +1367,8 @@ bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
         return false;
     }
 
-    uint64 BinaryBufferSize = kraft::filesystem::GetFileSize(&File);
-    uint8* BinaryBuffer = (uint8*)kraft::Malloc(BinaryBufferSize + 1, MEMORY_TAG_FILE_BUF, true);
+    uint64 BinaryBufferSize = kraft::filesystem::GetFileSize(&File) + 1;
+    uint8* BinaryBuffer = (uint8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
     filesystem::ReadAllBytes(&File, &BinaryBuffer);
     filesystem::CloseFile(&File);
 
@@ -1418,6 +1416,8 @@ bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
             Reader.Read(&Stage.CodeFragment);
         }
     }
+
+    kraft::Free(BinaryBuffer, BinaryBufferSize, MEMORY_TAG_FILE_BUF);
 
     return true;
 }

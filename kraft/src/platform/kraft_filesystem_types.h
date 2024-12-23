@@ -9,7 +9,7 @@ struct FileInfo
 
 struct FileHandle
 {
-    void* Handle;
+    FILE* Handle;
 };
 
 struct FileMMapHandle

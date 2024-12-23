@@ -18,6 +18,9 @@ using HashSet = Excalibur::HashSet<KeyType>;
 template<typename KeyType, typename ValueType>
 using FlatHashMap = phmap::flat_hash_map<KeyType, ValueType>;
 
+template<typename ValueType>
+using FlatHashSet = phmap::flat_hash_set<ValueType>;
+
 }
 
 namespace std {

@@ -14,12 +14,26 @@
         KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                             \
     } while (0)
 
-#define KRAFT_VULKAN_MAX_GEOMETRIES 1024
-#define KRAFT_VULKAN_MAX_BINDINGS   32
+#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES 3
+#define KRAFT_VULKAN_MAX_GEOMETRIES       1024
+#define KRAFT_VULKAN_MAX_MATERIALS        1024
+#define KRAFT_VULKAN_MAX_BINDINGS         32
 
 namespace kraft::renderer {
 
 class VulkanResourceManager;
+
+struct VulkanDescriptorState
+{
+    uint8 Generations[3];
+};
+
+struct VulkanMaterialData
+{
+    uint64                 InstanceUBOOffset;
+    Array<VkDescriptorSet> DescriptorSets;
+    VulkanDescriptorState  DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
+};
 
 //
 // Resources
@@ -184,8 +198,8 @@ struct VulkanSwapchain
 {
     VkSwapchainKHR     Resource;
     VkSurfaceFormatKHR ImageFormat;
-    VkImage*           Images;
-    VkImageView*       ImageViews;
+    VkImage            Images[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    VkImageView        ImageViews[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     uint8              CurrentFrame;
     uint8              MaxFramesInFlight;
     uint32             ImageCount;
@@ -230,8 +244,9 @@ struct VulkanContext
     Handle<Buffer>         IndexBuffer;
     uint32                 CurrentVertexBufferOffset;
     uint32                 CurrentIndexBufferOffset;
-    VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
     VulkanResourceManager* ResourceManager;
+    VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
+    VulkanMaterialData     Materials[KRAFT_VULKAN_MAX_MATERIALS];
 };
 
 struct VulkanPhysicalDeviceRequirements
@@ -246,15 +261,10 @@ struct VulkanPhysicalDeviceRequirements
     const char** DeviceExtensionNames;
 };
 
-struct VulkanDescriptorState
-{
-    uint8 Generations[3];
-};
-
 struct VulkanShaderResources
 {
     Array<VkDescriptorSetLayout> DescriptorSetLayouts;
-    VkDescriptorSet              GlobalDescriptorSets[3];
+    VkDescriptorSet              GlobalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     Handle<Buffer>               UniformBuffer;
     void*                        UniformBufferMemory;
 
@@ -272,13 +282,6 @@ struct VulkanShader
     VkPipeline            Pipeline;
     VkPipelineLayout      PipelineLayout;
     VulkanShaderResources ShaderResources;
-};
-
-struct VulkanMaterialData
-{
-    uint64                 InstanceUBOOffset;
-    Array<VkDescriptorSet> DescriptorSets;
-    VulkanDescriptorState  DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
 };
 
 }

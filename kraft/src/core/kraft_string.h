@@ -44,21 +44,27 @@ struct
 protected:
     static_assert(InternalBufferSize % KRAFT_STRING_SSO_ALIGNMENT == 0, "KString InternalBufferSize must be a multiple of 16");
 
-    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes() const
     {
         return Allocated * sizeof(ValueType);
     }
 
-    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
+    constexpr KRAFT_INLINE static SizeType GetBufferSizeInBytes(SizeType CharCount)
     {
-        return (Size <= InternalBufferSize ? InternalBufferSize : math::Max(2 * Size + 1, 2 * InternalBufferSize + 1));
+        return CharCount * sizeof(ValueType);
     }
 
-    KRAFT_INLINE void Alloc(SizeType Size)
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
     {
-        if (Size > InternalBufferSize)
+        return (Size <= InternalBufferSize ? InternalBufferSize : Size);
+    }
+
+    KRAFT_INLINE void Alloc(SizeType CharCount)
+    {
+        if (GetBufferSizeInBytes(CharCount) > InternalBufferSize)
         {
-            Buffer.HeapBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_STRING, true);
+            Buffer.HeapBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(CharCount), MEMORY_TAG_STRING, true);
+            Allocated = CharCount;
         }
     }
 
@@ -107,12 +113,12 @@ protected:
 
     constexpr inline bool InHeap() const
     {
-        return Allocated > InternalBufferSize;
+        return GetBufferSizeInBytes() > InternalBufferSize;
     }
 
     constexpr inline bool InStack() const
     {
-        return Allocated == InternalBufferSize;
+        return GetBufferSizeInBytes() == InternalBufferSize;
     }
 
 public:
@@ -133,7 +139,7 @@ public:
     constexpr KString(SizeType CharCount, ValueType Char)
     {
         Length = CharCount;
-        Allocated = ChooseAllocationSize(Length + 1);
+        Allocated = ChooseAllocationSize(CharCount + 1);
         Alloc(Allocated);
         MemSet(Data(), static_cast<ValueType>(Char), Allocated);
         Data()[Length] = 0;
@@ -269,7 +275,7 @@ public:
     {
         KString Out;
         Out.Length = StrA.Length + StrB.Length;
-        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Allocated = ChooseAllocationSize(Out.Length + 1);
         Out.Alloc(Out.Allocated);
 
         MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
@@ -283,7 +289,7 @@ public:
     {
         KString Out;
         Out.Length = StrA.Length + StrB.Length;
-        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Allocated = ChooseAllocationSize(Out.Length + 1);
         Out.Alloc(Out.Allocated);
 
         MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
@@ -298,7 +304,7 @@ public:
         SizeType StrBLength = Strlen(StrB);
         KString  Out;
         Out.Length = StrA.Length + StrBLength;
-        Out.Allocated = Out.ChooseAllocationSize(Out.Length + 1);
+        Out.Allocated = ChooseAllocationSize(Out.Length + 1);
         Out.Alloc(Out.Allocated);
 
         MemCpy(Out.Data(), StrA.Data(), StrA.Length * sizeof(ValueType));
@@ -347,7 +353,8 @@ public:
     {
         if (InHeap())
         {
-            Free(Data(), Allocated, MEMORY_TAG_STRING);
+            Free(Data(), GetBufferSizeInBytes(), MEMORY_TAG_STRING);
+            Length = 0;
         }
     }
 

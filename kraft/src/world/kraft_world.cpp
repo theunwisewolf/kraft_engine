@@ -1,38 +1,32 @@
 #include "kraft_world.h"
 
-#include <entt/entt.h>
-
 #include <containers/kraft_array.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_renderer_types.h>
 #include <world/kraft_components.h>
 #include <world/kraft_entity.h>
 
-static entt::basic_registry<kraft::EntityHandleT> Registry = entt::basic_registry<kraft::EntityHandleT>();
-static kraft::Entity                              WorldRoot = kraft::Entity();
+// static entt::basic_registry<kraft::EntityHandleT> Registry = entt::basic_registry<kraft::EntityHandleT>();
+// static kraft::Entity                              WorldRoot = kraft::Entity();
 
 namespace kraft {
 
 World::World()
 {
     EntityCount = 0;
-    WorldRoot = this->CreateEntity("WorldRoot", EntityHandleInvalid);
-    this->Root = WorldRoot.EntityHandle;
-
+    Entity WorldRootEntity = this->CreateEntity("WorldRoot", EntityHandleInvalid);
+    this->Root = WorldRootEntity.EntityHandle;
     this->Camera = kraft::Camera();
 }
 
 World::~World()
-{}
-
-entt::basic_registry<kraft::EntityHandleT>& World::GetRegistry() const
 {
-    return Registry;
+    this->Registry.clear();
 }
 
-const Entity& World::GetRoot() const
+Entity World::GetRoot() const
 {
-    return WorldRoot;
+    return this->Entities.at(this->Root);
 }
 
 Entity World::CreateEntity()
@@ -86,7 +80,7 @@ void World::DestroyEntity(Entity Entity)
     Registry.destroy(Entity.EntityHandle);
 }
 
-Entity& World::GetEntity(EntityHandleT Handle)
+Entity World::GetEntity(EntityHandleT Handle) const
 {
     KASSERT(Handle != EntityHandleInvalid);
     return Entities.at(Handle);

@@ -531,6 +531,8 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
         }
     }
 
+    kraft::Free(FileDataBuffer, BufferSize, MEMORY_TAG_FILE_BUF);
+
     return true;
 }
 

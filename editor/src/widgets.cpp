@@ -33,8 +33,8 @@ static ImTextureID ImSceneTexture;
 
 void InitImguiWidgets()
 {
-    GlobalAppState.ImGuiRenderer->AddWidget("Debug", DrawImGuiWidgets);
-    ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
+    GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
+    ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
     State.CurrentOperation = ImGuizmo::TRANSLATE;
     State.Mode = ImGuizmo::LOCAL;
@@ -247,8 +247,8 @@ void DrawImGuiWidgets(bool refresh)
             kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
 
         // Remove the old texture
-        GlobalAppState.ImGuiRenderer->RemoveTexture(ImSceneTexture);
-        ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
+        GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
+        ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
         if (usePerspectiveProjection)
         {
@@ -267,14 +267,14 @@ void DrawImGuiWidgets(bool refresh)
     // auto CurrentSceneTexture = kraft::Renderer->GetSceneViewTexture();
     // if (CurrentSceneTexture->Width != SceneTexture->Width || CurrentSceneTexture->Height != SceneTexture->Height)
     // {
-    //     GlobalAppState.ImGuiRenderer->RemoveTexture(ImSceneTexture);
+    //     GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
     //     SceneTexture = CurrentSceneTexture;
-    //     ImSceneTexture = GlobalAppState.ImGuiRenderer->AddTexture(SceneTexture);
+    //     ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(SceneTexture);
     // }
 
     // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
     {
-        auto& SelectedEntity = EditorState::Ptr->GetSelectedEntity();
+        auto  SelectedEntity = EditorState::Ptr->GetSelectedEntity();
         auto& Transform = SelectedEntity.GetComponent<kraft::TransformComponent>();
         if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_Q))
             State.CurrentOperation = ImGuizmo::TRANSLATE;
@@ -331,7 +331,7 @@ void DrawImGuiWidgets(bool refresh)
 void PipelineDebugger()
 {
     using namespace kraft::renderer;
-    auto& SelectedEntity = EditorState::Ptr->GetSelectedEntity();
+    auto SelectedEntity = EditorState::Ptr->GetSelectedEntity();
     if (!SelectedEntity.HasComponent<kraft::MeshComponent>())
         return;
 
@@ -532,7 +532,7 @@ void PipelineDebugger()
     ImGui::End();
 }
 
-static void DrawNodeHierarchy(const kraft::Entity& Root)
+static void DrawNodeHierarchy(kraft::Entity Root)
 {
     auto&              Metadata = Root.GetComponent<kraft::MetadataComponent>();
     auto&              Children = Root.GetChildren();
@@ -567,7 +567,7 @@ void HierarchyPanel()
         return;
 
     ImGui::Begin("World Outline");
-    const Entity& Root = EditorState::Ptr->CurrentWorld->GetRoot();
+    kraft::Entity Root = EditorState::Ptr->CurrentWorld->GetRoot();
     DrawNodeHierarchy(Root);
     ImGui::End();
 

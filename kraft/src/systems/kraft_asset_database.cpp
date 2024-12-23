@@ -13,6 +13,7 @@
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
+#include <core/kraft_memory.h>
 #include <platform/kraft_filesystem.h>
 #include <renderer/kraft_renderer_types.h>
 #include <systems/kraft_geometry_system.h>
@@ -26,14 +27,29 @@ namespace kraft {
 struct AssetDatabaseStateT
 {
     kraft::FlatHashMap<String, uint16> AssetsIndexMap;
-    Array<Asset>                       Assets;
-    Array<MeshAsset>                   Meshes;
+    Asset*                             Assets;
+    MeshAsset*                         Meshes;
     uint16                             MeshCount = 0;
+};
 
-    AssetDatabaseStateT() : Meshes(1024) {};
-} AssetDatabaseState;
+static MemoryBlock          AssetDatabaseMemory;
+static AssetDatabaseStateT* AssetDatabaseStatePtr;
 
-AssetDatabase* AssetDatabase::Ptr = new AssetDatabase();
+void AssetDatabase::Init()
+{
+    const uint64 MaxAssets = 256;
+    const uint64 MaxMeshes = 1024;
+    uint64       MemoryRequirement = sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)) + (MaxMeshes * sizeof(MeshAsset));
+    AssetDatabaseMemory = MallocBlock(MemoryRequirement, MEMORY_TAG_ASSET_DB, true);
+    AssetDatabaseStatePtr = (AssetDatabaseStateT*)AssetDatabaseMemory.Data;
+    AssetDatabaseStatePtr->Assets = (Asset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT));
+    AssetDatabaseStatePtr->Meshes = (MeshAsset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)));
+}
+
+void AssetDatabase::Shutdown()
+{
+    kraft::FreeBlock(AssetDatabaseMemory);
+}
 
 #if USE_ASSIMP
 void AssetDatabase::LoadAIMaterialTextures(const MeshAsset& BaseMesh, MeshT& Out, aiMaterial* Material, int Type, TextureMapType MapType)
@@ -211,7 +227,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
         return nullptr;
     }
 
-    MeshAsset& Mesh = AssetDatabaseState.Meshes[AssetDatabaseState.MeshCount];
+    MeshAsset& Mesh = AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount];
     Mesh.Directory = filesystem::Dirname(Path);
     Mesh.Filename = filesystem::Basename(Path);
     Mesh.SubMeshes.Reserve(Scene->meshes.count);
@@ -395,7 +411,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
     ufbx_free_scene(Scene);
 #endif
 
-    return &AssetDatabaseState.Meshes[AssetDatabaseState.MeshCount++];
+    return &AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount++];
 }
 
 }

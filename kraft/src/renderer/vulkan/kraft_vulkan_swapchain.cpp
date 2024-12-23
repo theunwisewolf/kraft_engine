@@ -127,15 +127,8 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     context->Swapchain.ImageCount = 0;
     KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, 0));
-    if (!context->Swapchain.Images)
-    {
-        context->Swapchain.Images = (VkImage*)kraft::Malloc(sizeof(VkImage) * context->Swapchain.ImageCount, MEMORY_TAG_RENDERER);
-    }
-
-    if (!context->Swapchain.ImageViews)
-    {
-        context->Swapchain.ImageViews = (VkImageView*)kraft::Malloc(sizeof(VkImageView) * context->Swapchain.ImageCount, MEMORY_TAG_RENDERER);
-    }
+    // TODO: Need a "renderer config" to actually set the required/max swapchain images
+    context->Swapchain.ImageCount = (context->Swapchain.ImageCount > 3 ? 3 : context->Swapchain.ImageCount);
 
     // Grab the images from the swapchain
     KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, context->Swapchain.Images));

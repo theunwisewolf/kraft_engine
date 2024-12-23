@@ -25,6 +25,7 @@ struct Pool
 
     uint16        PoolSize = 0;
     uint16        FreeListTop;
+    uint64        AllocatedSizeInBytes = 0;
     Type*         AuxiliaryData;
     ConcreteType* Data;
     HandleType*   Handles;
@@ -34,6 +35,7 @@ struct Pool
     uint32            ActiveDeletedItemsArray = 0;
 
     Pool(uint16 ElementCount);
+    ~Pool();
     void Grow(uint16 ElementCount);
 
     bool  ValidateHandle(HandleType Handle) const;

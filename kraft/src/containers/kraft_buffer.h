@@ -69,9 +69,15 @@ struct Buffer
     SizeType Allocated = 0;
 
 protected:
-    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size) { return 2 * Size; }
+    constexpr KRAFT_INLINE static SizeType ChooseAllocationSize(SizeType Size)
+    {
+        return 2 * Size;
+    }
 
-    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes() { return Allocated * sizeof(ValueType); }
+    constexpr KRAFT_INLINE SizeType GetBufferSizeInBytes()
+    {
+        return Allocated * sizeof(ValueType);
+    }
 
     constexpr void EnlargeBufferIfRequired(SizeType NewSize)
     {
@@ -125,13 +131,25 @@ public:
         this->Allocated = Size;
     }
 
-    KRAFT_INLINE void Alloc(SizeType Size) { InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true); }
+    KRAFT_INLINE void Alloc(SizeType Size)
+    {
+        InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+    }
 
-    constexpr ValueType* Data() noexcept { return InternalBuffer; }
+    constexpr ValueType* Data() noexcept
+    {
+        return InternalBuffer;
+    }
 
-    constexpr const ValueType* operator*() const noexcept { return InternalBuffer; }
+    constexpr const ValueType* operator*() const noexcept
+    {
+        return InternalBuffer;
+    }
 
-    constexpr ValueType* operator*() { return InternalBuffer; }
+    constexpr ValueType* operator*()
+    {
+        return InternalBuffer;
+    }
 
     WRITE_TYPE(uint8);
     WRITE_TYPE(uint16);
@@ -293,8 +311,8 @@ public:
 
 struct BufferView
 {
-    const char* Memory;
-    uint64      Size;
+    const uint8* Memory;
+    uint64       Size;
 };
 
 }

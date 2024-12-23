@@ -30,8 +30,9 @@ struct Handle;
 
 KRAFT_API struct AssetDatabase
 {
-    static AssetDatabase* Ptr;
-    MeshAsset*            LoadMesh(const String& Path);
+    static void       Init();
+    static void       Shutdown();
+    static MeshAsset* LoadMesh(const String& Path);
 
 private:
 #if USE_ASSIMP

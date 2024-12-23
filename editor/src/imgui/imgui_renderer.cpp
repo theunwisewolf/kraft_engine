@@ -4,6 +4,7 @@
 #include <core/kraft_core.h>
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
+#include <core/kraft_memory.h>
 #include <core/kraft_string.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
@@ -11,14 +12,17 @@
 #include <renderer/kraft_renderer_types.h>
 #include <renderer/vulkan/kraft_vulkan_imgui.h>
 
+#include <platform/kraft_filesystem_types.h>
+
 #include <imgui/extensions/imguizmo/ImGuizmo.h>
 #include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
 
 static bool WidgetsNeedRefresh = false;
 
 bool RendererImGui::Init()
 {
-    IniFilename = kraft::String(256, 0);
+    IniFilename = kraft::String(255, 0);
     kraft::StringFormat(*IniFilename, (int)IniFilename.Allocated, "%s/kraft_imgui_config.ini", *kraft::Engine::BasePath);
 
     // Setup Dear ImGui context
@@ -48,12 +52,19 @@ bool RendererImGui::Init()
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();
     {
-        uint8* Buffer = nullptr;
-        uint64 Size = 0;
-        bool   JakartaRegular = kraft::filesystem::ReadAllBytes("res/fonts/PlusJakartaSans-Regular.ttf", &Buffer, &Size);
+        kraft::filesystem::FileHandle Handle;
+        KASSERT(kraft::filesystem::OpenFile("res/fonts/PlusJakartaSans-Regular.ttf", kraft::filesystem::FILE_OPEN_MODE_READ, true, &Handle));
+
+        uint64 Size = kraft::filesystem::GetFileSize(&Handle);
+        uint8* Buffer = (uint8*)kraft::Malloc(Size);
+        bool JakartaRegular = kraft::filesystem::ReadAllBytes(&Handle, &Buffer, &Size);
         KASSERT(JakartaRegular);
 
+        // Atlas will be freed by ImGui
         IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14.0f * DPI);
+        // ImGui_ImplVulkan_CreateFontsTexture();
+
+        // kraft::Free(Buffer/*, Size, kraft::MEMORY_TAG_FILE_BUF*/);
     }
 
     ImGui::GetStyle().WindowPadding = ImVec2(14, 8);

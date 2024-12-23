@@ -65,9 +65,9 @@ uint64 GetFileSize(FileHandle* handle)
 {
     KASSERT(handle->Handle);
 
-    fseek((FILE*)handle->Handle, 0, SEEK_END);
-    uint64 size = ftell((FILE*)handle->Handle);
-    rewind((FILE*)handle->Handle);
+    fseek(handle->Handle, 0, SEEK_END);
+    uint64 size = ftell(handle->Handle);
+    rewind(handle->Handle);
 
     return size;
 }
@@ -76,7 +76,7 @@ void CloseFile(FileHandle* handle)
 {
     if (handle)
     {
-        fclose((FILE*)handle->Handle);
+        fclose(handle->Handle);
         handle->Handle = 0;
     }
 }
@@ -105,15 +105,16 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     if (!handle->Handle)
         return false;
 
-    fseek((FILE*)handle->Handle, 0, SEEK_END);
-    uint64 size = ftell((FILE*)handle->Handle);
-    rewind((FILE*)handle->Handle);
+    fseek(handle->Handle, 0, SEEK_END);
+    uint64 size = ftell(handle->Handle);
+    rewind(handle->Handle);
 
     if (!*outBuffer)
         *outBuffer = (uint8*)Malloc(size, MEMORY_TAG_FILE_BUF);
 
-    size_t read = fread(*outBuffer, 1, size, (FILE*)handle->Handle);
+    size_t read = fread(*outBuffer, 1, size, handle->Handle);
 
+    KASSERT(read == size);
     // Not all bytes were read
     if (read != size)
     {
@@ -147,7 +148,7 @@ bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
     if (!Handle->Handle)
         return false;
 
-    fwrite(Buffer, sizeof(uint8), Size, (FILE*)Handle->Handle);
+    fwrite(Buffer, sizeof(uint8), Size, Handle->Handle);
 
     return true;
 }
@@ -157,7 +158,7 @@ bool WriteFile(FileHandle* Handle, const Buffer& DataBuffer)
     if (!Handle->Handle)
         return false;
 
-    fwrite(*DataBuffer, sizeof(Buffer::ValueType), DataBuffer.Length, (FILE*)Handle->Handle);
+    fwrite(*DataBuffer, sizeof(Buffer::ValueType), DataBuffer.Length, Handle->Handle);
 
     return true;
 }

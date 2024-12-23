@@ -527,7 +527,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     {
         const RenderPassDefinition::ShaderDefinition& Shader = Pass.ShaderStages[j];
         VkShaderModule                                ShaderModule;
-        VulkanCreateShaderModule(&s_Context, Shader.CodeFragment.Code.Buffer, Shader.CodeFragment.Code.Length, &ShaderModule);
+        VulkanCreateShaderModule(&s_Context, Shader.CodeFragment.Code.Data(), Shader.CodeFragment.Code.Length, &ShaderModule);
         KASSERT(ShaderModule);
 
         VkPipelineShaderStageCreateInfo ShaderStageInfo = {};
@@ -866,7 +866,7 @@ void VulkanRendererBackend::CreateMaterial(Material* Material)
         return;
     }
 
-    VulkanMaterialData* MaterialRendererData = (VulkanMaterialData*)Malloc(sizeof(VulkanMaterialData), MEMORY_TAG_RENDERER, true);
+    VulkanMaterialData* MaterialRendererData = &s_Context.Materials[Material->ID];
     MaterialRendererData->InstanceUBOOffset = Shader->GlobalUBOOffset + Shader->GlobalUBOStride + (Shader->InstanceUBOStride * FreeUBOSlot);
 
     // Allocate the local descriptor sets
@@ -910,18 +910,18 @@ void VulkanRendererBackend::CreateMaterial(Material* Material)
         }
     }
 
-    Material->RendererData = MaterialRendererData;
+    Material->RendererDataIdx = Material->ID;
 }
 
 void VulkanRendererBackend::DestroyMaterial(Material* Material)
 {
-    Shader* Shader = Material->Shader;
+    // Shader* Shader = Material->Shader;
 
-    VulkanMaterialData* MaterialRendererData = (VulkanMaterialData*)Material->RendererData;
-    // vkFreeDescriptorSets(s_Context.LogicalDevice.Handle, GlobalDescriptorPool, MaterialInstance->DescriptorSets.Length, MaterialInstance->DescriptorSets.Data());
+    // VulkanMaterialData* MaterialRendererData = (VulkanMaterialData*)Material->RendererData;
+    // // vkFreeDescriptorSets(s_Context.LogicalDevice.Handle, GlobalDescriptorPool, MaterialInstance->DescriptorSets.Length, MaterialInstance->DescriptorSets.Data());
 
-    Free(MaterialRendererData, sizeof(VulkanMaterialData), MEMORY_TAG_RENDERER);
-    Material->RendererData = 0;
+    // Free(MaterialRendererData, sizeof(VulkanMaterialData), MEMORY_TAG_RENDERER);
+    // Material->RendererData = 0;
 }
 
 void VulkanRendererBackend::UseShader(const Shader* Shader)
@@ -955,7 +955,7 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
         if (Uniform.Scope == ShaderUniformScope::Instance)
         {
             Material*           MaterialInstance = Shader->ActiveMaterial;
-            VulkanMaterialData* MaterialData = (VulkanMaterialData*)MaterialInstance->RendererData;
+            VulkanMaterialData* MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
 
             if (Uniform.Type == ResourceType::Sampler)
             {
@@ -1022,7 +1022,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
     VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
     Material*            MaterialInstance = Shader->ActiveMaterial;
-    VulkanMaterialData*  MaterialData = (VulkanMaterialData*)MaterialInstance->RendererData;
+    VulkanMaterialData*  MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
     uint32               WriteCount = 0;
     VkWriteDescriptorSet WriteInfos[32] = {};
     VkWriteDescriptorSet DescriptorWriteInfo = {};
@@ -1147,23 +1147,8 @@ bool VulkanRendererBackend::CreateGeometry(
     const uint32 IndexSize
 )
 {
-    VulkanGeometryData* GeometryData = nullptr;
-    for (int i = 0; i < KRAFT_VULKAN_MAX_GEOMETRIES; i++)
-    {
-        if (s_Context.Geometries[i].ID == KRAFT_INVALID_ID)
-        {
-            s_Context.Geometries[i].ID = i;
-            Geometry->InternalID = i;
-            GeometryData = &s_Context.Geometries[i];
-            break;
-        }
-    }
-
-    if (!GeometryData)
-    {
-        KERROR("[VulkanRendererBackend::CreateGeometry]: Could not create geometry - Out of memory!");
-        return false;
-    }
+    VulkanGeometryData* GeometryData = &s_Context.Geometries[Geometry->ID];
+    Geometry->InternalID = Geometry->ID;
 
     uint32 Size = VertexSize * VertexCount;
     GeometryData->VertexSize = VertexSize;

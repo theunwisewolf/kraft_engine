@@ -24,47 +24,47 @@ struct Entity
     T& AddComponent(Args&&... Arguments)
     {
         KASSERTM(!HasComponent<T>(), "Entity already has component");
-        return World->GetRegistry().emplace<T>(EntityHandle, std::forward<Args>(Arguments)...);
+        return World->Registry.emplace<T>(EntityHandle, std::forward<Args>(Arguments)...);
     }
 
     template<typename T>
     void RemoveComponent()
     {
         KASSERTM(HasComponent<T>(), "Entity does not have component");
-        World->GetRegistry().remove<T>(EntityHandle);
+        World->Registry.remove<T>(EntityHandle);
     }
 
     template<typename T>
     T& GetComponent()
     {
         KASSERTM(HasComponent<T>(), "Entity does not have component");
-        return World->GetRegistry().get<T>(EntityHandle);
+        return World->Registry.get<T>(EntityHandle);
     }
 
     template<typename T>
     const T& GetComponent() const
     {
         KASSERTM(HasComponent<T>(), "Entity does not have component");
-        return World->GetRegistry().get<T>(EntityHandle);
+        return World->Registry.get<T>(EntityHandle);
     }
 
     template<typename... T>
     decltype(auto) GetComponents()
     {
         KASSERTM(HasComponent<T...>(), "Entity does not have the components");
-        return World->GetRegistry().get<T...>(EntityHandle);
+        return World->Registry.get<T...>(EntityHandle);
     }
 
     template<typename... T>
     bool HasComponent()
     {
-        return World->GetRegistry().all_of<T...>(EntityHandle);
+        return World->Registry.all_of<T...>(EntityHandle);
     }
 
     template<typename... T>
     bool HasComponent() const
     {
-        return World->GetRegistry().all_of<T...>(EntityHandle);
+        return World->Registry.all_of<T...>(EntityHandle);
     }
 
     KRAFT_INLINE const World* GetWorld() const
@@ -84,17 +84,17 @@ struct Entity
 
     KRAFT_INLINE EntityHandleT GetParent()
     {
-        return World->GetRegistry().get<RelationshipComponent>(EntityHandle).Parent;
+        return World->Registry.get<RelationshipComponent>(EntityHandle).Parent;
     }
 
     KRAFT_INLINE Array<EntityHandleT>& GetChildren()
     {
-        return World->GetRegistry().get<RelationshipComponent>(EntityHandle).Children;
+        return World->Registry.get<RelationshipComponent>(EntityHandle).Children;
     }
 
     KRAFT_INLINE const Array<EntityHandleT>& GetChildren() const
     {
-        return World->GetRegistry().get<RelationshipComponent>(EntityHandle).Children;
+        return World->Registry.get<RelationshipComponent>(EntityHandle).Children;
     }
 
 private:

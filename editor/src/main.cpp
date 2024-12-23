@@ -29,14 +29,13 @@
 #include "utils.h"
 #include "widgets.h"
 
-static RendererImGui ImGuiRenderer = {};
-ApplicationState     GlobalAppState = {
-        .LastTime = 0.0f,
-        .WindowTitleBuffer = { 0 },
-        .TargetFrameTime = 1 / 60.f,
-        .FrameCount = 0,
-        .TimeSinceLastFrame = 0.f,
-        .ImGuiRenderer = &ImGuiRenderer,
+ApplicationState GlobalAppState = {
+    .LastTime = 0.0f,
+    .WindowTitleBuffer = { 0 },
+    .TargetFrameTime = 1 / 60.f,
+    .FrameCount = 0,
+    .TimeSinceLastFrame = 0.f,
+    // .ImGuiRenderer = RendererImGui(),
 };
 
 static char TextureName[] = "res/textures/test-vert-image-2.jpg";
@@ -193,7 +192,7 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
     uint32 Height = Data.UInt32Value[1];
     KINFO("Window size changed = %d, %d", Width, Height);
 
-    GlobalAppState.ImGuiRenderer->OnResize(Width, Height);
+    GlobalAppState.ImGuiRenderer.OnResize(Width, Height);
 
     return false;
 }
@@ -201,7 +200,7 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
 bool Init()
 {
     EditorState* Editor = new EditorState();
-    GlobalAppState.ImGuiRenderer->Init();
+    GlobalAppState.ImGuiRenderer.Init();
     EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
     new (EditorState::Ptr->CurrentWorld) kraft::World();
 
@@ -238,12 +237,12 @@ bool Init()
     kraft::Entity         GlobalLightEntity = EditorState::Ptr->CurrentWorld->CreateEntity("GlobalLight", WorldRoot);
     kraft::LightComponent GlobalLight = GlobalLightEntity.AddComponent<kraft::LightComponent>();
     GlobalLight.LightColor = kraft::Vec4fOne;
-    GlobalLightEntity.GetComponent<TransformComponent>().SetPosition({38.0f, 38.0f, 54.0f});
+    GlobalLightEntity.GetComponent<TransformComponent>().SetPosition({ 38.0f, 38.0f, 54.0f });
 
     EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
 
-    // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room/viking_room.fbx");
-    kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/viking_room.obj");
+    // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
+    kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
     kraft::Entity     VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
         kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
@@ -299,9 +298,9 @@ bool Init()
     }
 #endif
 #if 1
-    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue_binary.fbx");
+    kraft::MeshAsset* RogueSkeleton = kraft::AssetDatabase::LoadMesh("res/meshes/skeleton_rogue/skeleton_rogue_binary.fbx");
     KASSERT(RogueSkeleton);
-    // kraft::MeshAsset Dragon = kraft::AssetDatabase::Ptr->LoadMesh("res/meshes/dragon.obj");
+    // kraft::MeshAsset Dragon = kraft::AssetDatabase::LoadMesh("res/meshes/dragon.obj");
 
     kraft::Entity MeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("RogueSkeletonParent", WorldRoot);
     EditorState::Ptr->SelectedEntity = MeshParent.EntityHandle;
@@ -472,8 +471,9 @@ void Render()
 void Shutdown()
 {
     kraft::Free(EditorState::Ptr->CurrentWorld, sizeof(kraft::World), kraft::MEMORY_TAG_NONE);
+    delete EditorState::Ptr;
 
-    GlobalAppState.ImGuiRenderer->Destroy();
+    GlobalAppState.ImGuiRenderer.Destroy();
 }
 
 void Run()
@@ -500,9 +500,9 @@ void Run()
             // We do not have any other way to render the main renderpass right now :(
             if (kraft::Engine::Renderer.BeginMainRenderpass())
             {
-                GlobalAppState.ImGuiRenderer->BeginFrame();
-                GlobalAppState.ImGuiRenderer->RenderWidgets();
-                GlobalAppState.ImGuiRenderer->EndFrame();
+                GlobalAppState.ImGuiRenderer.BeginFrame();
+                GlobalAppState.ImGuiRenderer.RenderWidgets();
+                GlobalAppState.ImGuiRenderer.EndFrame();
 
                 if (!kraft::Engine::Renderer.EndMainRenderpass())
                 {
@@ -510,7 +510,7 @@ void Run()
                 }
             }
 
-            ImGuiRenderer.EndFrameUpdatePlatformWindows();
+            GlobalAppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
         }
 
         kraft::Time::FrameTime = kraft::Platform::GetAbsoluteTime() - FrameStartTime;
@@ -525,11 +525,12 @@ void Run()
             kraft::StringFormat(
                 GlobalAppState.WindowTitleBuffer,
                 sizeof(GlobalAppState.WindowTitleBuffer),
-                "%s (%d fps | %f ms deltaTime | %f ms targetFrameTime)",
+                "%s (%d fps | %f ms deltaTime | %f ms targetFrameTime | %.3f MiB Memory Usage)",
                 kraft::Engine::Config.WindowTitle,
                 GlobalAppState.FrameCount,
                 DeltaTime * 1000.f,
-                GlobalAppState.TargetFrameTime * 1000.0f
+                GlobalAppState.TargetFrameTime * 1000.0f,
+                kraft::GetMemoryStats().AllocatedMiB
             );
 
             kraft::Platform::GetWindow().SetWindowTitle(GlobalAppState.WindowTitleBuffer);

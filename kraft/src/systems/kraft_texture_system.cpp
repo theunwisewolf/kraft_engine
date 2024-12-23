@@ -7,6 +7,7 @@
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_resource_manager.h>
 #include <containers/kraft_hashmap.h>
+#include <containers/kraft_buffer.h>
 #include <resources/kraft_resource_types.h>
 
 #define STBI_FAILURE_USERMSG
@@ -191,7 +192,7 @@ void TextureSystem::ReleaseTexture(Handle<Texture> Resource)
     // }
 }
 
-Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Description, uint8* Data)
+Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Description, const uint8* Data)
 {
     Description.Usage |= TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
     Handle<Texture> TextureResource = ResourceManager::Get()->CreateTexture(Description);
@@ -212,7 +213,7 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Descri
     return TextureResource;
 }
 
-uint8* TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Channels)
+BufferView TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Channels)
 {
     uint32 TextureSize = Width * Height * Channels;
     uint8* Pixels = (uint8*)Malloc(TextureSize, MEMORY_TAG_TEXTURE);
@@ -257,7 +258,7 @@ uint8* TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Chan
         }
     }
 
-    return Pixels;
+    return BufferView{ .Memory = Pixels, .Size = TextureSize };
 
     // for (int i = 0; i < width; i++)
     // {
@@ -304,7 +305,7 @@ static void _createDefaultTextures()
     const int       Height = 256;
     const int       Depth = 1;
     const int       Channels = 4;
-    uint8*          TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
+    BufferView      TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
     Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData(
         {
             .DebugName = "Default-Diffuse-Texture",
@@ -313,10 +314,11 @@ static void _createDefaultTextures()
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST |
                      TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
-        TextureData
+        TextureData.Memory
     );
 
     State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME] = TextureReference(TextureResource, false);
+    Free((void*)TextureData.Memory, TextureData.Size, MEMORY_TAG_TEXTURE);
 }
 
 }

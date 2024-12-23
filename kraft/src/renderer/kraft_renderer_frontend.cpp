@@ -18,7 +18,7 @@
 
 namespace kraft::renderer {
 
-using RenderablesT = FlatHashMap<ResourceID, Array<Renderable>>;
+using RenderablesT = FlatHashMap<ResourceID, FlatHashMap<ResourceID, Array<Renderable>>>;
 
 struct RenderDataT
 {
@@ -28,7 +28,7 @@ struct RenderDataT
 
 struct RendererDataT
 {
-    kraft::Block        BackendMemory;
+    MemoryBlock         BackendMemory;
     RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
     RenderablesT        Renderables;
     Array<RenderDataT>  RenderSurfaces;
@@ -107,25 +107,31 @@ bool RendererFrontend::DrawFrame()
         RendererData.Backend->BeginRenderPass(Surface.CmdBuffers[CurrentFrame], Surface.RenderPass);
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
         {
-            auto&  Objects = It->second;
-            uint64 Count = Objects.Size();
-            if (!Count)
-                continue;
-            ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
+            ShaderSystem::BindByID(It->first);
             ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
-            for (int i = 0; i < Count; i++)
+
+            for (auto& MaterialIt : It->second)
             {
-                Renderable Object = Objects[i];
-                ShaderSystem::SetMaterialInstance(Object.MaterialInstance);
+                auto&  Objects = MaterialIt.second;
+                uint64 Count = Objects.Size();
+                if (!Count)
+                    continue;
+                // ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
+                ShaderSystem::SetMaterialInstance(Objects[0].MaterialInstance);
+                for (int i = 0; i < Count; i++)
+                {
+                    Renderable Object = Objects[i];
 
-                MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
-                MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
+                    MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
+                    MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
 
-                RendererData.Backend->DrawGeometryData(Object.GeometryID);
+                    RendererData.Backend->DrawGeometryData(Object.GeometryID);
+                }
+
+                Objects.Clear();
             }
-            ShaderSystem::Unbind();
 
-            Objects.Clear();
+            ShaderSystem::Unbind();
         }
         RendererData.Backend->EndRenderPass(Surface.CmdBuffers[CurrentFrame], Surface.RenderPass);
     }
@@ -150,13 +156,22 @@ bool RendererFrontend::AddRenderable(const Renderable& Object)
 
     ResourceID Key = Object.MaterialInstance->Shader->ID;
     // ResourceID Key = Object.MaterialInstance->ID;
-    if (!Renderables->contains(Key))
+    auto RenderablesIt = Renderables->find(Key);
+    if (RenderablesIt == Renderables->end())
     {
-        (*Renderables)[Key] = Array<Renderable>();
-        (*Renderables)[Key].Reserve(1024);
+        auto Pair = Renderables->insert_or_assign(Key, FlatHashMap<ResourceID, Array<Renderable>>());
+        auto It = Pair.first;
+        auto ArrayPair = It->second.insert_or_assign(Object.MaterialInstance->ID, Array<Renderable>());
+        auto ArrayIt = ArrayPair.first;
+        ArrayIt->second.Reserve(1024);
+        ArrayIt->second.Push(Object);
+    }
+    else
+    {
+        RenderablesIt->second[Object.MaterialInstance->ID].Push(Object);
     }
 
-    (*Renderables)[Key].Push(Object);
+    // (*Renderables)[Key].Push(Object);
 
     return true;
 }

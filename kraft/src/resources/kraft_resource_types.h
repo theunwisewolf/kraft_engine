@@ -163,7 +163,7 @@ struct Material
     HashMap<String, MaterialProperty> Properties;
 
     // Holds the backend renderer data such as descriptor sets
-    void* RendererData;
+    ResourceID RendererDataIdx;
 
     template<typename T>
     T GetUniform(const String& Name) const

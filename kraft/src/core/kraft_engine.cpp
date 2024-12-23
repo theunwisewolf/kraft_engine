@@ -10,6 +10,7 @@
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
+#include <systems/kraft_asset_database.h>
 
 #if defined(KRAFT_GUI_APP)
 #include <renderer/kraft_renderer_frontend.h>
@@ -80,6 +81,7 @@ bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
     Platform::Init(&Engine::Config);
     EventSystem::Init();
     InputSystem::Init();
+    AssetDatabase::Init();
 
 #if defined(KRAFT_GUI_APP)
     if (!Engine::Renderer.Init(&Engine::Config))
@@ -138,6 +140,7 @@ void Engine::Destroy()
 {
     KINFO("[Engine]: Shutting down...");
 
+    AssetDatabase::Shutdown();
     InputSystem::Shutdown();
     EventSystem::Shutdown();
     Platform::Shutdown();

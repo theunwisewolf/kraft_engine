@@ -12,7 +12,7 @@ EditorState::EditorState()
     this->RenderSurface = kraft::Engine::Renderer.CreateRenderSurface("SceneView", 200.0f, 200.0f, true);
 }
 
-kraft::Entity& EditorState::GetSelectedEntity()
+kraft::Entity EditorState::GetSelectedEntity()
 {
     return this->CurrentWorld->GetEntity(SelectedEntity);
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <entt/entt.h>
+
 #include "containers/kraft_hashmap.h"
 #include "core/kraft_core.h"
 #include "core/kraft_string_view.h"
@@ -26,21 +28,28 @@ struct World
     World();
     ~World();
 
-    Entity        CreateEntity();
-    const Entity& GetRoot() const;
+    Entity GetRoot() const;
+    Entity GetEntity(EntityHandleT Handle) const;
+
+    Entity CreateEntity();
     Entity
     CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
     Entity
     CreateEntity(StringView Name, const Entity& Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
-    void    DestroyEntity(Entity Entity);
-    Entity& GetEntity(EntityHandleT Handle);
+    void DestroyEntity(Entity Entity);
 
     void  Render();
     Mat4f GetWorldSpaceTransformMatrix(Entity E);
 
 private:
-    entt::basic_registry<kraft::EntityHandleT, std::allocator<kraft::EntityHandleT>>& GetRegistry() const;
-    FlatHashMap<EntityHandleT, Entity>                                                Entities;
+    using RegistryType = entt::basic_registry<kraft::EntityHandleT>;
+    RegistryType                     Registry;
+    KRAFT_INLINE const RegistryType& GetRegistry() const
+    {
+        return Registry;
+    }
+
+    FlatHashMap<EntityHandleT, Entity> Entities;
 };
 
 }
