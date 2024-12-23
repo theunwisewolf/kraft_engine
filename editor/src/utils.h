@@ -17,7 +17,10 @@ static void SetProjection(kraft::CameraProjectionType Type)
     {
         Camera.ProjectionType = kraft::CameraProjectionType::Perspective;
         Camera.ProjectionMatrix = kraft::PerspectiveMatrix(
-            kraft::DegToRadians(45.0f), (float)kraft::Platform::GetWindow()->Width / (float)kraft::Platform::GetWindow()->Height, 0.1f, 1000.f
+            kraft::DegToRadians(45.0f),
+            (float)kraft::Platform::GetWindow()->Width / (float)kraft::Platform::GetWindow()->Height,
+            0.1f,
+            1000.f
         );
 
         // Camera.SetPosition({25.0f, 15.0f, 20.f});
@@ -25,7 +28,9 @@ static void SetProjection(kraft::CameraProjectionType Type)
 
         kraft::Vec3f WorldUp = kraft::Vec3f(0.0f, 1.0f, 0.0f);
         kraft::Vec3f CameraTarget = Entity.GetComponent<kraft::TransformComponent>().Position;
-        Camera.Position = { 0.0f, 0.0f, 30.f };
+        Camera.Position = { 62.0f, 42.0f, 76.0f };
+        Camera.Pitch = -20.0f;
+        Camera.Yaw = -128.0f;
         Camera.UpdateVectors();
         // Camera.Front = kraft::Normalize(Camera.Position - CameraTarget);
         // Camera.Front = kraft::Vec3f({0.0f, 0.0f, -1.0f});

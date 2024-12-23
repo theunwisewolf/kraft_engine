@@ -185,7 +185,7 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::Separator();
         ImGui::Text("Camera Transform");
         ImGui::Separator();
-        if (ImGui::DragFloat4("Translation", Camera.Position))
+        if (ImGui::DragFloat3("Position", Camera.Position))
         {
             Camera.Dirty = true;
         }
