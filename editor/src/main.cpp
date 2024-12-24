@@ -406,8 +406,16 @@ bool Init()
     return true;
 }
 
+
+static kraft::Vec3f ExpDecay(kraft::Vec3f a, kraft::Vec3f b, float32 Decay, float64 DeltaTime)
+{
+    return b + (a - b) * expf(-Decay * DeltaTime);
+}
+
 void Update(float64 deltaTime)
 {
+    if (!EditorState::Ptr->ViewportCamera.Flying) return;
+
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
     // if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
@@ -418,12 +426,14 @@ void Update(float64 deltaTime)
         {
             if (Camera.ProjectionType == kraft::CameraProjectionType::Orthographic)
             {
-                kraft::Vec3f upVector = UpVector(Camera.GetViewMatrix());
-                direction += upVector;
+                // kraft::Vec3f upVector = UpVector(Camera.GetViewMatrix());
+                // direction += upVector;
+                Camera.Position.z -= Speed;
             }
             else
             {
-                Camera.Position += Camera.Front * Speed;
+                // Camera.Position += Camera.Front * Speed;
+                Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Front * Speed, 128, deltaTime);
                 // kraft::Vec3f forwardVector = ForwardVector(Camera.GetViewMatrix());
                 // direction += forwardVector;
             }
@@ -447,13 +457,15 @@ void Update(float64 deltaTime)
         {
             // kraft::Vec3f leftVector = LeftVector(Camera.GetViewMatrix());
             // direction += leftVector;
-            Camera.Position -= Camera.Right * Speed;
+            // Camera.Position -= Camera.Right * Speed;
+            Camera.Position = ExpDecay(Camera.Position, Camera.Position - Camera.Right * Speed, 128, deltaTime);
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
         {
             // kraft::Vec3f rightVector = RightVector(Camera.GetViewMatrix());
             // direction += rightVector;
-            Camera.Position += Camera.Right * Speed;
+            // Camera.Position += Camera.Right * Speed;
+            Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Right * Speed, 128, deltaTime);
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_SPACE))

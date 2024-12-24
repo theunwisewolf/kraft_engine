@@ -19,8 +19,8 @@
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_texture_system.h>
 
-#include <systems/kraft_asset_types.h>
 #include <resources/kraft_resource_types.h>
+#include <systems/kraft_asset_types.h>
 
 namespace kraft {
 
@@ -141,7 +141,6 @@ void AssetDatabase::ProcessAIMesh(MeshAsset& BaseMesh, MeshT& Out, aiMesh* Mesh,
     Geometry.VertexCount = (uint32)Vertices.Size();
     Geometry.VertexSize = sizeof(Vertex3D);
     Geometry.Vertices = Vertices.Data();
-    Geometry.Name = kraft::String(Mesh->mName.data, Mesh->mName.length);
 
     Out.Geometry = kraft::GeometrySystem::AcquireGeometryWithData(Geometry);
 }
@@ -331,7 +330,6 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
             Geometry.VertexCount = NumVertices;
             Geometry.VertexSize = sizeof(Vertex3D);
             Geometry.Vertices = Vertices.Data();
-            StringNCopy(Geometry.Name, UfbxMesh->name.data, UfbxMesh->name.length);
 
             for (int j = 0; j < UfbxMesh->instances.count; j++)
             {

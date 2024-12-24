@@ -57,7 +57,9 @@ struct Camera
     {
         if (this->ProjectionType == CameraProjectionType::Orthographic)
         {
-            this->ViewMatrix = Mat4f(Identity);
+            // this->ViewMatrix = Mat4f(Identity);
+            // this->ViewMatrix = kraft::LookAt(this->Position, this->Position + this->Front, this->Up);
+            this->ViewMatrix = kraft::TranslationMatrix(this->Position);
         }
         else
         {

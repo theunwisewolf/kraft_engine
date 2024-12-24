@@ -37,4 +37,9 @@ struct MeshAsset : public Asset
     Array<Node>  NodeHierarchy;
 };
 
+struct TextureAsset : public Asset
+{
+    Texture Texture;
+};
+
 }

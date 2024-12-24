@@ -22,6 +22,7 @@ struct Geometry;
 struct Material;
 struct Texture;
 struct MeshAsset;
+struct TextureAsset;
 
 namespace renderer {
 template<typename T>
@@ -30,9 +31,10 @@ struct Handle;
 
 KRAFT_API struct AssetDatabase
 {
-    static void       Init();
-    static void       Shutdown();
-    static MeshAsset* LoadMesh(const String& Path);
+    static void          Init();
+    static void          Shutdown();
+    static MeshAsset*    LoadMesh(const String& Path);
+    static TextureAsset* LoadTexture(const String& Path);
 
 private:
 #if USE_ASSIMP

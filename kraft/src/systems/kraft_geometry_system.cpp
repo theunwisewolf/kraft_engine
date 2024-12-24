@@ -115,8 +115,6 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
         return nullptr;
     }
 
-    StringCopy(Reference->Geometry.Name, Data.Name);
-
     return &Reference->Geometry;
 }
 
@@ -152,7 +150,6 @@ void GeometrySystem::DestroyGeometry(Geometry* Geometry)
     Renderer->DestroyGeometry(Geometry);
     Geometry->ID = State->MaxGeometriesCount;
     Geometry->InternalID = State->MaxGeometriesCount;
-    StringCopy(Geometry->Name, "");
 }
 
 void _createDefaultGeometries()
@@ -170,7 +167,6 @@ void _createDefaultGeometries()
     Ref->Geometry.ID = 0;
     Ref->AutoRelease = false;
     Ref->ReferenceCount = 1;
-    StringCopy(Ref->Geometry.Name, "default-geometry");
     if (!Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex3D), 6, Indices, sizeof(Indices[0])))
     {
         KFATAL("[GeometrySystem]: Failed to create default geometries");

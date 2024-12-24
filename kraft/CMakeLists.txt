@@ -23,6 +23,7 @@ set(SRC_FILES
     src/core/kraft_string.cpp
     src/core/kraft_string_view.cpp
     src/core/kraft_lexer.cpp
+    src/core/kraft_hash.cpp
     src/math/kraft_math.cpp
     src/platform/kraft_filesystem.cpp
     src/platform/kraft_platform_common.cpp

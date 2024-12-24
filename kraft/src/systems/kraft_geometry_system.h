@@ -2,8 +2,6 @@
 
 #include "core/kraft_core.h"
 
-#define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
-
 namespace kraft {
 
 struct Geometry;
@@ -21,7 +19,6 @@ struct GeometryData
     uint32 IndexSize;  // Size of a single index
     void*  Vertices;
     void*  Indices;
-    char   Name[KRAFT_GEOMETRY_NAME_MAX_LENGTH];
 };
 
 struct GeometrySystem

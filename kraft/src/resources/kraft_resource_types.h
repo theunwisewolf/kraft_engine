@@ -3,7 +3,6 @@
 #include "renderer/shaderfx/kraft_shaderfx_types.h"
 #include "renderer/kraft_renderer_types.h"
 
-#define KRAFT_TEXTURE_NAME_MAX_LENGTH  256
 #define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
 #define KRAFT_MATERIAL_MAX_INSTANCES   128
@@ -67,8 +66,6 @@ struct Texture
     TextureMapType          Type;
 
     uint32 Generation;
-    char   Name[KRAFT_TEXTURE_NAME_MAX_LENGTH];
-
     void* RendererData; // Renderer specific data
 };
 
@@ -178,8 +175,6 @@ struct Geometry
 
     // For backend mapping
     ResourceID InternalID;
-
-    char Name[KRAFT_GEOMETRY_NAME_MAX_LENGTH];
 };
 
 }

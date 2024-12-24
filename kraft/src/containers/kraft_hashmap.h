@@ -29,7 +29,7 @@ struct hash<kraft::String>
 {
     std::size_t operator()(kraft::String const& Key) const
     {
-        return FNV1AHashBytes((const unsigned char*)Key.Data(), Key.GetLengthInBytes());
+        return kraft::FNV1AHashBytes((const unsigned char*)Key.Data(), Key.GetLengthInBytes());
     }
 };
 }
@@ -45,7 +45,7 @@ struct KeyInfo<kraft::String>
     static inline kraft::String getEmpty() noexcept { return kraft::String(); }
     static inline size_t        hash(const kraft::String& Key) noexcept
     {
-        return FNV1AHashBytes((const unsigned char*)Key.Data(), Key.GetLengthInBytes());
+        return kraft::FNV1AHashBytes((const unsigned char*)Key.Data(), Key.GetLengthInBytes());
     }
 
     static inline bool isEqual(const kraft::String& lhs, const kraft::String& rhs) noexcept { return lhs == rhs; }
