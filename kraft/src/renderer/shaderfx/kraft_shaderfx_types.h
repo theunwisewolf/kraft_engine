@@ -115,6 +115,7 @@ struct RenderStateDefinition
     CullModeFlags::Enum CullMode;
     CompareOp::Enum     ZTestOperation;
     bool                ZWriteEnable;
+    bool                BlendEnable;
     BlendState          BlendMode;
     PolygonMode::Enum   PolygonMode;
     float32             LineWidth;
@@ -125,6 +126,7 @@ struct RenderStateDefinition
         Out->Write(CullMode);
         Out->Write(ZTestOperation);
         Out->Write(ZWriteEnable);
+        Out->Write(BlendEnable);
         Out->Write(BlendMode);
         Out->Write(PolygonMode);
         Out->Write(LineWidth);
@@ -136,6 +138,7 @@ struct RenderStateDefinition
         In->Read(&CullMode);
         In->Read(&ZTestOperation);
         In->Read(&ZWriteEnable);
+        In->Read(&BlendEnable);
         In->Read(&BlendMode);
         In->Read(&PolygonMode);
         In->Read(&LineWidth);
@@ -253,21 +256,23 @@ struct ShaderEffect
     Array<ResourceBindingsDefinition> Resources;
     Array<ConstantBufferDefinition>   ConstantBuffers;
     Array<UniformBufferDefinition>    UniformBuffers;
+    Array<UniformBufferDefinition>    StorageBuffers;
     Array<RenderStateDefinition>      RenderStates;
     Array<ShaderCodeFragment>         CodeFragments;
     Array<RenderPassDefinition>       RenderPasses;
 
-    ShaderEffect()
-    {}
+    ShaderEffect() {};
     ShaderEffect(ShaderEffect& Other)
     {
         Name = Other.Name;
         ResourcePath = Other.ResourcePath;
         VertexLayouts = Other.VertexLayouts;
-        RenderStates = Other.RenderStates;
-        CodeFragments = Other.CodeFragments;
         Resources = Other.Resources;
         ConstantBuffers = Other.ConstantBuffers;
+        UniformBuffers = Other.UniformBuffers;
+        StorageBuffers = Other.StorageBuffers;
+        RenderStates = Other.RenderStates;
+        CodeFragments = Other.CodeFragments;
         RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
 
         for (int i = 0; i < Other.RenderPasses.Length; i++)
@@ -288,10 +293,12 @@ struct ShaderEffect
         Name = Other.Name;
         ResourcePath = Other.ResourcePath;
         VertexLayouts = Other.VertexLayouts;
-        RenderStates = Other.RenderStates;
-        CodeFragments = Other.CodeFragments;
         Resources = Other.Resources;
         ConstantBuffers = Other.ConstantBuffers;
+        UniformBuffers = Other.UniformBuffers;
+        StorageBuffers = Other.StorageBuffers;
+        RenderStates = Other.RenderStates;
+        CodeFragments = Other.CodeFragments;
         RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
 
         for (int i = 0; i < Other.RenderPasses.Length; i++)

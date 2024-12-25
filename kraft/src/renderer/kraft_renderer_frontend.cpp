@@ -255,7 +255,6 @@ void RendererFrontend::DestroyGeometry(Geometry* Geometry)
 
 RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth)
 {
-    static int     Index = 0; // TODO: Temp stuff
     RenderSurfaceT Surface = {
         .DebugName = Name,
         .Width = Width,

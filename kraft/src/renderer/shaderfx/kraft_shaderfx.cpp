@@ -229,6 +229,18 @@ void ShaderFXParser::ParseLayoutBlock(ShaderEffect* Effect)
 
             Effect->UniformBuffers.Push(UBufferDefinition);
         }
+        else if (Token.MatchesKeyword("StorageBuffer"))
+        {
+            // Consume "StorageBuffer"
+            Token = this->Lexer->NextToken();
+
+            UniformBufferDefinition UBufferDefinition;
+            UBufferDefinition.Name = String(Token.Text, Token.Length);
+
+            this->ParseUniformBuffer(&UBufferDefinition);
+
+            Effect->StorageBuffers.Push(UBufferDefinition);
+        }
     }
 }
 
@@ -250,6 +262,10 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition* ResourceB
         if (Token.MatchesKeyword("UniformBuffer"))
         {
             Binding.Type = ResourceType::UniformBuffer;
+        }
+        else if (Token.MatchesKeyword("StorageBuffer"))
+        {
+            Binding.Type = ResourceType::StorageBuffer;
         }
         else if (Token.MatchesKeyword("Sampler"))
         {
@@ -808,6 +824,14 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
                 return;
             }
 
+            // Blending turned off
+            if (Token.MatchesKeyword("Off") || Token.MatchesKeyword("None"))
+            {
+                State->BlendEnable = false;
+                continue;
+            }
+
+            State->BlendEnable = true;
             if (!this->ParseBlendFactor(Token, State->BlendMode.SrcColorBlendFactor))
             {
                 return;
@@ -1155,7 +1179,7 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
     return true;
 }
 
-uint64 GetUniformBufferSize(const kraft::renderer::UniformBufferDefinition& UniformBuffer)
+uint64 GetUniformBufferSize(const UniformBufferDefinition& UniformBuffer)
 {
     uint64 SizeInBytes = 0;
     for (int FieldIdx = 0; FieldIdx < UniformBuffer.Fields.Length; FieldIdx++)
@@ -1167,11 +1191,48 @@ uint64 GetUniformBufferSize(const kraft::renderer::UniformBufferDefinition& Unif
     return SizeInBytes;
 }
 
+static bool CheckBufferDefinition(ShaderEffect& Shader, const Array<UniformBufferDefinition>* Buffers, ResourceBinding* BindingDescription)
+{
+    for (int UBIdx = 0; UBIdx < Buffers->Length; UBIdx++)
+    {
+        if ((*Buffers)[UBIdx].Name == BindingDescription->Name)
+        {
+            // Check if the size is incorrect
+            uint64 ExpectedSize = GetUniformBufferSize((*Buffers)[UBIdx]);
+            // TODO: Maybe auto fix?
+            if (BindingDescription->Size != ExpectedSize)
+            {
+                KERROR(
+                    "'%s' shader compilation failed with error: Incorrect Buffer size for '%s': '%d bytes'. Expected '%d bytes'.",
+                    *Shader.ResourcePath,
+                    *BindingDescription->Name,
+                    BindingDescription->Size,
+                    ExpectedSize
+                );
+
+                return false;
+            }
+
+            // Update the parent index
+            BindingDescription->ParentIndex = UBIdx;
+
+            return true;
+        }
+    }
+
+    KERROR(
+        "'%s' shader compilation failed with error: Missing BufferDefinition for '%s'.",
+        *Shader.ResourcePath,
+        *BindingDescription->Name
+    );
+
+    return false;
+}
+
 bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbose)
 {
     // Basic verification
     auto& Resources = Shader.Resources;
-    auto& UniformBuffers = Shader.UniformBuffers;
     for (int i = 0; i < Resources.Length; i++)
     {
         auto& Resource = Resources[i];
@@ -1179,40 +1240,15 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
         {
             if (Resource.ResourceBindings[j].Type == ResourceType::UniformBuffer)
             {
-                bool UniformBufferDefExists = false;
-                for (int UBIdx = 0; UBIdx < UniformBuffers.Length; UBIdx++)
+                if (false == CheckBufferDefinition(Shader, &Shader.UniformBuffers, &Resource.ResourceBindings[j]))
                 {
-                    if (UniformBuffers[UBIdx].Name == Resource.ResourceBindings[j].Name)
-                    {
-                        UniformBufferDefExists = true;
-
-                        // Check if the size is incorrect
-                        uint64 ExpectedSize = GetUniformBufferSize(UniformBuffers[UBIdx]);
-                        // TODO: Maybe auto fix?
-                        if (Resource.ResourceBindings[j].Size != ExpectedSize)
-                        {
-                            KERROR(
-                                "'%s' shader compilation failed with error: Incorrect UniformBuffer size: '%d bytes'. Expected '%d bytes'.",
-                                *Shader.ResourcePath,
-                                Resource.ResourceBindings[j].Size,
-                                ExpectedSize
-                            );
-                            return false;
-                        }
-
-                        // Update the parent index
-                        Resource.ResourceBindings[j].ParentIndex = UBIdx;
-                        break;
-                    }
+                    return false;
                 }
-
-                if (!UniformBufferDefExists)
+            }
+            else if (Resource.ResourceBindings[j].Type == ResourceType::StorageBuffer)
+            {
+                if (false == CheckBufferDefinition(Shader, &Shader.StorageBuffers, &Resource.ResourceBindings[j]))
                 {
-                    KERROR(
-                        "'%s' shader compilation failed with error: Missing UniformBufferDefinition for %s",
-                        *Shader.ResourcePath,
-                        *Resource.ResourceBindings[j].Name
-                    );
                     return false;
                 }
             }
@@ -1230,6 +1266,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
     BinaryOutput.Write(Shader.Resources);
     BinaryOutput.Write(Shader.ConstantBuffers);
     BinaryOutput.Write(Shader.UniformBuffers);
+    BinaryOutput.Write(Shader.StorageBuffers);
     BinaryOutput.Write(Shader.RenderStates);
     BinaryOutput.Write(Shader.RenderPasses.Length);
 
@@ -1379,6 +1416,7 @@ bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
     Reader.Read(&Shader->Resources);
     Reader.Read(&Shader->ConstantBuffers);
     Reader.Read(&Shader->UniformBuffers);
+    Reader.Read(&Shader->StorageBuffers);
     Reader.Read(&Shader->RenderStates);
 
     uint64 RenderPassesCount;
@@ -1427,6 +1465,32 @@ bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
     KASSERT(ShaderA.Name == ShaderB.Name);
     KASSERT(ShaderA.ResourcePath == ShaderB.ResourcePath);
     KASSERT(ShaderA.VertexLayouts.Length == ShaderB.VertexLayouts.Length);
+
+    // Buffers
+    KASSERT(ShaderA.UniformBuffers.Length == ShaderB.UniformBuffers.Length);
+    for (int i = 0; i < ShaderA.UniformBuffers.Length; i++)
+    {
+        KASSERT(ShaderA.UniformBuffers[i].Name == ShaderB.UniformBuffers[i].Name);
+        KASSERT(ShaderA.UniformBuffers[i].Fields.Length == ShaderB.UniformBuffers[i].Fields.Length);
+        for (int j = 0; j < ShaderA.UniformBuffers[i].Fields.Length; j++)
+        {
+            KASSERT(ShaderA.UniformBuffers[i].Fields[j].Name == ShaderB.UniformBuffers[i].Fields[j].Name);
+            KASSERT(ShaderA.UniformBuffers[i].Fields[j].Type == ShaderB.UniformBuffers[i].Fields[j].Type);
+        }
+    }
+
+    KASSERT(ShaderA.StorageBuffers.Length == ShaderB.StorageBuffers.Length);
+    for (int i = 0; i < ShaderA.StorageBuffers.Length; i++)
+    {
+        KASSERT(ShaderA.StorageBuffers[i].Name == ShaderB.StorageBuffers[i].Name);
+        KASSERT(ShaderA.StorageBuffers[i].Fields.Length == ShaderB.StorageBuffers[i].Fields.Length);
+        for (int j = 0; j < ShaderA.StorageBuffers[i].Fields.Length; j++)
+        {
+            KASSERT(ShaderA.StorageBuffers[i].Fields[j].Name == ShaderB.StorageBuffers[i].Fields[j].Name);
+            KASSERT(ShaderA.StorageBuffers[i].Fields[j].Type == ShaderB.StorageBuffers[i].Fields[j].Type);
+        }
+    }
+
     for (int i = 0; i < ShaderA.VertexLayouts.Length; i++)
     {
         KASSERT(ShaderA.VertexLayouts[i].Name == ShaderB.VertexLayouts[i].Name);
@@ -1456,6 +1520,7 @@ bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
         KASSERT(ShaderA.RenderStates[i].CullMode == ShaderB.RenderStates[i].CullMode);
         KASSERT(ShaderA.RenderStates[i].ZTestOperation == ShaderB.RenderStates[i].ZTestOperation);
         KASSERT(ShaderA.RenderStates[i].ZWriteEnable == ShaderB.RenderStates[i].ZWriteEnable);
+        KASSERT(ShaderA.RenderStates[i].BlendEnable == ShaderB.RenderStates[i].BlendEnable);
         KASSERT(ShaderA.RenderStates[i].BlendMode.SrcColorBlendFactor == ShaderB.RenderStates[i].BlendMode.SrcColorBlendFactor);
         KASSERT(ShaderA.RenderStates[i].BlendMode.DstColorBlendFactor == ShaderB.RenderStates[i].BlendMode.DstColorBlendFactor);
         KASSERT(ShaderA.RenderStates[i].BlendMode.ColorBlendOperation == ShaderB.RenderStates[i].BlendMode.ColorBlendOperation);

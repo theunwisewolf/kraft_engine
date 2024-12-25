@@ -231,11 +231,12 @@ enum Enum
 {
     Sampler,
     UniformBuffer,
+    StorageBuffer,
     ConstantBuffer,
     Count
 };
 
-static const char* Strings[] = { "Sampler", "UniformBuffer", "ConstantBuffer", "Count" };
+static const char* Strings[] = { "Sampler", "UniformBuffer", "StorageBuffer", "ConstantBuffer", "Count" };
 
 static const char* String(Enum Value)
 {
@@ -367,6 +368,7 @@ enum Enum
 {
     // Color Formats
     RED,
+    R32_SFLOAT,
     RGBA8_UNORM,
     RGB8_UNORM,
     BGRA8_UNORM,
@@ -380,8 +382,8 @@ enum Enum
     Count
 };
 
-static const char* Strings[] = { "RED",        "RGBA8_UNORM",       "RGB8_UNORM",        "BGRA8_UNORM",        "BGR8_UNORM", "D16_UNORM",
-                                 "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT", "Count" };
+static const char* Strings[] = { "RED",       "R32_SFLOAT", "RGBA8_UNORM",       "RGB8_UNORM",        "BGRA8_UNORM",        "BGR8_UNORM",
+                                 "D16_UNORM", "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT", "Count" };
 
 static const char* String(Enum Value)
 {
@@ -514,6 +516,7 @@ enum TextureUsageFlags
     TEXTURE_USAGE_FLAGS_STORAGE = 1 << 3,
     TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT = 1 << 4,
     TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT = 1 << 5,
+    TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT = 1 << 6,
 };
 
 enum TextureSampleCountFlags

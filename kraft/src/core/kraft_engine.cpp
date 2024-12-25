@@ -81,9 +81,9 @@ bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
     Platform::Init(&Engine::Config);
     EventSystem::Init();
     InputSystem::Init();
-    AssetDatabase::Init();
 
 #if defined(KRAFT_GUI_APP)
+    AssetDatabase::Init();
     if (!Engine::Renderer.Init(&Engine::Config))
     {
         KERROR("[Application::Create]: Failed to initalize renderer!");
@@ -140,12 +140,12 @@ void Engine::Destroy()
 {
     KINFO("[Engine]: Shutting down...");
 
-    AssetDatabase::Shutdown();
     InputSystem::Shutdown();
     EventSystem::Shutdown();
     Platform::Shutdown();
 
 #if defined(KRAFT_GUI_APP)
+    AssetDatabase::Shutdown();
     MaterialSystem::Shutdown();
     TextureSystem::Shutdown();
     ShaderSystem::Shutdown();

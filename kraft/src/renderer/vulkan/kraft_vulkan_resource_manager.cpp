@@ -237,7 +237,7 @@ Handle<Texture> VulkanResourceManager::CreateTexture(const TextureDescription& D
     ImageViewCreateInfo.format = ImageCreateInfo.format;
 
     if (Description.Format == Format::RGB8_UNORM || Description.Format == Format::RGBA8_UNORM ||
-        Description.Format == Format::BGRA8_UNORM || Description.Format == Format::BGR8_UNORM)
+        Description.Format == Format::BGRA8_UNORM || Description.Format == Format::BGR8_UNORM || Description.Format == Format::R32_SFLOAT)
     {
         ImageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
@@ -297,7 +297,7 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(const BufferDescription& Desc
     VkDevice              Device = Context->LogicalDevice.Handle;
     VulkanBuffer          Output = {};
     VkMemoryPropertyFlags MemoryProperties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
-    uint64 ActualSize = Description.Size; // TODO: Fix
+    uint64                ActualSize = Description.Size; // TODO: Fix
 
     VkBufferCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     CreateInfo.size = ActualSize;

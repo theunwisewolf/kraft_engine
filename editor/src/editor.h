@@ -26,8 +26,8 @@ struct ApplicationState
 
 struct EditorCamera : kraft::Camera
 {
-    bool    Flying = false;
-    float32 Sensitivity = 10.0f;
+    int     Flying = 0;
+    float32 Sensitivity = 5.0f;
 };
 
 struct EditorState

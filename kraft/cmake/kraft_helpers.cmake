@@ -26,6 +26,7 @@ endif()
 
 
 add_subdirectory(${KRAFT_PATH}/vendor/volk ${KRAFT_BINARY_DIR}/vendor/volk)
+add_subdirectory(${KRAFT_PATH}/vendor/ufbx ${KRAFT_BINARY_DIR}/vendor/ufbx)
 # add_subdirectory(${KRAFT_PATH}/vendor/glfw ${KRAFT_BINARY_DIR}/vendor/glfw)
 
 # set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
@@ -78,27 +79,30 @@ set(KRAFT_PREBUILT_LIB_FOLDER "${KRAFT_LIBRARY_OS_PREFIX}-${KRAFT_LIBRARY_COMPIL
 message(${KRAFT_PREBUILT_LIB_FOLDER})
 # set(KRAFT_STATIC_LIBS assimp::assimp)
 set(KRAFT_STATIC_LIBS)
-list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp${CMAKE_STATIC_LIBRARY_SUFFIX})
+list(APPEND KRAFT_STATIC_LIBS 
+    ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    Ufbx
+)
 # list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/assimp.lib)
 list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor vendor/assimp/include)
-list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include)
+set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor)
+list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS 
+    ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include
+    ${KRAFT_PATH}/vendor/ufbx/include 
+)
 # list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/include)
 
 set(KRAFT_STATIC_LIBS_COMPILE_DEFINITIONS)
 set(KRAFT_COMPILE_DEFINITIONS _ENABLE_EXTENDED_ALIGNED_STORAGE)
 
 if (KRAFT_APP_TYPE STREQUAL "GUI")
-    add_subdirectory(${KRAFT_PATH}/vendor/ufbx)
-
     # Include paths
     list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS 
         ${KRAFT_PATH}/vendor/imgui 
         ${KRAFT_PATH}/vendor/glad/include 
         ${KRAFT_PATH}/vendor/glfw/include 
         ${KRAFT_PATH}/vendor/entt/include 
-        ${KRAFT_PATH}/vendor/ufbx/include 
     )
 
     # Compile-time definitions
@@ -106,7 +110,7 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
 
     # Libraries
     # list(APPEND KRAFT_STATIC_LIBS glfw ${GLFW_LIBRARIES} ${Vulkan_LIBRARY})
-    list(APPEND KRAFT_STATIC_LIBS volk::volk_headers Ufbx)
+    list(APPEND KRAFT_STATIC_LIBS volk::volk_headers)
     list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/glfw/${KRAFT_PREBUILT_LIB_FOLDER}/glfw3${CMAKE_STATIC_LIBRARY_SUFFIX})
 
     # Kraft compile time definitions

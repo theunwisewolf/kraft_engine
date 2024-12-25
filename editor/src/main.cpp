@@ -3,24 +3,24 @@
 #include <core/kraft_engine.h>
 #include <core/kraft_events.h>
 #include <core/kraft_input.h>
+#include <core/kraft_log.h>
 #include <core/kraft_string.h>
 #include <core/kraft_time.h>
-#include <core/kraft_log.h>
 #include <math/kraft_math.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
+#include <systems/kraft_asset_database.h>
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_texture_system.h>
 #include <world/kraft_components.h>
 #include <world/kraft_entity.h>
 #include <world/kraft_world.h>
-#include <systems/kraft_asset_database.h>
 
+#include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_asset_types.h>
-#include <renderer/kraft_renderer_types.h>
 
 #include <imgui.h>
 
@@ -104,6 +104,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
     if (button == kraft::MouseButtons::MOUSE_BUTTON_RIGHT)
     {
         kraft::Platform::GetWindow()->SetCursorMode(kraft::CURSOR_MODE_DISABLED);
+        kraft::Platform::GetWindow()->SetCursorPosition(0.0f, 0.0f);
 
         ImGuiIO& IO = ImGui::GetIO();
         IO.ConfigFlags |= ImGuiConfigFlags_NoMouse;
@@ -146,20 +147,29 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
     if (EditorState::Ptr->ViewportCamera.Flying)
     {
-        kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
-        float32              X = float32(data.Int32Value[0] - MousePositionPrev.x);
-        float32              Y = -float32(data.Int32Value[1] - MousePositionPrev.y);
+        // GLFW has a bug where the first call to GetCursorPos returns a very large incorrect value on mac and windows
+        if (EditorState::Ptr->ViewportCamera.Flying > 3)
+        {
+            kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
+            // float32              X = float32(data.Int32Value[0] - MousePositionPrev.x);
+            // float32              Y = -float32(data.Int32Value[1] - MousePositionPrev.y);
 
-        // float64 X, Y;
-        // kraft::Platform::GetWindow()->GetCursorPosition(&X, &Y);
-        X = X * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
-        Y = Y * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
+            float64 X, Y;
+            kraft::Platform::GetWindow()->GetCursorPosition(&X, &Y);
+            KINFO("diff = %f, %f", X, Y);
+            Y = -Y;
+            X = X * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
+            Y = Y * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
 
-        Camera.Yaw += float32(X);
-        Camera.Pitch += float32(Y);
-        Camera.Pitch = kraft::math::Clamp(Camera.Pitch, -89.0f, 89.0f);
+            Camera.Yaw += float32(X);
+            Camera.Pitch += float32(Y);
+            Camera.Pitch = kraft::math::Clamp(Camera.Pitch, -89.0f, 89.0f);
 
-        Camera.UpdateVectors();
+            Camera.UpdateVectors();
+        }
+
+        EditorState::Ptr->ViewportCamera.Flying++;
+        kraft::Platform::GetWindow()->SetCursorPosition(0.0f, 0.0f);
     }
 
     return false;
@@ -406,7 +416,6 @@ bool Init()
     return true;
 }
 
-
 static kraft::Vec3f ExpDecay(kraft::Vec3f a, kraft::Vec3f b, float32 Decay, float64 DeltaTime)
 {
     return b + (a - b) * expf(-Decay * DeltaTime);
@@ -414,7 +423,8 @@ static kraft::Vec3f ExpDecay(kraft::Vec3f a, kraft::Vec3f b, float32 Decay, floa
 
 void Update(float64 deltaTime)
 {
-    if (!EditorState::Ptr->ViewportCamera.Flying) return;
+    if (!EditorState::Ptr->ViewportCamera.Flying)
+        return;
 
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;

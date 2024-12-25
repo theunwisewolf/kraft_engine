@@ -19,6 +19,7 @@ VkFormat ToVulkanFormat(Format::Enum Format)
     static VkFormat Mapping[Format::Count] = {
         // Color formats
         VK_FORMAT_R8_UNORM,
+        VK_FORMAT_R32_SFLOAT,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_FORMAT_R8G8B8_UNORM,
         VK_FORMAT_B8G8R8A8_UNORM,
@@ -64,7 +65,9 @@ VkShaderStageFlags ToVulkanShaderStageFlags(uint64 Flags)
 
 VkDescriptorType ToVulkanResourceType(ResourceType::Enum Value)
 {
-    static VkDescriptorType Mapping[ResourceType::Count] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER };
+    static VkDescriptorType Mapping[ResourceType::Count] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                             VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
 
     return Mapping[Value];
 }
@@ -159,6 +162,7 @@ VkImageUsageFlags ToVulkanImageUsageFlags(uint64 Flags)
     Result |= (Flags & TEXTURE_USAGE_FLAGS_STORAGE) ? VK_IMAGE_USAGE_STORAGE_BIT : 0;
     Result |= (Flags & TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0;
     Result |= (Flags & TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 0;
+    Result |= (Flags & TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT) ? VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT : 0;
 
     return Result;
 }
