@@ -30,7 +30,8 @@ struct RendererFrontend
     bool Init(EngineConfigT* Config);
     bool Shutdown();
     void OnResize(int Width, int Height);
-    bool DrawFrame();
+    void PrepareFrame();
+    bool DrawSurfaces();
     bool AddRenderable(const Renderable& Object);
 
     bool BeginMainRenderpass();

@@ -27,6 +27,7 @@ struct GeometrySystem
     static void Shutdown();
 
     static Geometry* GetDefaultGeometry();
+    static Geometry* GetDefault2DGeometry();
     static Geometry* AcquireGeometry(uint32 ID);
     static Geometry* AcquireGeometryWithData(GeometryData Data, bool AutoRelease = true);
     static void      ReleaseGeometry(Geometry* Geometry);

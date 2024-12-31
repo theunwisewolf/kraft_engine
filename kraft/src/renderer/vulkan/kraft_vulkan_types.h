@@ -1,17 +1,17 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "core/kraft_asserts.h"
-#include "math/kraft_math.h"
 #include "containers/kraft_array.h"
+#include "core/kraft_asserts.h"
+#include "core/kraft_core.h"
+#include "math/kraft_math.h"
 #include "renderer/kraft_renderer_types.h"
 
 #include <volk/volk.h>
 
-#define KRAFT_VK_CHECK(expression)                                                                                                         \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                             \
+#define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                                                                                         \
     } while (0)
 
 #define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES 3
@@ -21,18 +21,23 @@
 
 namespace kraft::renderer {
 
+struct VulkanRendererSettings
+{
+    bool VSync = false;
+};
+
 class VulkanResourceManager;
 
 struct VulkanDescriptorState
 {
-    uint8 Generations[3];
+    uint8 Generations[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
 };
 
 struct VulkanMaterialData
 {
-    uint64                 InstanceUBOOffset;
-    Array<VkDescriptorSet> DescriptorSets;
-    VulkanDescriptorState  DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
+    uint64                InstanceUBOOffset;
+    VkDescriptorSet       LocalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    VulkanDescriptorState DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
 };
 
 //
@@ -247,6 +252,16 @@ struct VulkanContext
     VulkanResourceManager* ResourceManager;
     VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
     VulkanMaterialData     Materials[KRAFT_VULKAN_MAX_MATERIALS];
+
+    // Global Data
+    VkDescriptorPool      GlobalDescriptorPool;
+    VkDescriptorSetLayout DescriptorSetLayouts[16];
+    VkDescriptorSet       GlobalDescriptorSets[16][KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    uint8                 DescriptorSetLayoutsCount = 0;
+    Handle<Buffer>        GlobalUniformBuffer = Handle<Buffer>::Invalid();
+    void*                 GlobalUniformBufferMemory = 0;
+
+    VulkanRendererSettings RendererSettings = {};
 };
 
 struct VulkanPhysicalDeviceRequirements
@@ -263,10 +278,9 @@ struct VulkanPhysicalDeviceRequirements
 
 struct VulkanShaderResources
 {
-    Array<VkDescriptorSetLayout> DescriptorSetLayouts;
-    VkDescriptorSet              GlobalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-    Handle<Buffer>               UniformBuffer;
-    void*                        UniformBufferMemory;
+    VkDescriptorSetLayout LocalDescriptorSetLayout = 0;
+    Handle<Buffer>        UniformBuffer = Handle<Buffer>::Invalid();
+    void*                 UniformBufferMemory = 0;
 
     // This is used to figure out where in memory the next material
     // uniform data will be stored

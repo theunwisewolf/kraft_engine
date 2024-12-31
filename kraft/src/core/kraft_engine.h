@@ -12,6 +12,11 @@ namespace kraft {
 
 struct Window;
 
+struct RendererSettings
+{
+    bool VSync = false;
+};
+
 struct EngineConfigT
 {
     uint32                        WindowWidth;
@@ -21,6 +26,7 @@ struct EngineConfigT
     renderer::RendererBackendType RendererBackend;
     bool                          ConsoleApp;
     bool                          StartMaximized;
+    RendererSettings              RendererSettings = {};
 };
 
 struct KRAFT_API Engine

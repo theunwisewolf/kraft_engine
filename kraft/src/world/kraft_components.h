@@ -61,6 +61,12 @@ struct TransformComponent
         this->Scale = Scale;
         this->ComputeModelMatrix();
     }
+
+    void SetScale(float32 Scale)
+    {
+        this->Scale = kraft::Vec3f{ Scale, Scale, Scale };
+        this->ComputeModelMatrix();
+    }
 };
 
 struct RelationshipComponent
@@ -87,6 +93,7 @@ struct MeshComponent
     uint32    GeometryID = -1;
 
     MeshComponent() = default;
+    MeshComponent(Material* MaterialInstance, uint32 GeometryID) : MaterialInstance(MaterialInstance), GeometryID(GeometryID) {};
 };
 
 struct LightComponent

@@ -298,7 +298,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
                         Vertex.UV = kraft::Vec2fZero;
                     }
 
-                    Vertices.Push(Vertex);
+                    // Vertices.Push(Vertex);
                     NumIndices++;
                 }
             }

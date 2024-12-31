@@ -71,7 +71,7 @@ struct Camera
         // return this->ViewMatrix;
     }
 
-    KRAFT_INLINE void UpdateVectors()
+    void UpdateVectors()
     {
         Vec3f _Front;
         _Front.x = Cos(Radians(Yaw)) * Cos(Radians(Pitch));

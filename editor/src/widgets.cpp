@@ -36,6 +36,7 @@ static ImTextureID ImSceneTexture;
 void InitImguiWidgets()
 {
     GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
+    // ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
     ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
     GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
@@ -277,7 +278,7 @@ void DrawImGuiWidgets(bool refresh)
 
     // EditTransform(Camera, TestSceneState->GetSelectedEntity().ModelMatrix);
     {
-        if (!EditorState::Ptr->ViewportCamera.Flying)
+        if (!EditorState::Ptr->ViewportCameraSettings.Flying)
         {
             if (kraft::InputSystem::IsKeyDown(kraft::KEY_Q))
                 GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;

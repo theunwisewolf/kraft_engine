@@ -37,8 +37,6 @@ struct Shader
     Array<ShaderUniform>    UniformCache;
     HashMap<String, uint32> UniformCacheMapping;
     uint32                  TextureCount;
-    uint32                  GlobalUBOOffset;
-    uint32                  GlobalUBOStride;
     uint32                  InstanceUniformsCount;
     uint32                  InstanceUBOStride; // The stride will be same for all material instances
 

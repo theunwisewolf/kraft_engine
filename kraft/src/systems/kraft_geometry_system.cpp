@@ -64,6 +64,11 @@ Geometry* GeometrySystem::GetDefaultGeometry()
     return &State->Geometries[0].Geometry;
 }
 
+Geometry* GeometrySystem::GetDefault2DGeometry()
+{
+    return &State->Geometries[1].Geometry;
+}
+
 Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
 {
     for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
@@ -105,9 +110,7 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     Reference->Geometry.ID = Index;
 
 #ifdef KRAFT_GUI_APP
-    if (!Renderer->CreateGeometry(
-            &Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize
-        ))
+    if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
@@ -180,6 +183,43 @@ void _createDefaultGeometries()
         return;
     }
 #endif
+
+    // 2D Geometry
+    {
+        GeometryReference* Ref = &State->Geometries[1];
+        Vertex2D           Vertices[] = {
+            {
+                Vec3f(+0.5f, +0.5f, +0.0f),
+                { 1.f, 1.f },
+            },
+            {
+                Vec3f(+0.5f, -0.5f, +0.0f),
+                { 1.f, 0.f },
+            },
+            {
+                Vec3f(-0.5f, -0.5f, +0.0f),
+                { 0.f, 0.f },
+            },
+            {
+                Vec3f(-0.5f, +0.5f, +0.0f),
+                { 0.f, 1.f },
+            },
+        };
+
+        uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
+
+        Ref->Geometry.ID = 0;
+        Ref->AutoRelease = false;
+        Ref->ReferenceCount = 1;
+
+#ifdef KRAFT_GUI_APP
+        if (!Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex2D), 6, Indices, sizeof(Indices[0])))
+        {
+            KFATAL("[GeometrySystem]: Failed to create default geometries");
+            return;
+        }
+#endif
+    }
 }
 
 }

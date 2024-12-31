@@ -7,14 +7,14 @@
 #include <core/kraft_memory.h>
 #include <renderer/kraft_camera.h>
 #include <renderer/kraft_renderer_backend.h>
+#include <renderer/kraft_resource_manager.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
-#include <renderer/kraft_resource_manager.h>
-#include <world/kraft_world.h>
 #include <world/kraft_entity.h>
+#include <world/kraft_world.h>
 
-#include <resources/kraft_resource_types.h>
 #include <renderer/shaderfx/kraft_shaderfx_types.h>
+#include <resources/kraft_resource_types.h>
 
 namespace kraft::renderer {
 
@@ -34,6 +34,7 @@ struct RendererDataT
     Array<RenderDataT>  RenderSurfaces;
     RendererBackend*    Backend = nullptr;
     int                 ActiveSurface = -1;
+    int                 CurrentFrameIndex = -1;
 } RendererData;
 
 RendererFrontend* Renderer = nullptr;
@@ -84,14 +85,21 @@ void RendererFrontend::OnResize(int width, int height)
     }
 }
 
-bool RendererFrontend::DrawFrame()
+void RendererFrontend::PrepareFrame()
 {
+    renderer::ResourceManager::Ptr->EndFrame(0);
+    RendererData.CurrentFrameIndex = RendererData.Backend->PrepareFrame();
+}
+
+bool RendererFrontend::DrawSurfaces()
+{
+    KASSERTM(RendererData.CurrentFrameIndex >= 0, "Did you forget to call Renderer.PrepareFrame()?");
+
     GlobalUniformData GlobalShaderData = {};
     GlobalShaderData.Projection = this->Camera->ProjectionMatrix;
     GlobalShaderData.View = this->Camera->GetViewMatrix();
     GlobalShaderData.CameraPosition = this->Camera->Position;
 
-    int CurrentFrame = RendererData.Backend->PrepareFrame();
     for (int i = 0; i < RendererData.RenderSurfaces.Length; i++)
     {
         RenderDataT&    SurfaceRenderData = RendererData.RenderSurfaces[i];
@@ -104,12 +112,11 @@ bool RendererFrontend::DrawFrame()
             GlobalShaderData.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
         }
 
-        RendererData.Backend->BeginRenderPass(Surface.CmdBuffers[CurrentFrame], Surface.RenderPass);
+        Surface.Begin();
+        ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
         {
             ShaderSystem::BindByID(It->first);
-            ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
-
             for (auto& MaterialIt : It->second)
             {
                 auto&  Objects = MaterialIt.second;
@@ -133,7 +140,7 @@ bool RendererFrontend::DrawFrame()
 
             ShaderSystem::Unbind();
         }
-        RendererData.Backend->EndRenderPass(Surface.CmdBuffers[CurrentFrame], Surface.RenderPass);
+        Surface.End();
     }
 
     RendererData.RenderSurfaces.Clear();
@@ -235,15 +242,7 @@ void RendererFrontend::ApplyInstanceShaderProperties(Shader* ActiveShader)
     RendererData.Backend->ApplyInstanceShaderProperties(ActiveShader);
 }
 
-bool RendererFrontend::CreateGeometry(
-    Geometry*    Geometry,
-    uint32       VertexCount,
-    const void*  Vertices,
-    uint32       VertexSize,
-    uint32       IndexCount,
-    const void*  Indices,
-    const uint32 IndexSize
-)
+bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
 {
     return RendererData.Backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
 }
@@ -361,6 +360,16 @@ void RendererFrontend::EndRenderSurface(const RenderSurfaceT& Surface)
 {
     RendererData.ActiveSurface = -1;
     // RendererData.Backend->EndRenderPass(Surface.CmdBuffer, Surface.RenderPass);
+}
+
+void RenderSurfaceT::Begin()
+{
+    RendererData.Backend->BeginRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
+}
+
+void RenderSurfaceT::End()
+{
+    RendererData.Backend->EndRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
 }
 
 }

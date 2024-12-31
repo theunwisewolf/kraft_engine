@@ -128,9 +128,9 @@ bool Engine::Present()
 #if defined(KRAFT_GUI_APP)
     // TODO (amn): This should happen at the end of the frame
     // Clear out the resources
-    renderer::ResourceManager::Ptr->EndFrame(0);
+    // renderer::ResourceManager::Ptr->EndFrame(0);
 
-    return Engine::Renderer.DrawFrame();
+    // return Engine::Renderer.DrawFrame();
 #endif
 
     return false;

@@ -11,7 +11,7 @@ namespace kraft::renderer
 
 #define KRAFT_CLAMP(value, min, max) (value < min) ? value = min : (value > max ? max : value);
 
-void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, VulkanSwapchain* out)
+void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, bool VSync, VulkanSwapchain* out)
 {
     // context->Swapchain = {};
 
@@ -57,13 +57,14 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     // Present mode
     // Choose FIFO as default
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    VkPresentModeKHR PresentMode = VK_PRESENT_MODE_FIFO_KHR;
+    VkPresentModeKHR PreferredMode = VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_MAILBOX_KHR;
     for (uint32 i = 0; i < info.PresentModeCount; ++i)
     {
         // If Mailbox presentation mode is supported, we want that
-        if (info.PresentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+        if (info.PresentModes[i] == PreferredMode)
         {
-            presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+            PresentMode = PreferredMode;
             break;
         }
     }
@@ -103,7 +104,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapchainCreateInfo.preTransform = info.SurfaceCapabilities.currentTransform;
     swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainCreateInfo.presentMode = presentMode;
+    swapchainCreateInfo.presentMode = PresentMode;
     swapchainCreateInfo.clipped = VK_TRUE;
     swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
@@ -198,7 +199,7 @@ void VulkanDestroySwapchain(VulkanContext* context)
 void VulkanRecreateSwapchain(VulkanContext* context)
 {
     VulkanDestroySwapchain(context);
-    VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight);
+    VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight, context->RendererSettings.VSync);
 }
 
 bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)

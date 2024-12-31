@@ -1055,6 +1055,9 @@ void ShaderFXParser::ParseRenderPassBlock(ShaderEffect* Effect)
             if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 return;
 
+            // It is possible for shaders to have no local resources
+            if (Effect->Resources.Length == 0) continue;
+
             StringView Name = Token.ToStringView();
             bool       Valid = false;
             for (int i = 0; i < Effect->Resources.Length; i++)
@@ -1278,10 +1281,10 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
         BinaryOutput.Write(Pass.Name);
 
         // Write the vertex layout & render state offsets
-        BinaryOutput.Write((uint64)(Pass.VertexLayout - &Shader.VertexLayouts[0]));
-        BinaryOutput.Write((uint64)(Pass.Resources - &Shader.Resources[0]));
-        BinaryOutput.Write((uint64)(Pass.ConstantBuffers - &Shader.ConstantBuffers[0]));
-        BinaryOutput.Write((uint64)(Pass.RenderState - &Shader.RenderStates[0]));
+        BinaryOutput.Write((int64)(Pass.VertexLayout - &Shader.VertexLayouts[0]));
+        BinaryOutput.Write((int64)(Shader.Resources.Length > 0 ? Pass.Resources - &Shader.Resources[0] : -1));
+        BinaryOutput.Write((int64)(Pass.ConstantBuffers - &Shader.ConstantBuffers[0]));
+        BinaryOutput.Write((int64)(Pass.RenderState - &Shader.RenderStates[0]));
 
         // Manually write the shader code fragments to the buffer
         BinaryOutput.Write(Pass.ShaderStages.Length);
@@ -1428,19 +1431,19 @@ bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
         RenderPassDefinition& Pass = Shader->RenderPasses[i];
         Reader.Read(&Pass.Name);
 
-        uint64 VertexLayoutOffset;
+        int64 VertexLayoutOffset;
         Reader.Read(&VertexLayoutOffset);
         Pass.VertexLayout = &Shader->VertexLayouts[VertexLayoutOffset];
 
-        uint64 ResourcesOffset;
+        int64 ResourcesOffset;
         Reader.Read(&ResourcesOffset);
-        Pass.Resources = &Shader->Resources[ResourcesOffset];
+        Pass.Resources = ResourcesOffset > -1 ? &Shader->Resources[ResourcesOffset] : nullptr;
 
-        uint64 ConstantBuffersOffset;
+        int64 ConstantBuffersOffset;
         Reader.Read(&ConstantBuffersOffset);
         Pass.ConstantBuffers = &Shader->ConstantBuffers[ConstantBuffersOffset];
 
-        uint64 RenderStateOffset;
+        int64 RenderStateOffset;
         Reader.Read(&RenderStateOffset);
         Pass.RenderState = &Shader->RenderStates[RenderStateOffset];
 

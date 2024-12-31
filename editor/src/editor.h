@@ -12,6 +12,7 @@
 namespace kraft {
 struct Entity;
 struct Camera;
+struct Shader;
 }
 
 struct ApplicationState
@@ -24,10 +25,10 @@ struct ApplicationState
     RendererImGui ImGuiRenderer;
 };
 
-struct EditorCamera : kraft::Camera
+struct EditorCameraSettings
 {
     int     Flying = 0;
-    float32 Sensitivity = 5.0f;
+    float32 Sensitivity = 3.0f;
 };
 
 struct EditorState
@@ -35,13 +36,15 @@ struct EditorState
     static EditorState*             Ptr;
     kraft::EntityHandleT            SelectedEntity = kraft::EntityHandleInvalid;
     kraft::World*                   CurrentWorld;
+    kraft::Shader*                  ObjectPickingShader;
     kraft::renderer::RenderSurfaceT RenderSurface;
-    EditorCamera                    ViewportCamera;
+    kraft::renderer::RenderSurfaceT ObjectPickingRenderTarget;
+    EditorCameraSettings            ViewportCameraSettings = {};
 
     EditorState();
     kraft::Entity GetSelectedEntity();
 
-    void SetCamera(const EditorCamera& Camera);
+    void SetCamera(const kraft::Camera& Camera);
 };
 
 extern ApplicationState GlobalAppState;

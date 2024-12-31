@@ -13,6 +13,7 @@
 #include <systems/kraft_asset_database.h>
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_material_system.h>
+#include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
 #include <world/kraft_components.h>
 #include <world/kraft_entity.h>
@@ -22,6 +23,7 @@
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_asset_types.h>
 
+#include <entt/entt.h>
 #include <imgui.h>
 
 #include "editor.h"
@@ -109,7 +111,7 @@ bool MouseDownEventListener(kraft::EventType type, void* sender, void* listener,
         ImGuiIO& IO = ImGui::GetIO();
         IO.ConfigFlags |= ImGuiConfigFlags_NoMouse;
         IO.ConfigFlags |= ImGuiConfigFlags_NavNoCaptureKeyboard;
-        EditorState::Ptr->ViewportCamera.Flying = true;
+        EditorState::Ptr->ViewportCameraSettings.Flying = true;
     }
 
     return false;
@@ -127,7 +129,7 @@ bool MouseUpEventListener(kraft::EventType type, void* sender, void* listener, k
 
         IO.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
         IO.ConfigFlags &= ~ImGuiConfigFlags_NavNoCaptureKeyboard;
-        EditorState::Ptr->ViewportCamera.Flying = false;
+        EditorState::Ptr->ViewportCameraSettings.Flying = false;
     }
 
     return false;
@@ -144,11 +146,12 @@ bool MouseDragStartEventListener(kraft::EventType type, void* sender, void* list
 
 bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* listener, kraft::EventData data)
 {
+    return false;
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
-    if (EditorState::Ptr->ViewportCamera.Flying)
+    if (EditorState::Ptr->ViewportCameraSettings.Flying)
     {
         // GLFW has a bug where the first call to GetCursorPos returns a very large incorrect value on mac and windows
-        if (EditorState::Ptr->ViewportCamera.Flying > 3)
+        if (EditorState::Ptr->ViewportCameraSettings.Flying > 3)
         {
             kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
             // float32              X = float32(data.Int32Value[0] - MousePositionPrev.x);
@@ -156,10 +159,14 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
 
             float64 X, Y;
             kraft::Platform::GetWindow()->GetCursorPosition(&X, &Y);
-            KINFO("diff = %f, %f", X, Y);
+
+            // KINFO("Dragging = %f, %f", X, Y);
             Y = -Y;
-            X = X * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
-            Y = Y * EditorState::Ptr->ViewportCamera.Sensitivity * kraft::Time::DeltaTime;
+            // X = X * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::math::Min(kraft::Time::DeltaTime, 1 / 144.0);
+            // Y = Y * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::math::Min(kraft::Time::DeltaTime, 1 / 144.0);
+
+            X = X * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::Time::DeltaTime;
+            Y = Y * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::Time::DeltaTime;
 
             Camera.Yaw += float32(X);
             Camera.Pitch += float32(Y);
@@ -167,8 +174,10 @@ bool MouseDragDraggingEventListener(kraft::EventType type, void* sender, void* l
 
             Camera.UpdateVectors();
         }
-
-        EditorState::Ptr->ViewportCamera.Flying++;
+        else
+        {
+            EditorState::Ptr->ViewportCameraSettings.Flying++;
+        }
         kraft::Platform::GetWindow()->SetCursorPosition(0.0f, 0.0f);
     }
 
@@ -238,7 +247,7 @@ bool Init()
     EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
     new (EditorState::Ptr->CurrentWorld) kraft::World();
 
-    EditorState::Ptr->SetCamera(EditorCamera());
+    EditorState::Ptr->SetCamera(kraft::Camera());
 
     using namespace kraft;
     EventSystem::Listen(EVENT_TYPE_KEY_DOWN, nullptr, KeyDownEventListener);
@@ -277,27 +286,28 @@ bool Init()
 
     EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
 
+    kraft::Entity Sprite2D = EditorState::Ptr->CurrentWorld->CreateEntity("Sprite2D", WorldRoot);
+    Sprite2D.AddComponent<MeshComponent>(
+        kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt", EditorState::Ptr->RenderSurface.RenderPass), kraft::GeometrySystem::GetDefault2DGeometry()->InternalID
+    );
+    Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
+
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
     KASSERT(VikingRoom);
 
     kraft::Entity VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
-        kraft::Vec3f{ 0.0f, 0.0f, 16.0f },
-        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
-        kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+        kraft::Vec3f{ 0.0f, 0.0f, 16.0f }, kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
     );
 
     EditorState::Ptr->SelectedEntity = VikingRoomMeshParent.EntityHandle;
     for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
     {
-        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
-            VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent
-        );
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance =
-            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
         VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
@@ -306,22 +316,35 @@ bool Init()
 
     VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent2", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
-        kraft::Vec3f{ 30.0f, 0.0f, 16.0f },
-        kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
-        kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+        kraft::Vec3f{ 30.0f, 0.0f, 16.0f }, kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
     );
     for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
     {
-        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
-            VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent
-        );
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance =
-            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
         VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
+        Transform.ComputeModelMatrix();
+    }
+
+    kraft::MeshAsset* Chair = kraft::AssetDatabase::LoadMesh("res/meshes/chair.fbx");
+    KASSERT(Chair);
+    VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("Chair", WorldRoot);
+    VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
+        kraft::Vec3f{ 50.0f, 50.0f, 16.0f }, kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+    );
+    for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
+    {
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(Chair->NodeHierarchy[Chair->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
+        MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
+        Mesh.GeometryID = Chair->SubMeshes[i].Geometry->InternalID;
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+
+        kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
+        Chair->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
         Transform.ComputeModelMatrix();
     }
 
@@ -366,13 +389,10 @@ bool Init()
     MeshParent.GetComponent<TransformComponent>().SetScale({ 20.0f, 20.0f, 20.0f });
     for (int i = 0; i < RogueSkeleton->SubMeshes.Length; i++)
     {
-        kraft::Entity TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(
-            RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent
-        );
+        kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
         Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
-        Mesh.MaterialInstance =
-            kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+        Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
 
         if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
         {
@@ -423,14 +443,15 @@ static kraft::Vec3f ExpDecay(kraft::Vec3f a, kraft::Vec3f b, float32 Decay, floa
 
 void Update(float64 deltaTime)
 {
-    if (!EditorState::Ptr->ViewportCamera.Flying)
+    if (!EditorState::Ptr->ViewportCameraSettings.Flying)
         return;
 
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
+    float32 SpeedBoost = kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT_SHIFT) ? 2.0f : 1.0f;
     // if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
-        float32      Speed = 50.f * deltaTime;
+        float32      Speed = SpeedBoost * 50.f * deltaTime;
         kraft::Vec3f direction = kraft::Vec3fZero;
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_UP) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_W))
         {
@@ -442,8 +463,8 @@ void Update(float64 deltaTime)
             }
             else
             {
-                // Camera.Position += Camera.Front * Speed;
-                Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Front * Speed, 128, deltaTime);
+                Camera.Position += Camera.Front * Speed;
+                // Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Front * Speed, 128, deltaTime);
                 // kraft::Vec3f forwardVector = ForwardVector(Camera.GetViewMatrix());
                 // direction += forwardVector;
             }
@@ -467,15 +488,15 @@ void Update(float64 deltaTime)
         {
             // kraft::Vec3f leftVector = LeftVector(Camera.GetViewMatrix());
             // direction += leftVector;
-            // Camera.Position -= Camera.Right * Speed;
-            Camera.Position = ExpDecay(Camera.Position, Camera.Position - Camera.Right * Speed, 128, deltaTime);
+            Camera.Position -= Camera.Right * Speed;
+            // Camera.Position = ExpDecay(Camera.Position, Camera.Position - Camera.Right * Speed, 128, deltaTime);
         }
         else if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_RIGHT) || kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_D))
         {
             // kraft::Vec3f rightVector = RightVector(Camera.GetViewMatrix());
             // direction += rightVector;
-            // Camera.Position += Camera.Right * Speed;
-            Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Right * Speed, 128, deltaTime);
+            Camera.Position += Camera.Right * Speed;
+            // Camera.Position = ExpDecay(Camera.Position, Camera.Position + Camera.Right * Speed, 128, deltaTime);
         }
 
         if (kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_SPACE))
@@ -522,6 +543,37 @@ void Update(float64 deltaTime)
     //         Camera.SetYaw(Camera.Yaw - 1.f * deltaTime);
     //     }
     // }
+
+    // GLFW has a bug where the first call to GetCursorPos returns a very large incorrect value on mac and windows
+    if (EditorState::Ptr->ViewportCameraSettings.Flying > 3)
+    {
+        kraft::MousePosition MousePositionPrev = kraft::InputSystem::GetPreviousMousePosition();
+        // float32              X = float32(data.Int32Value[0] - MousePositionPrev.x);
+        // float32              Y = -float32(data.Int32Value[1] - MousePositionPrev.y);
+
+        float64 X, Y;
+        kraft::Platform::GetWindow()->GetCursorPosition(&X, &Y);
+
+        // KINFO("Dragging = %f, %f", X, Y);
+        Y = -Y;
+        // X = X * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::math::Min(kraft::Time::DeltaTime, 1 / 144.0);
+        // Y = Y * EditorState::Ptr->ViewportCameraSettings.Sensitivity * kraft::math::Min(kraft::Time::DeltaTime, 1 / 144.0);
+
+        X = X * EditorState::Ptr->ViewportCameraSettings.Sensitivity * SpeedBoost * kraft::Time::DeltaTime;
+        Y = Y * EditorState::Ptr->ViewportCameraSettings.Sensitivity * SpeedBoost * kraft::Time::DeltaTime;
+
+        Camera.Yaw += float32(X);
+        Camera.Pitch += float32(Y);
+        Camera.Pitch = kraft::math::Clamp(Camera.Pitch, -89.0f, 89.0f);
+
+        Camera.UpdateVectors();
+    }
+    else
+    {
+        EditorState::Ptr->ViewportCameraSettings.Flying++;
+    }
+
+    kraft::Platform::GetWindow()->SetCursorPosition(0.0f, 0.0f);
 }
 
 void Render()
@@ -565,7 +617,31 @@ void Run()
         if (!kraft::Engine::Suspended)
         {
             Render();
-            kraft::Engine::Present();
+            // kraft::Engine::Present();
+            kraft::Engine::Renderer.PrepareFrame();
+            kraft::Engine::Renderer.DrawSurfaces();
+
+            // EditorState::Ptr->ObjectPickingRenderTarget.Begin();
+
+            // kraft::GlobalUniformData GlobalShaderData = {};
+            // kraft::renderer::Renderer->Camera = &EditorState::Ptr->CurrentWorld->Camera;
+            // GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
+            // GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
+            // GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
+            // kraft::ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
+            // kraft::ShaderSystem::BindByID(EditorState::Ptr->ObjectPickingShader->ID);
+
+            // auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+            // for (auto EntityHandle : Group)
+            // {
+            //     auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+            //     kraft::Mat4f ModelMatrix = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
+            //     kraft::ShaderSystem::SetUniform("Model", ModelMatrix);
+            //     kraft::Engine::Renderer.DrawGeometry(Mesh.GeometryID);
+            // }
+
+            // kraft::ShaderSystem::ShaderSystem::Unbind();
+            // EditorState::Ptr->ObjectPickingRenderTarget.End();
 
             // TODO (amn): Fix this
             // We do not have any other way to render the main renderpass right now :(
@@ -588,7 +664,7 @@ void Run()
         if (kraft::Time::FrameTime < GlobalAppState.TargetFrameTime)
         {
             float64 CurrentAbsoluteTime = kraft::Platform::GetAbsoluteTime();
-            kraft::Platform::SleepMilliseconds((uint64)((GlobalAppState.TargetFrameTime - kraft::Time::FrameTime) * 1000.f));
+            // kraft::Platform::SleepMilliseconds((uint64)((GlobalAppState.TargetFrameTime - kraft::Time::FrameTime) * 1000.f));
         }
 
         if (GlobalAppState.TimeSinceLastFrame >= 1.f)

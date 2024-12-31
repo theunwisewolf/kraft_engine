@@ -146,6 +146,12 @@ struct RendererBackend
     DeviceInfoT DeviceInfo;
 };
 
+struct Vertex2D
+{
+    Vec3f Position;
+    Vec2f UV;
+};
+
 struct Vertex3D
 {
     Vec3f Position;
@@ -787,6 +793,9 @@ struct RenderSurfaceT
     Handle<Texture>       ColorPassTexture;
     Handle<Texture>       DepthPassTexture;
     World*                World;
+
+    void Begin();
+    void End();
 };
 
 } // namespace::renderer
