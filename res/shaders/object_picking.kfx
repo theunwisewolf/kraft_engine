@@ -1,25 +1,19 @@
-Shader Basic
+Shader ObjectPicking
 {
     Layout
     {
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 20 vertex
+            Binding     0 24 vertex
             Attribute   float3 Position 0 0 0
-            Attribute   float2 UV 0 1 12
+            Attribute   float3 ObjectId 0 1 12
         }
 
-        UniformBuffer LocalUniformBuffer
+        UniformBuffer GlobalUniformBuffer
         {
-            float4 DiffuseColor;
-        }
-
-        // Uniform buffers
-        Resource Main
-        {
-            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(16);
-            Sampler       DiffuseSampler        Stage(Fragment) Binding(1);
+            mat4 Projection;
+            mat4 View;
         }
 
         // Constant buffers/Push constants
@@ -36,7 +30,7 @@ Shader Basic
 
         // Inputs
         layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec2 inUV;
+        layout (location = 1) in vec3 inObjectId;
 
         // Written to; using descriptor sets
         layout (set = 0, binding = 0) uniform GlobalUniformBuffer
@@ -51,40 +45,32 @@ Shader Basic
         } variableState;
 
         // Output from the vertex shader to the fragment shader
-        layout(location = 0) out struct DataTransferObject 
-        {
-            vec2 UV;
-        } outDTO;
+        layout(location = 0) out vec3 outObjectId;
 
         void main()
         {
-            outDTO.UV = inUV;
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+            outObjectId = inObjectId;
         }
 
         #endif // VERTEX
 
         #if defined FRAGMENT
 
-        layout (location = 0) in struct DataTransferObject 
-        {
-            vec2 UV;
-        } inDTO;
+        layout(location = 0) in vec3 inObjectId;
 
         // Outputs
+        // layout(set = 1, binding = 1) writeonly buffer ObjectPickingSSBO 
+        // {
+        //     uint SelectedObjectId;
+        // } ssbo;
+
         layout (location = 0) out vec4 outColor;
-
-        // Written to; using descriptor sets
-        layout(set = 2, binding = 0) uniform LocalUniformBuffer 
-        {
-            vec4 DiffuseColor;
-        } localUniformBuffer;
-
-        layout(set = 2, binding = 1) uniform sampler2D DiffuseSampler;
 
         void main() 
         {
-            outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+            // ssbo.SelectedObjectId = inObjectId;
+            outColor = vec4(inObjectId, 1);
         }
 
         #endif // FRAGMENT
@@ -97,7 +83,7 @@ Shader Basic
             Cull            Off
             ZTest           Less
             ZWrite          On
-            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+            Blend           Off
             BlendOp         Add, Add
             PolygonMode     Fill
             LineWidth       1.0   
