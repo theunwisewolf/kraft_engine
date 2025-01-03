@@ -1,6 +1,6 @@
 #include "kraft_shader_system.h"
 
-#include <containers/kraft_buffer.h>
+//#include <containers/kraft_buffer.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
@@ -256,7 +256,12 @@ Shader* ShaderSystem::GetDefaultShader()
     return &State->Shaders[0].Shader;
 }
 
-void ShaderSystem::Bind(Shader* Shader)
+Shader* ShaderSystem::GetActiveShader()
+{
+	return State->CurrentShader;
+}
+
+Shader* ShaderSystem::Bind(Shader* Shader)
 {
     if (State->CurrentShaderID != Shader->ID)
     {
@@ -265,14 +270,18 @@ void ShaderSystem::Bind(Shader* Shader)
         State->CurrentShaderID = Shader->ID;
         State->CurrentShader = Shader;
     }
+
+	return Shader;
 }
 
-void ShaderSystem::BindByID(uint32 ShaderID)
+Shader* ShaderSystem::BindByID(uint32 ShaderID)
 {
     KASSERT(ShaderID < State->MaxShaderCount);
     ShaderReference* Reference = &State->Shaders[ShaderID];
 
     ShaderSystem::Bind(&Reference->Shader);
+
+	return &Reference->Shader;
 }
 
 void ShaderSystem::SetMaterialInstance(Material* Instance)
@@ -346,9 +355,9 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
     return true;
 }
 
-void ShaderSystem::ApplyGlobalProperties(const GlobalUniformData& GlobalShaderData)
+void ShaderSystem::ApplyGlobalProperties(renderer::Handle<renderer::Buffer> DstDataBuffer)
 {
-    // KASSERT(State->CurrentShader);
+    KASSERT(State->CurrentShader);
 
     // TODO: This is very YOLO for now
     // if (State->CurrentShader->UniformCache.Length >= 5 && State->CurrentShader->UniformCache[4].Scope == ShaderUniformScope::Global)
@@ -378,9 +387,9 @@ void ShaderSystem::ApplyGlobalProperties(const GlobalUniformData& GlobalShaderDa
     //     SetUniformByIndex(1, GlobalShaderData.View);
     // }
 
-    Shader* FirstShader = &State->Shaders[0].Shader;
-    Renderer->SetUniform(FirstShader, ShaderUniform{ .Scope = ShaderUniformScope::Global }, (void*)&GlobalShaderData, true);
-    Renderer->ApplyGlobalShaderProperties(FirstShader);
+    //Shader* FirstShader = &State->Shaders[0].Shader;
+    //Renderer->SetUniform(FirstShader, ShaderUniform{ .Scope = ShaderUniformScope::Global }, (void*)&GlobalShaderData, true);
+    Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
 }
 
 void ShaderSystem::ApplyInstanceProperties()

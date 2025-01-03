@@ -20,6 +20,8 @@ struct ShaderEffect;
 struct RendererBackend;
 struct Renderable;
 struct RenderPass;
+struct Buffer;
+
 template<typename T>
 struct Handle;
 
@@ -38,25 +40,26 @@ struct RendererFrontend
     bool EndMainRenderpass();
 
     // API
-    void            CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
-    void            DestroyRenderPipeline(Shader* Shader);
-    void            CreateMaterial(Material* Material);
-    void            DestroyMaterial(Material* Material);
-    void            UseShader(const Shader* Shader);
-    void            SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void            ApplyGlobalShaderProperties(Shader* ActiveShader);
-    void            ApplyInstanceShaderProperties(Shader* ActiveShader);
-    void            DrawGeometry(uint32 GeometryID);
-    bool            CreateGeometry(
-                   Geometry*    Geometry,
-                   uint32       VertexCount,
-                   const void*  Vertices,
-                   uint32       VertexSize,
-                   uint32       IndexCount,
-                   const void*  Indices,
-                   const uint32 IndexSize
-               );
+    void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
+    void DestroyRenderPipeline(Shader* Shader);
+    void CreateMaterial(Material* Material);
+    void DestroyMaterial(Material* Material);
+    void UseShader(const Shader* Shader);
+    void SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+	void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer);
+    void ApplyInstanceShaderProperties(Shader* ActiveShader);
+    void DrawGeometry(uint32 GeometryID);
+    bool CreateGeometry(
+		Geometry*    Geometry,
+		uint32       VertexCount,
+		const void*  Vertices,
+		uint32       VertexSize,
+		uint32       IndexCount,
+		const void*  Indices,
+		const uint32 IndexSize
+	);
     void DestroyGeometry(Geometry* Geometry);
+    bool ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
 
     RenderSurfaceT CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth = false);
     void BeginRenderSurface(const RenderSurfaceT& Surface);

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "renderer/shaderfx/kraft_shaderfx_types.h"
 #include "renderer/kraft_renderer_types.h"
+#include "renderer/shaderfx/kraft_shaderfx_types.h"
 
 #define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
@@ -40,7 +40,7 @@ struct Shader
     uint32                  InstanceUniformsCount;
     uint32                  InstanceUBOStride; // The stride will be same for all material instances
 
-    Material*          ActiveMaterial; // The shader will read instance properties from this material when bound
+    Material*          ActiveMaterial;                                   // The shader will read instance properties from this material when bound
     Handle<RenderPass> RenderPassHandle = Handle<RenderPass>::Invalid(); // The renderpass of the shader's pipeline
     void*              RendererData;
 };
@@ -64,29 +64,31 @@ struct Texture
     TextureMapType          Type;
 
     uint32 Generation;
-    void* RendererData; // Renderer specific data
+    void*  RendererData; // Renderer specific data
+
+    char DebugName[255];
 };
 
-#define MATERIAL_PROPERTY_SET(Type)                                                                                                        \
-    KRAFT_INLINE void Set(Type Val)                                                                                                        \
-    {                                                                                                                                      \
-        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                   \
+#define MATERIAL_PROPERTY_SET(Type)                                                                                                                                                                    \
+    KRAFT_INLINE void Set(Type Val)                                                                                                                                                                    \
+    {                                                                                                                                                                                                  \
+        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
     }
-#define MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                \
-    KRAFT_INLINE MaterialProperty(uint32 Index, Type Val)                                                                                  \
-    {                                                                                                                                      \
-        this->UniformIndex = Index;                                                                                                        \
-        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                   \
+#define MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                                                                            \
+    KRAFT_INLINE MaterialProperty(uint32 Index, Type Val)                                                                                                                                              \
+    {                                                                                                                                                                                                  \
+        this->UniformIndex = Index;                                                                                                                                                                    \
+        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
     }
-#define MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                   \
-    KRAFT_INLINE MaterialProperty* operator=(Type Val)                                                                                     \
-    {                                                                                                                                      \
-        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                   \
-        return this;                                                                                                                       \
+#define MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                                                                               \
+    KRAFT_INLINE MaterialProperty* operator=(Type Val)                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
+        return this;                                                                                                                                                                                   \
     }
-#define MATERIAL_PROPERTY_SETTERS(Type)                                                                                                    \
-    MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                    \
-    MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                       \
+#define MATERIAL_PROPERTY_SETTERS(Type)                                                                                                                                                                \
+    MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                                                                                \
+    MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                                                                                   \
     MATERIAL_PROPERTY_SET(Type)
 
 struct MaterialProperty

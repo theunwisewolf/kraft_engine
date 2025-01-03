@@ -14,7 +14,8 @@ struct Window;
 
 struct RendererSettings
 {
-    bool VSync = false;
+    bool   VSync = false;
+	uint16 GlobalUBOSizeInBytes = 128;
 };
 
 struct EngineConfigT

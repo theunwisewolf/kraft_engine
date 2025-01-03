@@ -286,11 +286,11 @@ bool Init()
 
     EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
 
-    kraft::Entity Sprite2D = EditorState::Ptr->CurrentWorld->CreateEntity("Sprite2D", WorldRoot);
-    Sprite2D.AddComponent<MeshComponent>(
-        kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt", EditorState::Ptr->RenderSurface.RenderPass), kraft::GeometrySystem::GetDefault2DGeometry()->InternalID
-    );
-    Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
+    // kraft::Entity Sprite2D = EditorState::Ptr->CurrentWorld->CreateEntity("Sprite2D", WorldRoot);
+    // Sprite2D.AddComponent<MeshComponent>(
+    //     kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt", EditorState::Ptr->RenderSurface.RenderPass), kraft::GeometrySystem::GetDefault2DGeometry()->InternalID
+    // );
+    // Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
 
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
@@ -621,27 +621,33 @@ void Run()
             kraft::Engine::Renderer.PrepareFrame();
             kraft::Engine::Renderer.DrawSurfaces();
 
-            // EditorState::Ptr->ObjectPickingRenderTarget.Begin();
+			EditorState::Ptr->ObjectPickingRenderTarget.Begin();
 
-            // kraft::GlobalUniformData GlobalShaderData = {};
-            // kraft::renderer::Renderer->Camera = &EditorState::Ptr->CurrentWorld->Camera;
-            // GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
-            // GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
-            // GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
-            // kraft::ShaderSystem::ApplyGlobalProperties(GlobalShaderData);
-            // kraft::ShaderSystem::BindByID(EditorState::Ptr->ObjectPickingShader->ID);
+			kraft::GlobalShaderData GlobalShaderData = {};
+			kraft::renderer::Renderer->Camera = &EditorState::Ptr->CurrentWorld->Camera;
+			GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
+			GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
+			GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
 
-            // auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
-            // for (auto EntityHandle : Group)
-            // {
-            //     auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
-            //     kraft::Mat4f ModelMatrix = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
-            //     kraft::ShaderSystem::SetUniform("Model", ModelMatrix);
-            //     kraft::Engine::Renderer.DrawGeometry(Mesh.GeometryID);
-            // }
+			kraft::MemCpy(
+				(void*)kraft::renderer::ResourceManager::Ptr->GetBufferData(EditorState::Ptr->ObjectPickingRenderTarget.GlobalUBO), 
+				(void*)&GlobalShaderData, 
+				sizeof(GlobalShaderData)
+			);
+			kraft::ShaderSystem::BindByID(EditorState::Ptr->ObjectPickingShader->ID);
+			kraft::ShaderSystem::ApplyGlobalProperties(EditorState::Ptr->ObjectPickingRenderTarget.GlobalUBO);
+			auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+			for (auto EntityHandle : Group)
+			{
+				auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+				kraft::Mat4f ModelMatrix = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
+				kraft::ShaderSystem::SetUniform("Model", ModelMatrix);
+				kraft::ShaderSystem::SetUniform("ObjectId", kraft::Vec3f(EntityHandle & 0xff, (EntityHandle >> 8) & 0xff, (EntityHandle >> 16 & 0xff)));
+				kraft::Engine::Renderer.DrawGeometry(Mesh.GeometryID);
+			}
 
-            // kraft::ShaderSystem::ShaderSystem::Unbind();
-            // EditorState::Ptr->ObjectPickingRenderTarget.End();
+			kraft::ShaderSystem::ShaderSystem::Unbind();
+			EditorState::Ptr->ObjectPickingRenderTarget.End();
 
             // TODO (amn): Fix this
             // We do not have any other way to render the main renderpass right now :(

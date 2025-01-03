@@ -6,10 +6,13 @@
 
 // The language grammar is similar to hydrafx with some changes
 
+
 namespace kraft {
 struct Lexer;
 struct Token;
 struct NamedToken;
+
+struct ArenaT;
 }
 
 namespace kraft::renderer {
@@ -70,7 +73,7 @@ struct ShaderFXParser
 };
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose = false);
-bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
+bool CompileShaderFX(ArenaT* Arena, ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
 bool LoadShaderFX(const String& Path, ShaderEffect* Shader);
 bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB);
 

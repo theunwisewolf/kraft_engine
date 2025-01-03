@@ -11,7 +11,17 @@
         "xutility": "cpp",
         "xtr1common": "cpp",
         "type_traits": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "random": "cpp",
+        "algorithm": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "xhash": "cpp",
+        "xtree": "cpp",
+        "filesystem": "cpp",
+        "format": "cpp",
+        "xiosbase": "cpp",
+        "xlocale": "cpp"
     },
     "cmake.configureArgs": [
         // "-DCMAKE_BUILD_TYPE=RelWithDebInfo"

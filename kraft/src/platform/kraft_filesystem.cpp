@@ -3,10 +3,12 @@
 #include <cerrno>
 
 #include <containers/kraft_buffer.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
+
 #include <platform/kraft_filesystem_types.h>
 
 namespace kraft {
@@ -197,17 +199,27 @@ String CleanPath(const String& Path)
     return Output;
 }
 
-void Dirname(const char* path, char* out)
+void Dirname(const char* Path, char* Out)
 {
-    uint64 Length = StringLength(path);
-    for (int i = (int)Length - 1; i >= 0; i--)
+    uint64 Length = StringLength(Path);
+    Dirname(Path, Length, Out);
+}
+
+void Dirname(const char* Path, uint64 PathLength, char* Out)
+{
+    for (int i = (int)PathLength - 1; i >= 0; i--)
     {
-        if (path[i] == '/' || path[i] == '\\')
+        if (Path[i] == '/' || Path[i] == '\\')
         {
-            StringNCopy(out, path, i);
+            StringNCopy(Out, Path, i);
+            Out[i] = 0;
             return;
         }
     }
+
+    // There is no path separator, just copy the original string back
+    StringNCopy(Out, Path, PathLength);
+    Out[PathLength] = 0;
 }
 
 String Dirname(const String& Path)
@@ -221,6 +233,24 @@ String Dirname(const String& Path)
     }
 
     return Path;
+}
+
+char* Dirname(ArenaT* Arena, const String& Path)
+{
+    return Dirname(Arena, Path.Data(), Path.GetLengthInBytes());
+}
+
+char* Dirname(ArenaT* Arena, const char* Path)
+{
+    return Dirname(Arena, Path, StringLength(Path));
+}
+
+KRAFT_API char* Dirname(ArenaT* Arena, const char* Path, uint64 PathLength)
+{
+    char* Out = (char*)ArenaPush(Arena, PathLength + 1);
+    Dirname(Path, PathLength, Out);
+
+    return Out;
 }
 
 void Basename(const char* path, char* out)
@@ -249,6 +279,29 @@ String Basename(const String& Path)
     return Path;
 }
 
+char* PathJoin(ArenaT* Arena, const char* A, const char* B)
+{
+    uint64 StringALength = StringLength(A);
+    uint64 StringBLength = StringLength(B);
+    uint64 FinalPathSize = StringALength + StringBLength + sizeof(KRAFT_PATH_SEPARATOR) + 1;
+    char*  OutBuffer = (char*)ArenaPush(Arena, FinalPathSize);
+    char*  Ptr = OutBuffer;
+
+    StringNCopy(Ptr, A, StringALength);
+    Ptr += StringALength;
+
+    *Ptr = KRAFT_PATH_SEPARATOR;
+    Ptr += 1;
+
+    StringNCopy(Ptr, B, StringBLength);
+    Ptr += StringBLength;
+    
+    *Ptr = 0;
+
+    KASSERT((Ptr - OutBuffer + 1) == FinalPathSize);
+
+    return OutBuffer;
+}
 }
 
 }

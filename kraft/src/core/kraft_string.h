@@ -618,6 +618,9 @@ KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_lis
     return -1;
 }
 
+#define KRAFT_STRINGIFY(A) #A
+#define KRAFT_STATIC_STR_CONCAT (strA, strB) strA strB
+
 // static wchar_t* CharToWChar(const char* Source)
 // {
 //     // TODO: Deallocate!

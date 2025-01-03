@@ -40,19 +40,26 @@ Shader Basic
         // Constant buffers/Push constants
         ConstantBuffer Main
         {
-            mat4    Model Stage(Vertex);
+            mat4    Model           Stage(Vertex);
+            float2  MousePosition   Stage(Vertex);
+            uint    EntityId        Stage(Vertex);
         }
     }
 
     GLSL ToScreen
     {
         #version 450
-        #if defined VERTEX
 
-        // Inputs
-        layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec2 inUV;
-        layout (location = 2) in vec3 inNormal;
+        #extension GL_GOOGLE_include_directive: require
+
+        #include "includes/kraft_shader_includes.h"
+
+        layout (push_constant) uniform pushConstants
+        {
+            mat4 Model;
+            vec2 MousePosition;
+            uint EntityId;
+        } variableState;
 
         // Written to; using descriptor sets
         layout (set = 0, binding = 0) uniform GlobalUniformBuffer
@@ -64,10 +71,18 @@ Shader Basic
             vec3 CameraPosition;
         } globalState;
 
-        layout (push_constant) uniform pushConstants
+        #define DEPTH_ARRAY_SCALE 64
+        layout(set = 0, binding = 1) buffer writeonly GlobalObjectPickingStorageBuffer
         {
-            mat4 Model;
-        } variableState;
+            uint Data[DEPTH_ARRAY_SCALE];
+        } globalObjectPickingStorage;
+
+        #if defined VERTEX
+
+        // Inputs
+        layout (location = 0) in vec3 inPosition;
+        layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec3 inNormal;
 
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
@@ -100,15 +115,6 @@ Shader Basic
         // Outputs
         layout (location = 0) out vec4 outColor;
 
-        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
-        {
-            mat4 Projection;
-            mat4 View;
-            vec3 LightPosition;
-            vec4 LightColor;
-            vec3 CameraPosition;
-        } globalState;
-
         // Written to; using descriptor sets
         layout(set = 2, binding = 0, std140) uniform LocalUniformBuffer 
         {
@@ -124,6 +130,19 @@ Shader Basic
 
         void main() 
         {
+            if (length(variableState.MousePosition - gl_FragCoord.xy) < 10)
+            {
+                outColor = vec4(1.0, 1.0, 0.0, 1.0);
+
+                uint zIndex = uint(gl_FragCoord.z * DEPTH_ARRAY_SCALE);
+                globalObjectPickingStorage.Data[zIndex] = variableState.EntityId;
+                return;
+            }
+
+            // vec2 normalizedMousePosition = normalize(variableState.MousePosition);
+            // outColor = vec4(normalizedMousePosition.x, normalizedMousePosition.y, 0.0, 1.0);
+            // return;
+
             // Ambient
             vec3 ambient = (localUniformBuffer.Ambient * globalState.LightColor.xyz);
 

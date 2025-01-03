@@ -3,6 +3,7 @@
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_engine.h>
+#include <core/kraft_input.h>
 #include <core/kraft_log.h>
 #include <math/kraft_math.h>
 #include <renderer/kraft_renderer_frontend.h>
@@ -10,7 +11,6 @@
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_texture_system.h>
 #include <world/kraft_entity.h>
-#include <core/kraft_input.h>
 
 #include "editor.h"
 #include "imgui/imgui_renderer.h"
@@ -36,13 +36,13 @@ static ImTextureID ImSceneTexture;
 void InitImguiWidgets()
 {
     GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
-    // ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
+    //ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
     ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
 
     GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
     GizmoState.Mode = ImGuizmo::LOCAL;
     GizmoState.Snap = false;
-    GizmoState.Snapping = {1.0f, 1.0f, 1.0f};
+    GizmoState.Snapping = { 1.0f, 1.0f, 1.0f };
 }
 
 void DrawImGuiWidgets(bool refresh)
@@ -51,9 +51,8 @@ void DrawImGuiWidgets(bool refresh)
 
     ImGui::Begin("Debug");
 
-    static float left = -(float)kraft::Platform::GetWindow()->Width * 0.5f, right = (float)kraft::Platform::GetWindow()->Width * 0.5f,
-                 top = -(float)kraft::Platform::GetWindow()->Height * 0.5f, bottom = (float)kraft::Platform::GetWindow()->Height * 0.5f,
-                 nearClip = -1.f, farClip = 1.f;
+    static float left = -(float)kraft::Platform::GetWindow()->Width * 0.5f, right = (float)kraft::Platform::GetWindow()->Width * 0.5f, top = -(float)kraft::Platform::GetWindow()->Height * 0.5f,
+                 bottom = (float)kraft::Platform::GetWindow()->Height * 0.5f, nearClip = -1.f, farClip = 1.f;
 
     static float fov = 45.f;
     static float width = (float)kraft::Platform::GetWindow()->Width;
@@ -234,8 +233,14 @@ void DrawImGuiWidgets(bool refresh)
     ImGui::End();
 
     // ImGui::SetNextWindowSize({1024, 768});
+
+    ImGuiWindowClass ViewPortWindowClass;
+    ViewPortWindowClass.DockNodeFlagsOverrideSet = 1 << 12; // ImGuiDockNodeFlags_NoTabBar Private flag
+    ImGui::SetNextWindowClass(&ViewPortWindowClass);
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse);
+
     ViewPortPanelSize = ImGui::GetContentRegionAvail();
     // ImGui::GetForegroundDrawList()->AddRect(
     //     ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y + ViewPortPanelSize.y),
@@ -243,16 +248,73 @@ void DrawImGuiWidgets(bool refresh)
     //     ImGui::GetColorU32(ImVec4(1, 0, 0, 1))
     // );
 
-    bool ViewportNeedsResize =
-        EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
+    bool ViewportNeedsResize = EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
     if (ViewportNeedsResize)
     {
-        EditorState::Ptr->RenderSurface =
-            kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+        EditorState::Ptr->RenderSurface = kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+
+        // EditorState::Ptr->ObjectPickingRenderTarget = kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->ObjectPickingRenderTarget, ViewPortPanelSize.x, ViewPortPanelSize.y);
+
+        uint32 Width = ViewPortPanelSize.x;
+        uint32 Height = ViewPortPanelSize.y;
+        EditorState::Ptr->ObjectPickingRenderTarget.Width = Width;
+        EditorState::Ptr->ObjectPickingRenderTarget.Height = Height;
+        EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture = kraft::renderer::ResourceManager::Ptr->CreateTexture({
+            .DebugName = "ObjectPickingCT",
+            .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
+            .Format = kraft::renderer::Format::BGRA8_UNORM,
+            .Usage = kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+            .Sampler = {
+                .WrapModeU = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .WrapModeV = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .WrapModeW = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .Compare = kraft::renderer::CompareOp::Always,
+            },
+        });
+
+        EditorState::Ptr->ObjectPickingRenderTarget.DepthPassTexture = kraft::renderer::ResourceManager::Ptr->CreateTexture({
+            .DebugName = "ObjectPickingDT",
+            .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
+            .Format = kraft::renderer::ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+            .Usage = kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
+            .Sampler = {
+                .WrapModeU = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .WrapModeV = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .WrapModeW = kraft::renderer::TextureWrapMode::ClampToEdge,
+                .Compare = kraft::renderer::CompareOp::Always,
+            },
+        });
+
+        EditorState::Ptr->ObjectPickingRenderTarget.RenderPass = kraft::renderer::ResourceManager::Ptr->CreateRenderPass({
+            .DebugName = "ObjectPickingRP",
+            .Dimensions = { (float)Width, (float)Height, 0.f, 0.f },
+            .ColorTargets = {
+                {
+                    .Texture = EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture,
+                    .NextUsage = kraft::renderer::TextureLayout::RenderTarget,
+                    .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
+                }
+            },
+            .DepthTarget = {
+                .Texture = EditorState::Ptr->ObjectPickingRenderTarget.DepthPassTexture,
+                .NextUsage = kraft::renderer::TextureLayout::DepthStencil,
+                .Depth = 1.0f,
+                .Stencil = 0,
+            },
+            .Layout = {
+                .Subpasses = {
+                    {
+                        .DepthTarget = true,
+                        .ColorTargetSlots = { 0 }
+                    }
+                }
+            }
+        });
 
         // Remove the old texture
         GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
         ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
+        // ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
 
         if (usePerspectiveProjection)
         {
@@ -266,7 +328,94 @@ void DrawImGuiWidgets(bool refresh)
     else
     {
         ImGui::Image(ImSceneTexture, ViewPortPanelSize, { 0, 1 }, { 1, 0 });
+
+        ImVec2 MousePosition = ImGui::GetMousePos();
+        ImGui::SetCursorPos({ 0, 0 });
+        ImVec2 CursorPosition = ImGui::GetCursorScreenPos();
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::Text("Imgui Position: %f, %f", MousePosition.x, MousePosition.y);
+
+        float64 x, y;
+        kraft::Platform::GetWindow()->GetCursorPosition(&x, &y);
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::Text("GLFW Position: %f, %f", x, y);
+
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::Text("Cursor Position: %f, %f", CursorPosition.x, CursorPosition.y);
+
+        kraft::Vec2f RelativeMousePosition = kraft::Vec2f(MousePosition.x - CursorPosition.x, MousePosition.y - CursorPosition.y);
+        RelativeMousePosition.x = kraft::math::Clamp(RelativeMousePosition.x, 0.0f, (float32)EditorState::Ptr->ObjectPickingRenderTarget.Width);
+        RelativeMousePosition.y = EditorState::Ptr->ObjectPickingRenderTarget.Height - kraft::math::Clamp(RelativeMousePosition.y, 0.0f, (float32)EditorState::Ptr->ObjectPickingRenderTarget.Height);
+        ImGui::SetNextItemAllowOverlap();
+        ImGui::Text("Relative Mouse Position: %f, %f", RelativeMousePosition.x, RelativeMousePosition.y);
+
+        EditorState::Ptr->RenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
+
+        if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT))
+        {
+            uint32* BufferData;
+            uint32  BufferSize;
+            kraft::Engine::Renderer.ReadObjectPickingBuffer(&BufferData, &BufferSize);
+            for (size_t i = 0; i < BufferSize; i++)
+            {
+                if (BufferData[i] != 0)
+                {
+                    uint32        SelectedEntity = BufferData[i];
+                    kraft::Entity Entity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity);
+
+                    ImGui::SetNextItemAllowOverlap();
+                    ImGui::Text("Selected %s", *Entity.GetComponent<kraft::MetadataComponent>().Name);
+
+                    EditorState::Ptr->SelectedEntity = SelectedEntity;
+                    break;
+                }
+            }
+        }
+
+#if 0
+        // kraft::renderer::Handle<kraft::renderer::Buffer> TempImageBuffer = kraft::renderer::ResourceManager::Ptr->CreateTempBuffer(sizeof(uint8) * 4);
+        if (RelativeMousePosition.x >= 0 && RelativeMousePosition.x < EditorState::Ptr->ObjectPickingRenderTarget.Width && RelativeMousePosition.y >= 0 &&
+            RelativeMousePosition.y < EditorState::Ptr->ObjectPickingRenderTarget.Height)
+        {
+            uint32 BytesToRead = 4;
+            uint8 Bytes[4];
+            KASSERT(kraft::renderer::ResourceManager::Ptr->ReadTextureData({
+                .SrcTexture = EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture,
+                .OutBuffer = &Bytes[0],
+                .OutBufferSize = BytesToRead,
+                .OffsetX = (int)RelativeMousePosition.x,
+                .OffsetY = (int)EditorState::Ptr->ObjectPickingRenderTarget.Height - (int)RelativeMousePosition.y,
+                .Width = 1,
+                .Height = 1,
+            }));
+
+            uint32 ID1 = Bytes[2] | Bytes[1] << 8 | Bytes[0] << 16;
+            kraft::EntityHandleT HoveredEntityHandled = (kraft::EntityHandleT)ID1;
+            if (EditorState::Ptr->CurrentWorld->IsValidEntity(HoveredEntityHandled))
+            {
+                kraft::Entity Entity = EditorState::Ptr->CurrentWorld->GetEntity(HoveredEntityHandled);
+
+                ImGui::SetNextItemAllowOverlap();
+                ImGui::Text("Selected %s", *Entity.GetComponent<kraft::MetadataComponent>().Name);
+
+                if (!ImGuizmo::IsUsing() && kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_LEFT))
+                {
+                    EditorState::Ptr->SelectedEntity = HoveredEntityHandled;
+                }
+            }
+
+            // for (int i = 0; i < BytesToRead; i += 4)
+            // {
+            //     if (Bytes[i] != 0 || Bytes[i + 1] != 0 || Bytes[i + 2] != 0 || Bytes[i + 3] != 0)
+            //     {
+            //         uint32 ID1 = Bytes[i + 2] | Bytes[i + 1] << 8 | Bytes[i] << 16;
+            //         KDEBUG("%d %d, %d, %d, %d", ID1, Bytes[i], Bytes[i + 1], Bytes[i + 2], Bytes[i + 3]);
+            //     }
+            // }
+        }
+#endif
     }
+    //ImGui::SetCursorPos( { 0, 0 });
 
     // auto CurrentSceneTexture = kraft::Renderer->GetSceneViewTexture();
     // if (CurrentSceneTexture->Width != SceneTexture->Width || CurrentSceneTexture->Height != SceneTexture->Height)
@@ -316,13 +465,7 @@ void DrawImGuiWidgets(bool refresh)
 
         kraft::Mat4f EntityWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
         ImGuizmo::Manipulate(
-            Camera.ViewMatrix._data,
-            Camera.ProjectionMatrix._data,
-            GizmoState.CurrentOperation,
-            GizmoState.Mode,
-            EntityWorldTransform,
-            nullptr,
-            GizmoState.Snap ? GizmoState.Snapping._data : nullptr
+            Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, GizmoState.CurrentOperation, GizmoState.Mode, EntityWorldTransform, nullptr, GizmoState.Snap ? GizmoState.Snapping._data : nullptr
         );
         // ImGuizmo::DrawCubes(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, SelectedEntity.ModelMatrix._data, 1);
         // ImGuizmo::DrawCubes(Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, SelectedEntity.ModelMatrix._data, 1);

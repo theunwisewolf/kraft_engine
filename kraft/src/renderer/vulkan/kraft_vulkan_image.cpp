@@ -5,13 +5,7 @@
 
 namespace kraft::renderer {
 
-void VulkanTransitionImageLayout(
-    VulkanContext*       Context,
-    VulkanCommandBuffer* CmdBuffer,
-    VkImage              Image,
-    VkImageLayout        OldLayout,
-    VkImageLayout        NewLayout
-)
+void VulkanTransitionImageLayout(VulkanContext* Context, VulkanCommandBuffer* CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout)
 {
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -61,6 +55,22 @@ void VulkanTransitionImageLayout(
         srcStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
+    else if (OldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && NewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (OldLayout == VK_IMAGE_LAYOUT_UNDEFINED && NewLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+        srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
     else
     {
         KASSERTM(false, "Transition not supported");
@@ -69,5 +79,4 @@ void VulkanTransitionImageLayout(
 
     vkCmdPipelineBarrier(CmdBuffer->Resource, srcStage, dstStage, 0, 0, 0, 0, 0, 1, &barrier);
 }
-
 }

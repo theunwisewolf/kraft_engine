@@ -10,7 +10,7 @@ AccessModifierOffset: -4
 # BreakTemplateDeclarations: Leave
 # AlwaysBreakTemplateDeclarations: 'false'
 ContinuationIndentWidth: 4
-ColumnLimit: 140
+ColumnLimit: 200
 IndentWidth: '4'
 SortIncludes: 'true'
 TabWidth: '4'

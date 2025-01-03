@@ -31,6 +31,7 @@ struct World
 
     Entity GetRoot() const;
     Entity GetEntity(EntityHandleT Handle) const;
+    bool IsValidEntity(EntityHandleT Handle) const;
 
     Entity CreateEntity();
     Entity CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);

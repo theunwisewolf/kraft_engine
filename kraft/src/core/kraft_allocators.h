@@ -1,56 +1,30 @@
 #pragma once
 
-#include <renderer/kraft_renderer_types.h>
 #include <core/kraft_core.h>
-#include <core/kraft_asserts.h>
-#include <math/kraft_math.h>
 
-namespace kraft
-{
+#define KRAFT_SIZE_KB(Size) Size * 1024
+#define KRAFT_SIZE_MB(Size) KRAFT_SIZE_KB(Size) * 1024
 
-struct TempBuffer
+namespace kraft {
+
+struct ArenaCreateOptsT
 {
-    uint8* Ptr;
-    renderer::Handle<renderer::Buffer> GPUBuffer;
-    uint64 Size;
+    uint64 ChunkSize = 64;
+    uint64 Alignment = 64;
 };
 
-struct TempMemoryBlockAllocator
+// TODO: Arena->Next
+struct ArenaT
 {
-    struct Block
-    {
-        union
-        {
-            uint8* Ptr;
-            renderer::Handle<renderer::Buffer> GPUBuffer; // GPU Buffer
-        };
-    };
-
-    uint64 BlockSize;
-    virtual Block GetNextFreeBlock() = 0;
+    uint8*           Ptr;
+    uint64           Capacity = 0;
+    uint64           Size = 0;
+    ArenaCreateOptsT Options;
 };
 
-struct TempAllocator
-{
-    uint64                           CurrentOffset;
-    TempMemoryBlockAllocator::Block  CurrentBlock;
-    TempMemoryBlockAllocator*        Allocator;
-
-    uint8* Allocate(uint64 Size, uint64 Alignment)
-    {
-        KASSERT(Size <= Allocator->BlockSize);
-        uint64 Offset = kraft::math::AlignUp(CurrentOffset, Alignment);
-        CurrentOffset = Offset + Size;
-
-        if (CurrentOffset > Allocator->BlockSize)
-        {
-            CurrentBlock = Allocator->GetNextFreeBlock();
-            Offset = 0;
-            CurrentOffset = Size;
-        }
-
-        
-    }
-};
+ArenaT* CreateArena(ArenaCreateOptsT Options);
+void    DestroyArena(ArenaT* Arena);
+uint8*  ArenaPush(ArenaT* Arena, uint64 Size);
+char*   ArenaPushString(ArenaT* Arena, const char* SrcStr, uint64 Length);
 
 }

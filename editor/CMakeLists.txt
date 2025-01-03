@@ -30,9 +30,7 @@ endif()
 target_link_libraries(${PROJECT_NAME} Kraft)
 
 # Compiler options
-if (MSVC)
-# target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
-else()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
 endif()
 

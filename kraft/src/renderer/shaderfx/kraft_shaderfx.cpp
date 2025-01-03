@@ -1,6 +1,7 @@
 #include "kraft_shaderfx.h"
 
 #include <containers/kraft_buffer.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_lexer.h>
 #include <core/kraft_log.h>
@@ -15,44 +16,44 @@
 
 #include <shaderc/shaderc.h>
 
-#define MARK_ERROR(error)                                                                                                                  \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        this->Error = true;                                                                                                                \
-        this->ErrorLine = this->Lexer->Line;                                                                                               \
-        StringCopy(this->ErrorString, error);                                                                                              \
+#define MARK_ERROR(error)                                                                                                                                                                              \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        this->Error = true;                                                                                                                                                                            \
+        this->ErrorLine = this->Lexer->Line;                                                                                                                                                           \
+        StringCopy(this->ErrorString, error);                                                                                                                                                          \
     } while (0)
 
-#define MARK_ERROR_WITH_FIELD(error, field)                                                                                                \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        this->Error = true;                                                                                                                \
-        this->ErrorLine = this->Lexer->Line;                                                                                               \
-        StringCopy(this->ErrorString, error);                                                                                              \
-        StringConcat(this->ErrorString, " '");                                                                                             \
-        StringConcat(this->ErrorString, field);                                                                                            \
-        StringConcat(this->ErrorString, "'");                                                                                              \
+#define MARK_ERROR_WITH_FIELD(error, field)                                                                                                                                                            \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        this->Error = true;                                                                                                                                                                            \
+        this->ErrorLine = this->Lexer->Line;                                                                                                                                                           \
+        StringCopy(this->ErrorString, error);                                                                                                                                                          \
+        StringConcat(this->ErrorString, " '");                                                                                                                                                         \
+        StringConcat(this->ErrorString, field);                                                                                                                                                        \
+        StringConcat(this->ErrorString, "'");                                                                                                                                                          \
     } while (0)
 
-#define MARK_ERROR_RETURN(error)                                                                                                           \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        this->Error = true;                                                                                                                \
-        this->ErrorLine = this->Lexer->Line;                                                                                               \
-        StringCopy(this->ErrorString, error);                                                                                              \
-        return;                                                                                                                            \
+#define MARK_ERROR_RETURN(error)                                                                                                                                                                       \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        this->Error = true;                                                                                                                                                                            \
+        this->ErrorLine = this->Lexer->Line;                                                                                                                                                           \
+        StringCopy(this->ErrorString, error);                                                                                                                                                          \
+        return;                                                                                                                                                                                        \
     } while (0)
 
-#define MARK_ERROR_WITH_FIELD_RETURN(error, field)                                                                                         \
-    do                                                                                                                                     \
-    {                                                                                                                                      \
-        this->Error = true;                                                                                                                \
-        this->ErrorLine = this->Lexer->Line;                                                                                               \
-        StringCopy(this->ErrorString, error);                                                                                              \
-        StringConcat(this->ErrorString, " '");                                                                                             \
-        StringConcat(this->ErrorString, field);                                                                                            \
-        StringConcat(this->ErrorString, "'");                                                                                              \
-        return;                                                                                                                            \
+#define MARK_ERROR_WITH_FIELD_RETURN(error, field)                                                                                                                                                     \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        this->Error = true;                                                                                                                                                                            \
+        this->ErrorLine = this->Lexer->Line;                                                                                                                                                           \
+        StringCopy(this->ErrorString, error);                                                                                                                                                          \
+        StringConcat(this->ErrorString, " '");                                                                                                                                                         \
+        StringConcat(this->ErrorString, field);                                                                                                                                                        \
+        StringConcat(this->ErrorString, "'");                                                                                                                                                          \
+        return;                                                                                                                                                                                        \
     } while (0)
 
 namespace kraft::renderer {
@@ -405,10 +406,10 @@ void ShaderFXParser::ParseUniformBuffer(UniformBufferDefinition* UBufferDefiniti
     }
 }
 
-#define MATCH_FORMAT(type, value)                                                                                                          \
-    if (Token.MatchesKeyword(type))                                                                                                        \
-    {                                                                                                                                      \
-        return value;                                                                                                                      \
+#define MATCH_FORMAT(type, value)                                                                                                                                                                      \
+    if (Token.MatchesKeyword(type))                                                                                                                                                                    \
+    {                                                                                                                                                                                                  \
+        return value;                                                                                                                                                                                  \
     }
 
 ShaderDataType::Enum ShaderFXParser::ParseDataType(const Token& Token)
@@ -1056,7 +1057,8 @@ void ShaderFXParser::ParseRenderPassBlock(ShaderEffect* Effect)
                 return;
 
             // It is possible for shaders to have no local resources
-            if (Effect->Resources.Length == 0) continue;
+            if (Effect->Resources.Length == 0)
+                continue;
 
             StringView Name = Token.ToStringView();
             bool       Valid = false;
@@ -1161,8 +1163,10 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
         return false;
     }
 
+    ArenaT* TempArena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(16), .Alignment = 64 });
+
     uint64 BufferSize = kraft::filesystem::GetFileSize(&File) + 1;
-    uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, kraft::MemoryTag::MEMORY_TAG_FILE_BUF, true);
+    uint8* FileDataBuffer = ArenaPush(TempArena, BufferSize);
     filesystem::ReadAllBytes(&File, &FileDataBuffer);
     filesystem::CloseFile(&File);
 
@@ -1172,14 +1176,10 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
     Parser.Verbose = Verbose;
 
     ShaderEffect Effect = Parser.Parse(InputPath, &Lexer);
-    if (!CompileShaderFX(Effect, OutputPath))
-    {
-        Free(FileDataBuffer, BufferSize, MEMORY_TAG_FILE_BUF);
-        return false;
-    }
+    Result = CompileShaderFX(TempArena, Effect, OutputPath);
 
-    Free(FileDataBuffer, BufferSize, MEMORY_TAG_FILE_BUF);
-    return true;
+    DestroyArena(TempArena);
+    return Result;
 }
 
 uint64 GetUniformBufferSize(const UniformBufferDefinition& UniformBuffer)
@@ -1223,16 +1223,48 @@ static bool CheckBufferDefinition(ShaderEffect& Shader, const Array<UniformBuffe
         }
     }
 
-    KERROR(
-        "'%s' shader compilation failed with error: Missing BufferDefinition for '%s'.",
-        *Shader.ResourcePath,
-        *BindingDescription->Name
-    );
+    KERROR("'%s' shader compilation failed with error: Missing BufferDefinition for '%s'.", *Shader.ResourcePath, *BindingDescription->Name);
 
     return false;
 }
 
-bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+struct ShaderIncludeUserData
+{
+    ArenaT*       Arena;
+    ShaderEffect* Shader;
+};
+
+static shaderc_include_result* ShaderIncludeResolverFunction(void* UserData, const char* RequestedSource, int Type, const char* RequestingSource, size_t IncludeDepth)
+{
+    ShaderIncludeUserData* IncludeData = (ShaderIncludeUserData*)UserData;
+    ArenaT*                Arena = IncludeData->Arena;
+    ShaderEffect*          Shader = IncludeData->Shader;
+
+    char* ShaderDirectory = filesystem::Dirname(Arena, Shader->ResourcePath);
+    char* IncludedFilePath = filesystem::PathJoin(Arena, ShaderDirectory, RequestedSource);
+
+    filesystem::FileHandle File;
+    KASSERT(filesystem::OpenFile(IncludedFilePath, kraft::filesystem::FILE_OPEN_MODE_READ, true, &File));
+    uint64 FileSize = filesystem::GetFileSize(&File);
+    uint8* FileBuffer = kraft::ArenaPush(Arena, FileSize);
+    filesystem::ReadAllBytes(&File, &FileBuffer);
+
+    shaderc_include_result* Result = (shaderc_include_result*)ArenaPush(Arena, sizeof(shaderc_include_result));
+    Result->content = (const char*)FileBuffer;
+    Result->content_length = FileSize;
+
+    uint64 SourceNameLength = StringLength(IncludedFilePath);
+    char*  SourceName = ArenaPushString(Arena, IncludedFilePath, SourceNameLength);
+    Result->source_name = SourceName;
+    Result->source_name_length = SourceNameLength;
+
+    return Result;
+}
+
+static void ShaderIncludeResultReleaseFunction(void* user_data, shaderc_include_result* include_result)
+{}
+
+bool CompileShaderFX(ArenaT* Arena, ShaderEffect& Shader, const String& OutputPath, bool Verbose)
 {
     // Basic verification
     auto& Resources = Shader.Resources;
@@ -1298,6 +1330,12 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
             }
 
             CompileOptions = shaderc_compile_options_initialize();
+            ShaderIncludeUserData UserData = {
+                .Arena = Arena,
+                .Shader = &Shader,
+            };
+            shaderc_compile_options_set_include_callbacks(CompileOptions, ShaderIncludeResolverFunction, ShaderIncludeResultReleaseFunction, &UserData);
+
             shaderc_shader_kind ShaderKind;
             switch (Stage.Stage)
             {
@@ -1305,11 +1343,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
                 {
                     ShaderKind = shaderc_vertex_shader;
                     shaderc_compile_options_add_macro_definition(
-                        CompileOptions,
-                        KRAFT_VERTEX_DEFINE,
-                        sizeof(KRAFT_VERTEX_DEFINE) - 1,
-                        KRAFT_SHADERFX_ENABLE_VAL,
-                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                        CompileOptions, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
                     );
                 }
                 break;
@@ -1318,11 +1352,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
                 {
                     ShaderKind = shaderc_geometry_shader;
                     shaderc_compile_options_add_macro_definition(
-                        CompileOptions,
-                        KRAFT_GEOMETRY_DEFINE,
-                        sizeof(KRAFT_GEOMETRY_DEFINE) - 1,
-                        KRAFT_SHADERFX_ENABLE_VAL,
-                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                        CompileOptions, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
                     );
                 }
                 break;
@@ -1331,11 +1361,7 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
                 {
                     ShaderKind = shaderc_fragment_shader;
                     shaderc_compile_options_add_macro_definition(
-                        CompileOptions,
-                        KRAFT_FRAGMENT_DEFINE,
-                        sizeof(KRAFT_FRAGMENT_DEFINE) - 1,
-                        KRAFT_SHADERFX_ENABLE_VAL,
-                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                        CompileOptions, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
                     );
                 }
                 break;
@@ -1344,19 +1370,13 @@ bool CompileShaderFX(ShaderEffect& Shader, const String& OutputPath, bool Verbos
                 {
                     ShaderKind = shaderc_compute_shader;
                     shaderc_compile_options_add_macro_definition(
-                        CompileOptions,
-                        KRAFT_COMPUTE_DEFINE,
-                        sizeof(KRAFT_COMPUTE_DEFINE) - 1,
-                        KRAFT_SHADERFX_ENABLE_VAL,
-                        sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                        CompileOptions, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
                     );
                 }
                 break;
             }
 
-            Result = shaderc_compile_into_spv(
-                Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions
-            );
+            Result = shaderc_compile_into_spv(Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions);
             if (shaderc_result_get_compilation_status(Result) == shaderc_compilation_status_success)
             {
                 ShaderCodeFragment SpirvBinary;

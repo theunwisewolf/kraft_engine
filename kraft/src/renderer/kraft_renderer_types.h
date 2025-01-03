@@ -16,6 +16,7 @@ namespace renderer {
 
 struct RenderPass;
 struct CommandBuffer;
+struct Buffer;
 
 // Templated only for type-safety
 template<typename T>
@@ -39,7 +40,7 @@ public:
         return Handle(0, 0xffff);
     }
 
-    bool IsInvalid()
+    bool IsInvalid() const
     {
         return this->Generation == 0xffff;
     }
@@ -62,7 +63,7 @@ public:
 
 struct ShaderEffect;
 
-struct alignas(16) GlobalUniformData
+struct alignas(16) GlobalShaderData
 {
     union
     {
@@ -77,16 +78,14 @@ struct alignas(16) GlobalUniformData
 
         char _[256];
     };
-
-    GlobalUniformData()
-    {}
 };
 
 struct Renderable
 {
     kraft::Mat4f ModelMatrix;
     Material*    MaterialInstance;
-    uint32       GeometryID;
+    uint32       GeometryId;
+    uint32       EntityId;
 };
 
 struct RenderPacket
@@ -119,7 +118,7 @@ struct RendererBackend
     // Shader
     void (*UseShader)(const Shader* Shader);
     void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader);
+    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer);
     void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
@@ -128,20 +127,15 @@ struct RendererBackend
 
     // Geometry
     void (*DrawGeometryData)(uint32 GeometryID);
-    bool (*CreateGeometry)(
-        Geometry*    Geometry,
-        uint32       VertexCount,
-        const void*  Vertices,
-        uint32       VertexSize,
-        uint32       IndexCount,
-        const void*  Indices,
-        const uint32 IndexSize
-    );
+    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void (*DestroyGeometry)(Geometry* Geometry);
 
     // Render Passes
     void (*BeginRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
     void (*EndRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
+
+    // Misc
+    bool (*ReadObjectPickingBuffer)(uint32** OutBuffer, uint32* BufferSize);
 
     DeviceInfoT DeviceInfo;
 };
@@ -181,8 +175,7 @@ enum Enum : int
     Count
 };
 
-static const char* Strings[] = { "Float",  "Float2",  "Float3", "Float4",  "Mat4", "Byte",  "Byte4N", "UByte", "UByte4N",
-                                 "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4",  "Count" };
+static const char* Strings[] = { "Float", "Float2", "Float3", "Float4", "Mat4", "Byte", "Byte4N", "UByte", "UByte4N", "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4", "Count" };
 
 static const char* String(Enum Value)
 {
@@ -308,12 +301,7 @@ enum Enum : int
 };
 
 static const char* Strings[] = {
-    "Zero",     "One",
-    "SrcColor", "OneMinusSrcColor",
-    "DstColor", "OneMinusDstColor",
-    "SrcAlpha", "OneMinusSrcAlpha",
-    "DstAlpha", "OneMinusDstAlpha",
-    "Count",
+    "Zero", "One", "SrcColor", "OneMinusSrcColor", "DstColor", "OneMinusDstColor", "SrcAlpha", "OneMinusSrcAlpha", "DstAlpha", "OneMinusDstAlpha", "Count",
 };
 
 static const char* String(Enum Value)
@@ -776,6 +764,18 @@ struct UploadBufferDescription
     uint64         SrcOffset = 0;
 };
 
+struct ReadTextureDataDescription
+{
+    Handle<Texture>       SrcTexture = Handle<Texture>::Invalid();
+    void*                 OutBuffer = nullptr;
+    uint32                OutBufferSize = 0;
+    Handle<CommandBuffer> CmdBuffer = Handle<CommandBuffer>::Invalid();
+    int32                 OffsetX = 0;
+    int32                 OffsetY = 0;
+    uint32                Width = 0;  // if 0, the entire image will be copied to the buffer
+    uint32                Height = 0; // if 0, the entire image will be copied to the buffer
+};
+
 struct PhysicalDeviceFormatSpecs
 {
     Format::Enum SwapchainFormat;
@@ -792,7 +792,9 @@ struct RenderSurfaceT
     Handle<RenderPass>    RenderPass;
     Handle<Texture>       ColorPassTexture;
     Handle<Texture>       DepthPassTexture;
+    Handle<Buffer>        GlobalUBO;
     World*                World;
+    kraft::Vec2f          RelativeMousePosition;
 
     void Begin();
     void End();

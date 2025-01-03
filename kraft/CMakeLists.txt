@@ -13,6 +13,7 @@ set(SRC_FILES
     src/containers/array.cpp
     src/containers/kraft_array.cpp
     src/containers/kraft_buffer.cpp
+    src/core/kraft_allocators.cpp
     src/core/kraft_log.cpp
     src/core/kraft_asserts.cpp
     src/core/kraft_input.cpp
@@ -54,7 +55,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
     
         # Renderer
         src/renderer/kraft_camera.cpp
-        src/renderer/kraft_renderer_backend.cpp
         src/renderer/kraft_renderer_frontend.cpp
         src/renderer/kraft_resource_manager.cpp
         src/renderer/kraft_resource_pool.cpp
@@ -115,7 +115,7 @@ set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})
 add_library(${PROJECT_NAME} STATIC ${CODE_FILES})
 
 # Include dirs
-target_include_directories(${PROJECT_NAME} PUBLIC src)
+target_include_directories(${PROJECT_NAME} PUBLIC src ../res)
 target_include_directories(${PROJECT_NAME} PUBLIC ${KRAFT_STATIC_LIBS_INCLUDE_PATHS})
 
 # Compile time defines

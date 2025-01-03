@@ -86,6 +86,11 @@ Entity World::GetEntity(EntityHandleT Handle) const
     return Entities.at(Handle);
 }
 
+bool World::IsValidEntity(EntityHandleT Handle) const
+{
+    return Entities.contains(Handle);
+}
+
 void World::Render()
 {
     kraft::renderer::Renderer->Camera = &this->Camera;
@@ -98,7 +103,8 @@ void World::Render()
         kraft::renderer::Renderer->AddRenderable(kraft::renderer::Renderable{
             .ModelMatrix = GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
             .MaterialInstance = Mesh.MaterialInstance,
-            .GeometryID = Mesh.GeometryID,
+            .GeometryId = Mesh.GeometryID,
+            .EntityId = (uint32)EntityHandle,
         });
     }
 }

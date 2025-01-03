@@ -18,6 +18,7 @@ struct CommandPool;
 struct PhysicalDeviceFormatSpecs;
 struct GPUBuffer;
 struct UploadBufferDescription;
+struct ReadTextureDataDescription;
 struct TextureDescription;
 struct BufferDescription;
 struct RenderPassDescription;
@@ -82,6 +83,7 @@ public:
     // Uploads a raw buffer data to the GPU
     virtual bool UploadTexture(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;
     virtual bool UploadBuffer(const UploadBufferDescription& Description) = 0;
+    virtual bool ReadTextureData(const ReadTextureDataDescription& Description) = 0;
 
     virtual Texture* GetTextureMetadata(Handle<Texture> Resource) = 0;
 

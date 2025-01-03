@@ -25,7 +25,7 @@ EditorState::EditorState()
         .DebugName = "ObjectPickingCT",
         .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
         .Format = kraft::renderer::Format::BGRA8_UNORM,
-        .Usage = kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT,
+        .Usage = kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | kraft::renderer::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC,
         .Sampler = {
             .WrapModeU = kraft::renderer::TextureWrapMode::ClampToEdge,
             .WrapModeV = kraft::renderer::TextureWrapMode::ClampToEdge,
@@ -72,6 +72,14 @@ EditorState::EditorState()
             }
         }
     });
+
+	Surface.GlobalUBO = kraft::renderer::ResourceManager::Ptr->CreateBuffer({
+		.DebugName = "ObjectPickingGlobalUBO",
+		.Size = sizeof(kraft::renderer::GlobalShaderData),
+		.UsageFlags = kraft::renderer::BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | kraft::renderer::BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
+		.MemoryPropertyFlags = kraft::renderer::MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | kraft::renderer::MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | kraft::renderer::MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+		.MapMemory = true,
+	});
 
     for (int i = 0; i < 3; i++)
     {

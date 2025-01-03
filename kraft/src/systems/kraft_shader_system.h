@@ -9,7 +9,8 @@ template<typename>
 struct Handle;
 
 struct RenderPass;
-struct GlobalUniformData;
+struct GlobalShaderData;
+struct Buffer;
 }
 
 struct Shader;
@@ -24,9 +25,10 @@ struct ShaderSystem
     static Shader* AcquireShader(const String& ShaderPath, renderer::Handle<renderer::RenderPass> RenderPassHandle, bool AutoRelease = true);
     static void    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
+	static Shader* GetActiveShader();
 
-    static void Bind(Shader* Shader);
-    static void BindByID(uint32 ID);
+    static Shader* Bind(Shader* Shader);
+    static Shader* BindByID(uint32 ID);
     static void Unbind();
 
     // Sets the material instance to read the instance level uniform values from
@@ -52,7 +54,7 @@ struct ShaderSystem
 
     static bool SetUniform(const String& Name, void* Value, bool Invalidate = false);
 
-    static void ApplyGlobalProperties(const renderer::GlobalUniformData& GlobalShaderData);
+    static void ApplyGlobalProperties(renderer::Handle<renderer::Buffer> DstDataBuffer);
     static void ApplyInstanceProperties();
 };
 

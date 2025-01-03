@@ -61,6 +61,7 @@ public:
     // Uploads a raw buffer data to the GPU
     virtual bool UploadTexture(Handle<Texture> TextureResource, Handle<Buffer> BufferResource, uint64 BufferOffset) final override;
     virtual bool UploadBuffer(const UploadBufferDescription& Description) final override;
+    bool ReadTextureData(const ReadTextureDataDescription& Description) final override;
 
     virtual Texture*                                GetTextureMetadata(Handle<Texture> Resource) override;
     const Pool<VulkanTexture, Texture>&             GetTexturePool() const;

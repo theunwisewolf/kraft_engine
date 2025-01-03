@@ -259,7 +259,9 @@ struct VulkanContext
     VkDescriptorSet       GlobalDescriptorSets[16][KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     uint8                 DescriptorSetLayoutsCount = 0;
     Handle<Buffer>        GlobalUniformBuffer = Handle<Buffer>::Invalid();
+    Handle<Buffer>        GlobalPickingDataBuffer = Handle<Buffer>::Invalid();
     void*                 GlobalUniformBufferMemory = 0;
+    void*                 GlobalPickingDataBufferMemory = 0;
 
     VulkanRendererSettings RendererSettings = {};
 };

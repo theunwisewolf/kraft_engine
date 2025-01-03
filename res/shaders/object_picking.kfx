@@ -5,9 +5,10 @@ Shader ObjectPicking
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 24 vertex
+            Binding     0 32 vertex
             Attribute   float3 Position 0 0 0
-            Attribute   float3 ObjectId 0 1 12
+            Attribute   float2 UV 0 1 12
+            Attribute   float3 Normal 0 2 20
         }
 
         UniformBuffer GlobalUniformBuffer
@@ -19,7 +20,8 @@ Shader ObjectPicking
         // Constant buffers/Push constants
         ConstantBuffer Main
         {
-            mat4    Model Stage(Vertex);
+            mat4    Model    Stage(Vertex);
+            float3  ObjectId Stage(Vertex);
         }
     }
 
@@ -30,18 +32,23 @@ Shader ObjectPicking
 
         // Inputs
         layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec3 inObjectId;
+        layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec3 inNormal;
 
         // Written to; using descriptor sets
         layout (set = 0, binding = 0) uniform GlobalUniformBuffer
         {
             mat4 Projection;
             mat4 View;
+            vec3 LightPosition;
+            vec4 LightColor;
+            vec3 CameraPosition;
         } globalState;
 
         layout (push_constant) uniform pushConstants
         {
             mat4 Model;
+            vec3 ObjectId;
         } variableState;
 
         // Output from the vertex shader to the fragment shader
@@ -50,7 +57,7 @@ Shader ObjectPicking
         void main()
         {
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
-            outObjectId = inObjectId;
+            outObjectId = variableState.ObjectId;
         }
 
         #endif // VERTEX
@@ -70,7 +77,7 @@ Shader ObjectPicking
         void main() 
         {
             // ssbo.SelectedObjectId = inObjectId;
-            outColor = vec4(inObjectId, 1);
+            outColor = vec4(inObjectId.x / 255.0, inObjectId.y / 255.0, inObjectId.z / 255.0, 1);
         }
 
         #endif // FRAGMENT

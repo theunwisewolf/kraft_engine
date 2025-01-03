@@ -17,47 +17,45 @@ struct ShaderEffect;
 struct VulkanContext;
 struct CommandBuffer;
 struct RenderPass;
+struct GlobalShaderData;
+struct Buffer;
 
 template<typename T>
 struct Handle;
 
-namespace VulkanRendererBackend {
+struct VulkanRendererBackend
+{
 
-bool Init(EngineConfigT* config);
-bool Shutdown();
-int  PrepareFrame();
-bool BeginFrame();
-bool EndFrame();
-void OnResize(int width, int height);
+    static bool Init(EngineConfigT* config);
+    static bool Shutdown();
+    static int  PrepareFrame();
+    static bool BeginFrame();
+    static bool EndFrame();
+    static void OnResize(int width, int height);
 
-void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
-void DestroyRenderPipeline(Shader* Shader);
-void CreateMaterial(Material* Material);
-void DestroyMaterial(Material* Material);
+    static void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
+    static void DestroyRenderPipeline(Shader* Shader);
+    static void CreateMaterial(Material* Material);
+    static void DestroyMaterial(Material* Material);
 
-void UseShader(const Shader* Shader);
-void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-void ApplyGlobalShaderProperties(Shader* Material);
-void ApplyInstanceShaderProperties(Shader* Material);
+    static void SetGlobalShaderData(GlobalShaderData* Data);
+    static void UseShader(const Shader* Shader);
+    static void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer);
+    static void ApplyInstanceShaderProperties(Shader* Shader);
 
-// Geometry
-void DrawGeometryData(uint32 GeometryID);
-bool CreateGeometry(
-    Geometry*    Geometry,
-    uint32       VertexCount,
-    const void*  Vertices,
-    uint32       VertexSize,
-    uint32       IndexCount,
-    const void*  Indices,
-    const uint32 IndexSize
-);
-void DestroyGeometry(Geometry* Geometry);
+    // Geometry
+    static void DrawGeometryData(uint32 GeometryID);
+    static bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
+    static void DestroyGeometry(Geometry* Geometry);
 
-// Render Passes
-void BeginRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
-void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
+    // Render Passes
+    static void BeginRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
+    static void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
 
-VulkanContext* Context();
+    // Misc
+    static bool ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
+    static VulkanContext* Context();
 };
 
 }

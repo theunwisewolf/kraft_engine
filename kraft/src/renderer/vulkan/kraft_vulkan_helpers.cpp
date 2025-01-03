@@ -368,6 +368,7 @@ VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Value)
         VkImageLayout::VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
     };
 
     return Mapping[Value];
