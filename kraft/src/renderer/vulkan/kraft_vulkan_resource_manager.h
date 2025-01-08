@@ -9,9 +9,6 @@ struct ArenaAllocator;
 
 namespace kraft::renderer {
 
-template<typename ConcreteType, typename Type>
-struct Pool;
-
 template<typename T>
 struct Handle;
 
@@ -34,8 +31,6 @@ struct VulkanResourceManagerApi
     static VulkanRenderPass*    GetRenderPass(const ResourceManagerState* State, Handle<RenderPass> Resource);
     static VulkanCommandBuffer* GetCommandBuffer(const ResourceManagerState* State, Handle<CommandBuffer> Resource);
     static VulkanCommandPool*   GetCommandPool(const ResourceManagerState* State, Handle<CommandPool> Resource);
-
-    static void Destroy();
 };
 
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena);

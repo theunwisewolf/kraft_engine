@@ -1,6 +1,9 @@
 #include "kraft_vulkan_backend.h"
 
 #include <volk/volk.h>
+#include <vulkan/vulkan.h>
+
+#include <GLFW/glfw3.h>
 
 #include <containers/kraft_carray.h>
 #include <containers/kraft_hashmap.h>
@@ -8,6 +11,8 @@
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_window.h>
 #include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>
 #include <renderer/vulkan/kraft_vulkan_device.h>
@@ -19,15 +24,12 @@
 #include <renderer/vulkan/kraft_vulkan_renderpass.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 #include <renderer/vulkan/kraft_vulkan_shader.h>
-#include <renderer/vulkan/kraft_vulkan_surface.h>
 #include <renderer/vulkan/kraft_vulkan_swapchain.h>
 #include <shaders/includes/kraft_shader_includes.h>
 
 #include <renderer/kraft_renderer_types.h>
 #include <renderer/shaderfx/kraft_shaderfx_types.h>
 #include <resources/kraft_resource_types.h>
-
-#include <vulkan/vulkan.h>
 
 namespace kraft::renderer {
 
@@ -44,7 +46,7 @@ static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Na
 #endif
 
 static struct ResourceManager* s_ResourceManager = nullptr;
-static VulkanContext    s_Context = {};
+static VulkanContext           s_Context = {};
 
 bool VulkanRendererBackend::ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize)
 {
@@ -199,7 +201,11 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
     arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     arrpush(requirements.DeviceExtensionNames, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
-    CreateVulkanSurface(&s_Context);
+    GLFWwindow* window = Platform::GetWindow()->PlatformWindowHandle;
+    KRAFT_VK_CHECK(glfwCreateWindowSurface(s_Context.Instance, window, s_Context.AllocationCallbacks, &s_Context.Surface));
+
+    KSUCCESS("[VulkanRendererBackend::Init]: Successfully created VkSurface");
+
     VulkanSelectPhysicalDevice(&s_Context, requirements);
     VulkanCreateLogicalDevice(&s_Context, requirements);
 
@@ -209,7 +215,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
         .Flags = COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT,
     });
 
-    KDEBUG("Graphics command pool created");
+    KDEBUG("[VulkanRendererBackend::Init]: Graphics command pool created");
 
     arrfree(requirements.DeviceExtensionNames);
 
@@ -943,7 +949,8 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);;
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    ;
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
@@ -952,7 +959,8 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
     VkPipelineLayout     PipelineLayout = VulkanShaderData->PipelineLayout;
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);;
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    ;
 
     if (Uniform.Scope == ShaderUniformScope::Local)
     {
