@@ -11,6 +11,7 @@ struct Geometry;
 struct Shader;
 struct ShaderUniform;
 struct World;
+struct ArenaAllocator;
 
 namespace renderer {
 
@@ -108,7 +109,7 @@ struct DeviceInfoT
 
 struct RendererBackend
 {
-    bool (*Init)(EngineConfigT* Config);
+    bool (*Init)(ArenaAllocator* Arena, EngineConfigT* Config);
     bool (*Shutdown)();
     int (*PrepareFrame)();
     bool (*BeginFrame)();

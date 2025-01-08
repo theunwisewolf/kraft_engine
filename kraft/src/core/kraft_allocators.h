@@ -23,8 +23,21 @@ struct ArenaAllocator
 };
 
 ArenaAllocator* CreateArena(ArenaCreateOptsT Options);
-void    DestroyArena(ArenaAllocator* Arena);
-uint8*  ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false);
-char*   ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
+void            DestroyArena(ArenaAllocator* Arena);
+uint8*          ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false);
+void            ArenaPop(ArenaAllocator* Arena, uint64 Size);
+char*           ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
+
+template<typename T>
+KRAFT_INLINE T* ArenaPushCArray(ArenaAllocator* Arena, uint32 ElementCount, bool Zero = false)
+{
+    return (T*)(ArenaPush(Arena, sizeof(T) * ElementCount, Zero));
+}
+
+template<typename T>
+KRAFT_INLINE void ArenaPopCArray(ArenaAllocator* Arena, T* _, uint32 ElementCount)
+{
+    ArenaPop(Arena, sizeof(T) * ElementCount);
+}
 
 }

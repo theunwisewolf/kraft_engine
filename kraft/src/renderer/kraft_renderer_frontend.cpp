@@ -48,7 +48,7 @@ struct RendererDataT
 
 RendererFrontend* Renderer = nullptr;
 
-static bool CreateBackend(RendererBackendType type, RendererBackend* Backend)
+static bool CreateBackend(ArenaAllocator* Arena, RendererBackendType type, RendererBackend* Backend)
 {
     if (type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
@@ -104,18 +104,18 @@ bool RendererFrontend::Init(EngineConfigT* Config)
     KASSERTM(RendererData.Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
     RendererData.Arena = CreateArena({
-        .ChunkSize = 4096,
+        .ChunkSize = KRAFT_SIZE_MB(1),
         .Alignment = 64,
     });
 
     ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
 
-    if (!CreateBackend(RendererData.Type, RendererData.Backend))
+    if (!CreateBackend(RendererData.Arena, RendererData.Type, RendererData.Backend))
     {
         return false;
     }
 
-    if (!RendererData.Backend->Init(Config))
+    if (!RendererData.Backend->Init(RendererData.Arena, Config))
     {
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return false;

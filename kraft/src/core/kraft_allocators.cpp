@@ -3,6 +3,7 @@
 #include <core/kraft_asserts.h>
 #include <core/kraft_memory.h>
 #include <math/kraft_math.h>
+#include <core/kraft_log.h>
 
 namespace kraft {
 
@@ -40,7 +41,17 @@ uint8* ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero)
         MemSet(AddressIntoTheArena, 0, Size);
     }
 
+    KDEBUG("Allocating %d from arena", AlignedSize);
+
     return AddressIntoTheArena;
+}
+
+void ArenaPop(ArenaAllocator* Arena, uint64 Size)
+{
+    uint64 AlignedSize = kraft::math::AlignUp(Size, Arena->Options.Alignment);
+    Arena->Size = Arena->Size - AlignedSize;
+
+    KDEBUG("Deallocating %d from arena", AlignedSize);
 }
 
 char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 LengthInBytes)

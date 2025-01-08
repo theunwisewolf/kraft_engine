@@ -60,7 +60,7 @@ GPUBuffer VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64
 {
     if (!CurrentBlock)
     {
-        CurrentBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), 0);
+        CurrentBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), true);
         CurrentBlock->Block = AllocateGPUMemory(Arena);
     }
 
@@ -74,7 +74,7 @@ GPUBuffer VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64
         // Are there any previously allocated blocks ahead of this block?
         if (!CurrentBlock->Next)
         {
-            TempMemoryBlock* NewBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), 0);
+            TempMemoryBlock* NewBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), true);
             NewBlock->Prev = CurrentBlock;
             CurrentBlock->Next = NewBlock;
             CurrentBlock = NewBlock;

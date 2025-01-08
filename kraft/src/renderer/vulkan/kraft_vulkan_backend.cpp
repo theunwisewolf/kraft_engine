@@ -7,6 +7,7 @@
 
 #include <containers/kraft_carray.h>
 #include <containers/kraft_hashmap.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
@@ -66,7 +67,6 @@ static void createCommandBuffers();
 static void destroyCommandBuffers();
 static void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass);
 static void destroyFramebuffers(VulkanSwapchain* swapchain);
-static bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count);
 
 struct VulkanRendererBackendStateT
 {
@@ -74,7 +74,7 @@ struct VulkanRendererBackendStateT
     uint32          BuffersToSubmitNum = 0;
 } VulkanRendererBackendState;
 
-bool VulkanRendererBackend::Init(EngineConfigT* config)
+bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
 {
     KRAFT_VK_CHECK(volkInitialize());
     s_Context = VulkanContext{};
@@ -105,71 +105,74 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
     // Instance level extensions
-    const char** extensions = nullptr;
-    arrput(extensions, VK_KHR_SURFACE_EXTENSION_NAME);
-    arrput(extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    arrput(extensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-
+    const char* Extensions[] = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 #if defined(KRAFT_PLATFORM_WINDOWS)
-    arrput(extensions, "VK_KHR_win32_surface");
+        "VK_KHR_win32_surface",
 #elif defined(KRAFT_PLATFORM_MACOS)
-    arrput(extensions, "VK_EXT_metal_surface");
+        "VK_EXT_metal_surface",
 #elif defined(KRAFT_PLATFORM_LINUX)
-    arrput(extensions, "VK_KHR_xcb_surface");
+        "VK_KHR_xcb_surface",
 #endif
-
 #ifdef KRAFT_RENDERER_DEBUG
-    arrput(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 #endif
+    };
 
     KINFO("[VulkanRendererBackend::Init]: Loading the following debug extensions:");
-    for (int i = 0; i < arrlen(extensions); ++i)
+    for (int i = 0; i < KRAFT_C_ARRAY_SIZE(Extensions); ++i)
     {
-        KINFO("[VulkanRendererBackend::Init]: %s", extensions[i]);
+        KINFO("[VulkanRendererBackend::Init]: %s", Extensions[i]);
     }
 
-    instanceCreateInfo.enabledExtensionCount = (uint32)arrlen(extensions);
-    instanceCreateInfo.ppEnabledExtensionNames = extensions;
+    instanceCreateInfo.enabledExtensionCount = KRAFT_C_ARRAY_SIZE(Extensions);
+    instanceCreateInfo.ppEnabledExtensionNames = Extensions;
 
     // Layers
-    const char** layers = nullptr;
-
+    const char* InstanceLayers[] = {
 #ifdef KRAFT_RENDERER_DEBUG
-    // Vulkan validation layer
-    {
-        arrput(layers, "VK_LAYER_KHRONOS_validation");
-    }
+        // Vulkan validation layer
+        "VK_LAYER_KHRONOS_validation",
+#endif
+    };
 
     // Make sure all the required layers are available
-    uint32 availableLayers;
-    KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&availableLayers, 0));
+    uint32 AvailableLayersCount = 0;
+    KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, 0));
 
-    VkLayerProperties* availableLayerProperties = nullptr;
-    arrsetlen(availableLayerProperties, availableLayers);
-    KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&availableLayers, availableLayerProperties));
+    auto AvailableLayerProperties = ArenaPushCArray<VkLayerProperties>(Arena, AvailableLayersCount); 
+    KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, AvailableLayerProperties));
 
-    for (int i = 0; i < arrlen(layers); ++i)
+    for (int i = 0; i < KRAFT_C_ARRAY_SIZE(InstanceLayers); ++i)
     {
-        bool found = instanceLayerSupported(layers[i], availableLayerProperties, availableLayers);
-        if (!found)
+        bool Found = false;
+        for (uint32 j = 0; j < AvailableLayersCount; ++j)
         {
-            KERROR("[VulkanRendererBackend::Init]: %s layer not found", layers[i]);
+            if (strcmp(AvailableLayerProperties[j].layerName, InstanceLayers[i]) == 0)
+            {
+                Found = true;
+            }
+        }
+
+        if (!Found)
+        {
+            KERROR("[VulkanRendererBackend::Init]: %s layer not found", InstanceLayers[i]);
             return false;
         }
     }
-#endif
 
-    instanceCreateInfo.enabledLayerCount = (uint32)arrlen(layers);
-    instanceCreateInfo.ppEnabledLayerNames = layers;
+    instanceCreateInfo.enabledLayerCount = (uint32)KRAFT_C_ARRAY_SIZE(InstanceLayers);
+    instanceCreateInfo.ppEnabledLayerNames = InstanceLayers;
 
     KRAFT_VK_CHECK(vkCreateInstance(&instanceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Instance));
-    arrfree(extensions);
-    arrfree(layers);
+
+    ArenaPopCArray(Arena, AvailableLayerProperties, AvailableLayersCount);
 
     volkLoadInstance(s_Context.Instance);
 
 #ifdef KRAFT_RENDERER_DEBUG
-    arrfree(availableLayerProperties);
     {
         // Setup vulkan debug callback messenger
         uint32 logLevel = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
@@ -197,7 +200,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
     requirements.Present = true;
     requirements.Transfer = true;
     requirements.DepthBuffer = true;
-    requirements.DeviceExtensionNames = nullptr;
+    requirements.DeviceExtensionNames = 0;
     arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     arrpush(requirements.DeviceExtensionNames, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
@@ -1427,19 +1430,6 @@ void destroyFramebuffers(VulkanSwapchain* swapchain)
     }
 
     arrfree(swapchain->Framebuffers);
-}
-
-bool instanceLayerSupported(const char* layer, VkLayerProperties* layerProperties, uint32 count)
-{
-    for (uint32 j = 0; j < count; ++j)
-    {
-        if (strcmp(layerProperties[j].layerName, layer) == 0)
-        {
-            return true;
-        }
-    }
-
-    return false;
 }
 }
 

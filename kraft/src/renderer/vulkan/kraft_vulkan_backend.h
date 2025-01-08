@@ -10,6 +10,7 @@ struct ShaderUniform;
 struct Material;
 struct EngineConfigT;
 struct Geometry;
+struct ArenaAllocator;
 
 namespace renderer {
 
@@ -25,7 +26,7 @@ struct Handle;
 
 struct VulkanRendererBackend
 {
-    static bool Init(EngineConfigT* Config);
+    static bool Init(ArenaAllocator* Arena, EngineConfigT* Config);
     static bool Shutdown();
     static int  PrepareFrame();
     static bool BeginFrame();
