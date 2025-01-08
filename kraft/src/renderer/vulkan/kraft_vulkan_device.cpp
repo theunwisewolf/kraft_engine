@@ -1,12 +1,11 @@
 #include "kraft_vulkan_device.h"
 
-#include "core/kraft_core.h"
-#include "core/kraft_asserts.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "core/kraft_string.h"
-#include "containers/array.h"
-#include "containers/kraft_array.h"
+#include <core/kraft_core.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <containers/kraft_carray.h>
 
 namespace kraft::renderer
 {
@@ -291,7 +290,9 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     arrsetlen(physicalDevices, deviceCount);
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, physicalDevices));
 
-    Array<VulkanPhysicalDevice> SuitablePhysicalDevices(deviceCount);
+    VulkanPhysicalDevice* SuitablePhysicalDevices;
+    arrsetlen(SuitablePhysicalDevices, deviceCount);
+
     int SuitablePhysicalDevicesCount = 0;
     for (uint32 i = 0; i < deviceCount; ++i)
     {

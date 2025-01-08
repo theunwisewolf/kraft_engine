@@ -1,7 +1,7 @@
 #include "kraft_vulkan_pipeline.h"
 
-#include "containers/array.h"
-#include "renderer/kraft_renderer_types.h"
+#include <containers/kraft_carray.h>
+#include <renderer/kraft_renderer_types.h>
 
 namespace kraft::renderer
 {

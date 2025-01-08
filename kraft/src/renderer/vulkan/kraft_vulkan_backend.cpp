@@ -2,7 +2,7 @@
 
 #include <volk/volk.h>
 
-#include <containers/array.h>
+#include <containers/kraft_carray.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
@@ -790,7 +790,11 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     LayoutCreateInfo.pushConstantRangeCount = 1;
     // LayoutCreateInfo.pushConstantRangeCount = (uint32)PushConstantRanges.Length;
     // LayoutCreateInfo.pPushConstantRanges = &PushConstantRanges[0];
-    auto PCRange = VkPushConstantRange{ .offset = 0, .size = 128, .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT };
+    auto PCRange = VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = 128,
+    };
     LayoutCreateInfo.pPushConstantRanges = &PCRange;
 
     VkPipelineLayout PipelineLayout;

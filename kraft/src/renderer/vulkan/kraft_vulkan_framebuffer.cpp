@@ -1,7 +1,7 @@
 #include "kraft_vulkan_framebuffer.h"
 
-#include "core/kraft_memory.h"
-#include "containers/array.h"
+#include <core/kraft_memory.h>
+#include <containers/kraft_carray.h>
 
 namespace kraft::renderer
 {

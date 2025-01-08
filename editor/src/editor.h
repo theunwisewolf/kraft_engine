@@ -36,9 +36,7 @@ struct EditorState
     static EditorState*             Ptr;
     kraft::EntityHandleT            SelectedEntity = kraft::EntityHandleInvalid;
     kraft::World*                   CurrentWorld;
-    kraft::Shader*                  ObjectPickingShader;
     kraft::renderer::RenderSurfaceT RenderSurface;
-    kraft::renderer::RenderSurfaceT ObjectPickingRenderTarget;
     EditorCameraSettings            ViewportCameraSettings = {};
 
     EditorState();

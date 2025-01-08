@@ -202,7 +202,7 @@ public:
         return Data()[Index];
     }
 
-    inline SizeType Size() const
+    KRAFT_INLINE SizeType Size() const
     {
         return Length;
     }

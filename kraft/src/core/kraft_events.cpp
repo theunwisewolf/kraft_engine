@@ -1,14 +1,13 @@
 #include "kraft_events.h"
 
-#include "containers/array.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
+#include <containers/kraft_carray.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
 
-namespace kraft 
-{
+namespace kraft {
 
-bool                EventSystem::Initialized = false;
-EventSystemState    EventSystem::State;
+bool             EventSystem::Initialized = false;
+EventSystemState EventSystem::State;
 
 bool EventSystem::Init()
 {
@@ -67,8 +66,7 @@ bool EventSystem::Unlisten(EventType type, void* listener, EventCallback callbac
     for (int i = 0; i < arrlen(events); i++)
     {
         Event event = events[i];
-        if (event.Listener == listener && 
-            event.Callback == callback)
+        if (event.Listener == listener && event.Callback == callback)
         {
             arrdel(events, i);
             return true;
