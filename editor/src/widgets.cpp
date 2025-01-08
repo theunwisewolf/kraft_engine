@@ -291,10 +291,9 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::SetNextItemAllowOverlap();
         ImGui::Text("Relative Mouse Position: %f, %f", RelativeMousePosition.x, RelativeMousePosition.y);
 
-        EditorState::Ptr->RenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
-
         if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT))
         {
+            EditorState::Ptr->RenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
             uint32* BufferData;
             uint32  BufferSize;
             kraft::Engine::Renderer.ReadObjectPickingBuffer(&BufferData, &BufferSize);
@@ -312,6 +311,10 @@ void DrawImGuiWidgets(bool refresh)
                     break;
                 }
             }
+        }
+        else
+        {
+            EditorState::Ptr->RenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
         }
     }
     //ImGui::SetCursorPos( { 0, 0 });

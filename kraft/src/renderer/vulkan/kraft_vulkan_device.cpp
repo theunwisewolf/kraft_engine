@@ -467,11 +467,29 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     }
 
     // Device features to be requested
-    VkPhysicalDeviceFeatures FeatureRequests = 
-    {
-        .fillModeNonSolid = context->PhysicalDevice.Features.fillModeNonSolid,
-        .wideLines = context->PhysicalDevice.Features.wideLines,
-    };
+    // VkPhysicalDeviceFeatures FeatureRequests = 
+    // {
+    //     .fillModeNonSolid = context->PhysicalDevice.Features.fillModeNonSolid,
+    //     .wideLines = context->PhysicalDevice.Features.wideLines,
+    // };
+
+    VkPhysicalDeviceFeatures2 FeatureRequests2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    FeatureRequests2.features.fillModeNonSolid = context->PhysicalDevice.Features.fillModeNonSolid;
+    FeatureRequests2.features.wideLines = context->PhysicalDevice.Features.wideLines;
+
+    VkPhysicalDeviceVulkan11Features FeatureRequests11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+    VkPhysicalDeviceVulkan12Features FeatureRequests12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    VkPhysicalDeviceVulkan13Features FeatureRequests13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+    FeatureRequests13.dynamicRendering = true;
+    FeatureRequests13.synchronization2 = true;
+
+    // VkPhysicalDeviceSynchronization2Features SyncFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
+    // SyncFeatures.synchronization2 = true;
+
+    FeatureRequests2.pNext = &FeatureRequests11;
+    FeatureRequests11.pNext = &FeatureRequests12;
+    FeatureRequests12.pNext = &FeatureRequests13;
+    // FeatureRequests13.pNext = &SyncFeatures;
 
     // As per the vulkan spec, if the device supports VK_KHR_portability_subset
     // then the extension must be included
@@ -483,9 +501,10 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     VkDeviceCreateInfo deviceCreateInfo      = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     deviceCreateInfo.queueCreateInfoCount    = queueCreateInfoCount;
     deviceCreateInfo.pQueueCreateInfos       = createInfos;
-    deviceCreateInfo.pEnabledFeatures        = &FeatureRequests;
+    // deviceCreateInfo.pEnabledFeatures        = &FeatureRequests;
     deviceCreateInfo.enabledExtensionCount   = (uint32)arrlen(requirements.DeviceExtensionNames);
     deviceCreateInfo.ppEnabledExtensionNames = requirements.DeviceExtensionNames;
+    deviceCreateInfo.pNext = &FeatureRequests2;
 
     KRAFT_VK_CHECK(
         vkCreateDevice(context->PhysicalDevice.Handle, 
@@ -496,6 +515,9 @@ void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequi
     );
 
     arrfree(createInfos);
+
+    volkLoadDevice(context->LogicalDevice.Handle);
+
     KSUCCESS("[VulkanCreateLogicalDevice]: Successfully created VkDevice");
 
     // Grab the queues

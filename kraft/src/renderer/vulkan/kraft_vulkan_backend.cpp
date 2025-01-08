@@ -94,7 +94,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
     }
 
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-    appInfo.apiVersion = VK_API_VERSION_1_2;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
     appInfo.pApplicationName = config->ApplicationName;
     appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
     appInfo.pEngineName = config->ApplicationName;
@@ -1001,8 +1001,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
     VulkanShader*        ShaderData = (VulkanShader*)Shader->RendererData;
 
-    VkBuffer GPUBuffer = s_ResourceManager.GetBufferPool().Get(GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
-
+    VkBuffer               GPUBuffer = s_ResourceManager.GetBufferPool().Get(GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
     VkDescriptorBufferInfo GlobalDataBufferInfo = {};
     GlobalDataBufferInfo.buffer = GPUBuffer;
     GlobalDataBufferInfo.offset = 0;
@@ -1017,8 +1016,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     DescriptorWriteInfo[0].pBufferInfo = &GlobalDataBufferInfo;
     // DescriptorWriteInfo.dstSet = s_Context.GlobalDescriptorSets[0][s_Context.CurrentSwapchainImageIndex];
 
-    VkBuffer PickingGPUBuffer = s_ResourceManager.GetBufferPool().Get(s_Context.GlobalPickingDataBuffer)->Handle;
-    KASSERT(PickingGPUBuffer);
+    VkBuffer               PickingGPUBuffer = s_ResourceManager.GetBufferPool().Get(s_Context.GlobalPickingDataBuffer)->Handle;
     VkDescriptorBufferInfo GlobalPickingDataBufferInfo = {};
     GlobalPickingDataBufferInfo.buffer = PickingGPUBuffer;
     GlobalPickingDataBufferInfo.offset = 0;
@@ -1278,6 +1276,18 @@ void VulkanRendererBackend::EndRenderPass(Handle<CommandBuffer> CmdBufferHandle,
     VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(CmdBufferHandle);
     vkCmdEndRenderPass(GPUCmdBuffer->Resource);
 
+    // VkMemoryBarrier2 MemoryBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 };
+    // MemoryBarrier.srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    // MemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    // MemoryBarrier.dstStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+    // MemoryBarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+
+    // VkDependencyInfo DependencyInfo = { VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+    // DependencyInfo.memoryBarrierCount = 1;
+    // DependencyInfo.pMemoryBarriers = &MemoryBarrier;
+
+    // vkCmdPipelineBarrier2(GPUCmdBuffer->Resource, &DependencyInfo);
+
     VulkanEndCommandBuffer(GPUCmdBuffer);
     VulkanSetCommandBufferSubmitted(GPUCmdBuffer);
 }
@@ -1421,7 +1431,6 @@ bool instanceLayerSupported(const char* layer, VkLayerProperties* layerPropertie
 
     return false;
 }
-
 }
 
 namespace kraft {

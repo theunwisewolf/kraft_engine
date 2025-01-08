@@ -295,6 +295,10 @@ Handle<Buffer> VulkanResourceManager::CreateBuffer(const BufferDescription& Desc
     {
         ActualSize = math::AlignUp(ActualSize, Context->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     }
+    else if (Description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER)
+    {
+        ActualSize = math::AlignUp(ActualSize, Context->PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment);
+    }
 
     VkBufferCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     CreateInfo.size = ActualSize;

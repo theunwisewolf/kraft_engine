@@ -72,7 +72,7 @@ Shader Basic
         } globalState;
 
         #define DEPTH_ARRAY_SCALE 64
-        layout(set = 0, binding = 1) buffer writeonly GlobalObjectPickingStorageBuffer
+        layout(set = 0, binding = 1) buffer GlobalObjectPickingStorageBuffer
         {
             uint Data[DEPTH_ARRAY_SCALE];
         } globalObjectPickingStorage;
@@ -130,12 +130,15 @@ Shader Basic
 
         void main() 
         {
-            if (length(variableState.MousePosition - gl_FragCoord.xy) < 10)
+            if (length(variableState.MousePosition - gl_FragCoord.xy) < 1)
             {
                 outColor = vec4(1.0, 1.0, 0.0, 1.0);
 
                 uint zIndex = uint(gl_FragCoord.z * DEPTH_ARRAY_SCALE);
-                globalObjectPickingStorage.Data[zIndex] = variableState.EntityId;
+                if (globalObjectPickingStorage.Data[zIndex] == 0)
+                {
+                    globalObjectPickingStorage.Data[zIndex] = variableState.EntityId;
+                }
                 return;
             }
 

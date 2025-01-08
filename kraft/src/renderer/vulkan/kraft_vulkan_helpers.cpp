@@ -4,12 +4,10 @@ namespace kraft::renderer {
 
 VkFormat ToVulkanFormat(ShaderDataType::Enum Format)
 {
-    static VkFormat Mapping[ShaderDataType::Count] = {
-        VK_FORMAT_R32_SFLOAT,          VK_FORMAT_R32G32_SFLOAT, VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8_SINT,       VK_FORMAT_R8G8B8A8_SNORM,   VK_FORMAT_R8_UINT,
-        VK_FORMAT_R8G8B8A8_UINT,       VK_FORMAT_R16G16_SINT,   VK_FORMAT_R16G16_SNORM,     VK_FORMAT_R16G16B16A16_SINT,
-        VK_FORMAT_R16G16B16A16_SNORM,  VK_FORMAT_R32_UINT,      VK_FORMAT_R32G32_UINT,      VK_FORMAT_R32G32B32A32_UINT
-    };
+    static VkFormat Mapping[ShaderDataType::Count] = { VK_FORMAT_R32_SFLOAT,          VK_FORMAT_R32G32_SFLOAT, VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT,
+                                                       VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8_SINT,       VK_FORMAT_R8G8B8A8_SNORM,   VK_FORMAT_R8_UINT,
+                                                       VK_FORMAT_R8G8B8A8_UINT,       VK_FORMAT_R16G16_SINT,   VK_FORMAT_R16G16_SNORM,     VK_FORMAT_R16G16B16A16_SINT,
+                                                       VK_FORMAT_R16G16B16A16_SNORM,  VK_FORMAT_R32_UINT,      VK_FORMAT_R32G32_UINT,      VK_FORMAT_R32G32B32A32_UINT };
 
     return Mapping[Format];
 }
@@ -65,9 +63,7 @@ VkShaderStageFlags ToVulkanShaderStageFlags(uint64 Flags)
 
 VkDescriptorType ToVulkanResourceType(ResourceType::Enum Value)
 {
-    static VkDescriptorType Mapping[ResourceType::Count] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                                             VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
+    static VkDescriptorType Mapping[ResourceType::Count] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
 
     return Mapping[Value];
 }
@@ -92,9 +88,7 @@ VkBlendFactor ToVulkanBlendFactor(BlendFactor::Enum Value)
 
 VkBlendOp ToVulkanBlendOp(BlendOp::Enum Value)
 {
-    static VkBlendOp Mapping[BlendOp::Count] = {
-        VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT, VK_BLEND_OP_MIN, VK_BLEND_OP_MAX
-    };
+    static VkBlendOp Mapping[BlendOp::Count] = { VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT, VK_BLEND_OP_MIN, VK_BLEND_OP_MAX };
 
     return Mapping[Value];
 }
@@ -125,14 +119,9 @@ VkCullModeFlags ToVulkanCullModeFlags(uint64 Flags)
 
 VkCompareOp ToVulkanCompareOp(CompareOp::Enum Value)
 {
-    static VkCompareOp Mapping[CompareOp::Count] = { VK_COMPARE_OP_NEVER,
-                                                     VK_COMPARE_OP_LESS,
-                                                     VK_COMPARE_OP_EQUAL,
-                                                     VK_COMPARE_OP_LESS_OR_EQUAL,
-                                                     VK_COMPARE_OP_GREATER,
-                                                     VK_COMPARE_OP_NOT_EQUAL,
-                                                     VK_COMPARE_OP_GREATER_OR_EQUAL,
-                                                     VK_COMPARE_OP_ALWAYS };
+    static VkCompareOp Mapping[CompareOp::Count] = {
+        VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS
+    };
 
     return Mapping[Value];
 }
@@ -363,12 +352,8 @@ VkAttachmentStoreOp ToVulkanAttachmentStoreOp(StoreOp::Enum Value)
 VkImageLayout ToVulkanImageLayout(TextureLayout::Enum Value)
 {
     static VkImageLayout Mapping[] = {
-        VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,
-        VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VkImageLayout::VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,       VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VkImageLayout::VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
     };
 
     return Mapping[Value];

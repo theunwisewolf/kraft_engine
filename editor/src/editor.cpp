@@ -12,6 +12,8 @@ EditorState::EditorState()
 {
     EditorState::Ptr = this;
     this->RenderSurface = kraft::Engine::Renderer.CreateRenderSurface("SceneView", 200.0f, 200.0f, true);
+
+    this->RenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
 }
 
 kraft::Entity EditorState::GetSelectedEntity()
