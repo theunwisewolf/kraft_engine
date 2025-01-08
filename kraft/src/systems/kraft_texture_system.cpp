@@ -177,7 +177,7 @@ void TextureSystem::ReleaseTexture(const String& TextureName)
     Ref.RefCount--;
     if (Ref.RefCount == 0 && Ref.AutoRelease)
     {
-        ResourceManager::Get()->DestroyTexture(Ref.Resource);
+        ResourceManager->DestroyTexture(Ref.Resource);
         State->TextureCache.erase(It);
     }
 }
@@ -195,16 +195,16 @@ void TextureSystem::ReleaseTexture(Handle<Texture> Resource)
 Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Description, const uint8* Data)
 {
     Description.Usage |= TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
-    Handle<Texture> TextureResource = ResourceManager::Get()->CreateTexture(Description);
+    Handle<Texture> TextureResource = ResourceManager->CreateTexture(Description);
 
     KASSERT(!TextureResource.IsInvalid());
 
     uint64 TextureSize =
         (uint64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
-    GPUBuffer StagingBuffer = ResourceManager::Get()->CreateTempBuffer(TextureSize);
+    GPUBuffer StagingBuffer = ResourceManager->CreateTempBuffer(TextureSize);
     MemCpy(StagingBuffer.Ptr, Data, TextureSize);
 
-    if (!ResourceManager::Get()->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))
+    if (!ResourceManager->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))
     {
         KERROR("Texture upload failed");
         // TODO (amn): Delete texture handle

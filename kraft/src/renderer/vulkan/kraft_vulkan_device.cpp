@@ -290,7 +290,7 @@ bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequ
     arrsetlen(physicalDevices, deviceCount);
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(context->Instance, &deviceCount, physicalDevices));
 
-    VulkanPhysicalDevice* SuitablePhysicalDevices;
+    VulkanPhysicalDevice* SuitablePhysicalDevices = nullptr;
     arrsetlen(SuitablePhysicalDevices, deviceCount);
 
     int SuitablePhysicalDevicesCount = 0;

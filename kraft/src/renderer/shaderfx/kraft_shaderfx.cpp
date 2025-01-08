@@ -1163,7 +1163,7 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
         return false;
     }
 
-    ArenaT* TempArena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(16), .Alignment = 64 });
+    ArenaAllocator* TempArena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(16), .Alignment = 64 });
 
     uint64 BufferSize = kraft::filesystem::GetFileSize(&File) + 1;
     uint8* FileDataBuffer = ArenaPush(TempArena, BufferSize);
@@ -1230,14 +1230,14 @@ static bool CheckBufferDefinition(ShaderEffect& Shader, const Array<UniformBuffe
 
 struct ShaderIncludeUserData
 {
-    ArenaT*       Arena;
+    ArenaAllocator*       Arena;
     ShaderEffect* Shader;
 };
 
 static shaderc_include_result* ShaderIncludeResolverFunction(void* UserData, const char* RequestedSource, int Type, const char* RequestingSource, size_t IncludeDepth)
 {
     ShaderIncludeUserData* IncludeData = (ShaderIncludeUserData*)UserData;
-    ArenaT*                Arena = IncludeData->Arena;
+    ArenaAllocator*                Arena = IncludeData->Arena;
     ShaderEffect*          Shader = IncludeData->Shader;
 
     char* ShaderDirectory = filesystem::Dirname(Arena, Shader->ResourcePath);
@@ -1264,7 +1264,7 @@ static shaderc_include_result* ShaderIncludeResolverFunction(void* UserData, con
 static void ShaderIncludeResultReleaseFunction(void* user_data, shaderc_include_result* include_result)
 {}
 
-bool CompileShaderFX(ArenaT* Arena, ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+bool CompileShaderFX(ArenaAllocator* Arena, ShaderEffect& Shader, const String& OutputPath, bool Verbose)
 {
     // Basic verification
     auto& Resources = Shader.Resources;

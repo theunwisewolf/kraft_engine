@@ -674,7 +674,7 @@ struct Buffer
 
 struct GPUBuffer
 {
-    Handle<Buffer> GPUBuffer;
+    Handle<Buffer> GPUBuffer = {};
     uint8*         Ptr = 0;    // Location of data inside the GPUBuffer
     uint64         Offset = 0; // Offset from the start of the buffer
 };

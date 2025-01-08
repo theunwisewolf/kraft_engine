@@ -170,7 +170,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
             default:                           KFATAL("Unsupported depth buffer format %d", context->PhysicalDevice.DepthBufferFormat);
         }
 
-        context->Swapchain.DepthAttachment = ResourceManager::Ptr->CreateTexture({
+        context->Swapchain.DepthAttachment = ResourceManager->CreateTexture({
             .DebugName = "Swapchain-Depth",
             .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
             .Format = DepthBufferFormat,
@@ -191,7 +191,7 @@ void VulkanDestroySwapchain(VulkanContext* context)
         context->Swapchain.ImageViews[i] = 0;
     }
 
-    // ResourceManager::Ptr->DestroyTexture(context->Swapchain.DepthAttachment);
+    // ResourceManager->DestroyTexture(context->Swapchain.DepthAttachment);
 
     vkDestroySwapchainKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, context->AllocationCallbacks);
 }

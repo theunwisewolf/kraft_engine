@@ -34,9 +34,8 @@ struct Pool
     Array<HandleType> DeletedItems[3] = {};
     uint32            ActiveDeletedItemsArray = 0;
 
-    Pool(uint16 ElementCount);
-    ~Pool();
     void Grow(uint16 ElementCount);
+    void Destroy();
 
     bool  ValidateHandle(HandleType Handle) const;
     Type* GetAuxiliaryData(HandleType Handle) const

@@ -10,7 +10,7 @@
 
 namespace kraft {
 struct Buffer;
-struct ArenaT;
+struct ArenaAllocator;
 
 namespace filesystem {
 
@@ -37,15 +37,15 @@ KRAFT_API String CleanPath(const String& Path);
 KRAFT_API void   Dirname(const char* path, char* out);
 KRAFT_API void   Dirname(const char* Path, uint64 PathLength, char* Out);
 KRAFT_API String Dirname(const String& Path);
-KRAFT_API char*  Dirname(ArenaT* Arena, const String& Path);
-KRAFT_API char*  Dirname(ArenaT* Arena, const char* Path);
-KRAFT_API char*  Dirname(ArenaT* Arena, const char* Path, uint64 PathLength);
+KRAFT_API char*  Dirname(ArenaAllocator* Arena, const String& Path);
+KRAFT_API char*  Dirname(ArenaAllocator* Arena, const char* Path);
+KRAFT_API char*  Dirname(ArenaAllocator* Arena, const char* Path, uint64 PathLength);
 
 // Returns the filename without the directory
 KRAFT_API void   Basename(const char* path, char* out);
 KRAFT_API String Basename(const String& Path);
 
-KRAFT_API char* PathJoin(ArenaT* Arena, const char* A, const char* B);
+KRAFT_API char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B);
 
 // outBuffer, if null is allocated & must be freed by the caller
 KRAFT_API bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);

@@ -14,7 +14,7 @@ struct ArenaCreateOptsT
 };
 
 // TODO: Arena->Next
-struct ArenaT
+struct ArenaAllocator
 {
     uint8*           Ptr;
     uint64           Capacity = 0;
@@ -22,9 +22,9 @@ struct ArenaT
     ArenaCreateOptsT Options;
 };
 
-ArenaT* CreateArena(ArenaCreateOptsT Options);
-void    DestroyArena(ArenaT* Arena);
-uint8*  ArenaPush(ArenaT* Arena, uint64 Size);
-char*   ArenaPushString(ArenaT* Arena, const char* SrcStr, uint64 Length);
+ArenaAllocator* CreateArena(ArenaCreateOptsT Options);
+void    DestroyArena(ArenaAllocator* Arena);
+uint8*  ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false);
+char*   ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
 
 }

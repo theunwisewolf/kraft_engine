@@ -235,17 +235,17 @@ String Dirname(const String& Path)
     return Path;
 }
 
-char* Dirname(ArenaT* Arena, const String& Path)
+char* Dirname(ArenaAllocator* Arena, const String& Path)
 {
     return Dirname(Arena, Path.Data(), Path.GetLengthInBytes());
 }
 
-char* Dirname(ArenaT* Arena, const char* Path)
+char* Dirname(ArenaAllocator* Arena, const char* Path)
 {
     return Dirname(Arena, Path, StringLength(Path));
 }
 
-KRAFT_API char* Dirname(ArenaT* Arena, const char* Path, uint64 PathLength)
+KRAFT_API char* Dirname(ArenaAllocator* Arena, const char* Path, uint64 PathLength)
 {
     char* Out = (char*)ArenaPush(Arena, PathLength + 1);
     Dirname(Path, PathLength, Out);
@@ -279,7 +279,7 @@ String Basename(const String& Path)
     return Path;
 }
 
-char* PathJoin(ArenaT* Arena, const char* A, const char* B)
+char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B)
 {
     uint64 StringALength = StringLength(A);
     uint64 StringBLength = StringLength(B);

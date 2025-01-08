@@ -43,8 +43,8 @@ DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDe
 static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
-static VulkanResourceManager s_ResourceManager = VulkanResourceManager();
-static VulkanContext         s_Context = {};
+static struct ResourceManager* s_ResourceManager = nullptr;
+static VulkanContext    s_Context = {};
 
 bool VulkanRendererBackend::ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize)
 {
@@ -75,14 +75,12 @@ struct VulkanRendererBackendStateT
 bool VulkanRendererBackend::Init(EngineConfigT* config)
 {
     KRAFT_VK_CHECK(volkInitialize());
-    s_Context = VulkanContext{
-        .ResourceManager = &s_ResourceManager,
-    };
+    s_Context = VulkanContext{};
 
     // NOTE: Right now the renderer settings struct is very simple so we just memcpy it
     memcpy(&s_Context.RendererSettings, &config->RendererSettings, sizeof(VulkanRendererSettings));
 
-    ResourceManager::Ptr = &s_ResourceManager;
+    s_ResourceManager = ResourceManager;
 
     s_Context.AllocationCallbacks = nullptr;
     s_Context.FramebufferWidth = config->WindowWidth;
@@ -205,7 +203,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
     VulkanSelectPhysicalDevice(&s_Context, requirements);
     VulkanCreateLogicalDevice(&s_Context, requirements);
 
-    s_Context.GraphicsCommandPool = s_ResourceManager.CreateCommandPool({
+    s_Context.GraphicsCommandPool = s_ResourceManager->CreateCommandPool({
         .DebugName = "PrimaryGfxCmdPool",
         .QueueFamilyIndex = s_Context.PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
         .Flags = COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT,
@@ -256,7 +254,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
             default:                       KFATAL("Unsupported swapchain image format %d", s_Context.Swapchain.ImageFormat.format);
         }
 
-        s_ResourceManager.SetPhysicalDeviceFormatSpecs(FormatSpecs);
+        s_ResourceManager->SetPhysicalDeviceFormatSpecs(FormatSpecs);
     }
 
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
@@ -360,7 +358,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
 
         // Create the uniform buffer for data upload
         uint64 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
-        s_Context.GlobalUniformBuffer = ResourceManager::Ptr->CreateBuffer({
+        s_Context.GlobalUniformBuffer = ResourceManager->CreateBuffer({
             .DebugName = "GlobalUniformBuffer",
             .Size = (uint64)math::AlignUp(sizeof(GlobalShaderData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment),
             .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
@@ -368,7 +366,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
             .MapMemory = true,
         });
 
-        s_Context.GlobalPickingDataBuffer = ResourceManager::Ptr->CreateBuffer({
+        s_Context.GlobalPickingDataBuffer = ResourceManager->CreateBuffer({
             .DebugName = "GlobalPickingDataBuffer",
             .Size = (uint64)math::AlignUp(KRAFT_RENDERER__OBJECT_PICKING_DEPTH_ARRAY_SCALE * sizeof(uint32), s_Context.PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment),
             .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER,
@@ -377,8 +375,8 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
         });
 
         // Map the buffer memory
-        s_Context.GlobalUniformBufferMemory = ResourceManager::Ptr->GetBufferData(s_Context.GlobalUniformBuffer);
-        s_Context.GlobalPickingDataBufferMemory = ResourceManager::Ptr->GetBufferData(s_Context.GlobalPickingDataBuffer);
+        s_Context.GlobalUniformBufferMemory = ResourceManager->GetBufferData(s_Context.GlobalUniformBuffer);
+        s_Context.GlobalPickingDataBufferMemory = ResourceManager->GetBufferData(s_Context.GlobalPickingDataBuffer);
 
         // for (int i = 0; i < s_Context.DescriptorSetLayoutsCount; i++)
         // {
@@ -407,7 +405,7 @@ bool VulkanRendererBackend::Init(EngineConfigT* config)
 bool VulkanRendererBackend::Shutdown()
 {
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
-    s_ResourceManager.Clear();
+    s_ResourceManager->Clear();
 
     vkDestroyDescriptorPool(s_Context.LogicalDevice.Handle, s_Context.GlobalDescriptorPool, s_Context.AllocationCallbacks);
     // vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, GlobalDescriptorSetLayout, s_Context.AllocationCallbacks);
@@ -428,7 +426,8 @@ bool VulkanRendererBackend::Shutdown()
     DestroyArray(s_Context.WaitFences);
 
     // Destroy command buffers
-    destroyCommandBuffers();
+    // Destroyed when the resource manager is destroyed
+    // destroyCommandBuffers();
 
     // Destroy framebuffers
     destroyFramebuffers(&s_Context.Swapchain);
@@ -442,6 +441,8 @@ bool VulkanRendererBackend::Shutdown()
         vkDestroySurfaceKHR(s_Context.Instance, s_Context.Surface, s_Context.AllocationCallbacks);
         s_Context.Surface = 0;
     }
+
+    // s_ResourceManager->Destroy();
 
     return true;
 }
@@ -466,7 +467,7 @@ int VulkanRendererBackend::PrepareFrame()
     // Record commands
     // s_Context.ActiveCommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
 
-    // VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    // VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager->GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
     // VulkanResetCommandBuffer(GPUCmdBuffer);
     // VulkanBeginCommandBuffer(GPUCmdBuffer, false, false, false);
 
@@ -479,11 +480,11 @@ bool VulkanRendererBackend::BeginFrame()
     // Record commands
     s_Context.ActiveCommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
 
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
     VulkanResetCommandBuffer(GPUCmdBuffer);
     VulkanBeginCommandBuffer(GPUCmdBuffer, false, false, false);
 
-    // VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    // VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager->GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
     VulkanBeginRenderPass(GPUCmdBuffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
 
     VulkanRendererBackendState.BuffersToSubmit[VulkanRendererBackendState.BuffersToSubmitNum] = GPUCmdBuffer->Resource;
@@ -512,7 +513,7 @@ bool VulkanRendererBackend::BeginFrame()
 
 bool VulkanRendererBackend::EndFrame()
 {
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
     VulkanEndRenderPass(GPUCmdBuffer, &s_Context.MainRenderPass);
 
     VulkanEndCommandBuffer(GPUCmdBuffer);
@@ -807,7 +808,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     PipelineCreateInfo.pTessellationState = 0;
 
     // PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
-    PipelineCreateInfo.renderPass = RenderPassHandle ? s_ResourceManager.GetRenderPassPool().Get(RenderPassHandle)->Handle : s_Context.MainRenderPass.Handle;
+    PipelineCreateInfo.renderPass = RenderPassHandle ? VulkanResourceManagerApi::GetRenderPass(s_ResourceManager->State, RenderPassHandle)->Handle : s_Context.MainRenderPass.Handle;
     PipelineCreateInfo.subpass = 0;
     PipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
     PipelineCreateInfo.basePipelineIndex = -1;
@@ -819,7 +820,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
 
     // Create the uniform buffer for data upload
     uint64 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
-    VulkanShaderData->ShaderResources.UniformBuffer = ResourceManager::Ptr->CreateBuffer({
+    VulkanShaderData->ShaderResources.UniformBuffer = ResourceManager->CreateBuffer({
         .DebugName = "UniformBuffer",
         .Size = UBOSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
@@ -828,7 +829,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     });
 
     // Map the buffer memory
-    VulkanShaderData->ShaderResources.UniformBufferMemory = ResourceManager::Ptr->GetBufferData(VulkanShaderData->ShaderResources.UniformBuffer);
+    VulkanShaderData->ShaderResources.UniformBufferMemory = ResourceManager->GetBufferData(VulkanShaderData->ShaderResources.UniformBuffer);
     VulkanShaderData->Pipeline = Pipeline;
     VulkanShaderData->PipelineLayout = PipelineLayout;
     Shader->RendererData = VulkanShaderData;
@@ -849,7 +850,7 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
         VkPipeline            Pipeline = VulkanShaderData->Pipeline;
         VkPipelineLayout      PipelineLayout = VulkanShaderData->PipelineLayout;
 
-        ResourceManager::Ptr->DestroyBuffer(ShaderResources.UniformBuffer);
+        ResourceManager->DestroyBuffer(ShaderResources.UniformBuffer);
 
         // VulkanDestroyBuffer(&s_Context, &ShaderResources.UniformBuffer);
 
@@ -942,7 +943,7 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);;
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
@@ -951,7 +952,7 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
     VkPipelineLayout     PipelineLayout = VulkanShaderData->PipelineLayout;
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);;
 
     if (Uniform.Scope == ShaderUniformScope::Local)
     {
@@ -998,10 +999,10 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
 
 void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
     VulkanShader*        ShaderData = (VulkanShader*)Shader->RendererData;
 
-    VkBuffer               GPUBuffer = s_ResourceManager.GetBufferPool().Get(GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
+    VkBuffer               GPUBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
     VkDescriptorBufferInfo GlobalDataBufferInfo = {};
     GlobalDataBufferInfo.buffer = GPUBuffer;
     GlobalDataBufferInfo.offset = 0;
@@ -1016,7 +1017,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     DescriptorWriteInfo[0].pBufferInfo = &GlobalDataBufferInfo;
     // DescriptorWriteInfo.dstSet = s_Context.GlobalDescriptorSets[0][s_Context.CurrentSwapchainImageIndex];
 
-    VkBuffer               PickingGPUBuffer = s_ResourceManager.GetBufferPool().Get(s_Context.GlobalPickingDataBuffer)->Handle;
+    VkBuffer               PickingGPUBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.GlobalPickingDataBuffer)->Handle;
     VkDescriptorBufferInfo GlobalPickingDataBufferInfo = {};
     GlobalPickingDataBufferInfo.buffer = PickingGPUBuffer;
     GlobalPickingDataBufferInfo.offset = 0;
@@ -1043,7 +1044,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
 
 void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
     Material*            MaterialInstance = Shader->ActiveMaterial;
     VulkanMaterialData*  MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
     uint32               WriteCount = 0;
@@ -1081,7 +1082,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Material data
     if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        DescriptorBufferInfo.buffer = s_ResourceManager.GetBufferPool().Get(ShaderData->ShaderResources.UniformBuffer)->Handle;
+        DescriptorBufferInfo.buffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, ShaderData->ShaderResources.UniformBuffer)->Handle;
         DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;
         DescriptorBufferInfo.range = Shader->InstanceUBOStride;
 
@@ -1104,11 +1105,10 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Sampler
     if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        const auto& TexturePool = s_ResourceManager.GetTexturePool();
         for (int i = 0; i < MaterialInstance->Textures.Length; i++)
         {
             Handle<Texture> Resource = MaterialInstance->Textures[i];
-            VulkanTexture*  VkTexture = TexturePool.Get(Resource);
+            VulkanTexture*  VkTexture = VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, Resource);
 
             KASSERT(VkTexture->Image);
             KASSERT(VkTexture->View);
@@ -1144,12 +1144,12 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
 void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
     VulkanGeometryData   GeometryData = s_Context.Geometries[GeometryID];
     VkDeviceSize         Offsets[1] = { GeometryData.VertexBufferOffset };
 
-    VulkanBuffer* VertexBuffer = s_ResourceManager.GetBufferPool().Get(s_Context.VertexBuffer);
-    VulkanBuffer* IndexBuffer = s_ResourceManager.GetBufferPool().Get(s_Context.IndexBuffer);
+    VulkanBuffer* VertexBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.VertexBuffer);
+    VulkanBuffer* IndexBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.IndexBuffer);
 
     vkCmdBindVertexBuffers(GPUCmdBuffer->Resource, 0, 1, &VertexBuffer->Handle, Offsets);
     vkCmdBindIndexBuffer(GPUCmdBuffer->Resource, IndexBuffer->Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
@@ -1158,10 +1158,10 @@ void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 
 static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
 {
-    GPUBuffer StagingBuffer = ResourceManager::Ptr->CreateTempBuffer(Size);
+    GPUBuffer StagingBuffer = ResourceManager->CreateTempBuffer(Size);
     MemCpy(StagingBuffer.Ptr, Data, Size);
 
-    ResourceManager::Ptr->UploadBuffer({
+    ResourceManager->UploadBuffer({
         .DstBuffer = DstBuffer,
         .SrcBuffer = StagingBuffer.GPUBuffer,
         .SrcSize = Size,
@@ -1216,12 +1216,12 @@ void VulkanRendererBackend::BeginRenderPass(Handle<CommandBuffer> CmdBufferHandl
 {
     // Handle<CommandBuffer> CmdBuffer = ActiveCmdBuffer = this->CommandBuffers[s_Context.CurrentSwapchainImageIndex];
     s_Context.ActiveCommandBuffer = CmdBufferHandle;
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(CmdBufferHandle);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, CmdBufferHandle);
     VulkanResetCommandBuffer(GPUCmdBuffer);
     VulkanBeginCommandBuffer(GPUCmdBuffer, false, false, false);
 
-    VulkanRenderPass* GPURenderPass = s_ResourceManager.GetRenderPassPool().Get(PassHandle);
-    RenderPass*       RenderPass = s_ResourceManager.GetRenderPassPool().GetAuxiliaryData(PassHandle);
+    VulkanRenderPass* GPURenderPass = VulkanResourceManagerApi::GetRenderPass(s_ResourceManager->State, PassHandle);
+    RenderPass*       RenderPass = s_ResourceManager->GetRenderPassMetadata(PassHandle);
 
     VkRenderPassBeginInfo BeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
     BeginInfo.framebuffer = GPURenderPass->Framebuffer.Handle;
@@ -1273,7 +1273,7 @@ void VulkanRendererBackend::BeginRenderPass(Handle<CommandBuffer> CmdBufferHandl
 
 void VulkanRendererBackend::EndRenderPass(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = s_ResourceManager.GetCommandBufferPool().Get(CmdBufferHandle);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, CmdBufferHandle);
     vkCmdEndRenderPass(GPUCmdBuffer->Resource);
 
     // VkMemoryBarrier2 MemoryBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 };
@@ -1342,7 +1342,7 @@ static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Na
 bool createBuffers()
 {
     const uint64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 256;
-    s_Context.VertexBuffer = ResourceManager::Ptr->CreateBuffer({
+    s_Context.VertexBuffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = VertexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_VERTEX_BUFFER,
@@ -1350,7 +1350,7 @@ bool createBuffers()
     });
 
     const uint64 IndexBufferSize = sizeof(uint32) * 1024 * 256;
-    s_Context.IndexBuffer = ResourceManager::Ptr->CreateBuffer({
+    s_Context.IndexBuffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalIndexBuffer",
         .Size = IndexBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_INDEX_BUFFER,
@@ -1364,7 +1364,7 @@ void createCommandBuffers()
 {
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
-        s_Context.GraphicsCommandBuffers[i] = s_ResourceManager.CreateCommandBuffer({
+        s_Context.GraphicsCommandBuffers[i] = s_ResourceManager->CreateCommandBuffer({
             .DebugName = "MainCmdBuffer",
             .CommandPool = s_Context.GraphicsCommandPool,
             .Primary = true,
@@ -1380,7 +1380,7 @@ void destroyCommandBuffers()
     {
         if (s_Context.GraphicsCommandBuffers[i])
         {
-            s_ResourceManager.DestroyCommandBuffer(s_Context.GraphicsCommandBuffers[i]);
+            s_ResourceManager->DestroyCommandBuffer(s_Context.GraphicsCommandBuffers[i]);
         }
     }
 }
@@ -1393,7 +1393,9 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         MemZero(swapchain->Framebuffers, sizeof(VulkanFramebuffer) * swapchain->ImageCount);
     }
 
-    VkImageView Attachments[] = { 0, s_ResourceManager.GetTexturePool().Get(swapchain->DepthAttachment)->View };
+    VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, swapchain->DepthAttachment);
+
+    VkImageView Attachments[] = { 0, VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, swapchain->DepthAttachment)->View };
     for (uint32 i = 0; i < swapchain->ImageCount; ++i)
     {
         if (swapchain->Framebuffers[i].Handle)

@@ -10,15 +10,9 @@
 #include <resources/kraft_resource_types.h>
 
 namespace kraft::renderer {
-template<typename ConcreteType, typename Type>
-Pool<ConcreteType, Type>::Pool(uint16 ElementCount) : FreeListTop(0)
-{
-    KASSERT(ElementCount > 0);
-    this->Grow(ElementCount);
-}
 
 template<typename ConcreteType, typename Type>
-Pool<ConcreteType, Type>::~Pool()
+void Pool<ConcreteType, Type>::Destroy()
 {
     uint64 AuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
     uint64 DataArraySize = sizeof(ConcreteType) * this->PoolSize;

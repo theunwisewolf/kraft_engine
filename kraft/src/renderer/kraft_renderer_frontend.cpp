@@ -1,6 +1,7 @@
 #include "kraft_renderer_frontend.h"
 
 #include <containers/kraft_hashmap.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
@@ -8,6 +9,7 @@
 #include <renderer/kraft_camera.h>
 #include <renderer/kraft_resource_manager.h>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
+#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
 #include <world/kraft_entity.h>
@@ -30,6 +32,8 @@ struct RenderDataT
     RenderablesT   Renderables;
 };
 
+struct ResourceManager* ResourceManager = nullptr;
+
 struct RendererDataT
 {
     MemoryBlock         BackendMemory;
@@ -39,6 +43,7 @@ struct RendererDataT
     RendererBackend*    Backend = nullptr;
     int                 ActiveSurface = -1;
     int                 CurrentFrameIndex = -1;
+    ArenaAllocator*     Arena;
 } RendererData;
 
 RendererFrontend* Renderer = nullptr;
@@ -98,6 +103,13 @@ bool RendererFrontend::Init(EngineConfigT* Config)
 
     KASSERTM(RendererData.Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
+    RendererData.Arena = CreateArena({
+        .ChunkSize = 4096,
+        .Alignment = 64,
+    });
+
+    ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
+
     if (!CreateBackend(RendererData.Type, RendererData.Backend))
     {
         return false;
@@ -115,9 +127,12 @@ bool RendererFrontend::Init(EngineConfigT* Config)
 bool RendererFrontend::Shutdown()
 {
     DestroyBackend(RendererData.Backend);
+    DestroyVulkanResourceManager(ResourceManager);
 
     FreeBlock(RendererData.BackendMemory);
     RendererData.Backend = nullptr;
+
+    DestroyArena(RendererData.Arena);
 
     return true;
 }
@@ -136,7 +151,7 @@ void RendererFrontend::OnResize(int width, int height)
 
 void RendererFrontend::PrepareFrame()
 {
-    renderer::ResourceManager::Ptr->EndFrame(0);
+    renderer::ResourceManager->EndFrame(0);
     RendererData.CurrentFrameIndex = RendererData.Backend->PrepareFrame();
 }
 
@@ -161,7 +176,7 @@ bool RendererFrontend::DrawSurfaces()
             GlobalShaderData.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
         }
 
-        MemCpy((void*)ResourceManager::Ptr->GetBufferData(Surface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+        MemCpy((void*)ResourceManager->GetBufferData(Surface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
 
         Surface.Begin();
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
@@ -329,7 +344,7 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
         .Height = Height,
     };
 
-    Surface.ColorPassTexture = ResourceManager::Ptr->CreateTexture({
+    Surface.ColorPassTexture = ResourceManager->CreateTexture({
         .DebugName = "ColorPassTexture",
         .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
         .Format = Format::BGRA8_UNORM,
@@ -344,10 +359,10 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
 
     if (HasDepth)
     {
-        Surface.DepthPassTexture = ResourceManager::Ptr->CreateTexture({
+        Surface.DepthPassTexture = ResourceManager->CreateTexture({
             .DebugName = "DepthPassTexture",
             .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
-            .Format = ResourceManager::Ptr->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+            .Format = ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
             .Sampler = {
                 .WrapModeU = TextureWrapMode::ClampToEdge,
@@ -358,7 +373,7 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
         });
     }
 
-    Surface.RenderPass = ResourceManager::Ptr->CreateRenderPass({
+    Surface.RenderPass = ResourceManager->CreateRenderPass({
         .DebugName = Name,
         .Dimensions = { (float)Width, (float)Height, 0.f, 0.f },
         .ColorTargets = {
@@ -384,7 +399,7 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
         }
     });
 
-    Surface.GlobalUBO = ResourceManager::Ptr->CreateBuffer({
+    Surface.GlobalUBO = ResourceManager->CreateBuffer({
         .DebugName = Name,
         .Size = sizeof(GlobalShaderData),
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
@@ -395,7 +410,7 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
 
     for (int i = 0; i < 3; i++)
     {
-        Surface.CmdBuffers[i] = ResourceManager::Ptr->CreateCommandBuffer({
+        Surface.CmdBuffers[i] = ResourceManager->CreateCommandBuffer({
             .DebugName = Name,
             .Primary = true,
         });
@@ -425,11 +440,11 @@ RenderSurfaceT RendererFrontend::ResizeRenderSurface(RenderSurfaceT& Surface, ui
     KDEBUG("Viewport size set to = %d, %d", Width, Height);
 
     // Delete the old color pass and depth pass
-    ResourceManager::Ptr->DestroyRenderPass(Surface.RenderPass);
-    ResourceManager::Ptr->DestroyTexture(Surface.ColorPassTexture);
+    ResourceManager->DestroyRenderPass(Surface.RenderPass);
+    ResourceManager->DestroyTexture(Surface.ColorPassTexture);
     if (Surface.DepthPassTexture)
     {
-        ResourceManager::Ptr->DestroyTexture(Surface.DepthPassTexture);
+        ResourceManager->DestroyTexture(Surface.DepthPassTexture);
     }
 
     // this->CreateCommandBuffers();

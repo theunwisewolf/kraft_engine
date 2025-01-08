@@ -63,7 +63,7 @@ void DrawImGuiWidgets(bool refresh)
     // To preserve the aspect ratio of the texture
     // kraft::renderer::Handle<kraft::Texture> Resource =
     //     EditorState::Ptr->GetSelectedEntity().MaterialInstance->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
-    // kraft::Texture* Texture = kraft::renderer::ResourceManager::Get()->GetTextureMetadata(Resource);
+    // kraft::Texture* Texture = kraft::renderer::ResourceManager->GetTextureMetadata(Resource);
 
     // kraft::Vec2f ratio = { (float)Texture->Width / kraft::Platform::GetWindow()->Width,
     //                        (float)Texture->Height / kraft::Platform::GetWindow()->Height };

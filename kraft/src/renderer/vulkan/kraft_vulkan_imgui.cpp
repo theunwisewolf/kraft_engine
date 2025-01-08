@@ -11,14 +11,14 @@
 #include <core/kraft_engine.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
+#include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
 #include <renderer/kraft_renderer_types.h>
+#include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>
 #include <renderer/vulkan/kraft_vulkan_renderpass.h>
-#include <platform/kraft_filesystem.h>
-#include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
 namespace kraft::renderer {
@@ -109,7 +109,7 @@ bool BeginFrame()
 bool EndFrame(ImDrawData* DrawData)
 {
     VulkanContext*       Context = VulkanRendererBackend::Context();
-    VulkanCommandBuffer* ParentCommandBuffer = Context->ResourceManager->GetCommandBufferPool().Get(Context->ActiveCommandBuffer);
+    VulkanCommandBuffer* ParentCommandBuffer = VulkanResourceManagerApi::GetCommandBuffer(ResourceManager->State, Context->ActiveCommandBuffer);
 
     ImGui_ImplVulkan_RenderDrawData(DrawData, ParentCommandBuffer->Resource);
 
@@ -119,8 +119,7 @@ bool EndFrame(ImDrawData* DrawData)
 ImTextureID AddTexture(Handle<Texture> Resource)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    const auto&    TexturePool = Context->ResourceManager->GetTexturePool();
-    VulkanTexture* BackendTexture = TexturePool.Get(Resource);
+    VulkanTexture* BackendTexture = VulkanResourceManagerApi::GetTexture(ResourceManager->State, Resource);
 
     return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

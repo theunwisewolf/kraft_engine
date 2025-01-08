@@ -25,73 +25,47 @@ struct RenderPassDescription;
 struct CommandBufferDescription;
 struct CommandPoolDescription;
 
-class TempMemoryBlockAllocator
+struct ResourceManager
 {
-public:
-    uint64            BlockSize = 0;
-    uint64            AllocationCount = 0;
-    virtual GPUBuffer GetNextFreeBlock() = 0;
-    virtual ~TempMemoryBlockAllocator() {};
-};
+    struct ResourceManagerState* State;
 
-struct TempAllocator
-{
-    // Set it to something absurd so we always create a new block on the first `Allocate()` request
-    uint64                    CurrentOffset = uint32(-1);
-    TempMemoryBlockAllocator* Allocator = nullptr;
-
-    GPUBuffer Allocate(uint64 Size, uint64 Alignment);
-};
-
-class ResourceManager
-{
-protected:
-    TempAllocator TempGPUAllocator;
-
-public:
-    static ResourceManager* Ptr;
-
-    KRAFT_INLINE static ResourceManager* Get()
-    {
-        return Ptr;
-    }
-
-    ResourceManager();
-    virtual ~ResourceManager() = 0;
+    void (*Clear)();
 
     // Creation apis
-    virtual Handle<Texture>       CreateTexture(const TextureDescription& Description) = 0;
-    virtual Handle<Buffer>        CreateBuffer(const BufferDescription& Description) = 0;
-    virtual Handle<RenderPass>    CreateRenderPass(const RenderPassDescription& Description) = 0;
-    virtual Handle<CommandBuffer> CreateCommandBuffer(const CommandBufferDescription& Description) = 0;
-    virtual Handle<CommandPool>   CreateCommandPool(const CommandPoolDescription& Description) = 0;
+    Handle<Texture> (*CreateTexture)(const TextureDescription& Description) = 0;
+    Handle<Buffer> (*CreateBuffer)(const BufferDescription& Description) = 0;
+    Handle<RenderPass> (*CreateRenderPass)(const RenderPassDescription& Description) = 0;
+    Handle<CommandBuffer> (*CreateCommandBuffer)(const CommandBufferDescription& Description) = 0;
+    Handle<CommandPool> (*CreateCommandPool)(const CommandPoolDescription& Description) = 0;
     // virtual Handle<ShaderEffect> CreateShaderEffect(ShaderEffectDescription Description) = 0;
 
     // Destruction apis
-    virtual void DestroyTexture(Handle<Texture> Resource) = 0;
-    virtual void DestroyBuffer(Handle<Buffer> Resource) = 0;
-    virtual void DestroyRenderPass(Handle<RenderPass> Resource) = 0;
-    virtual void DestroyCommandBuffer(Handle<CommandBuffer> Resource) = 0;
-    virtual void DestroyCommandPool(Handle<CommandPool> Resource) = 0;
+    void (*DestroyTexture)(Handle<Texture> Resource) = 0;
+    void (*DestroyBuffer)(Handle<Buffer> Resource) = 0;
+    void (*DestroyRenderPass)(Handle<RenderPass> Resource) = 0;
+    void (*DestroyCommandBuffer)(Handle<CommandBuffer> Resource);
+    void (*DestroyCommandPool)(Handle<CommandPool> Resource) = 0;
 
     // Access apis
-    virtual uint8* GetBufferData(Handle<Buffer> Buffer) = 0;
+    uint8* (*GetBufferData)(Handle<Buffer> Buffer) = 0;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame
-    virtual GPUBuffer CreateTempBuffer(uint64 Size) = 0;
+    GPUBuffer (*CreateTempBuffer)(uint64 Size) = 0;
 
     // Uploads a raw buffer data to the GPU
-    virtual bool UploadTexture(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;
-    virtual bool UploadBuffer(const UploadBufferDescription& Description) = 0;
-    virtual bool ReadTextureData(const ReadTextureDataDescription& Description) = 0;
+    bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;
+    bool (*UploadBuffer)(const UploadBufferDescription& Description) = 0;
+    bool (*ReadTextureData)(const ReadTextureDataDescription& Description) = 0;
 
-    virtual Texture* GetTextureMetadata(Handle<Texture> Resource) = 0;
-
-    virtual void StartFrame(uint64 FrameNumber) = 0;
-    virtual void EndFrame(uint64 FrameNumber) = 0;
+    Texture* (*GetTextureMetadata)(Handle<Texture> Resource) = 0;
+    RenderPass* (*GetRenderPassMetadata)(Handle<RenderPass> Resource) = 0;
+    void (*StartFrame)(uint64 FrameNumber) = 0;
+    void (*EndFrame)(uint64 FrameNumber) = 0;
 
     void                             SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs);
     const PhysicalDeviceFormatSpecs& GetPhysicalDeviceFormatSpecs() const;
 };
+
+extern struct ResourceManager* ResourceManager;
 
 };

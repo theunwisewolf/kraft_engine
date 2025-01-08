@@ -249,7 +249,6 @@ struct VulkanContext
     Handle<Buffer>         IndexBuffer;
     uint32                 CurrentVertexBufferOffset;
     uint32                 CurrentIndexBufferOffset;
-    VulkanResourceManager* ResourceManager;
     VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
     VulkanMaterialData     Materials[KRAFT_VULKAN_MAX_MATERIALS];
 

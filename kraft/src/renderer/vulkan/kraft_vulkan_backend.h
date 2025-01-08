@@ -25,8 +25,7 @@ struct Handle;
 
 struct VulkanRendererBackend
 {
-
-    static bool Init(EngineConfigT* config);
+    static bool Init(EngineConfigT* Config);
     static bool Shutdown();
     static int  PrepareFrame();
     static bool BeginFrame();
@@ -54,7 +53,7 @@ struct VulkanRendererBackend
     static void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
 
     // Misc
-    static bool ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
+    static bool           ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
     static VulkanContext* Context();
 };
 
