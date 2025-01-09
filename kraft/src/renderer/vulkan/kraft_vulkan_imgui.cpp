@@ -21,6 +21,8 @@
 #include <renderer/vulkan/kraft_vulkan_renderpass.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
+#include <renderer/vulkan/kraft_vulkan_types.h>
+
 namespace kraft::renderer {
 
 namespace VulkanImgui {

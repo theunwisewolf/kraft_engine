@@ -1,9 +1,10 @@
 #pragma once
 
-#include "renderer/vulkan/kraft_vulkan_types.h"
+#include <core/kraft_core.h>
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
+
+struct VulkanContext;
 
 // TODO: remove this
 bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShaderModule* out);

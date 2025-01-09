@@ -1,12 +1,13 @@
 #pragma once
 
-#include "containers/kraft_array.h"
-#include "core/kraft_asserts.h"
-#include "core/kraft_core.h"
-#include "math/kraft_math.h"
-#include "renderer/kraft_renderer_types.h"
+#ifndef VOLK_H_
+#error "Vulkan headers not found. Did you forget to include volk.h before this file?"
+#endif
 
-#include <volk/volk.h>
+#include <containers/kraft_array.h>
+#include <core/kraft_core.h>
+#include <math/kraft_math.h>
+#include <renderer/kraft_renderer_types.h>
 
 #define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
     do                                                                                                                                                                                                 \
@@ -18,6 +19,10 @@
 #define KRAFT_VULKAN_MAX_GEOMETRIES       1024
 #define KRAFT_VULKAN_MAX_MATERIALS        1024
 #define KRAFT_VULKAN_MAX_BINDINGS         32
+
+namespace kraft {
+    struct ArenaAllocator;
+}
 
 namespace kraft::renderer {
 
@@ -245,12 +250,14 @@ struct VulkanContext
     void (*SetObjectName)(uint64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
-    Handle<Buffer>         VertexBuffer;
-    Handle<Buffer>         IndexBuffer;
-    uint32                 CurrentVertexBufferOffset;
-    uint32                 CurrentIndexBufferOffset;
-    VulkanGeometryData     Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
-    VulkanMaterialData     Materials[KRAFT_VULKAN_MAX_MATERIALS];
+    ArenaAllocator* Arena;
+
+    Handle<Buffer>     VertexBuffer;
+    Handle<Buffer>     IndexBuffer;
+    uint32             CurrentVertexBufferOffset;
+    uint32             CurrentIndexBufferOffset;
+    VulkanGeometryData Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
+    VulkanMaterialData Materials[KRAFT_VULKAN_MAX_MATERIALS];
 
     // Global Data
     VkDescriptorPool      GlobalDescriptorPool;

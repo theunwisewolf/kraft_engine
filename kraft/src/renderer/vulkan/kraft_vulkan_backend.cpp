@@ -21,7 +21,6 @@
 #include <renderer/vulkan/kraft_vulkan_framebuffer.h>
 #include <renderer/vulkan/kraft_vulkan_helpers.h>
 #include <renderer/vulkan/kraft_vulkan_image.h>
-#include <renderer/vulkan/kraft_vulkan_pipeline.h>
 #include <renderer/vulkan/kraft_vulkan_renderpass.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 #include <renderer/vulkan/kraft_vulkan_shader.h>
@@ -80,7 +79,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
     s_Context = VulkanContext{};
 
     // NOTE: Right now the renderer settings struct is very simple so we just memcpy it
-    memcpy(&s_Context.RendererSettings, &config->RendererSettings, sizeof(VulkanRendererSettings));
+    MemCpy(&s_Context.RendererSettings, &config->RendererSettings, sizeof(VulkanRendererSettings));
 
     s_ResourceManager = ResourceManager;
 
@@ -194,23 +193,23 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
 #endif
 
     // TODO: These requirements should come from a config or something
-    VulkanPhysicalDeviceRequirements requirements = {};
-    requirements.Compute = true;
-    requirements.Graphics = true;
-    requirements.Present = true;
-    requirements.Transfer = true;
-    requirements.DepthBuffer = true;
-    requirements.DeviceExtensionNames = 0;
-    arrpush(requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    arrpush(requirements.DeviceExtensionNames, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+    VulkanPhysicalDeviceRequirements Requirements = {};
+    Requirements.Compute = true;
+    Requirements.Graphics = true;
+    Requirements.Present = true;
+    Requirements.Transfer = true;
+    Requirements.DepthBuffer = true;
+    Requirements.DeviceExtensionNames = 0;
+    arrpush(Requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    arrpush(Requirements.DeviceExtensionNames, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
     GLFWwindow* window = Platform::GetWindow()->PlatformWindowHandle;
     KRAFT_VK_CHECK(glfwCreateWindowSurface(s_Context.Instance, window, s_Context.AllocationCallbacks, &s_Context.Surface));
 
     KSUCCESS("[VulkanRendererBackend::Init]: Successfully created VkSurface");
 
-    VulkanSelectPhysicalDevice(&s_Context, requirements);
-    VulkanCreateLogicalDevice(&s_Context, requirements);
+    VulkanSelectPhysicalDevice(&s_Context, &Requirements);
+    VulkanCreateLogicalDevice(&s_Context, &Requirements);
 
     s_Context.GraphicsCommandPool = s_ResourceManager->CreateCommandPool({
         .DebugName = "PrimaryGfxCmdPool",
@@ -220,7 +219,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
 
     KDEBUG("[VulkanRendererBackend::Init]: Graphics command pool created");
 
-    arrfree(requirements.DeviceExtensionNames);
+    arrfree(Requirements.DeviceExtensionNames);
 
     PhysicalDeviceFormatSpecs FormatSpecs;
     {

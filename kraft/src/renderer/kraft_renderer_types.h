@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef KRAFT_RENDERER_TYPES_H_
+#define KRAFT_RENDERER_TYPES_H_
+#endif
+
 struct ImDrawData;
 
 namespace kraft {

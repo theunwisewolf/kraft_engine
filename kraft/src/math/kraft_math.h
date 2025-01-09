@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef KRAFT_MATH_H_
+#define KRAFT_MATH_H_
+#endif
+
 #include "core/kraft_core.h"
 
 //

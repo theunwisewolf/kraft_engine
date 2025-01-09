@@ -1,10 +1,16 @@
+#include <volk/volk.h>
+
 #include "kraft_vulkan_shader.h"
 
+#include <containers/kraft_array.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
-#include <core/kraft_log.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_filesystem_types.h>
+
+#include <renderer/vulkan/kraft_vulkan_types.h>
 
 namespace kraft::renderer {
 

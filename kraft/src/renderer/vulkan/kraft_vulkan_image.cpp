@@ -1,7 +1,11 @@
+#include <volk/volk.h>
+
 #include "kraft_vulkan_image.h"
 
-#include "core/kraft_asserts.h"
-#include "renderer/vulkan/kraft_vulkan_memory.h"
+#include <core/kraft_asserts.h>
+#include <containers/kraft_array.h>
+
+#include <renderer/vulkan/kraft_vulkan_types.h>
 
 namespace kraft::renderer {
 

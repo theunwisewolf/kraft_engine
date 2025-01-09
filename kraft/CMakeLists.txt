@@ -68,7 +68,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
         src/renderer/vulkan/kraft_vulkan_framebuffer.cpp
         src/renderer/vulkan/kraft_vulkan_fence.cpp
         src/renderer/vulkan/kraft_vulkan_shader.cpp
-        src/renderer/vulkan/kraft_vulkan_pipeline.cpp
         src/renderer/vulkan/kraft_vulkan_imgui.cpp
         src/renderer/vulkan/kraft_vulkan_resource_manager.cpp
         src/renderer/vulkan/kraft_vulkan_helpers.cpp

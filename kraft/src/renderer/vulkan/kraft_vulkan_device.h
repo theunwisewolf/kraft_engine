@@ -1,19 +1,21 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "renderer/vulkan/kraft_vulkan_types.h"
+#include <core/kraft_core.h>
 
-#include <volk/volk.h>
+namespace kraft::renderer {
 
-namespace kraft::renderer
-{
+struct VulkanContext;
+struct VulkanSwapchainSupportInfo;
+struct VulkanPhysicalDevice;
+struct VulkanLogicalDevice;
+struct VulkanPhysicalDeviceRequirements;
 
 VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount);
-bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension);
-bool VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanPhysicalDevice* out = 0);
-void VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements requirements, VulkanLogicalDevice* out = 0);
-void VulkanDestroyLogicalDevice(VulkanContext* context);
+bool                   VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension);
+bool                   VulkanSelectPhysicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements* Requirements, VulkanPhysicalDevice* out = 0);
+void                   VulkanCreateLogicalDevice(VulkanContext* context, VulkanPhysicalDeviceRequirements* Requirements, VulkanLogicalDevice* out = 0);
+void                   VulkanDestroyLogicalDevice(VulkanContext* context);
 
 void VulkanGetSwapchainSupportInfo(VkPhysicalDevice device, VkSurfaceKHR surface, VulkanSwapchainSupportInfo* out);
-    
+
 }

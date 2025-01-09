@@ -1,9 +1,14 @@
+#include <volk/volk.h>
+
 #include "kraft_vulkan_fence.h"
 
+#include <containers/kraft_array.h>
+#include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
 
-namespace kraft::renderer
-{
+#include <renderer/vulkan/kraft_vulkan_types.h>
+
+namespace kraft::renderer {
 
 void VulkanCreateFence(VulkanContext* context, bool signalled, VulkanFence* out)
 {
@@ -12,7 +17,7 @@ void VulkanCreateFence(VulkanContext* context, bool signalled, VulkanFence* out)
     info.flags = signalled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
 
     out->Signalled = signalled;
-    KRAFT_VK_CHECK(vkCreateFence(context->LogicalDevice.Handle, & info, context->AllocationCallbacks, &out->Handle));
+    KRAFT_VK_CHECK(vkCreateFence(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &out->Handle));
 }
 
 void VulkanDestroyFence(VulkanContext* context, VulkanFence* fence)
@@ -21,7 +26,7 @@ void VulkanDestroyFence(VulkanContext* context, VulkanFence* fence)
     {
         vkDestroyFence(context->LogicalDevice.Handle, fence->Handle, context->AllocationCallbacks);
     }
-    
+
     fence->Handle = 0;
     fence->Signalled = false;
 }
@@ -46,23 +51,28 @@ bool VulkanWaitForFence(VulkanContext* context, VulkanFence* fence, uint64 timeo
         {
             fence->Signalled = true;
             return true;
-        } break;
+        }
+        break;
         case VK_TIMEOUT:
         {
             KWARN("[VulkanFenceWait]: VK_TIMEOUT");
-        } break;
+        }
+        break;
         case VK_ERROR_DEVICE_LOST:
         {
             KERROR("[VulkanFenceWait]: VK_ERROR_DEVICE_LOST");
-        } break;
+        }
+        break;
         case VK_ERROR_OUT_OF_HOST_MEMORY:
         {
             KERROR("[VulkanFenceWait]: VK_ERROR_OUT_OF_HOST_MEMORY");
-        } break;
+        }
+        break;
         case VK_ERROR_OUT_OF_DEVICE_MEMORY:
         {
             KERROR("[VulkanFenceWait]: VK_ERROR_OUT_OF_DEVICE_MEMORY");
-        } break;
+        }
+        break;
         default:
         {
             KERROR("[VulkanFenceWait]: Unknown error %d", result);

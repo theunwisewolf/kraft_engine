@@ -1,10 +1,12 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "renderer/vulkan/kraft_vulkan_types.h"
+#include <core/kraft_core.h>
 
 namespace kraft::renderer
 {
+
+struct VulkanContext;
+struct VulkanSwapchain;
 
 void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, bool VSync, VulkanSwapchain* out = 0);
 void VulkanDestroySwapchain(VulkanContext* context);

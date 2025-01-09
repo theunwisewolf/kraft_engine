@@ -198,4 +198,9 @@ struct Array;
 
 template<typename T, int rows, int cols>
 struct Matrix;
+
+template<typename T, int n>
+struct Vector;
+
+typedef Vector<float32, 4> Vec4f;
 }

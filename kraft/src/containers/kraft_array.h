@@ -1,5 +1,10 @@
 #pragma once
 
+#ifndef KRAFT_ARRAY_H_
+#define KRAFT_ARRAY_H_
+#endif
+
+#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_core.h>
 #include <core/kraft_memory.h>
@@ -13,7 +18,8 @@ struct Array
 {
     typedef uint64 SizeType;
 
-    ValueType* InternalBuffer = nullptr;
+    ValueType*      InternalBuffer = nullptr;
+    ArenaAllocator* Arena = nullptr;
 
     // Number of elements currently in the buffer
     SizeType Length = 0;
@@ -43,7 +49,7 @@ protected:
         SizeType   OldAllocationSize = GetBufferSizeInBytes();
 
         Allocated = ExactFit ? NewSize : ChooseAllocationSize(NewSize);
-        ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+        ValueType* NewBuffer = Arena ? (ValueType*)ArenaPush(Arena, GetBufferSizeInBytes(), true) : (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
 
         // If we had any data, copy over
         if (OldBuffer)
@@ -128,9 +134,9 @@ public:
         InternalBuffer = Arr.InternalBuffer;
         Allocated = Arr.Allocated;
 
-        Arr.Length = _Length;
-        Arr.Allocated = _Allocated;
-        Arr.InternalBuffer = _Buffer;
+        Arr.Length = 0;
+        Arr.Allocated = 0;
+        Arr.InternalBuffer = nullptr;
     }
 
     constexpr Array& operator=(const Array& Arr)
@@ -158,9 +164,9 @@ public:
         InternalBuffer = Arr.InternalBuffer;
         Allocated = Arr.Allocated;
 
-        Arr.Length = _Length;
-        Arr.Allocated = _Allocated;
-        Arr.InternalBuffer = _Buffer;
+        Arr.Length = 0;
+        Arr.Allocated = 0;
+        Arr.InternalBuffer = nullptr;
 
         return *this;
     }
@@ -212,7 +218,7 @@ public:
         if (Size > Allocated)
         {
             Allocated = Size;
-            InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+            InternalBuffer = Arena ? (ValueType*)ArenaPush(Arena, GetBufferSizeInBytes(), true) : (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
         }
     }
 

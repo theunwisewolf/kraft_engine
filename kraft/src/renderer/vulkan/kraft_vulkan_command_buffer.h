@@ -1,8 +1,9 @@
 #pragma once
 
-#include "renderer/vulkan/kraft_vulkan_types.h"
-
 namespace kraft::renderer {
+
+struct VulkanContext;
+struct VulkanCommandBuffer;
 
 void VulkanBeginCommandBuffer(VulkanCommandBuffer* buffer, bool singleUse, bool renderPassContinue, bool simultaneousUse);
 void VulkanEndCommandBuffer(VulkanCommandBuffer* buffer);

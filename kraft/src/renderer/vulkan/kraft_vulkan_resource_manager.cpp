@@ -1,20 +1,55 @@
-#include "kraft_vulkan_resource_manager.h"
-
 #include <volk/volk.h>
+
+#include "kraft_vulkan_resource_manager.h"
 
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_allocators.h>
+#include <core/kraft_log.h>
 #include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>
 #include <renderer/vulkan/kraft_vulkan_helpers.h>
 #include <renderer/vulkan/kraft_vulkan_image.h>
-#include <renderer/vulkan/kraft_vulkan_memory.h>
 
+#include <renderer/vulkan/kraft_vulkan_types.h>
 #include <resources/kraft_resource_types.h>
 
 namespace kraft::renderer {
+
+static int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)
+{
+    for (uint32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
+    {
+        VkMemoryType type = device.MemoryProperties.memoryTypes[i];
+        if (typeFilter & (1 << i) && (type.propertyFlags & propertyFlags) == propertyFlags)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeFilter, VkMemoryPropertyFlags propertyFlags, VkDeviceMemory* out)
+{
+    int32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
+    if (memoryTypeIndex == -1)
+    {
+        KERROR("[VulkanAllocateMemory]: Failed to find suitable memoryType");
+        return false;
+    }
+
+    VkMemoryAllocateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    info.allocationSize = size;
+    info.memoryTypeIndex = memoryTypeIndex;
+
+    VkResult Result = vkAllocateMemory(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, out);
+    KRAFT_VK_CHECK(Result);
+
+    return true;
+}
 
 struct TempMemoryBlock
 {
@@ -143,7 +178,7 @@ struct ResourceManagerState
 };
 
 static ResourceManagerState* InternalState = nullptr;
-static void Clear()
+static void                  Clear()
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
     VkDevice       Device = Context->LogicalDevice.Handle;

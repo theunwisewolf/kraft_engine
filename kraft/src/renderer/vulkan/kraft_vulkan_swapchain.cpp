@@ -1,13 +1,18 @@
+#include <volk/volk.h>
+
 #include "kraft_vulkan_swapchain.h"
 
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-#include "renderer/vulkan/kraft_vulkan_device.h"
-#include "renderer/vulkan/kraft_vulkan_image.h"
+#include <containers/kraft_array.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <renderer/vulkan/kraft_vulkan_device.h>
+#include <renderer/vulkan/kraft_vulkan_image.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
-namespace kraft::renderer
-{
+#include <renderer/vulkan/kraft_vulkan_types.h>
+
+namespace kraft::renderer {
 
 #define KRAFT_CLAMP(value, min, max) (value < min) ? value = min : (value > max ? max : value);
 
@@ -18,7 +23,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     if (out)
         context->Swapchain = *out;
 
-    VkExtent2D extent = {width, height};
+    VkExtent2D extent = { width, height };
 
     // Query swapchain support info once more to get the most updated values
     // in case of window resize
@@ -26,7 +31,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     // Find a suitable image format
     VulkanSwapchainSupportInfo info = context->PhysicalDevice.SwapchainSupportInfo;
-    // If only 1 format is present and that is VK_FORMAT_UNDEFINED, then this means 
+    // If only 1 format is present and that is VK_FORMAT_UNDEFINED, then this means
     // that there is no preferred format & we can choose any format we want
     if (info.FormatCount == 1 && info.Formats[0].format == VK_FORMAT_UNDEFINED)
     {
@@ -39,8 +44,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
         for (uint32 i = 0; i < info.FormatCount; ++i)
         {
             VkSurfaceFormatKHR format = info.Formats[i];
-            if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
-                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            if (format.format == VK_FORMAT_B8G8R8A8_UNORM && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 context->Swapchain.ImageFormat = format;
                 found = true;
@@ -108,10 +112,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     swapchainCreateInfo.clipped = VK_TRUE;
     swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    const uint32 queueFamilyIndices[2] = {
-        context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
-        context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex
-    };
+    const uint32 queueFamilyIndices[2] = { context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
 
     if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex != context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
     {
@@ -138,10 +139,10 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
         VkImageViewCreateInfo createInfo = {};
-        createInfo.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image    = context->Swapchain.Images[i];
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image = context->Swapchain.Images[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format   = context->Swapchain.ImageFormat.format;
+        createInfo.format = context->Swapchain.ImageFormat.format;
         createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         createInfo.subresourceRange.baseMipLevel = 0;
         createInfo.subresourceRange.levelCount = 1;

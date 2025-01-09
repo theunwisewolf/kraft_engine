@@ -1,10 +1,11 @@
 #pragma once
 
-#include "core/kraft_core.h"
-#include "renderer/vulkan/kraft_vulkan_types.h"
+#include <core/kraft_core.h>
 
-namespace kraft::renderer
-{
+namespace kraft::renderer {
+
+struct VulkanContext;
+struct VulkanFence;
 
 void VulkanCreateFence(VulkanContext* context, bool signalled, VulkanFence* out);
 void VulkanDestroyFence(VulkanContext* context, VulkanFence* fence);
