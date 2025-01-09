@@ -8,19 +8,19 @@
 
 namespace kraft::renderer {
 
-struct ResourceManagerStateT
+struct ResourceManagerState
 {
     PhysicalDeviceFormatSpecs FormatSpecs;
-} ResourceManagerData;
+} InternalState;
 
 void ResourceManager::SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs)
 {
-    ResourceManagerData.FormatSpecs = Specs;
+    InternalState.FormatSpecs = Specs;
 }
 
 const PhysicalDeviceFormatSpecs& ResourceManager::GetPhysicalDeviceFormatSpecs() const
 {
-    return ResourceManagerData.FormatSpecs;
+    return InternalState.FormatSpecs;
 }
 
 }

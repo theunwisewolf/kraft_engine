@@ -88,7 +88,6 @@ GPUBuffer VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64
     KASSERT(this->CurrentBlock->Block.GPUBuffer);
 
     this->AllocationCount++;
-    KDEBUG("Allocation Count: %d", this->AllocationCount);
     return {
         .GPUBuffer = CurrentBlock->Block.GPUBuffer,
         .Ptr = CurrentBlock->Block.Ptr + Offset,
@@ -874,29 +873,29 @@ static void EndFrame(uint64 FrameNumber)
     InternalState->TempGPUAllocator->Clear();
 }
 
-VulkanTexture* VulkanResourceManagerApi::GetTexture(const ResourceManagerState* State, Handle<Texture> Resource)
+VulkanTexture* VulkanResourceManagerApi::GetTexture(Handle<Texture> Resource)
 {
-    return State->TexturePool.Get(Resource);
+    return InternalState->TexturePool.Get(Resource);
 }
 
-VulkanBuffer* VulkanResourceManagerApi::GetBuffer(const ResourceManagerState* State, Handle<Buffer> Resource)
+VulkanBuffer* VulkanResourceManagerApi::GetBuffer(Handle<Buffer> Resource)
 {
-    return State->BufferPool.Get(Resource);
+    return InternalState->BufferPool.Get(Resource);
 }
 
-VulkanRenderPass* VulkanResourceManagerApi::GetRenderPass(const ResourceManagerState* State, Handle<RenderPass> Resource)
+VulkanRenderPass* VulkanResourceManagerApi::GetRenderPass(Handle<RenderPass> Resource)
 {
-    return State->RenderPassPool.Get(Resource);
+    return InternalState->RenderPassPool.Get(Resource);
 }
 
-VulkanCommandBuffer* VulkanResourceManagerApi::GetCommandBuffer(const ResourceManagerState* State, Handle<CommandBuffer> Resource)
+VulkanCommandBuffer* VulkanResourceManagerApi::GetCommandBuffer(Handle<CommandBuffer> Resource)
 {
-    return State->CmdBufferPool.Get(Resource);
+    return InternalState->CmdBufferPool.Get(Resource);
 }
 
-VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(const ResourceManagerState* State, Handle<CommandPool> Resource)
+VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(Handle<CommandPool> Resource)
 {
-    return State->CmdPoolPool.Get(Resource);
+    return InternalState->CmdPoolPool.Get(Resource);
 }
 
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
@@ -914,7 +913,6 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
     InternalState = State;
 
     struct ResourceManager* Api = (struct ResourceManager*)ArenaPush(Arena, sizeof(struct ResourceManager), true);
-    Api->State = State;
     Api->Clear = Clear;
     Api->CreateTexture = CreateTexture;
     Api->CreateBuffer = CreateBuffer;
@@ -941,10 +939,10 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
 
 void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager)
 {
-    ResourceManager->State->CmdPoolPool.Destroy();
-    ResourceManager->State->CmdBufferPool.Destroy();
-    ResourceManager->State->RenderPassPool.Destroy();
-    ResourceManager->State->BufferPool.Destroy();
-    ResourceManager->State->TexturePool.Destroy();
+    InternalState->CmdPoolPool.Destroy();
+    InternalState->CmdBufferPool.Destroy();
+    InternalState->RenderPassPool.Destroy();
+    InternalState->BufferPool.Destroy();
+    InternalState->TexturePool.Destroy();
 }
 }

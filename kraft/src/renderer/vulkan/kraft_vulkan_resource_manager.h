@@ -22,15 +22,13 @@ struct VulkanRenderPass;
 struct VulkanCommandBuffer;
 struct VulkanCommandPool;
 
-struct ResourceManagerState;
-
 struct VulkanResourceManagerApi
 {
-    static VulkanTexture*       GetTexture(const ResourceManagerState* State, Handle<Texture> Resource);
-    static VulkanBuffer*        GetBuffer(const ResourceManagerState* State, Handle<Buffer> Resource);
-    static VulkanRenderPass*    GetRenderPass(const ResourceManagerState* State, Handle<RenderPass> Resource);
-    static VulkanCommandBuffer* GetCommandBuffer(const ResourceManagerState* State, Handle<CommandBuffer> Resource);
-    static VulkanCommandPool*   GetCommandPool(const ResourceManagerState* State, Handle<CommandPool> Resource);
+    static VulkanTexture*       GetTexture(Handle<Texture> Resource);
+    static VulkanBuffer*        GetBuffer(Handle<Buffer> Resource);
+    static VulkanRenderPass*    GetRenderPass(Handle<RenderPass> Resource);
+    static VulkanCommandBuffer* GetCommandBuffer(Handle<CommandBuffer> Resource);
+    static VulkanCommandPool*   GetCommandPool(Handle<CommandPool> Resource);
 };
 
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena);

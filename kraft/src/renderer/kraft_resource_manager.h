@@ -27,8 +27,6 @@ struct CommandPoolDescription;
 
 struct ResourceManager
 {
-    struct ResourceManagerState* State;
-
     void (*Clear)();
 
     // Creation apis

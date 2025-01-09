@@ -290,8 +290,6 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Te
     if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
         return false;
 
-    KDEBUG("Uniform offset %d", Uniform.Offset);
-
     // Release the old texture
     Handle<Texture> OldTexture = Instance->Textures[Uniform.Offset];
     TextureSystem::ReleaseTexture(OldTexture);

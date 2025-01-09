@@ -8,7 +8,7 @@
 
 namespace kraft {
 
-static struct MemoryStats g_MemoryStats;
+struct MemoryStats g_MemoryStats;
 
 MemoryStats::~MemoryStats()
 {

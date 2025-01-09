@@ -109,7 +109,7 @@ bool BeginFrame()
 bool EndFrame(ImDrawData* DrawData)
 {
     VulkanContext*       Context = VulkanRendererBackend::Context();
-    VulkanCommandBuffer* ParentCommandBuffer = VulkanResourceManagerApi::GetCommandBuffer(ResourceManager->State, Context->ActiveCommandBuffer);
+    VulkanCommandBuffer* ParentCommandBuffer = VulkanResourceManagerApi::GetCommandBuffer(Context->ActiveCommandBuffer);
 
     ImGui_ImplVulkan_RenderDrawData(DrawData, ParentCommandBuffer->Resource);
 
@@ -119,7 +119,7 @@ bool EndFrame(ImDrawData* DrawData)
 ImTextureID AddTexture(Handle<Texture> Resource)
 {
     VulkanContext* Context = VulkanRendererBackend::Context();
-    VulkanTexture* BackendTexture = VulkanResourceManagerApi::GetTexture(ResourceManager->State, Resource);
+    VulkanTexture* BackendTexture = VulkanResourceManagerApi::GetTexture(Resource);
 
     return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

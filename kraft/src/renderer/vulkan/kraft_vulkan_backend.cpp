@@ -417,7 +417,11 @@ bool VulkanRendererBackend::Shutdown()
     s_ResourceManager->Clear();
 
     vkDestroyDescriptorPool(s_Context.LogicalDevice.Handle, s_Context.GlobalDescriptorPool, s_Context.AllocationCallbacks);
-    // vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, GlobalDescriptorSetLayout, s_Context.AllocationCallbacks);
+
+    for (uint32 i = 0; i < s_Context.DescriptorSetLayoutsCount; i++)
+    {
+        vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, s_Context.DescriptorSetLayouts[i], s_Context.AllocationCallbacks);
+    }
 
     for (uint32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
@@ -489,7 +493,7 @@ bool VulkanRendererBackend::BeginFrame()
     // Record commands
     s_Context.ActiveCommandBuffer = s_Context.GraphicsCommandBuffers[s_Context.CurrentSwapchainImageIndex];
 
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanResetCommandBuffer(GPUCmdBuffer);
     VulkanBeginCommandBuffer(GPUCmdBuffer, false, false, false);
 
@@ -522,7 +526,7 @@ bool VulkanRendererBackend::BeginFrame()
 
 bool VulkanRendererBackend::EndFrame()
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanEndRenderPass(GPUCmdBuffer, &s_Context.MainRenderPass);
 
     VulkanEndCommandBuffer(GPUCmdBuffer);
@@ -817,7 +821,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     PipelineCreateInfo.pTessellationState = 0;
 
     // PipelineCreateInfo.renderPass = s_Context.MainRenderPass.Handle;
-    PipelineCreateInfo.renderPass = RenderPassHandle ? VulkanResourceManagerApi::GetRenderPass(s_ResourceManager->State, RenderPassHandle)->Handle : s_Context.MainRenderPass.Handle;
+    PipelineCreateInfo.renderPass = RenderPassHandle ? VulkanResourceManagerApi::GetRenderPass(RenderPassHandle)->Handle : s_Context.MainRenderPass.Handle;
     PipelineCreateInfo.subpass = 0;
     PipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
     PipelineCreateInfo.basePipelineIndex = -1;
@@ -952,7 +956,7 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 {
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     ;
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
@@ -962,7 +966,7 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
     VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
     VkPipeline           Pipeline = VulkanShaderData->Pipeline;
     VkPipelineLayout     PipelineLayout = VulkanShaderData->PipelineLayout;
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     ;
 
     if (Uniform.Scope == ShaderUniformScope::Local)
@@ -1010,10 +1014,10 @@ void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Unif
 
 void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader*        ShaderData = (VulkanShader*)Shader->RendererData;
 
-    VkBuffer               GPUBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
+    VkBuffer               GPUBuffer = VulkanResourceManagerApi::GetBuffer(GlobalUBOBuffer.IsInvalid() ? s_Context.GlobalUniformBuffer : GlobalUBOBuffer)->Handle;
     VkDescriptorBufferInfo GlobalDataBufferInfo = {};
     GlobalDataBufferInfo.buffer = GPUBuffer;
     GlobalDataBufferInfo.offset = 0;
@@ -1028,7 +1032,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     DescriptorWriteInfo[0].pBufferInfo = &GlobalDataBufferInfo;
     // DescriptorWriteInfo.dstSet = s_Context.GlobalDescriptorSets[0][s_Context.CurrentSwapchainImageIndex];
 
-    VkBuffer               PickingGPUBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.GlobalPickingDataBuffer)->Handle;
+    VkBuffer               PickingGPUBuffer = VulkanResourceManagerApi::GetBuffer(s_Context.GlobalPickingDataBuffer)->Handle;
     VkDescriptorBufferInfo GlobalPickingDataBufferInfo = {};
     GlobalPickingDataBufferInfo.buffer = PickingGPUBuffer;
     GlobalPickingDataBufferInfo.offset = 0;
@@ -1055,7 +1059,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
 
 void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     Material*            MaterialInstance = Shader->ActiveMaterial;
     VulkanMaterialData*  MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
     uint32               WriteCount = 0;
@@ -1093,7 +1097,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
     // Material data
     if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     {
-        DescriptorBufferInfo.buffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, ShaderData->ShaderResources.UniformBuffer)->Handle;
+        DescriptorBufferInfo.buffer = VulkanResourceManagerApi::GetBuffer(ShaderData->ShaderResources.UniformBuffer)->Handle;
         DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;
         DescriptorBufferInfo.range = Shader->InstanceUBOStride;
 
@@ -1119,7 +1123,7 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
         for (int i = 0; i < MaterialInstance->Textures.Length; i++)
         {
             Handle<Texture> Resource = MaterialInstance->Textures[i];
-            VulkanTexture*  VkTexture = VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, Resource);
+            VulkanTexture*  VkTexture = VulkanResourceManagerApi::GetTexture(Resource);
 
             KASSERT(VkTexture->Image);
             KASSERT(VkTexture->View);
@@ -1155,12 +1159,12 @@ void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 
 void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, s_Context.ActiveCommandBuffer);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanGeometryData   GeometryData = s_Context.Geometries[GeometryID];
     VkDeviceSize         Offsets[1] = { GeometryData.VertexBufferOffset };
 
-    VulkanBuffer* VertexBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.VertexBuffer);
-    VulkanBuffer* IndexBuffer = VulkanResourceManagerApi::GetBuffer(s_ResourceManager->State, s_Context.IndexBuffer);
+    VulkanBuffer* VertexBuffer = VulkanResourceManagerApi::GetBuffer(s_Context.VertexBuffer);
+    VulkanBuffer* IndexBuffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
 
     vkCmdBindVertexBuffers(GPUCmdBuffer->Resource, 0, 1, &VertexBuffer->Handle, Offsets);
     vkCmdBindIndexBuffer(GPUCmdBuffer->Resource, IndexBuffer->Handle, GeometryData.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
@@ -1227,11 +1231,11 @@ void VulkanRendererBackend::BeginRenderPass(Handle<CommandBuffer> CmdBufferHandl
 {
     // Handle<CommandBuffer> CmdBuffer = ActiveCmdBuffer = this->CommandBuffers[s_Context.CurrentSwapchainImageIndex];
     s_Context.ActiveCommandBuffer = CmdBufferHandle;
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, CmdBufferHandle);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(CmdBufferHandle);
     VulkanResetCommandBuffer(GPUCmdBuffer);
     VulkanBeginCommandBuffer(GPUCmdBuffer, false, false, false);
 
-    VulkanRenderPass* GPURenderPass = VulkanResourceManagerApi::GetRenderPass(s_ResourceManager->State, PassHandle);
+    VulkanRenderPass* GPURenderPass = VulkanResourceManagerApi::GetRenderPass(PassHandle);
     RenderPass*       RenderPass = s_ResourceManager->GetRenderPassMetadata(PassHandle);
 
     VkRenderPassBeginInfo BeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
@@ -1284,7 +1288,7 @@ void VulkanRendererBackend::BeginRenderPass(Handle<CommandBuffer> CmdBufferHandl
 
 void VulkanRendererBackend::EndRenderPass(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_ResourceManager->State, CmdBufferHandle);
+    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(CmdBufferHandle);
     vkCmdEndRenderPass(GPUCmdBuffer->Resource);
 
     // VkMemoryBarrier2 MemoryBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER_2 };
@@ -1404,9 +1408,9 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* renderPass
         MemZero(swapchain->Framebuffers, sizeof(VulkanFramebuffer) * swapchain->ImageCount);
     }
 
-    VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, swapchain->DepthAttachment);
+    VulkanResourceManagerApi::GetTexture(swapchain->DepthAttachment);
 
-    VkImageView Attachments[] = { 0, VulkanResourceManagerApi::GetTexture(s_ResourceManager->State, swapchain->DepthAttachment)->View };
+    VkImageView Attachments[] = { 0, VulkanResourceManagerApi::GetTexture(swapchain->DepthAttachment)->View };
     for (uint32 i = 0; i < swapchain->ImageCount; ++i)
     {
         if (swapchain->Framebuffers[i].Handle)
