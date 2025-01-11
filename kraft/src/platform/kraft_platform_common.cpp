@@ -1,6 +1,8 @@
 #include "kraft_platform.h"
 
+#if defined(KRAFT_GUI_APP)
 #include <platform/kraft_window.h>
+#endif
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
@@ -15,17 +17,11 @@
 
 namespace kraft {
 
+#if defined(KRAFT_GUI_APP)
 Window* Platform::GetWindow()
 {
-#if defined(KRAFT_PLATFORM_WINDOWS)
-    Win32PlatformState* State = (Win32PlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_MACOS)
-    MacOSPlatformState* State = (MacOSPlatformState*)Platform::InternalState;
-#elif defined(KRAFT_PLATFORM_LINUX)
-    LinuxPlatformState* State = (LinuxPlatformState*)Platform::InternalState;
-#endif
-
-    return &State->Window;
+    return State->PrimaryWindow;
 }
+#endif
 
 }

@@ -14,19 +14,18 @@
 #define GLFW_EXPOSE_NATIVE_WGL
 #define GLFW_NATIVE_INCLUDE_NONE
 #include <GLFW/glfw3native.h>
+#include <platform/kraft_window.h>
 #endif
 
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
 #include <core/kraft_string.h>
 #include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
 #include <platform/windows/kraft_win32_types.h>
 
 namespace kraft {
 
-Win32PlatformState* State = nullptr;
-void*               Platform::InternalState = nullptr;
+PlatformState* Platform::State = nullptr;
 
 const int Platform::ConsoleColorBlack = 0;
 const int Platform::ConsoleColorLoWhite = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
@@ -67,18 +66,10 @@ static HANDLE                     s_ConsoleErrorHandle;
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
-bool Platform::Init(EngineConfigT* config)
+bool Platform::Init(struct EngineConfig* config)
 {
-    InternalState = Malloc(sizeof(Win32PlatformState), false);
-    State = (Win32PlatformState*)InternalState;
-
-#if defined(KRAFT_GUI_APP)
-    State->Window.Init(config->WindowTitle, config->WindowWidth, config->WindowHeight, config->RendererBackend);
-    State->hWindow = glfwGetWin32Window(State->Window.PlatformWindowHandle);
-    State->hInstance = GetModuleHandleW(NULL);
-#else
-    State = (Win32PlatformState*)MemZero(State, sizeof(Win32PlatformState));
-#endif
+    State = (PlatformState*)Malloc(sizeof(PlatformState), false);
+    MemZero(State, sizeof(PlatformState));
 
     QueryPerformanceFrequency(&s_ClockFrequency);
     QueryPerformanceCounter(&s_StartTime);
@@ -95,7 +86,7 @@ bool Platform::Init(EngineConfigT* config)
 bool Platform::PollEvents()
 {
 #if defined(KRAFT_GUI_APP)
-    return State->Window.PollEvents();
+    return State->PrimaryWindow->PollEvents();
 #else
     return false;
 #endif
@@ -104,9 +95,10 @@ bool Platform::PollEvents()
 void Platform::Shutdown()
 {
 #if defined(KRAFT_GUI_APP)
-    State->Window.Destroy();
+    DestroyPlatformWindow(State->PrimaryWindow);
 #endif
-    Free(InternalState, false);
+
+    Free(State);
 }
 
 // ------------------------------------------
@@ -123,7 +115,7 @@ void* Platform::Realloc(void* region, uint64_t size, bool aligned)
     return realloc(region, size);
 }
 
-void Platform::Free(void* region, bool aligned)
+void Platform::Free(void* region)
 {
     free(region);
 }
@@ -256,6 +248,29 @@ bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const ch
     return false;
 }
 
+#if defined(KRAFT_GUI_APP)
+Window* Platform::CreatePlatformWindow(const CreateWindowOptions* Opts)
+{
+    State->PrimaryWindow = (Window*)Malloc(sizeof(Window), false);
+    State->PrimaryWindow->Init(Opts);
+
+    State->PrimaryWindow->PlatformWindowState = (PlatformWindowState*)Malloc(sizeof(PlatformWindowState), false);
+    MemSet(State->PrimaryWindow->PlatformWindowState, 0, sizeof(PlatformWindowState));
+    State->PrimaryWindow->PlatformWindowState->hWindow = glfwGetWin32Window(State->PrimaryWindow->PlatformWindowHandle);
+    State->PrimaryWindow->PlatformWindowState->hInstance = GetModuleHandleW(NULL);
+
+    return State->PrimaryWindow;
+}
+
+void Platform::DestroyPlatformWindow(Window* Window)
+{
+    State->PrimaryWindow->Destroy();
+
+    Free(State->PrimaryWindow->PlatformWindowState);
+    Free(State->PrimaryWindow);
 }
 
 #endif
+
+#endif
+}

@@ -4,24 +4,30 @@
 
 namespace kraft {
 
-struct Window;
-struct EngineConfigT;
+struct EngineConfig;
 enum Keys : uint32;
+
+#if defined(KRAFT_GUI_APP)
+struct Window;
+struct CreateWindowOptions;
+#endif
+
+struct PlatformState;
 
 struct KRAFT_API Platform
 {
     // If the platform wants to store any internal state,
     // it should do so in this variable
-    static void* InternalState;
+    static PlatformState* State;
 
-    static bool Init(EngineConfigT* config);
+    static bool Init(struct EngineConfig* config);
     static bool PollEvents();
     static void Shutdown();
 
     // Memory
     static void* Malloc(uint64 size, bool aligned);
     static void* Realloc(void* region, uint64_t size, bool aligned);
-    static void  Free(void* region, bool aligned);
+    static void  Free(void* region);
     static void* MemZero(void* region, uint64_t size);
     static void* MemCpy(void* dst, const void* src, uint64 size);
     static void* MemSet(void* region, int value, uint64_t size);
@@ -75,10 +81,15 @@ struct KRAFT_API Platform
     // Misc
     static void        SleepMilliseconds(uint64_t Milliseconds);
     static const char* GetKeyName(Keys key);
-    static Window*     GetWindow();
-
     static const char* GetEnv(const char* Key);
     static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
+
+#if defined(KRAFT_GUI_APP)
+    // Windowing
+    static Window* CreatePlatformWindow(const struct CreateWindowOptions* Opts);
+    static void DestroyPlatformWindow(struct Window* Window);
+    static Window* GetWindow();
+#endif
 };
 
 }

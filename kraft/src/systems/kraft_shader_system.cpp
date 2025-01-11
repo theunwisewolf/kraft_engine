@@ -116,7 +116,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     const ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
     const RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
     Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Pass.Resources != nullptr ? Pass.Resources->ResourceBindings.Length : 0) + Pass.ConstantBuffers->Fields.Length);
-    Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, RenderPassHandle);
+    g_Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, RenderPassHandle);
 
     // Cache the uniforms
     // The instance uniforms begin after the global data
@@ -225,7 +225,7 @@ static void ReleaseShaderInternal(uint32 Index)
 
     if (Reference->AutoRelease && Reference->RefCount == 0)
     {
-        renderer::Renderer->DestroyRenderPipeline(&Reference->Shader);
+        g_Renderer->DestroyRenderPipeline(&Reference->Shader);
 
         Reference->AutoRelease = false;
         Reference->Shader = {};
@@ -265,7 +265,7 @@ Shader* ShaderSystem::Bind(Shader* Shader)
 {
     if (State->CurrentShaderID != Shader->ID)
     {
-        renderer::Renderer->UseShader(Shader);
+        g_Renderer->UseShader(Shader);
 
         State->CurrentShaderID = Shader->ID;
         State->CurrentShader = Shader;
@@ -350,7 +350,7 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
     KASSERT(Index < State->CurrentShader->UniformCache.Length);
 
     ShaderUniform Uniform = State->CurrentShader->UniformCache[Index];
-    Renderer->SetUniform(State->CurrentShader, Uniform, Value, Invalidate);
+    g_Renderer->SetUniform(State->CurrentShader, Uniform, Value, Invalidate);
 
     return true;
 }
@@ -389,13 +389,13 @@ void ShaderSystem::ApplyGlobalProperties(renderer::Handle<renderer::Buffer> DstD
 
     //Shader* FirstShader = &State->Shaders[0].Shader;
     //Renderer->SetUniform(FirstShader, ShaderUniform{ .Scope = ShaderUniformScope::Global }, (void*)&GlobalShaderData, true);
-    Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
+    g_Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
 }
 
 void ShaderSystem::ApplyInstanceProperties()
 {
     KASSERT(State->CurrentShader);
-    Renderer->ApplyInstanceShaderProperties(State->CurrentShader);
+    g_Renderer->ApplyInstanceShaderProperties(State->CurrentShader);
 }
 
 }

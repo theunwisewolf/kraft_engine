@@ -85,6 +85,13 @@ public:
         Allocated = 0;
     }
 
+    Array(ArenaAllocator* Arena)
+    {
+        Length = 0;
+        Allocated = 0;
+        Arena = Arena;
+    }
+
     Array(std::initializer_list<ValueType> List)
     {
         Length = List.size();

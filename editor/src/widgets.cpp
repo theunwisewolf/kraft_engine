@@ -251,7 +251,7 @@ void DrawImGuiWidgets(bool refresh)
     bool ViewportNeedsResize = EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
     if (ViewportNeedsResize)
     {
-        EditorState::Ptr->RenderSurface = kraft::Engine::Renderer.ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+        EditorState::Ptr->RenderSurface = kraft::g_Renderer->ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
 
         // Remove the old texture
         GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
@@ -296,7 +296,7 @@ void DrawImGuiWidgets(bool refresh)
             EditorState::Ptr->RenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
             uint32* BufferData;
             uint32  BufferSize;
-            kraft::Engine::Renderer.ReadObjectPickingBuffer(&BufferData, &BufferSize);
+            kraft::g_Renderer->ReadObjectPickingBuffer(&BufferData, &BufferSize);
             for (size_t i = 0; i < BufferSize; i++)
             {
                 if (BufferData[i] != 0)
@@ -581,7 +581,7 @@ void PipelineDebugger()
     {
         // Can't destroy the pipeline in this frame
         // Renderer->DestroyRenderPipeline(ShaderInstance);
-        Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->RenderSurface.RenderPass);
+        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->RenderSurface.RenderPass);
     }
 
     ImGui::End();

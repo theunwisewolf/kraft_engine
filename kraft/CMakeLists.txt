@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 project(${PROJECT_NAME} LANGUAGES CXX C)
 
 set(SRC_FILES 
+    src/kraft.cpp
     src/containers/kraft_carray.cpp
     src/containers/kraft_array.cpp
     src/containers/kraft_buffer.cpp

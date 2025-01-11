@@ -14,28 +14,28 @@
 #include <Windows.h>
 #endif
 
+#include <kraft_types.h>
+
 namespace kraft {
 
-int Window::Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType)
+int Window::Init(const struct CreateWindowOptions* Opts)
 {
+    MemSet(this, 0, sizeof(Window));
+
     if (!glfwInit())
     {
         KERROR("glfwInit() failed");
         return KRAFT_ERROR_GLFW_INIT_FAILED;
     }
 
-    if (backendType == renderer::RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
-    {
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    }
-    else if (backendType == renderer::RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
-    {
-    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    // TODO (amn): Handle window hints
 
     // Remove the title bar
     // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
-    this->PlatformWindowHandle = glfwCreateWindow(int(width), int(height), title, NULL, NULL);
+    this->PlatformWindowHandle = glfwCreateWindow(Opts->Width, Opts->Height, *Opts->Title, NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
@@ -48,7 +48,7 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
 #if defined(KRAFT_PLATFORM_WINDOWS)
     int maxWidth = GetSystemMetrics(SM_CXSCREEN);
     int maxHeight = GetSystemMetrics(SM_CYSCREEN);
-    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - ((int)width / 2), (maxHeight / 2) - ((int)height / 2));
+    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - ((int)Opts->Width / 2), (maxHeight / 2) - ((int)Opts->Height / 2));
 #endif
 
     // TODO (amn): We should fetch the monitor the window is being drawn on
@@ -70,6 +70,12 @@ int Window::Init(const char* title, size_t width, size_t height, renderer::Rende
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
+
+    this->Width = Opts->Width;
+    this->Height = Opts->Height;
+
+    uint32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
+    StringNCopy(this->Title, *Opts->Title, LengthToCopy);
 
     return 0;
 }
@@ -190,4 +196,4 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));
 }
 
-}
+} // namespace kraft

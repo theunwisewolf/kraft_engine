@@ -8,17 +8,18 @@
 
 struct GLFWwindow;
 
-namespace kraft::renderer {
-enum RendererBackendType : int;
-}
-
 namespace kraft {
+
+struct PlatformWindowState;
 
 struct KRAFT_API Window
 {
-    GLFWwindow* PlatformWindowHandle;
+    GLFWwindow* PlatformWindowHandle = nullptr;
 
-    int        Init(const char* title, size_t width, size_t height, renderer::RendererBackendType backendType);
+    // Platform-specific window state
+    PlatformWindowState* PlatformWindowState = nullptr;
+
+    int        Init(const struct CreateWindowOptions* Opts);
     bool       PollEvents(); // Returns false if the window wants to close
     void       SetWindowTitle(const char* title);
     void       Minimize();
@@ -40,6 +41,7 @@ struct KRAFT_API Window
     int     Width;
     int     Height;
     float32 DPI;
+    char    Title[1024] = { 0 };
 };
 
-}
+} // namespace kraft

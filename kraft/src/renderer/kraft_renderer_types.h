@@ -8,7 +8,6 @@ struct ImDrawData;
 
 namespace kraft {
 
-struct EngineConfigT;
 struct Texture;
 struct Material;
 struct Geometry;
@@ -16,6 +15,7 @@ struct Shader;
 struct ShaderUniform;
 struct World;
 struct ArenaAllocator;
+struct CreateRendererOptions;
 
 namespace renderer {
 
@@ -99,21 +99,12 @@ struct RenderPacket
     Mat4f ViewMatrix;
 };
 
-enum RendererBackendType : int
-{
-    RENDERER_BACKEND_TYPE_NONE,
-    RENDERER_BACKEND_TYPE_VULKAN,
-    RENDERER_BACKEND_TYPE_OPENGL,
-
-    RENDERER_BACKEND_TYPE_NUM_COUNT
-};
-
 struct DeviceInfoT
 {};
 
 struct RendererBackend
 {
-    bool (*Init)(ArenaAllocator* Arena, EngineConfigT* Config);
+    bool (*Init)(ArenaAllocator* Arena, CreateRendererOptions* Config);
     bool (*Shutdown)();
     int (*PrepareFrame)();
     bool (*BeginFrame)();
@@ -212,7 +203,7 @@ static uint64 SizeOf(Enum Value)
 
     return 0;
 }
-}
+} // namespace ShaderDataType
 
 namespace VertexInputRate {
 enum Enum
@@ -228,7 +219,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace VertexInputRate
 
 namespace ResourceType {
 enum Enum
@@ -246,7 +237,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace ResourceType
 
 namespace PolygonMode {
 enum Enum
@@ -263,7 +254,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace PolygonMode
 
 namespace CompareOp {
 enum Enum
@@ -287,7 +278,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace CompareOp
 
 namespace BlendFactor {
 enum Enum : int
@@ -313,7 +304,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace BlendFactor
 
 namespace BlendOp {
 enum Enum : int
@@ -332,7 +323,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace BlendOp
 
 struct BlendState
 {
@@ -360,7 +351,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace ShaderUniformScope
 
 namespace Format {
 enum Enum
@@ -388,7 +379,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace Format
 
 namespace TextureTiling {
 enum Enum
@@ -404,7 +395,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureTiling
 
 namespace TextureType {
 enum Enum
@@ -421,7 +412,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureType
 
 namespace TextureFilter {
 enum Enum
@@ -437,7 +428,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureFilter
 
 namespace TextureWrapMode {
 enum Enum
@@ -455,7 +446,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureWrapMode
 
 namespace TextureMipMapMode {
 enum Enum
@@ -471,7 +462,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureMipMapMode
 
 namespace SharingMode {
 enum Enum
@@ -487,7 +478,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace SharingMode
 
 namespace CullModeFlags {
 enum Enum
@@ -505,7 +496,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-}
+} // namespace CullModeFlags
 
 enum TextureUsageFlags
 {
@@ -571,7 +562,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace LoadOp
 
 namespace StoreOp {
 enum Enum
@@ -585,7 +576,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace StoreOp
 
 namespace TextureLayout {
 enum Enum
@@ -604,7 +595,7 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
-};
+}; // namespace TextureLayout
 
 struct DepthTarget
 {
@@ -805,6 +796,6 @@ struct RenderSurfaceT
     void End();
 };
 
-} // namespace::renderer
+} // namespace renderer
 
-} // namespace::kraft
+} // namespace kraft

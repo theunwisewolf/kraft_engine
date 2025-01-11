@@ -155,5 +155,5 @@ bool Destroy()
     return true;
 }
 
-}
-}
+} // namespace VulkanImgui
+} // namespace kraft::renderer

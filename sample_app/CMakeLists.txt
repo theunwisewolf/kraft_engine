@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(PROJECT_NAME "KraftEditor")
+set(PROJECT_NAME "SampleApp")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -15,8 +15,6 @@ if (NOT KRAFT_BUILDING_BASE)
 endif()
 
 set(SRC_FILES 
-    src/widgets.cpp
-    src/editor.cpp
     src/main.cpp
     src/imgui/imgui_renderer.cpp
 )
@@ -39,14 +37,14 @@ endif()
 #     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 # )
 
-add_custom_target(kraft_editor_copy_resources ALL
+add_custom_target(sample_app_copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_SOURCE_DIR}/bin/res
     COMMENT "Copying resources..."
 )
 
-add_dependencies(${PROJECT_NAME} kraft_editor_copy_resources)
+add_dependencies(${PROJECT_NAME} sample_app_copy_resources)
 
 # add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 #     COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 

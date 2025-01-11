@@ -110,7 +110,7 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     Reference->Geometry.ID = Index;
 
 #ifdef KRAFT_GUI_APP
-    if (!Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
+    if (!g_Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
@@ -154,7 +154,7 @@ void GeometrySystem::ReleaseGeometry(uint32 ID)
 void GeometrySystem::DestroyGeometry(Geometry* Geometry)
 {
 #ifdef KRAFT_GUI_APP
-    Renderer->DestroyGeometry(Geometry);
+    g_Renderer->DestroyGeometry(Geometry);
 #endif
     Geometry->ID = State->MaxGeometriesCount;
     Geometry->InternalID = State->MaxGeometriesCount;
@@ -177,7 +177,7 @@ void _createDefaultGeometries()
     Ref->ReferenceCount = 1;
 
 #ifdef KRAFT_GUI_APP
-    if (!Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex3D), 6, Indices, sizeof(Indices[0])))
+    if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex3D), 6, Indices, sizeof(Indices[0])))
     {
         KFATAL("[GeometrySystem]: Failed to create default geometries");
         return;
@@ -213,7 +213,7 @@ void _createDefaultGeometries()
         Ref->ReferenceCount = 1;
 
 #ifdef KRAFT_GUI_APP
-        if (!Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex2D), 6, Indices, sizeof(Indices[0])))
+        if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex2D), 6, Indices, sizeof(Indices[0])))
         {
             KFATAL("[GeometrySystem]: Failed to create default geometries");
             return;

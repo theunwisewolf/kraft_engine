@@ -10,6 +10,7 @@
 #include <renderer/vulkan/kraft_vulkan_image.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 
+#include <kraft_types.h>
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
 namespace kraft::renderer {
@@ -27,7 +28,8 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     // Query swapchain support info once more to get the most updated values
     // in case of window resize
-    VulkanGetSwapchainSupportInfo(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo);
+    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo.SurfaceCapabilities));
+    // VulkanGetSwapchainSupportInfo(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo);
 
     // Find a suitable image format
     VulkanSwapchainSupportInfo info = context->PhysicalDevice.SwapchainSupportInfo;
@@ -112,7 +114,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     swapchainCreateInfo.clipped = VK_TRUE;
     swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    const uint32 queueFamilyIndices[2] = { context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
+    const uint32 queueFamilyIndices[2] = { (uint32)context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, (uint32)context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
 
     if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex != context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
     {
@@ -200,7 +202,7 @@ void VulkanDestroySwapchain(VulkanContext* context)
 void VulkanRecreateSwapchain(VulkanContext* context)
 {
     VulkanDestroySwapchain(context);
-    VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight, context->RendererSettings.VSync);
+    VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight, context->Options->VSync);
 }
 
 bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)
@@ -247,4 +249,4 @@ void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSema
     }
 }
 
-}
+} // namespace kraft::renderer

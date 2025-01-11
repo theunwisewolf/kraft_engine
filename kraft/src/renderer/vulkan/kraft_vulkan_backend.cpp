@@ -27,6 +27,7 @@
 #include <renderer/vulkan/kraft_vulkan_swapchain.h>
 #include <shaders/includes/kraft_shader_includes.h>
 
+#include <kraft_types.h>
 #include <renderer/kraft_renderer_types.h>
 #include <renderer/shaderfx/kraft_shaderfx_types.h>
 #include <resources/kraft_resource_types.h>
@@ -73,19 +74,18 @@ struct VulkanRendererBackendStateT
     uint32          BuffersToSubmitNum = 0;
 } VulkanRendererBackendState;
 
-bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
+bool VulkanRendererBackend::Init(ArenaAllocator* Arena, CreateRendererOptions* Opts)
 {
     KRAFT_VK_CHECK(volkInitialize());
-    s_Context = VulkanContext{};
-
-    // NOTE: Right now the renderer settings struct is very simple so we just memcpy it
-    MemCpy(&s_Context.RendererSettings, &config->RendererSettings, sizeof(VulkanRendererSettings));
+    s_Context = VulkanContext{
+        .Options = Opts,
+    };
 
     s_ResourceManager = ResourceManager;
 
     s_Context.AllocationCallbacks = nullptr;
-    s_Context.FramebufferWidth = config->WindowWidth;
-    s_Context.FramebufferHeight = config->WindowHeight;
+    s_Context.FramebufferWidth = Platform::GetWindow()->Width;
+    s_Context.FramebufferHeight = Platform::GetWindow()->Height;
 
     for (int i = 0; i < KRAFT_VULKAN_MAX_GEOMETRIES; i++)
     {
@@ -94,9 +94,9 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
 
     VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     appInfo.apiVersion = VK_API_VERSION_1_3;
-    appInfo.pApplicationName = config->ApplicationName;
+    appInfo.pApplicationName = "kraft_vk_app";
     appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-    appInfo.pEngineName = config->ApplicationName;
+    appInfo.pEngineName = "kraft_vk_engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
 
     VkInstanceCreateInfo instanceCreateInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
@@ -141,7 +141,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
     uint32 AvailableLayersCount = 0;
     KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, 0));
 
-    auto AvailableLayerProperties = ArenaPushCArray<VkLayerProperties>(Arena, AvailableLayersCount); 
+    auto AvailableLayerProperties = ArenaPushCArray<VkLayerProperties>(Arena, AvailableLayersCount);
     KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, AvailableLayerProperties));
 
     for (int i = 0; i < KRAFT_C_ARRAY_SIZE(InstanceLayers); ++i)
@@ -199,27 +199,30 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
     Requirements.Present = true;
     Requirements.Transfer = true;
     Requirements.DepthBuffer = true;
-    Requirements.DeviceExtensionNames = 0;
-    arrpush(Requirements.DeviceExtensionNames, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    arrpush(Requirements.DeviceExtensionNames, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+    Requirements.DeviceExtensionsCount = 2;
+    // We add + 1 for VK_KHR_portability_subset
+    Requirements.DeviceExtensions = ArenaPushCArray<const char*>(Arena, Requirements.DeviceExtensionsCount + 1, true);
+
+    Requirements.DeviceExtensions[0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+    Requirements.DeviceExtensions[1] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 
     GLFWwindow* window = Platform::GetWindow()->PlatformWindowHandle;
     KRAFT_VK_CHECK(glfwCreateWindowSurface(s_Context.Instance, window, s_Context.AllocationCallbacks, &s_Context.Surface));
 
     KSUCCESS("[VulkanRendererBackend::Init]: Successfully created VkSurface");
 
-    VulkanSelectPhysicalDevice(&s_Context, &Requirements);
-    VulkanCreateLogicalDevice(&s_Context, &Requirements);
+    VulkanSelectPhysicalDevice(Arena, &s_Context, &Requirements);
+    VulkanCreateLogicalDevice(Arena, &s_Context, &Requirements);
 
     s_Context.GraphicsCommandPool = s_ResourceManager->CreateCommandPool({
         .DebugName = "PrimaryGfxCmdPool",
-        .QueueFamilyIndex = s_Context.PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
+        .QueueFamilyIndex = (uint32)s_Context.PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
         .Flags = COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT,
     });
 
     KDEBUG("[VulkanRendererBackend::Init]: Graphics command pool created");
 
-    arrfree(Requirements.DeviceExtensionNames);
+    ArenaPopCArray(Arena, Requirements.DeviceExtensions, Requirements.DeviceExtensionsCount);
 
     PhysicalDeviceFormatSpecs FormatSpecs;
     {
@@ -243,7 +246,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, EngineConfigT* config)
     // Create all rendering resources
     //
 
-    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, s_Context.RendererSettings.VSync);
+    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, s_Context.Options->VSync);
     VulkanCreateRenderPass(
         &s_Context, { 0.10f, 0.10f, 0.10f, 1.0f }, { 0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight }, 1.0f, 0, &s_Context.MainRenderPass, true, "MainRenderPass"
     );
@@ -1434,7 +1437,7 @@ void destroyFramebuffers(VulkanSwapchain* swapchain)
 
     arrfree(swapchain->Framebuffers);
 }
-}
+} // namespace kraft::renderer
 
 namespace kraft {
 

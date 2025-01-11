@@ -1,5 +1,5 @@
-#include <core/kraft_core.h>
 #include <containers/kraft_array.h>
+#include <core/kraft_core.h>
 
 namespace kraft {
 struct Texture;
@@ -124,6 +124,7 @@ struct Texture;
 }
 
 namespace kraft::renderer {
+
 struct VulkanTexture;
 struct VulkanBuffer;
 struct VulkanRenderPass;

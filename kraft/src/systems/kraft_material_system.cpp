@@ -157,7 +157,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
     Instance->Dirty = true;
 
     // Create backend data such has descriptor sets
-    Renderer->CreateMaterial(Instance);
+    g_Renderer->CreateMaterial(Instance);
 
     // Cache the uniforms for this material
     for (auto It = Shader->UniformCacheMapping.ibegin(); It != Shader->UniformCacheMapping.iend(); It++)

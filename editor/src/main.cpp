@@ -448,7 +448,7 @@ void Update(float64 deltaTime)
 
     // KINFO("%f ms", kraft::Platform::GetElapsedTime());
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
-    float32 SpeedBoost = kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT_SHIFT) ? 2.0f : 1.0f;
+    float32        SpeedBoost = kraft::InputSystem::IsKeyDown(kraft::Keys::KEY_LEFT_SHIFT) ? 2.0f : 1.0f;
     // if (!kraft::InputSystem::IsMouseButtonDown(kraft::MouseButtons::MOUSE_BUTTON_RIGHT))
     {
         float32      Speed = SpeedBoost * 50.f * deltaTime;
@@ -586,9 +586,9 @@ void Render()
     // }
 
     EditorState::Ptr->RenderSurface.World = EditorState::Ptr->CurrentWorld;
-    kraft::Engine::Renderer.BeginRenderSurface(EditorState::Ptr->RenderSurface);
+    kraft::g_Renderer->BeginRenderSurface(EditorState::Ptr->RenderSurface);
     EditorState::Ptr->CurrentWorld->Render();
-    kraft::Engine::Renderer.EndRenderSurface(EditorState::Ptr->RenderSurface);
+    kraft::g_Renderer->EndRenderSurface(EditorState::Ptr->RenderSurface);
 }
 
 void Shutdown()
@@ -618,22 +618,14 @@ void Run()
         {
             Render();
             // kraft::Engine::Present();
-            kraft::Engine::Renderer.PrepareFrame();
-            kraft::Engine::Renderer.DrawSurfaces();
+            kraft::g_Renderer->PrepareFrame();
+            kraft::g_Renderer->DrawSurfaces();
 
-            // TODO (amn): Fix this
-            // We do not have any other way to render the main renderpass right now :(
-            if (kraft::Engine::Renderer.BeginMainRenderpass())
-            {
-                GlobalAppState.ImGuiRenderer.BeginFrame();
-                GlobalAppState.ImGuiRenderer.RenderWidgets();
-                GlobalAppState.ImGuiRenderer.EndFrame();
-
-                if (!kraft::Engine::Renderer.EndMainRenderpass())
-                {
-                    KERROR("[RendererFrontend::DrawFrame]: End frame failed!");
-                }
-            }
+            kraft::g_Renderer->BeginMainRenderpass();
+            GlobalAppState.ImGuiRenderer.BeginFrame();
+            GlobalAppState.ImGuiRenderer.RenderWidgets();
+            GlobalAppState.ImGuiRenderer.EndFrame();
+            kraft::g_Renderer->EndMainRenderpass();
 
             GlobalAppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
         }
@@ -651,7 +643,7 @@ void Run()
                 GlobalAppState.WindowTitleBuffer,
                 sizeof(GlobalAppState.WindowTitleBuffer),
                 "%s (%d fps | %f ms deltaTime | %f ms targetFrameTime | %.3f MiB Memory Usage)",
-                kraft::Engine::Config.WindowTitle,
+                kraft::Platform::GetWindow()->Title,
                 GlobalAppState.FrameCount,
                 DeltaTime * 1000.f,
                 GlobalAppState.TargetFrameTime * 1000.0f,
@@ -668,6 +660,9 @@ void Run()
     }
 }
 
+#include <kraft.h>
+#include <kraft_types.h>
+
 #if defined(KRAFT_PLATFORM_WINDOWS) && !defined(KRAFT_DEBUG) && defined(KRAFT_GUI_APP)
 #define KRAFT_USE_WINMAIN 1
 #else
@@ -675,10 +670,12 @@ void Run()
 #endif
 
 #if KRAFT_USE_WINMAIN
+#define WIN32_LEAN_AND_MEAN
 #include "Windows.h"
+#undef CreateWindow
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 #else
-int main(int argc, char* argv[])
+int main(int argc, char** argv)
 #endif
 {
 #if KRAFT_USE_WINMAIN
@@ -686,25 +683,27 @@ int main(int argc, char* argv[])
     char** argv = __argv;
 #endif
 
-    kraft::Engine::Init(
-        argc,
-        argv,
-        {
-            .WindowWidth = 1280,
-            .WindowHeight = 800,
-            .WindowTitle = "Kraft Editor",
-            .ApplicationName = "KraftEditor",
-            .RendererBackend = kraft::renderer::RENDERER_BACKEND_TYPE_VULKAN,
-            .ConsoleApp = false,
-            .StartMaximized = true,
-        }
-    );
+    kraft::CreateEngine({
+        .Argc = argc,
+        .Argv = argv,
+        .ApplicationName = "KraftEditor",
+        .ConsoleApp = false,
+    });
+
+    auto Window = kraft::CreateWindow("KraftEditor", 1280, 768);
+    auto Renderer = kraft::CreateRenderer({
+        .Backend = kraft::RENDERER_BACKEND_TYPE_VULKAN,
+    });
+
+    Window->Maximize();
 
     Init();
     Run();
     Shutdown();
 
-    kraft::Engine::Destroy();
+    kraft::DestroyRenderer(Renderer);
+    kraft::DestroyWindow(Window);
+    kraft::DestroyEngine();
 
     return 0;
 }

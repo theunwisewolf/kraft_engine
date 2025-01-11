@@ -56,7 +56,7 @@ const int Platform::ConsoleColorBGHiCyan    = 106   << 16;
 const int Platform::ConsoleColorBGLoMagenta = 45    << 16;
 const int Platform::ConsoleColorBGHiMagenta = 105   << 16;
 
-bool Platform::Init(EngineConfigT* config)
+bool Platform::Init(struct EngineConfig* config)
 {
     InternalState = Malloc(sizeof(LinuxPlatformState), false);
     State = (LinuxPlatformState*)InternalState;

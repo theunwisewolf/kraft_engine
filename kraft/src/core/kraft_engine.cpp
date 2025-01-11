@@ -21,29 +21,25 @@
 #include <systems/kraft_texture_system.h>
 #endif
 
+#include <kraft_types.h>
+
 namespace kraft {
 
-struct EngineStateT
+struct EngineState
 {
     Array<String> CliArgs;
-} EngineState;
+} InternalState;
 
-EngineConfigT Engine::Config = {};
-bool          Engine::Running = false;
-bool          Engine::Suspended = false;
-String        Engine::BasePath = {};
+struct EngineConfig Engine::Config = {};
+bool                Engine::Running = false;
+bool                Engine::Suspended = false;
+String              Engine::BasePath = {};
 
 #if defined(KRAFT_GUI_APP)
-renderer::RendererFrontend Engine::Renderer = {};
-#endif
-
 static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData Data)
 {
     uint32 Width = Data.UInt32Value[0];
     uint32 Height = Data.UInt32Value[1];
-
-    Engine::Config.WindowWidth = Width;
-    Engine::Config.WindowHeight = Height;
 
     if (Width == 0 && Height == 0)
     {
@@ -58,24 +54,24 @@ static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, E
             Engine::Suspended = false;
         }
 
-#if defined(KRAFT_GUI_APP)
-        Engine::Renderer.OnResize(Width, Height);
-#endif
+        g_Renderer->OnResize(Width, Height);
     }
 
     return false;
 }
+#endif
 
-bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
+bool Engine::Init(const EngineConfig& Config)
 {
-    Engine::Config = Config;
-    EngineState.CliArgs = Array<String>(ArgC);
-    for (int i = 0; i < ArgC; i++)
+    MemCpy(&Engine::Config, &Config, sizeof(EngineConfig));
+
+    InternalState.CliArgs = Array<String>(Config.Argc);
+    for (int i = 0; i < Config.Argc; i++)
     {
-        EngineState.CliArgs[i] = ArgV[i];
+        InternalState.CliArgs[i] = Config.Argv[i];
     }
 
-    BasePath = filesystem::Dirname(EngineState.CliArgs[0]);
+    BasePath = filesystem::Dirname(InternalState.CliArgs[0]);
     BasePath = filesystem::CleanPath(BasePath);
 
     Platform::Init(&Engine::Config);
@@ -83,23 +79,7 @@ bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
     InputSystem::Init();
 
 #if defined(KRAFT_GUI_APP)
-    AssetDatabase::Init();
-    if (!Engine::Renderer.Init(&Engine::Config))
-    {
-        KERROR("[Application::Create]: Failed to initalize renderer!");
-        return false;
-    }
-
-    TextureSystem::Init(256);
-    MaterialSystem::Init({ .MaxMaterialsCount = 256 });
-    GeometrySystem::Init({ .MaxGeometriesCount = 256 });
-    ShaderSystem::Init(256);
-
     EventSystem::Listen(EventType::EVENT_TYPE_WINDOW_RESIZE, nullptr, WindowResizeListener);
-    if (Engine::Config.StartMaximized)
-    {
-        Platform::GetWindow()->Maximize();
-    }
 #endif
 
     Engine::Running = true;
@@ -113,9 +93,8 @@ bool Engine::Init(int ArgC, char* ArgV[], EngineConfigT Config)
 bool Engine::Tick()
 {
     Time::Update();
-#if defined(KRAFT_CONSOLE_APP)
 
-#else
+#if defined(KRAFT_GUI_APP)
     InputSystem::Update();
     Engine::Running = Platform::PollEvents();
 #endif
@@ -144,15 +123,6 @@ void Engine::Destroy()
     EventSystem::Shutdown();
     Platform::Shutdown();
 
-#if defined(KRAFT_GUI_APP)
-    AssetDatabase::Shutdown();
-    MaterialSystem::Shutdown();
-    TextureSystem::Shutdown();
-    ShaderSystem::Shutdown();
-    GeometrySystem::Shutdown();
-    Engine::Renderer.Shutdown();
-#endif
-
     Time::Stop();
 
     KSUCCESS("[Engine]: Engine shutdown complete");
@@ -160,7 +130,7 @@ void Engine::Destroy()
 
 const Array<String>& Engine::GetCommandLineArgs()
 {
-    return EngineState.CliArgs;
+    return InternalState.CliArgs;
 }
 
-}
+} // namespace kraft

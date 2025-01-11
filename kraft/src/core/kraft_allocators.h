@@ -20,13 +20,20 @@ struct ArenaAllocator
     uint64           Capacity = 0;
     uint64           Size = 0;
     ArenaCreateOptsT Options;
+
+    uint8* Push(uint64 Size, bool Zero);
 };
 
 ArenaAllocator* CreateArena(ArenaCreateOptsT Options);
 void            DestroyArena(ArenaAllocator* Arena);
-uint8*          ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false);
-void            ArenaPop(ArenaAllocator* Arena, uint64 Size);
-char*           ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
+
+static inline uint8* ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false)
+{
+    return Arena->Push(Size, Zero);
+}
+
+void  ArenaPop(ArenaAllocator* Arena, uint64 Size);
+char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
 
 template<typename T>
 KRAFT_INLINE T* ArenaPushCArray(ArenaAllocator* Arena, uint32 ElementCount, bool Zero = false)
@@ -40,4 +47,4 @@ KRAFT_INLINE void ArenaPopCArray(ArenaAllocator* Arena, T* _, uint32 ElementCoun
     ArenaPop(Arena, sizeof(T) * ElementCount);
 }
 
-}
+} // namespace kraft

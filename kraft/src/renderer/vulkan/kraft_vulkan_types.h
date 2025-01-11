@@ -21,15 +21,10 @@
 #define KRAFT_VULKAN_MAX_BINDINGS         32
 
 namespace kraft {
-    struct ArenaAllocator;
+struct ArenaAllocator;
 }
 
 namespace kraft::renderer {
-
-struct VulkanRendererSettings
-{
-    bool VSync = false;
-};
 
 class VulkanResourceManager;
 
@@ -167,10 +162,10 @@ struct VulkanRenderPass
 
 struct VulkanQueueFamilyInfo
 {
-    uint32 GraphicsQueueIndex;
-    uint32 ComputeQueueIndex;
-    uint32 TransferQueueIndex;
-    uint32 PresentQueueIndex;
+    int32 GraphicsQueueIndex;
+    int32 ComputeQueueIndex;
+    int32 TransferQueueIndex;
+    int32 PresentQueueIndex;
 };
 
 struct VulkanSwapchainSupportInfo
@@ -219,6 +214,7 @@ struct VulkanSwapchain
 
 struct VulkanContext
 {
+    CreateRendererOptions* Options;
     VkInstance             Instance;
     VkAllocationCallbacks* AllocationCallbacks;
     VulkanPhysicalDevice   PhysicalDevice;
@@ -268,20 +264,18 @@ struct VulkanContext
     Handle<Buffer>        GlobalPickingDataBuffer = Handle<Buffer>::Invalid();
     void*                 GlobalUniformBufferMemory = 0;
     void*                 GlobalPickingDataBufferMemory = 0;
-
-    VulkanRendererSettings RendererSettings = {};
 };
 
 struct VulkanPhysicalDeviceRequirements
 {
-    bool Graphics;
-    bool Present;
-    bool Transfer;
-    bool Compute;
-    bool DiscreteGPU;
-    bool DepthBuffer;
-
-    const char** DeviceExtensionNames;
+    bool         Graphics;
+    bool         Present;
+    bool         Transfer;
+    bool         Compute;
+    bool         DiscreteGPU;
+    bool         DepthBuffer;
+    uint16       DeviceExtensionsCount;
+    const char** DeviceExtensions;
 };
 
 struct VulkanShaderResources

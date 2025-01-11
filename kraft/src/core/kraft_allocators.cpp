@@ -1,9 +1,9 @@
 #include "kraft_allocators.h"
 
 #include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <math/kraft_math.h>
-#include <core/kraft_log.h>
 
 namespace kraft {
 
@@ -27,31 +27,12 @@ void DestroyArena(ArenaAllocator* Arena)
     Free(Arena, Arena->Capacity, MEMORY_TAG_NONE);
 }
 
-uint8* ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero)
-{
-    uint64 AlignedSize = kraft::math::AlignUp(Size, Arena->Options.Alignment);
-    // TODO: Stretch
-    KASSERT((AlignedSize + Arena->Size) < Arena->Capacity);
-
-    uint8* AddressIntoTheArena = Arena->Ptr + Arena->Size;
-    Arena->Size += AlignedSize;
-
-    if (Zero)
-    {
-        MemSet(AddressIntoTheArena, 0, Size);
-    }
-
-    KDEBUG("Allocating %d from arena", AlignedSize);
-
-    return AddressIntoTheArena;
-}
-
 void ArenaPop(ArenaAllocator* Arena, uint64 Size)
 {
     uint64 AlignedSize = kraft::math::AlignUp(Size, Arena->Options.Alignment);
     Arena->Size = Arena->Size - AlignedSize;
 
-    KDEBUG("Deallocating %d from arena", AlignedSize);
+    KDEBUG("Deallocating %d bytes from arena", AlignedSize);
 }
 
 char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 LengthInBytes)
@@ -63,4 +44,23 @@ char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 LengthIn
     return Dst;
 }
 
+uint8* ArenaAllocator::Push(uint64 Size, bool Zero)
+{
+    uint64 AlignedSize = kraft::math::AlignUp(Size, this->Options.Alignment);
+    // TODO: Stretch
+    KASSERT((AlignedSize + this->Size) < this->Capacity);
+
+    uint8* AddressIntoTheArena = this->Ptr + this->Size;
+    this->Size += AlignedSize;
+
+    if (Zero)
+    {
+        MemSet(AddressIntoTheArena, 0, Size);
+    }
+
+    KDEBUG("Allocating %d bytes from arena", AlignedSize);
+
+    return AddressIntoTheArena;
 }
+
+} // namespace kraft

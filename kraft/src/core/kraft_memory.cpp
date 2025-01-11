@@ -51,7 +51,7 @@ KRAFT_API void FreeBlock(MemoryBlock block)
     g_MemoryStats.Allocated -= block.Size;
     g_MemoryStats.AllocationsByTag[block.Tag] -= block.Size;
 
-    Platform::Free(block.Data, false);
+    Platform::Free(block.Data);
 }
 
 KRAFT_API void* Malloc(uint64_t size)
@@ -88,7 +88,7 @@ KRAFT_API void* Realloc(void* region, uint64 size)
 
 KRAFT_API void Free(void* region)
 {
-    Platform::Free(region, false);
+    Platform::Free(region);
 }
 
 KRAFT_API void Free(void* region, uint64_t size, MemoryTag tag)
@@ -96,7 +96,7 @@ KRAFT_API void Free(void* region, uint64_t size, MemoryTag tag)
     g_MemoryStats.Allocated -= size;
     g_MemoryStats.AllocationsByTag[tag] -= size;
 
-    Platform::Free(region, false);
+    Platform::Free(region);
 }
 
 KRAFT_API void MemZero(void* region, uint64 size)

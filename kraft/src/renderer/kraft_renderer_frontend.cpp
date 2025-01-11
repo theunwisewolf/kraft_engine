@@ -15,12 +15,17 @@
 #include <world/kraft_entity.h>
 #include <world/kraft_world.h>
 
+#include <kraft_types.h>
 #include <renderer/shaderfx/kraft_shaderfx_types.h>
 #include <resources/kraft_resource_types.h>
 
 #include <math/kraft_math.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
+
+namespace kraft {
+renderer::RendererFrontend* g_Renderer = nullptr;
+}
 
 namespace kraft::renderer {
 
@@ -36,106 +41,14 @@ struct ResourceManager* ResourceManager = nullptr;
 
 struct RendererDataT
 {
-    MemoryBlock         BackendMemory;
-    RendererBackendType Type = RendererBackendType::RENDERER_BACKEND_TYPE_NONE;
-    RenderablesT        Renderables;
-    Array<RenderDataT>  RenderSurfaces;
-    RendererBackend*    Backend = nullptr;
-    int                 ActiveSurface = -1;
-    int                 CurrentFrameIndex = -1;
-    ArenaAllocator*     Arena;
+    MemoryBlock            BackendMemory;
+    RenderablesT           Renderables;
+    Array<RenderDataT>     RenderSurfaces;
+    RendererBackend*       Backend = nullptr;
+    int                    ActiveSurface = -1;
+    int                    CurrentFrameIndex = -1;
+    ArenaAllocator*        Arena;
 } RendererData;
-
-RendererFrontend* Renderer = nullptr;
-
-static bool CreateBackend(ArenaAllocator* Arena, RendererBackendType type, RendererBackend* Backend)
-{
-    if (type == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
-    {
-        Backend->Init = VulkanRendererBackend::Init;
-        Backend->Shutdown = VulkanRendererBackend::Shutdown;
-        Backend->PrepareFrame = VulkanRendererBackend::PrepareFrame;
-        Backend->BeginFrame = VulkanRendererBackend::BeginFrame;
-        Backend->EndFrame = VulkanRendererBackend::EndFrame;
-        Backend->OnResize = VulkanRendererBackend::OnResize;
-
-        Backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
-        Backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
-        Backend->UseShader = VulkanRendererBackend::UseShader;
-        Backend->SetUniform = VulkanRendererBackend::SetUniform;
-        Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
-        Backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
-        Backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
-        Backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
-        Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
-        Backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
-        Backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
-        Backend->ReadObjectPickingBuffer = VulkanRendererBackend::ReadObjectPickingBuffer;
-
-        // Render Passes
-        Backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
-        Backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
-
-        return true;
-    }
-    else if (type == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
-    {
-    }
-
-    return false;
-}
-
-static bool DestroyBackend(RendererBackend* Backend)
-{
-    bool RetVal = Backend->Shutdown();
-    MemZero(Backend, sizeof(RendererBackend));
-
-    return RetVal;
-}
-
-bool RendererFrontend::Init(EngineConfigT* Config)
-{
-    Renderer = this;
-    RendererData.Type = Config->RendererBackend;
-    RendererData.BackendMemory = MallocBlock(sizeof(RendererBackend), MEMORY_TAG_RENDERER);
-    RendererData.Backend = (RendererBackend*)RendererData.BackendMemory.Data;
-    RendererData.Renderables.reserve(1024);
-
-    KASSERTM(RendererData.Type != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
-
-    RendererData.Arena = CreateArena({
-        .ChunkSize = KRAFT_SIZE_MB(1),
-        .Alignment = 64,
-    });
-
-    ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
-
-    if (!CreateBackend(RendererData.Arena, RendererData.Type, RendererData.Backend))
-    {
-        return false;
-    }
-
-    if (!RendererData.Backend->Init(RendererData.Arena, Config))
-    {
-        KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
-        return false;
-    }
-
-    return true;
-}
-
-bool RendererFrontend::Shutdown()
-{
-    DestroyBackend(RendererData.Backend);
-    DestroyVulkanResourceManager(ResourceManager);
-
-    FreeBlock(RendererData.BackendMemory);
-    RendererData.Backend = nullptr;
-
-    DestroyArena(RendererData.Arena);
-
-    return true;
-}
 
 void RendererFrontend::OnResize(int width, int height)
 {
@@ -262,14 +175,14 @@ bool RendererFrontend::AddRenderable(const Renderable& Object)
     return true;
 }
 
-bool RendererFrontend::BeginMainRenderpass()
+void RendererFrontend::BeginMainRenderpass()
 {
-    return RendererData.Backend->BeginFrame();
+    RendererData.Backend->BeginFrame();
 }
 
-bool RendererFrontend::EndMainRenderpass()
+void RendererFrontend::EndMainRenderpass()
 {
-    return RendererData.Backend->EndFrame();
+    RendererData.Backend->EndFrame();
 }
 
 //
@@ -468,4 +381,72 @@ void RenderSurfaceT::End()
     RendererData.Backend->EndRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
 }
 
+RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts)
+{
+    KASSERT(g_Renderer == nullptr);
+
+    RendererData.Arena = CreateArena({
+        .ChunkSize = KRAFT_SIZE_MB(1),
+        .Alignment = 64,
+    });
+
+    g_Renderer = (RendererFrontend*)RendererData.Arena->Push(sizeof(RendererFrontend), true);
+    RendererData.Backend = (RendererBackend*)RendererData.Arena->Push(sizeof(RendererBackend), true);
+
+    g_Renderer->Settings = (struct CreateRendererOptions*)RendererData.Arena->Push(sizeof(CreateRendererOptions), true);
+    MemCpy(g_Renderer->Settings, Opts, sizeof(CreateRendererOptions));
+    KASSERTM(g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
+
+    ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
+
+    if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
+    {
+        RendererData.Backend->Init = VulkanRendererBackend::Init;
+        RendererData.Backend->Shutdown = VulkanRendererBackend::Shutdown;
+        RendererData.Backend->PrepareFrame = VulkanRendererBackend::PrepareFrame;
+        RendererData.Backend->BeginFrame = VulkanRendererBackend::BeginFrame;
+        RendererData.Backend->EndFrame = VulkanRendererBackend::EndFrame;
+        RendererData.Backend->OnResize = VulkanRendererBackend::OnResize;
+        RendererData.Backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
+        RendererData.Backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
+        RendererData.Backend->UseShader = VulkanRendererBackend::UseShader;
+        RendererData.Backend->SetUniform = VulkanRendererBackend::SetUniform;
+        RendererData.Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
+        RendererData.Backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
+        RendererData.Backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
+        RendererData.Backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
+        RendererData.Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
+        RendererData.Backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
+        RendererData.Backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
+
+        //
+        RendererData.Backend->ReadObjectPickingBuffer = VulkanRendererBackend::ReadObjectPickingBuffer;
+
+        // Render Passes
+        RendererData.Backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
+        RendererData.Backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
+    }
+    else if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
+    {
+        return nullptr;
+    }
+
+    if (!RendererData.Backend->Init(RendererData.Arena, g_Renderer->Settings))
+    {
+        KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
+        return nullptr;
+    }
+
+    return g_Renderer;
 }
+
+void DestroyRendererFrontend(RendererFrontend* Instance)
+{
+    bool RetVal = RendererData.Backend->Shutdown();
+    MemZero(RendererData.Backend, sizeof(RendererBackend));
+
+    DestroyVulkanResourceManager(ResourceManager);
+    DestroyArena(RendererData.Arena);
+}
+
+} // namespace kraft::renderer
