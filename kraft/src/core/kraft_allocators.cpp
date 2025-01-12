@@ -7,7 +7,7 @@
 
 namespace kraft {
 
-ArenaAllocator* CreateArena(ArenaCreateOptsT Options)
+ArenaAllocator* CreateArena(ArenaCreateOptions Options)
 {
     Options.ChunkSize = kraft::math::AlignUp(Options.ChunkSize, Options.Alignment);
     uint64 ActualSize = sizeof(ArenaAllocator) + Options.ChunkSize;

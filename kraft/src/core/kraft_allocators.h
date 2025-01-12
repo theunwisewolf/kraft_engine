@@ -7,24 +7,28 @@
 
 namespace kraft {
 
-struct ArenaCreateOptsT
+enum MemoryTag : int;
+
+struct ArenaCreateOptions
 {
-    uint64 ChunkSize = 64;
-    uint64 Alignment = 64;
+    uint64    ChunkSize = 64;
+    uint64    Alignment = 64;
+    MemoryTag Tag = (MemoryTag)0;
 };
 
 // TODO: Arena->Next
 struct ArenaAllocator
 {
-    uint8*           Ptr;
-    uint64           Capacity = 0;
-    uint64           Size = 0;
-    ArenaCreateOptsT Options;
+    MemoryTag          Tag;
+    uint8*             Ptr;
+    uint64             Capacity = 0;
+    uint64             Size = 0;
+    ArenaCreateOptions Options;
 
     uint8* Push(uint64 Size, bool Zero);
 };
 
-ArenaAllocator* CreateArena(ArenaCreateOptsT Options);
+ArenaAllocator* CreateArena(ArenaCreateOptions Options);
 void            DestroyArena(ArenaAllocator* Arena);
 
 static inline uint8* ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false)

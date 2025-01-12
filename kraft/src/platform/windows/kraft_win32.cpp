@@ -42,6 +42,8 @@ const int Platform::ConsoleColorLoCyan = Platform::ConsoleColorLoBlue | Platform
 const int Platform::ConsoleColorHiCyan = Platform::ConsoleColorHiBlue | Platform::ConsoleColorHiGreen;
 const int Platform::ConsoleColorLoMagenta = Platform::ConsoleColorLoBlue | Platform::ConsoleColorLoRed;
 const int Platform::ConsoleColorHiMagenta = Platform::ConsoleColorHiBlue | Platform::ConsoleColorHiRed;
+const int Platform::ConsoleColorLoGray = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+const int Platform::ConsoleColorHiGray = FOREGROUND_INTENSITY;
 
 const int Platform::ConsoleColorBGBlack = 0;
 const int Platform::ConsoleColorBGLoWhite = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
@@ -66,6 +68,14 @@ static HANDLE                     s_ConsoleErrorHandle;
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleOutputScreenBufferInfo = {};
 static CONSOLE_SCREEN_BUFFER_INFO s_ConsoleErrorScreenBufferInfo = {};
 
+static void LogLastError()
+{
+    kraft::String ErrorMessage(1024, 0);
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), *ErrorMessage, ErrorMessage.Length, NULL);
+
+    Platform::ConsoleOutputString(*ErrorMessage);
+}
+
 bool Platform::Init(struct EngineConfig* config)
 {
     State = (PlatformState*)Malloc(sizeof(PlatformState), false);
@@ -76,6 +86,34 @@ bool Platform::Init(struct EngineConfig* config)
 
     s_ConsoleOutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     s_ConsoleErrorHandle = GetStdHandle(STD_ERROR_HANDLE);
+
+    DWORD ConsoleMode = 0;
+    if (!GetConsoleMode(s_ConsoleOutputHandle, &ConsoleMode))
+    {
+        LogLastError();
+        return false;
+    }
+
+    ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(s_ConsoleOutputHandle, ConsoleMode))
+    {
+        LogLastError();
+        return false;
+    }
+
+    ConsoleMode = 0;
+    if (!GetConsoleMode(s_ConsoleErrorHandle, &ConsoleMode))
+    {
+        LogLastError();
+        return false;
+    }
+
+    ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(s_ConsoleErrorHandle, ConsoleMode))
+    {
+        LogLastError();
+        return false;
+    }
 
     GetConsoleScreenBufferInfo(s_ConsoleOutputHandle, &s_ConsoleOutputScreenBufferInfo);
     GetConsoleScreenBufferInfo(s_ConsoleErrorHandle, &s_ConsoleErrorScreenBufferInfo);
@@ -144,12 +182,16 @@ int Platform::MemCmp(const void* a, const void* b, uint64_t size)
 // Console Specific Functions
 // ------------------------------------------
 
-// https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
-void Platform::ConsoleOutputString(const char* str, int color)
+void Platform::ConsoleSetColor(int Color)
 {
-    SetConsoleTextAttribute(s_ConsoleOutputHandle, color);
+    SetConsoleTextAttribute(s_ConsoleOutputHandle, Color);
+}
+
+// https://docs.microsoft.com/en-us/windows/console/using-the-high-level-input-and-output-functions
+void Platform::ConsoleOutputString(const char* Str)
+{
 #ifdef UNICODE
-    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, Str, -1, NULL, 0);
     if (!CharacterCount)
     {
         OutputDebugString(L"MultiByteToWideChar failed to get character count");
@@ -166,19 +208,22 @@ void Platform::ConsoleOutputString(const char* str, int color)
     OutputDebugString(*WideString);
     WriteConsole(s_ConsoleOutputHandle, *WideString, (DWORD)WideString.Length, 0, NULL);
 #else
-    OutputDebugString(str);
-    WriteConsole(s_ConsoleOutputHandle, str, (DWORD)StringLength(str), 0, NULL);
+    OutputDebugString(Str);
+    WriteConsole(s_ConsoleOutputHandle, Str, (DWORD)StringLength(Str), 0, NULL);
 #endif
-
-    // Reset console
-    SetConsoleTextAttribute(s_ConsoleOutputHandle, s_ConsoleOutputScreenBufferInfo.wAttributes);
 }
 
-void Platform::ConsoleOutputStringError(const char* str, int color)
+void Platform::ConsoleOutputString(const char* Str, int Color)
 {
-    SetConsoleTextAttribute(s_ConsoleErrorHandle, color);
+    ConsoleSetColor(Color);
+    ConsoleOutputString(Str);
+    ConsoleResetFormatting();
+}
+
+void Platform::ConsoleOutputStringError(const char* Str)
+{
 #ifdef UNICODE
-    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, Str, -1, NULL, 0);
     if (!CharacterCount)
     {
         OutputDebugString(L"MultiByteToWideChar failed to get character count");
@@ -195,11 +240,20 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
     OutputDebugString(*WideString);
     WriteConsole(s_ConsoleErrorHandle, *WideString, (DWORD)WideString.Length, 0, NULL);
 #else
-    OutputDebugString(str);
-    WriteConsole(s_ConsoleErrorHandle, str, (DWORD)StringLength(str), 0, NULL);
+    OutputDebugString(Str);
+    WriteConsole(s_ConsoleErrorHandle, Str, (DWORD)StringLength(Str), 0, NULL);
 #endif
+}
 
-    // Reset console
+void Platform::ConsoleOutputStringError(const char* Str, int Color)
+{
+    ConsoleSetColor(Color);
+    ConsoleOutputStringError(Str);
+    ConsoleResetFormatting();
+}
+
+void Platform::ConsoleResetFormatting()
+{
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
 }
 

@@ -4,7 +4,7 @@
 
 namespace kraft {
 
-enum MemoryTag
+enum MemoryTag : int
 {
     MEMORY_TAG_NONE,
     MEMORY_TAG_STRING,

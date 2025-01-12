@@ -125,8 +125,7 @@ void Platform::ConsoleOutputString(const char* str, int color)
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
     int foregroundColor = color & 0xffff;
     int backgroundColor = color >> 0x10; 
-    const int resetFormatAttribute = 0;
-    fprintf(stdout, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str, resetFormatAttribute);
+    fprintf(stdout, "\033[%d;%d;%dm%s\033[0m", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str);
 }
 
 void Platform::ConsoleOutputStringError(const char* str, int color)
@@ -134,8 +133,7 @@ void Platform::ConsoleOutputStringError(const char* str, int color)
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
     int foregroundColor = color & 0xffff;
     int backgroundColor = color >> 0x10; 
-    const int resetFormatAttribute = 0;
-    fprintf(stderr, "\033[%d;%d;%dm%s\033[%dm", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str, resetFormatAttribute);
+    fprintf(stderr, "\033[%d;%d;%dm%s\033[0m", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str);
 }
 
 float64 Platform::GetAbsoluteTime()

@@ -480,6 +480,7 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     VkPhysicalDeviceFeatures2 FeatureRequests2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     FeatureRequests2.features.fillModeNonSolid = Context->PhysicalDevice.Features.fillModeNonSolid;
     FeatureRequests2.features.wideLines = Context->PhysicalDevice.Features.wideLines;
+    FeatureRequests2.features.fragmentStoresAndAtomics = true;
 
     VkPhysicalDeviceVulkan11Features FeatureRequests11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     VkPhysicalDeviceVulkan12Features FeatureRequests12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };

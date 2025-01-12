@@ -14,6 +14,8 @@ struct Time
     static void Start();
     static void Update();
     static void Stop();
+    static uint64 Now();
+    static String Format(String Format, uint64 Timestamp);
 };
 
 }

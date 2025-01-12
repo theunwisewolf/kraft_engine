@@ -198,7 +198,7 @@ public:
         // Swap!
         Length = Str.Length;
         Allocated = Str.Allocated;
-        Buffer = Str.Buffer;
+        MemCpy(Data(), Str.Data(), Str.GetBufferSizeInBytes());
 
         Str.Length = _Length;
         Str.Allocated = _Allocated;
