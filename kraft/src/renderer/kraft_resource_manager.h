@@ -16,7 +16,7 @@ struct RenderPass;
 struct CommandBuffer;
 struct CommandPool;
 struct PhysicalDeviceFormatSpecs;
-struct GPUBuffer;
+struct BufferView;
 struct UploadBufferDescription;
 struct ReadTextureDataDescription;
 struct TextureDescription;
@@ -48,7 +48,7 @@ struct ResourceManager
     uint8* (*GetBufferData)(Handle<Buffer> Buffer) = 0;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame
-    GPUBuffer (*CreateTempBuffer)(uint64 Size) = 0;
+    BufferView (*CreateTempBuffer)(uint64 Size) = 0;
 
     // Uploads a raw buffer data to the GPU
     bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;

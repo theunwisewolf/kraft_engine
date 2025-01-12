@@ -322,13 +322,13 @@ bool ShaderSystem::GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderU
 }
 
 template<>
-bool ShaderSystem::SetUniform(const String& Name, BufferView Value, bool Invalidate)
+bool ShaderSystem::SetUniform(const String& Name, kraft::BufferView Value, bool Invalidate)
 {
     return ShaderSystem::SetUniform(Name, (void*)Value.Memory, Invalidate);
 }
 
 template<>
-bool ShaderSystem::SetUniformByIndex(uint32 Index, BufferView Value, bool Invalidate)
+bool ShaderSystem::SetUniformByIndex(uint32 Index, kraft::BufferView Value, bool Invalidate)
 {
     return ShaderSystem::SetUniformByIndex(Index, (void*)Value.Memory, Invalidate);
 }

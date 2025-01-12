@@ -121,7 +121,7 @@ bool RendererFrontend::DrawSurfaces()
                     MemCpy(Buffer + sizeof(Object.ModelMatrix), Surface.RelativeMousePosition._data, sizeof(Surface.RelativeMousePosition));
                     MemCpy(Buffer + sizeof(Object.ModelMatrix) + sizeof(Surface.RelativeMousePosition), &Object.EntityId, sizeof(Object.EntityId));
 
-                    RendererData.Backend->SetUniform(CurrentShader, kraft::ShaderUniform{ .Offset = 0, .Scope = ShaderUniformScope::Local, .Stride = 128 }, Buffer, true);
+                    RendererData.Backend->SetUniform(CurrentShader, kraft::ShaderUniform{ .Offset = 0, .Stride = 128, .Scope = ShaderUniformScope::Local }, Buffer, true);
                     // ShaderSystem::SetUniform("EntityId", Object.EntityId);
 
                     RendererData.Backend->DrawGeometryData(Object.GeometryId);

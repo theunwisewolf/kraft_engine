@@ -51,20 +51,22 @@ int main(int argc, char** argv)
         // Poll events
         kraft::Engine::Tick();
 
-        kraft::g_Renderer->PrepareFrame();
-        kraft::g_Renderer->BeginMainRenderpass();
+        // We only want to render when the engine is not suspended
+        if (!kraft::Engine::Suspended)
+        {
+            kraft::g_Renderer->PrepareFrame();
+            kraft::g_Renderer->BeginMainRenderpass();
 
-        // Draw stuff here!
-        
+            // Draw stuff here!
 
-        // Draw ImGui
-        AppState.ImGuiRenderer.BeginFrame();
-        ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
-        AppState.ImGuiRenderer.EndFrame();
+            // Draw ImGui
+            AppState.ImGuiRenderer.BeginFrame();
+            ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
+            AppState.ImGuiRenderer.EndFrame();
 
-        kraft::g_Renderer->EndMainRenderpass();
-
-        AppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
+            kraft::g_Renderer->EndMainRenderpass();
+            AppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
+        }
 
         if (AppState.TimeSinceLastFrame >= 1.f)
         {

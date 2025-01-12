@@ -1,13 +1,13 @@
 #include "kraft_texture_system.h"
 
+#include <containers/kraft_buffer.h>
+#include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
+#include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
-#include <core/kraft_log.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_resource_manager.h>
-#include <containers/kraft_hashmap.h>
-#include <containers/kraft_buffer.h>
 #include <resources/kraft_resource_types.h>
 
 #define STBI_FAILURE_USERMSG
@@ -137,8 +137,7 @@ Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRelea
             .DebugName = DebugName,
             .Dimensions = { (float32)Width, (float32)Height, 1, (float32)DesiredChannels },
             .Format = FormatFromChannels(DesiredChannels),
-            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST |
-                     TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
         TextureData
     );
@@ -199,9 +198,8 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Descri
 
     KASSERT(!TextureResource.IsInvalid());
 
-    uint64 TextureSize =
-        (uint64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
-    GPUBuffer StagingBuffer = ResourceManager->CreateTempBuffer(TextureSize);
+    uint64               TextureSize = (uint64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
+    renderer::BufferView StagingBuffer = ResourceManager->CreateTempBuffer(TextureSize);
     MemCpy(StagingBuffer.Ptr, Data, TextureSize);
 
     if (!ResourceManager->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))
@@ -213,7 +211,7 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Descri
     return TextureResource;
 }
 
-BufferView TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Channels)
+kraft::BufferView TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 Channels)
 {
     uint32 TextureSize = Width * Height * Channels;
     uint8* Pixels = (uint8*)Malloc(TextureSize, MEMORY_TAG_TEXTURE);
@@ -258,7 +256,7 @@ BufferView TextureSystem::CreateEmptyTexture(uint32 Width, uint32 Height, uint8 
         }
     }
 
-    return BufferView{ .Memory = Pixels, .Size = TextureSize };
+    return { .Memory = Pixels, .Size = TextureSize };
 
     // for (int i = 0; i < width; i++)
     // {
@@ -301,18 +299,17 @@ Handle<Texture> TextureSystem::GetDefaultDiffuseTexture()
 
 static void _createDefaultTextures()
 {
-    const int       Width = 256;
-    const int       Height = 256;
-    const int       Depth = 1;
-    const int       Channels = 4;
-    BufferView      TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
-    Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData(
+    const int         Width = 256;
+    const int         Height = 256;
+    const int         Depth = 1;
+    const int         Channels = 4;
+    kraft::BufferView TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
+    Handle<Texture>   TextureResource = TextureSystem::CreateTextureWithData(
         {
-            .DebugName = "Default-Diffuse-Texture",
-            .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
-            .Format = Format::RGBA8_UNORM,
-            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST |
-                     TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+              .DebugName = "Default-Diffuse-Texture",
+              .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
+              .Format = Format::RGBA8_UNORM,
+              .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
         TextureData.Memory
     );
@@ -321,4 +318,4 @@ static void _createDefaultTextures()
     Free((void*)TextureData.Memory, TextureData.Size, MEMORY_TAG_TEXTURE);
 }
 
-}
+} // namespace kraft

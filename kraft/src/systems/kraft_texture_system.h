@@ -12,7 +12,7 @@ struct TextureDescription;
 
 template<typename>
 struct Handle;
-}
+} // namespace renderer
 
 namespace TextureSystem {
 void Init(uint32 maxTextureCount);
@@ -22,8 +22,8 @@ renderer::Handle<Texture> AcquireTexture(const String& name, bool autoRelease = 
 void                      ReleaseTexture(const String& name);
 void                      ReleaseTexture(renderer::Handle<Texture> Resource);
 renderer::Handle<Texture> CreateTextureWithData(renderer::TextureDescription&& Description, const uint8* Data);
-BufferView                CreateEmptyTexture(uint32 width, uint32 height, uint8 channels);
+kraft::BufferView         CreateEmptyTexture(uint32 width, uint32 height, uint8 channels);
 renderer::Handle<Texture> GetDefaultDiffuseTexture();
-};
+}; // namespace TextureSystem
 
-}
+} // namespace kraft

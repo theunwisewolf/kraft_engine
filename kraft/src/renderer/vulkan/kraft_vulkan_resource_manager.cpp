@@ -53,7 +53,7 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int3
 
 struct TempMemoryBlock
 {
-    GPUBuffer        Block;
+    BufferView       Block;
     TempMemoryBlock* Next;
     TempMemoryBlock* Prev;
 };
@@ -69,8 +69,8 @@ struct VulkanTempMemoryBlockAllocator
     void Destroy();
     void Clear();
 
-    GPUBuffer Allocate(ArenaAllocator* Arena, uint64 Size, uint64 Alignment);
-    GPUBuffer AllocateGPUMemory(ArenaAllocator* Arena);
+    BufferView Allocate(ArenaAllocator* Arena, uint64 Size, uint64 Alignment);
+    BufferView AllocateGPUMemory(ArenaAllocator* Arena);
 };
 
 void VulkanTempMemoryBlockAllocator::Initialize(ArenaAllocator* Arena, uint64 BlockSize)
@@ -91,7 +91,7 @@ void VulkanTempMemoryBlockAllocator::Clear()
     AllocationCount = 0;
 }
 
-GPUBuffer VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64 Size, uint64 Alignment)
+BufferView VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64 Size, uint64 Alignment)
 {
     if (!CurrentBlock)
     {
@@ -130,7 +130,7 @@ GPUBuffer VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint64
     };
 }
 
-GPUBuffer VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* Arena)
+BufferView VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* Arena)
 {
     Handle<Buffer> Buf = ResourceManager->CreateBuffer({
         .DebugName = "VkTempMemoryBlockAllocator",
@@ -142,7 +142,7 @@ GPUBuffer VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* Aren
 
     KASSERT(Buf != Handle<Buffer>::Invalid());
 
-    return GPUBuffer{
+    return BufferView{
         .GPUBuffer = Buf,
         .Ptr = ResourceManager->GetBufferData(Buf),
     };
@@ -649,7 +649,7 @@ static uint8* GetBufferData(Handle<Buffer> BufferHandle)
     return (uint8*)Buffer->Ptr;
 }
 
-static GPUBuffer CreateTempBuffer(uint64 Size)
+static BufferView CreateTempBuffer(uint64 Size)
 {
     return InternalState->TempGPUAllocator->Allocate(InternalState->Arena, Size, 128);
 }
@@ -750,11 +750,11 @@ static bool ReadTextureData(const ReadTextureDataDescription& Description)
     KASSERT(Description.SrcTexture.IsInvalid() == false);
     KASSERT(Description.OutBuffer);
 
-    Texture*  TextureMetadata = InternalState->TexturePool.GetAuxiliaryData(Description.SrcTexture);
-    uint32    WidthToRead = Description.Width == 0 ? (uint32_t)TextureMetadata->Width : (uint32_t)Description.Width;
-    uint32    HeightToRead = Description.Height == 0 ? (uint32_t)TextureMetadata->Height : (uint32_t)Description.Height;
-    uint32    StagingBufferSize = WidthToRead * HeightToRead * 4;
-    GPUBuffer StagingBuffer = CreateTempBuffer(StagingBufferSize);
+    Texture*   TextureMetadata = InternalState->TexturePool.GetAuxiliaryData(Description.SrcTexture);
+    uint32     WidthToRead = Description.Width == 0 ? (uint32_t)TextureMetadata->Width : (uint32_t)Description.Width;
+    uint32     HeightToRead = Description.Height == 0 ? (uint32_t)TextureMetadata->Height : (uint32_t)Description.Height;
+    uint32     StagingBufferSize = WidthToRead * HeightToRead * 4;
+    BufferView StagingBuffer = CreateTempBuffer(StagingBufferSize);
 
     if (Description.OutBufferSize < StagingBufferSize)
     {
@@ -980,4 +980,4 @@ void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager)
     InternalState->BufferPool.Destroy();
     InternalState->TexturePool.Destroy();
 }
-}
+} // namespace kraft::renderer

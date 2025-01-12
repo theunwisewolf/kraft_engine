@@ -1175,7 +1175,7 @@ void VulkanRendererBackend::DrawGeometryData(uint32 GeometryID)
 
 static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, uint32 DstBufferOffset, const void* Data, uint32 Size)
 {
-    GPUBuffer StagingBuffer = ResourceManager->CreateTempBuffer(Size);
+    BufferView StagingBuffer = ResourceManager->CreateTempBuffer(Size);
     MemCpy(StagingBuffer.Ptr, Data, Size);
 
     ResourceManager->UploadBuffer({

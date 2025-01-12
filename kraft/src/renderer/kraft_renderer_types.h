@@ -77,7 +77,7 @@ struct alignas(16) GlobalShaderData
             Mat4f Projection;
             Mat4f View;
             Vec3f GlobalLightPosition;
-            Vec4f GlobalLightColor = kraft::Vec4fOne;
+            Vec4f GlobalLightColor;
             Vec3f CameraPosition;
         };
 
@@ -668,7 +668,7 @@ struct Buffer
     // TODO (amn): Figure out what other fields we need here
 };
 
-struct GPUBuffer
+struct BufferView
 {
     Handle<Buffer> GPUBuffer = {};
     uint8*         Ptr = 0;    // Location of data inside the GPUBuffer
