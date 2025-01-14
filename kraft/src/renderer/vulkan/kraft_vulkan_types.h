@@ -214,7 +214,7 @@ struct VulkanSwapchain
 
 struct VulkanContext
 {
-    CreateRendererOptions* Options;
+    RendererOptions*       Options;
     VkInstance             Instance;
     VkAllocationCallbacks* AllocationCallbacks;
     VulkanPhysicalDevice   PhysicalDevice;
@@ -300,4 +300,4 @@ struct VulkanShader
     VulkanShaderResources ShaderResources;
 };
 
-}
+} // namespace kraft::renderer

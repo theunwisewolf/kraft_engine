@@ -164,6 +164,8 @@ static VkImageAspectFlags GetImageAspectMask(Format::Enum Type)
     {
         return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
     }
+
+    return VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
 struct ResourceManagerState

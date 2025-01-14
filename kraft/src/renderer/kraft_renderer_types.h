@@ -15,7 +15,7 @@ struct Shader;
 struct ShaderUniform;
 struct World;
 struct ArenaAllocator;
-struct CreateRendererOptions;
+struct RendererOptions;
 
 namespace renderer {
 
@@ -104,7 +104,7 @@ struct DeviceInfoT
 
 struct RendererBackend
 {
-    bool (*Init)(ArenaAllocator* Arena, CreateRendererOptions* Config);
+    bool (*Init)(ArenaAllocator* Arena, RendererOptions* Config);
     bool (*Shutdown)();
     int (*PrepareFrame)();
     bool (*BeginFrame)();
@@ -114,8 +114,9 @@ struct RendererBackend
     // Shader
     void (*UseShader)(const Shader* Shader);
     void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer);
+    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
+    void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*CreateMaterial)(Material* Material);

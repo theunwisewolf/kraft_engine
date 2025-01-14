@@ -303,7 +303,7 @@ bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const ch
 }
 
 #if defined(KRAFT_GUI_APP)
-Window* Platform::CreatePlatformWindow(const CreateWindowOptions* Opts)
+Window* Platform::CreatePlatformWindow(const WindowOptions* Opts)
 {
     State->PrimaryWindow = (Window*)Malloc(sizeof(Window), false);
     State->PrimaryWindow->Init(Opts);

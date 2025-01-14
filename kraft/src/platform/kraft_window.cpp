@@ -18,7 +18,7 @@
 
 namespace kraft {
 
-int Window::Init(const struct CreateWindowOptions* Opts)
+int Window::Init(const WindowOptions* Opts)
 {
     MemSet(this, 0, sizeof(Window));
 
@@ -29,6 +29,8 @@ int Window::Init(const struct CreateWindowOptions* Opts)
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_MAXIMIZED, Opts->StartMaximized);
+    glfwWindowHint(GLFW_SRGB_CAPABLE, true);
 
     // TODO (amn): Handle window hints
 
@@ -44,12 +46,23 @@ int Window::Init(const struct CreateWindowOptions* Opts)
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
 
+    this->Width = Opts->Width;
+    this->Height = Opts->Height;
+
+    // We need to update the width and height if we start maximized
+    if (Opts->StartMaximized)
+    {
+        glfwGetWindowSize(this->PlatformWindowHandle, &this->Width, &this->Height);
+    }
+    else
+    {
 // Center the window
 #if defined(KRAFT_PLATFORM_WINDOWS)
-    int maxWidth = GetSystemMetrics(SM_CXSCREEN);
-    int maxHeight = GetSystemMetrics(SM_CYSCREEN);
-    glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - ((int)Opts->Width / 2), (maxHeight / 2) - ((int)Opts->Height / 2));
+        int maxWidth = GetSystemMetrics(SM_CXSCREEN);
+        int maxHeight = GetSystemMetrics(SM_CYSCREEN);
+        glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - (this->Width / 2), (maxHeight / 2) - (this->Height / 2));
 #endif
+    }
 
     // TODO (amn): We should fetch the monitor the window is being drawn on
     // Currently there is no inbuilt way to do this in glfw
@@ -70,9 +83,6 @@ int Window::Init(const struct CreateWindowOptions* Opts)
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
-
-    this->Width = Opts->Width;
-    this->Height = Opts->Height;
 
     uint32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
     StringNCopy(this->Title, *Opts->Title, LengthToCopy);
@@ -187,11 +197,6 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
     EventData data;
     data.Int64Value[0] = count;
     data.Int64Value[1] = (int64)paths;
-
-    for (int i = 0; i < count; i++)
-    {
-        KDEBUG("Dropped file %s", ((char**)data.Int64Value[1])[i]);
-    }
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));
 }

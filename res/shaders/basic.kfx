@@ -23,17 +23,16 @@ Shader Basic
         // Our Material Data
         UniformBuffer LocalUniformBuffer
         {
-            float4  DiffuseColor;
-            float3  Ambient;
-            float3  Diffuse;
-            float3  Specular;
+            float4  Ambient;
+            float4  Diffuse;
+            float4  Specular;
             float   Shininess;
         }
 
         // List of local Resources: Uniform buffers, samplers, etc
         Resource Main
         {
-            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(56);
+            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(52);
             Sampler       DiffuseSampler        Stage(Fragment) Binding(1);
         }
 
@@ -59,6 +58,7 @@ Shader Basic
             mat4 Model;
             vec2 MousePosition;
             uint EntityId;
+            uint MaterialIdx;
         } variableState;
 
         // Written to; using descriptor sets
@@ -71,8 +71,24 @@ Shader Basic
             vec3 CameraPosition;
         } globalState;
 
+        struct MeshMaterial
+        {
+            vec4  Ambient;
+            vec4  Diffuse;
+            vec4  Specular;
+            float Shininess;
+            uint  Pad0;
+            uint  Pad1;
+            uint  Pad2;
+        };
+
+        layout (set = 0, binding = 1) readonly buffer GlobalMaterialData
+        {
+            MeshMaterial Materials[];
+        };
+
         #define DEPTH_ARRAY_SCALE 64
-        layout(set = 0, binding = 1) buffer GlobalObjectPickingStorageBuffer
+        layout(set = 0, binding = 2) buffer GlobalObjectPickingStorageBuffer
         {
             uint Data[DEPTH_ARRAY_SCALE];
         } globalObjectPickingStorage;
@@ -99,6 +115,7 @@ Shader Basic
             outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * inNormal; // For non-uniform scale
             outDTO.FragPosition = vec3(variableState.Model * vec4(inPosition, 1.0));
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+            // gl_Position = vec4(inPosition, 1.0);
         }
 
         #endif // VERTEX
@@ -142,27 +159,29 @@ Shader Basic
                 return;
             }
 
+            MeshMaterial Material = Materials[variableState.MaterialIdx];
             // vec2 normalizedMousePosition = normalize(variableState.MousePosition);
             // outColor = vec4(normalizedMousePosition.x, normalizedMousePosition.y, 0.0, 1.0);
             // return;
 
             // Ambient
-            vec3 ambient = (localUniformBuffer.Ambient * globalState.LightColor.xyz);
+            vec3 ambient = (Material.Ambient.xyz * globalState.LightColor.xyz);
 
             // Diffuse
             vec3 normal = normalize(inDTO.Normal);
             vec3 lightDir = normalize(globalState.LightPosition - inDTO.FragPosition);
             float diff = max(dot(normal, lightDir), 0.0);
-            vec3 diffuse = globalState.LightColor.xyz * (diff * localUniformBuffer.Diffuse);
+            vec3 diffuse = globalState.LightColor.xyz * (diff * Material.Diffuse.xyz);
 
             // Specular
             vec3 viewDir = normalize(globalState.CameraPosition - inDTO.FragPosition);
             vec3 reflectDir = reflect(-lightDir, normal);
 
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), localUniformBuffer.Shininess);
-            vec3 specular = globalState.LightColor.xyz * (spec * localUniformBuffer.Specular);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), Material.Shininess);
+            vec3 specular = globalState.LightColor.xyz * (spec * Material.Specular.xyz);
 
             outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
+            // outColor = vec4(Material.Diffuse.x, 0.0, 0.0, 1.0);
         }
 
         #endif // FRAGMENT

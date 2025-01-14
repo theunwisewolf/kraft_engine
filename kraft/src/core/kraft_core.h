@@ -146,6 +146,8 @@ typedef uint32_t UInt32;
 typedef uint64_t uint64;
 typedef uint64_t UInt64;
 
+#define CArray(Type) Type*
+
 // TODO (amn): Unicode
 // #ifdef _UNICODE
 //     typedef wchar_t TCHAR;

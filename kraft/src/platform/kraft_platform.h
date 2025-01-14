@@ -9,7 +9,7 @@ enum Keys : uint32;
 
 #if defined(KRAFT_GUI_APP)
 struct Window;
-struct CreateWindowOptions;
+struct WindowOptions;
 #endif
 
 struct PlatformState;
@@ -162,7 +162,7 @@ struct KRAFT_API Platform
 
 #if defined(KRAFT_GUI_APP)
     // Windowing
-    static Window* CreatePlatformWindow(const struct CreateWindowOptions* Opts);
+    static Window* CreatePlatformWindow(const struct WindowOptions* Opts);
     static void    DestroyPlatformWindow(struct Window* Window);
     static Window* GetWindow();
 #endif

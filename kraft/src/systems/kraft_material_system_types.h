@@ -3,17 +3,20 @@
 #include <resources/kraft_resource_types.h>
 
 namespace kraft {
-struct MaterialData
-{
-    bool                              AutoRelease;
-    String                            Name;
-    String                            FilePath;
-    String                            ShaderAsset;
-    HashMap<String, MaterialProperty> Properties;
 
-    MaterialData()
+// This format is used just for loading materials and not the actual format
+struct MaterialDataIntermediateFormat
+{
+    bool                                  AutoRelease;
+    String                                Name;
+    String                                FilePath;
+    String                                ShaderAsset;
+    FlatHashMap<String, MaterialProperty> Properties;
+
+    MaterialDataIntermediateFormat()
     {
-        Properties = HashMap<String, MaterialProperty>();
+        Properties = FlatHashMap<String, MaterialProperty>();
     }
 };
-}
+
+} // namespace kraft

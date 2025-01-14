@@ -25,7 +25,7 @@ struct ArenaAllocator
     uint64             Size = 0;
     ArenaCreateOptions Options;
 
-    uint8* Push(uint64 Size, bool Zero);
+    uint8* Push(uint64 Size, bool Zero = false);
 };
 
 ArenaAllocator* CreateArena(ArenaCreateOptions Options);

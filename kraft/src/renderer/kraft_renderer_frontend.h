@@ -12,7 +12,7 @@ struct Geometry;
 struct Material;
 struct ShaderUniform;
 struct Texture;
-struct CreateRendererOptions;
+struct RendererOptions;
 
 namespace renderer {
 
@@ -22,15 +22,19 @@ struct RendererBackend;
 struct Renderable;
 struct RenderPass;
 struct Buffer;
+struct MeshMaterial;
+struct GlobalShaderData;
 
 template<typename T>
 struct Handle;
 
 struct RendererFrontend
 {
-    struct CreateRendererOptions* Settings;
-    kraft::Camera*                Camera = nullptr;
+    struct RendererOptions* Settings;
+    kraft::Camera*          Camera = nullptr;
 
+    void Init();
+    void Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 GeometryId);
     void OnResize(int Width, int Height);
     void PrepareFrame();
     bool DrawSurfaces();
@@ -46,7 +50,7 @@ struct RendererFrontend
     void DestroyMaterial(Material* Material);
     void UseShader(const Shader* Shader);
     void SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer);
+    void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void ApplyInstanceShaderProperties(Shader* ActiveShader);
     void DrawGeometry(uint32 GeometryID);
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
@@ -59,7 +63,7 @@ struct RendererFrontend
     void           EndRenderSurface(const RenderSurfaceT& Surface);
 };
 
-RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts);
+RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts);
 void              DestroyRendererFrontend(RendererFrontend* Instance);
 
 } // namespace renderer

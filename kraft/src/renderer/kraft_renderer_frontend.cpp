@@ -41,14 +41,87 @@ struct ResourceManager* ResourceManager = nullptr;
 
 struct RendererDataT
 {
-    MemoryBlock            BackendMemory;
-    RenderablesT           Renderables;
-    Array<RenderDataT>     RenderSurfaces;
-    RendererBackend*       Backend = nullptr;
-    int                    ActiveSurface = -1;
-    int                    CurrentFrameIndex = -1;
-    ArenaAllocator*        Arena;
+    MemoryBlock        BackendMemory;
+    RenderablesT       Renderables;
+    Array<RenderDataT> RenderSurfaces;
+    RendererBackend*   Backend = nullptr;
+    int                ActiveSurface = -1;
+    int                CurrentFrameIndex = -1;
+    ArenaAllocator*    Arena;
+
+    Handle<Buffer> GlobalUBO;
+    Handle<Buffer> MaterialsGPUBuffer;
+    Handle<Buffer> MaterialsStagingBuffers[3];
 } RendererData;
+
+void RendererFrontend::Init()
+{
+    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+    RendererData.MaterialsGPUBuffer = ResourceManager->CreateBuffer({
+        .Size = MaterialsBufferSize,
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
+        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .SharingMode = SharingMode::Exclusive,
+    });
+
+    for (int i = 0; i < KRAFT_C_ARRAY_SIZE(RendererData.MaterialsStagingBuffers); i++)
+    {
+        RendererData.MaterialsStagingBuffers[i] = ResourceManager->CreateBuffer({
+            .Size = MaterialsBufferSize,
+            .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC,
+            .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
+            .SharingMode = SharingMode::Exclusive,
+            .MapMemory = true,
+        });
+    }
+
+    RendererData.GlobalUBO = ResourceManager->CreateBuffer({
+        .DebugName = "GlobalUBO",
+        .Size = sizeof(GlobalShaderData),
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
+        .MemoryPropertyFlags =
+            MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .MapMemory = true,
+    });
+}
+
+struct __DrawData
+{
+    Mat4f  Model;
+    Vec2f  MousePosition;
+    uint32 EntityId;
+    uint32 MaterialIdx;
+} DummyDrawData;
+
+void RendererFrontend::Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 GeometryId)
+{
+    KASSERT(RendererData.CurrentFrameIndex >= 0 && RendererData.CurrentFrameIndex < 3);
+
+    uint8* BufferData = ResourceManager->GetBufferData(RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex]);
+    auto   Materials = MaterialSystem::GetMaterialsBuffer();
+    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+
+    MemCpy(BufferData, Materials, MaterialsBufferSize);
+
+    ResourceManager->UploadBuffer({
+        .DstBuffer = RendererData.MaterialsGPUBuffer,
+        .SrcBuffer = RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex],
+        .SrcSize = MaterialsBufferSize,
+        .DstOffset = 0,
+        .SrcOffset = 0,
+    });
+
+    MemCpy((void*)ResourceManager->GetBufferData(RendererData.GlobalUBO), (void*)GlobalUBO, sizeof(GlobalShaderData));
+
+    RendererData.Backend->UseShader(Shader);
+    RendererData.Backend->ApplyGlobalShaderProperties(Shader, RendererData.GlobalUBO, RendererData.MaterialsGPUBuffer);
+
+    DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 300.0f, 300.0f, 300.0f });
+    DummyDrawData.MaterialIdx = 0;
+    RendererData.Backend->ApplyLocalShaderProperties(Shader, &DummyDrawData);
+
+    RendererData.Backend->DrawGeometryData(GeometryId);
+}
 
 void RendererFrontend::OnResize(int width, int height)
 {
@@ -66,6 +139,21 @@ void RendererFrontend::PrepareFrame()
 {
     renderer::ResourceManager->EndFrame(0);
     RendererData.CurrentFrameIndex = RendererData.Backend->PrepareFrame();
+
+    // Upload all the materials
+    uint8* BufferData = ResourceManager->GetBufferData(RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex]);
+    auto   Materials = MaterialSystem::GetMaterialsBuffer();
+    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+
+    MemCpy(BufferData, Materials, MaterialsBufferSize);
+
+    ResourceManager->UploadBuffer({
+        .DstBuffer = RendererData.MaterialsGPUBuffer,
+        .SrcBuffer = RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex],
+        .SrcSize = MaterialsBufferSize,
+        .DstOffset = 0,
+        .SrcOffset = 0,
+    });
 }
 
 bool RendererFrontend::DrawSurfaces()
@@ -95,7 +183,7 @@ bool RendererFrontend::DrawSurfaces()
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
         {
             Shader* CurrentShader = ShaderSystem::BindByID(It->first);
-            RendererData.Backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO);
+            RendererData.Backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, RendererData.MaterialsGPUBuffer);
             for (auto& MaterialIt : It->second)
             {
                 auto&  Objects = MaterialIt.second;
@@ -108,21 +196,44 @@ bool RendererFrontend::DrawSurfaces()
                 {
                     Renderable Object = Objects[i];
 
-                    MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
+                    // MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
                     // MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
 
-                    float64 x, y;
-                    kraft::Platform::GetWindow()->GetCursorPosition(&x, &y);
-                    Vec2f MousePosition{ (float32)x, (float32)y };
-                    ShaderSystem::SetUniform("MousePosition", kraft::Vec2f{ Surface.RelativeMousePosition.x, Surface.RelativeMousePosition.y });
+                    // float64 x, y;
+                    // kraft::Platform::GetWindow()->GetCursorPosition(&x, &y);
+                    // Vec2f MousePosition{ (float32)x, (float32)y };
+                    // ShaderSystem::SetUniform("MousePosition", kraft::Vec2f{ Surface.RelativeMousePosition.x, Surface.RelativeMousePosition.y });
 
-                    uint8 Buffer[128] = { 0 };
-                    MemCpy(Buffer, Object.ModelMatrix._data, sizeof(Object.ModelMatrix));
-                    MemCpy(Buffer + sizeof(Object.ModelMatrix), Surface.RelativeMousePosition._data, sizeof(Surface.RelativeMousePosition));
-                    MemCpy(Buffer + sizeof(Object.ModelMatrix) + sizeof(Surface.RelativeMousePosition), &Object.EntityId, sizeof(Object.EntityId));
+                    // uint8 Buffer[128] = { 0 };
+                    // MemCpy(Buffer, Object.ModelMatrix._data, sizeof(Object.ModelMatrix));
+                    // MemCpy(Buffer + sizeof(Object.ModelMatrix), Surface.RelativeMousePosition._data, sizeof(Surface.RelativeMousePosition));
+                    // MemCpy(Buffer + sizeof(Object.ModelMatrix) + sizeof(Surface.RelativeMousePosition), &Object.EntityId, sizeof(Object.EntityId));
 
-                    RendererData.Backend->SetUniform(CurrentShader, kraft::ShaderUniform{ .Offset = 0, .Stride = 128, .Scope = ShaderUniformScope::Local }, Buffer, true);
+                    // RendererData.Backend->SetUniform(CurrentShader, kraft::ShaderUniform{ .Offset = 0, .Stride = 128, .Scope = ShaderUniformScope::Local }, Buffer, true);
                     // ShaderSystem::SetUniform("EntityId", Object.EntityId);
+
+                    DummyDrawData.Model = Object.ModelMatrix;
+                    DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
+                    DummyDrawData.MousePosition = Surface.RelativeMousePosition;
+                    DummyDrawData.EntityId = Object.EntityId;
+                    RendererData.Backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
+
+                    uint8* MaterialsBuffer = MaterialSystem::GetMaterialsBuffer();
+                    uint8* MaterialBuffer = MaterialsBuffer + DummyDrawData.MaterialIdx * Settings->MaterialBufferSize;
+                    Vec4f* Ambient = (Vec4f*)(MaterialBuffer);
+                    Vec4f* Diffuse = (Vec4f*)((uint8*)Ambient + sizeof(Vec4f));
+                    Vec4f* Specular = (Vec4f*)((uint8*)Diffuse + sizeof(Vec4f));
+                    float* Shininess = (float*)((uint8*)Specular + sizeof(Vec4f));
+
+                    // MetadataComponent Metadata = Surface.World->GetEntity(Object.EntityId).GetComponent<MetadataComponent>();
+                    
+                    // KDEBUG("-------------------------------------");
+                    // KDEBUG("%s", *Metadata.Name);
+                    // KDEBUG("Ambient = (%f, %f, %f, %f)", Ambient->x, Ambient->y, Ambient->z, Ambient->w);
+                    // KDEBUG("Diffuse = (%f, %f, %f, %f)", Diffuse->x, Diffuse->y, Diffuse->z, Diffuse->w);
+                    // KDEBUG("Specular = (%f, %f, %f, %f)", Specular->x, Specular->y, Specular->z, Specular->w);
+                    // KDEBUG("Shininess = %f", *Shininess);
+                    // KDEBUG("-------------------------------------");
 
                     RendererData.Backend->DrawGeometryData(Object.GeometryId);
                 }
@@ -224,9 +335,9 @@ void RendererFrontend::DrawGeometry(uint32 GeometryID)
     RendererData.Backend->DrawGeometryData(GeometryID);
 }
 
-void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer)
+void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer)
 {
-    RendererData.Backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer);
+    RendererData.Backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer, GlobalMaterialsBuffer);
 }
 
 void RendererFrontend::ApplyInstanceShaderProperties(Shader* ActiveShader)
@@ -381,7 +492,7 @@ void RenderSurfaceT::End()
     RendererData.Backend->EndRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
 }
 
-RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts)
+RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 {
     KASSERT(g_Renderer == nullptr);
 
@@ -393,8 +504,8 @@ RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts)
     g_Renderer = (RendererFrontend*)RendererData.Arena->Push(sizeof(RendererFrontend), true);
     RendererData.Backend = (RendererBackend*)RendererData.Arena->Push(sizeof(RendererBackend), true);
 
-    g_Renderer->Settings = (struct CreateRendererOptions*)RendererData.Arena->Push(sizeof(CreateRendererOptions), true);
-    MemCpy(g_Renderer->Settings, Opts, sizeof(CreateRendererOptions));
+    g_Renderer->Settings = (struct RendererOptions*)RendererData.Arena->Push(sizeof(RendererOptions), true);
+    MemCpy(g_Renderer->Settings, Opts, sizeof(RendererOptions));
     KASSERTM(g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
     ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
@@ -413,6 +524,7 @@ RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts)
         RendererData.Backend->SetUniform = VulkanRendererBackend::SetUniform;
         RendererData.Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
         RendererData.Backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
+        RendererData.Backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
         RendererData.Backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
         RendererData.Backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
         RendererData.Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
@@ -436,6 +548,8 @@ RendererFrontend* CreateRendererFrontend(const CreateRendererOptions* Opts)
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return nullptr;
     }
+
+    g_Renderer->Init();
 
     return g_Renderer;
 }

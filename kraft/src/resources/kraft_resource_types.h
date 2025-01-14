@@ -111,7 +111,8 @@ struct MaterialProperty
     };
 
     // Index of the uniform in the shader uniform cache
-    uint32 UniformIndex;
+    uint16 UniformIndex;
+    uint16 Size = 0;
 
     MaterialProperty()
     {
@@ -155,18 +156,8 @@ struct Material
     // List of textures of this material instance
     Array<Handle<Texture>> Textures;
 
-    // All the material properties
-    // The indices match to the material's properties hashmap
-    HashMap<String, MaterialProperty> Properties;
-
     // Holds the backend renderer data such as descriptor sets
     ResourceID RendererDataIdx;
-
-    template<typename T>
-    T GetUniform(const String& Name) const
-    {
-        return Properties.find(Name).value().Get<T>();
-    }
 };
 
 struct Geometry

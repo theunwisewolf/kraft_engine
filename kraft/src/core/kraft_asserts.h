@@ -14,29 +14,29 @@ void LogAssert(const char* Expression, const char* Message, const char* File, in
 #endif
 
 // Assert
-#define KRAFT_ASSERT(expression)                                                                                                           \
-    {                                                                                                                                      \
-        if (expression)                                                                                                                    \
-        {                                                                                                                                  \
-        }                                                                                                                                  \
-        else                                                                                                                               \
-        {                                                                                                                                  \
-            kraft::LogAssert(#expression, "", __FILE__, __LINE__);                                                                         \
-            debugBreak();                                                                                                                  \
-        }                                                                                                                                  \
+#define KRAFT_ASSERT(expression)                                                                                                                                                                       \
+    {                                                                                                                                                                                                  \
+        if (expression)                                                                                                                                                                                \
+        {                                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
+        else                                                                                                                                                                                           \
+        {                                                                                                                                                                                              \
+            kraft::LogAssert(#expression, "", __FILE__, __LINE__);                                                                                                                                     \
+            debugBreak();                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
     }
 
 // Assert with a message
-#define KRAFT_ASSERT_MESSAGE(expression, message)                                                                                          \
-    {                                                                                                                                      \
-        if (expression)                                                                                                                    \
-        {                                                                                                                                  \
-        }                                                                                                                                  \
-        else                                                                                                                               \
-        {                                                                                                                                  \
-            kraft::LogAssert(#expression, message, __FILE__, __LINE__);                                                                    \
-            debugBreak();                                                                                                                  \
-        }                                                                                                                                  \
+#define KRAFT_ASSERT_MESSAGE(expression, message)                                                                                                                                                      \
+    {                                                                                                                                                                                                  \
+        if (expression)                                                                                                                                                                                \
+        {                                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
+        else                                                                                                                                                                                           \
+        {                                                                                                                                                                                              \
+            kraft::LogAssert(#expression, message, __FILE__, __LINE__);                                                                                                                                \
+            debugBreak();                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
     }
 
 #define KASSERT  KRAFT_ASSERT

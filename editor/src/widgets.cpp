@@ -92,17 +92,6 @@ void DrawImGuiWidgets(bool refresh)
         SetProjection(kraft::CameraProjectionType::Orthographic);
     }
 
-    if (EditorState::Ptr->GetSelectedEntity().HasComponent<kraft::MeshComponent>())
-    {
-        kraft::MeshComponent Mesh = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::MeshComponent>();
-        auto                 Instance = Mesh.MaterialInstance;
-        static kraft::Vec4f  DiffuseColor = Instance->GetUniform<kraft::Vec4f>("DiffuseColor");
-        if (ImGui::ColorEdit4("Diffuse Color", DiffuseColor))
-        {
-            kraft::MaterialSystem::SetProperty(Instance, "DiffuseColor", DiffuseColor);
-        }
-    }
-
     if (EditorState::Ptr->GetSelectedEntity().HasComponent<kraft::LightComponent>())
     {
         kraft::LightComponent& Light = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::LightComponent>();
@@ -748,31 +737,31 @@ void MaterialEditor()
     kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
     kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
 
-    for (auto It = Material->Properties.ibegin(); It != Material->Properties.iend(); It++)
-    {
-        kraft::MaterialProperty& Property = It->second;
-        kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
+    // for (auto It = Material->Properties.ibegin(); It != Material->Properties.iend(); It++)
+    // {
+    //     kraft::MaterialProperty& Property = It->second;
+    //     kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
 
-        if (Uniform.DataType == kraft::renderer::ShaderDataType::Float3)
-        {
-            if (ImGui::DragFloat3(It->first.get().Data(), Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
-            {
-                Material->Dirty = true;
-            }
-        }
-        else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float4)
-        {
-            if (ImGui::DragFloat4(It->first.get().Data(), Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
-            {
-                Material->Dirty = true;
-            }
-        }
-        else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float)
-        {
-            if (ImGui::DragFloat(It->first.get().Data(), &Property.Float32Value))
-            {
-                Material->Dirty = true;
-            }
-        }
-    }
+    //     if (Uniform.DataType == kraft::renderer::ShaderDataType::Float3)
+    //     {
+    //         if (ImGui::DragFloat3(It->first.get().Data(), Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
+    //         {
+    //             Material->Dirty = true;
+    //         }
+    //     }
+    //     else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float4)
+    //     {
+    //         if (ImGui::DragFloat4(It->first.get().Data(), Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
+    //         {
+    //             Material->Dirty = true;
+    //         }
+    //     }
+    //     else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float)
+    //     {
+    //         if (ImGui::DragFloat(It->first.get().Data(), &Property.Float32Value))
+    //         {
+    //             Material->Dirty = true;
+    //         }
+    //     }
+    // }
 }

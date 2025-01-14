@@ -8,7 +8,7 @@ struct Texture;
 struct Shader;
 struct ShaderUniform;
 struct Material;
-struct CreateRendererOptions;
+struct RendererOptions;
 struct Geometry;
 struct ArenaAllocator;
 
@@ -26,7 +26,7 @@ struct Handle;
 
 struct VulkanRendererBackend
 {
-    static bool Init(ArenaAllocator* Arena, CreateRendererOptions* Opts);
+    static bool Init(ArenaAllocator* Arena, RendererOptions* Opts);
     static bool Shutdown();
     static int  PrepareFrame();
     static bool BeginFrame();
@@ -41,8 +41,9 @@ struct VulkanRendererBackend
     static void SetGlobalShaderData(GlobalShaderData* Data);
     static void UseShader(const Shader* Shader);
     static void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer);
+    static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     static void ApplyInstanceShaderProperties(Shader* Shader);
+    static void ApplyLocalShaderProperties(Shader* Shader, void* Data);
 
     // Geometry
     static void DrawGeometryData(uint32 GeometryID);

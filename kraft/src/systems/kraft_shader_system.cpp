@@ -74,7 +74,6 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
             State->Shaders[Index].RefCount++;
         }
 
-        KDEBUG("[ShaderSystem::AcquireShader]: Shader %s already acquired; Reusing", *ShaderPath);
         return &State->Shaders[Index].Shader;
     }
 
@@ -389,7 +388,7 @@ void ShaderSystem::ApplyGlobalProperties(renderer::Handle<renderer::Buffer> DstD
 
     //Shader* FirstShader = &State->Shaders[0].Shader;
     //Renderer->SetUniform(FirstShader, ShaderUniform{ .Scope = ShaderUniformScope::Global }, (void*)&GlobalShaderData, true);
-    g_Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
+    // g_Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
 }
 
 void ShaderSystem::ApplyInstanceProperties()

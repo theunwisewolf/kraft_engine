@@ -286,11 +286,13 @@ bool Init()
 
     EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
 
+#if 0
     kraft::Entity Sprite2D = EditorState::Ptr->CurrentWorld->CreateEntity("Sprite2D", WorldRoot);
     Sprite2D.AddComponent<MeshComponent>(
         kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt", EditorState::Ptr->RenderSurface.RenderPass), kraft::GeometrySystem::GetDefault2DGeometry()->InternalID
     );
     Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
+#endif
 
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
@@ -669,6 +671,23 @@ void Run()
 #define KRAFT_USE_WINMAIN 0
 #endif
 
+struct Str
+{
+    const char* Data;
+    uint64 Length;
+
+    constexpr Str(const char* Data, uint64 Length) 
+    {
+        this->Data = Data;
+        this->Length = Length;
+    }
+};
+
+constexpr inline Str operator "" _PrivateSV(const char* String, uint64 Size)
+{
+	return Str(String, Size);
+}
+
 #if KRAFT_USE_WINMAIN
 #define WIN32_LEAN_AND_MEAN
 #include "Windows.h"
@@ -683,6 +702,10 @@ int main(int argc, char** argv)
     char** argv = __argv;
 #endif
 
+    const Str ConstantString = "Whatever on earth is this"_PrivateSV;
+
+    KDEBUG("your str is %s", ConstantString.Data);
+
     kraft::CreateEngine({
         .Argc = argc,
         .Argv = argv,
@@ -693,6 +716,7 @@ int main(int argc, char** argv)
     auto Window = kraft::CreateWindow("KraftEditor", 1280, 768);
     auto Renderer = kraft::CreateRenderer({
         .Backend = kraft::RENDERER_BACKEND_TYPE_VULKAN,
+        .MaterialBufferSize = 64,
     });
 
     Window->Maximize();

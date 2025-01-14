@@ -1,23 +1,25 @@
 #include "kraft_material_system.h"
 
-#include <core/kraft_log.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_string.h>
-#include <core/kraft_lexer.h>
-#include <math/kraft_math.h>
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
+#include <core/kraft_allocators.h>
+#include <core/kraft_asserts.h>
+#include <core/kraft_lexer.h>
+#include <core/kraft_log.h>
+#include <core/kraft_memory.h>
+#include <core/kraft_string.h>
+#include <math/kraft_math.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_filesystem_types.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
 
-#include <systems/kraft_material_system_types.h>
-#include <resources/kraft_resource_types.h>
-#include <renderer/kraft_renderer_types.h>
 #include <core/kraft_lexer_types.h>
+#include <kraft_types.h>
+#include <renderer/kraft_renderer_types.h>
+#include <resources/kraft_resource_types.h>
+#include <systems/kraft_material_system_types.h>
 
 namespace kraft {
 
@@ -29,59 +31,54 @@ struct MaterialReference
 
 struct MaterialSystemState
 {
-    uint32               MaxMaterialCount;
-    HashMap<String, int> IndexMapping;
-    MaterialReference*   MaterialReferences;
+    ArenaAllocator*          Arena;
+    FlatHashMap<String, int> IndexMapping;
+
+    uint16 MaterialBufferSize;
+    uint16 MaxMaterialsCount;
+
+    CArray(MaterialReference) MaterialReferences;
+    CArray(uint8) MaterialsBuffer;
 };
 
 static MaterialSystemState* State = 0;
 
 static void ReleaseMaterialInternal(uint32 Index);
 static void CreateDefaultMaterialsInternal();
-static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data);
+static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data);
 
 KRAFT_INLINE Material* GetMaterialByName(const String& Name)
 {
     auto It = State->IndexMapping.find(Name);
-    if (It == State->IndexMapping.iend())
+    if (It == State->IndexMapping.end())
     {
         return nullptr;
     }
 
-    return &State->MaterialReferences[It->second.get()].Material;
+    return &State->MaterialReferences[It->second].Material;
 }
 
-void MaterialSystem::Init(MaterialSystemConfig Config)
+void MaterialSystem::Init(const RendererOptions& Opts)
 {
-    uint32 StateSize = sizeof(MaterialSystemState);
-    uint32 ArraySize = sizeof(MaterialReference) * Config.MaxMaterialsCount;
-    uint32 TotalSize = StateSize + ArraySize;
+    uint64          SizeRequirement = Opts.MaxMaterials * Opts.MaterialBufferSize + Opts.MaxMaterials * sizeof(MaterialReference) + sizeof(MaterialSystemState);
+    ArenaAllocator* Arena = CreateArena({ .ChunkSize = SizeRequirement, .Alignment = 64, .Tag = MEMORY_TAG_MATERIAL_SYSTEM });
 
-    char* RawMemory = (char*)kraft::Malloc(TotalSize, MEMORY_TAG_MATERIAL_SYSTEM, true);
+    State = (MaterialSystemState*)Arena->Push(sizeof(MaterialSystemState));
+    State->Arena = Arena;
+    State->MaterialBufferSize = Opts.MaterialBufferSize;
+    State->MaxMaterialsCount = Opts.MaxMaterials;
+    State->MaterialsBuffer = Arena->Push(State->MaterialBufferSize * State->MaxMaterialsCount);
+    State->MaterialReferences = (MaterialReference*)Arena->Push(sizeof(MaterialReference) * State->MaxMaterialsCount);
 
-    State = (MaterialSystemState*)RawMemory;
-    State->MaxMaterialCount = Config.MaxMaterialsCount;
-    State->MaterialReferences = (MaterialReference*)(RawMemory + StateSize);
-    State->IndexMapping = HashMap<String, int>();
-    State->IndexMapping.reserve(Config.MaxMaterialsCount);
+    new (&State->IndexMapping) FlatHashMap<String, int>();
+    State->IndexMapping.reserve(State->MaxMaterialsCount);
 
     // CreateDefaultMaterialsInternal();
 }
 
 void MaterialSystem::Shutdown()
 {
-    // Free the default material
-    ReleaseMaterialInternal(0);
-
-    for (uint32 i = 1; i < State->MaxMaterialCount; ++i)
-    {
-        MaterialReference* Ref = &State->MaterialReferences[i];
-        if (Ref->RefCount)
-            MaterialSystem::DestroyMaterial(&Ref->Material);
-    }
-
-    uint32 totalSize = sizeof(MaterialSystemState) + sizeof(MaterialReference) * State->MaxMaterialCount;
-    kraft::Free(State, totalSize, MEMORY_TAG_MATERIAL_SYSTEM);
+    DestroyArena(State->Arena);
 }
 
 Material* MaterialSystem::GetDefaultMaterial()
@@ -103,21 +100,21 @@ Material* MaterialSystem::CreateMaterialFromFile(const String& Path, Handle<Rend
         FilePath = FilePath + ".kmt";
     }
 
-    MaterialData Data;
+    MaterialDataIntermediateFormat Data;
     Data.FilePath = FilePath;
     if (!LoadMaterialFromFileInternal(FilePath, &Data))
     {
-        KINFO("[MaterialSystem::AcquireMaterial]: Failed to parse material %s", *FilePath);
+        KINFO("[CreateMaterialFromFile]: Failed to parse material %s", *FilePath);
         return nullptr;
     }
 
     return CreateMaterialWithData(Data, RenderPassHandle);
 }
 
-Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handle<RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, Handle<RenderPass> RenderPassHandle)
 {
-    int FreeIndex = -1;
-    for (uint32 i = 0; i < State->MaxMaterialCount; ++i)
+    uint32 FreeIndex = uint32(-1);
+    for (uint32 i = 0; i < State->MaxMaterialsCount; ++i)
     {
         if (State->MaterialReferences[i].RefCount == 0)
         {
@@ -126,9 +123,9 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
         }
     }
 
-    if (FreeIndex == -1)
+    if (FreeIndex == uint32(-1))
     {
-        KERROR("[MaterialSystem::CreateMaterialWithData]: Max number of materials reached!");
+        KERROR("[CreateMaterialWithData]: Max number of materials reached!");
         return nullptr;
     }
 
@@ -140,10 +137,8 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
     Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset, RenderPassHandle);
     if (!Shader)
     {
-        KERROR(
-            "[MaterialSystem::CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name
-        );
-        Shader = ShaderSystem::GetDefaultShader();
+        KERROR("[CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name);
+        return nullptr;
     }
 
     Material* Instance = &Reference->Material;
@@ -152,50 +147,53 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialData& Data, Handl
     Instance->AssetPath = Data.FilePath;
     Instance->Shader = Shader;
     Instance->Textures = Array<Handle<Texture>>(Shader->TextureCount);
-    Instance->Properties = HashMap<String, MaterialProperty>();
-    Instance->Properties.reserve(Shader->InstanceUniformsCount);
     Instance->Dirty = true;
+
+    // Offset into the material buffer
+    uint8* MaterialBuffer = State->MaterialsBuffer + FreeIndex * State->MaterialBufferSize;
 
     // Create backend data such has descriptor sets
     g_Renderer->CreateMaterial(Instance);
 
-    // Cache the uniforms for this material
+    // Copy over the material properties from the material data
     for (auto It = Shader->UniformCacheMapping.ibegin(); It != Shader->UniformCacheMapping.iend(); It++)
     {
-        ShaderUniform Uniform = Shader->UniformCache[It->second];
-        if (Uniform.Scope == ShaderUniformScope::Instance)
+        ShaderUniform* Uniform = &Shader->UniformCache[It->second];
+        if (Uniform->Scope != ShaderUniformScope::Instance)
         {
-            const String&    UniformName = It->first;
-            MaterialProperty Property = MaterialProperty();
+            continue;
+        }
 
-            // Look to see if this property is present in the material
-            auto _MaterialIt = Data.Properties.find(UniformName);
-            if (_MaterialIt == Data.Properties.iend())
-            {
-                KWARN("[MaterialSystem::CreateMaterialWithData]: Material %s does not contain shader uniform %s", *Data.Name, *UniformName);
-            }
-            else
-            {
-                auto DataIt = Data.Properties.find(UniformName);
-                KASSERTM(DataIt != Data.Properties.end(), "Material data is missing a uniform");
+        const String& UniformName = It->first;
+        // MaterialProperty Property = MaterialProperty();
 
-                // Copy over the value
-                if (Uniform.Type == ResourceType::Sampler)
-                {
-                    MemCpy(Property.Memory, DataIt->second.ptr->Memory, sizeof(Handle<Texture>));
-                }
-                else
-                {
-                    MemCpy(Property.Memory, DataIt->second.ptr->Memory, Uniform.Stride);
-                }
+        // Look to see if this property is present in the material
+        auto MaterialIt = Data.Properties.find(UniformName);
+        if (MaterialIt == Data.Properties.end())
+        {
+            KWARN("[CreateMaterialWithData]: Material %s does not contain shader uniform %s", *Data.Name, *UniformName);
+            continue;
+        }
 
-                Property.UniformIndex = It->second;
-                Instance->Properties[UniformName] = Property;
-            }
+        const MaterialProperty* Property = &MaterialIt->second;
+        if (Property->Size != Uniform->Stride)
+        {
+            KERROR("[CreateMaterialWithData]: Material %s data type mismatch for uniform %s. Expected size: %d, got %d.", *Data.Name, *UniformName, Uniform->Stride, Property->Size);
+            return nullptr;
+        }
+
+        // Copy over the value
+        if (Uniform->Type == ResourceType::Sampler)
+        {
+            // MemCpy(MaterialBuffer, MaterialIt->second.Memory, sizeof(Handle<Texture>));
+            // KASSERT(false);
+        }
+        else
+        {
+            MemCpy(MaterialBuffer + Uniform->Offset, MaterialIt->second.Memory, Uniform->Stride);
         }
     }
 
-    KDEBUG("[MaterialSystem::CreateMaterial]: Created %s", *Data.Name);
     return Instance;
 }
 
@@ -221,7 +219,7 @@ void MaterialSystem::DestroyMaterial(const String& Name)
 
 void MaterialSystem::DestroyMaterial(Material* Instance)
 {
-    KASSERT(Instance->ID < State->MaxMaterialCount);
+    KASSERT(Instance->ID < State->MaxMaterialsCount);
     KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", *Instance->Name);
     MaterialReference* Reference = &State->MaterialReferences[Instance->ID];
 
@@ -240,28 +238,6 @@ void MaterialSystem::DestroyMaterial(Material* Instance)
     MemZero(Instance, sizeof(Material));
 }
 
-void MaterialSystem::ApplyInstanceProperties(Material* Instance)
-{
-    // Copy over all the properties from the material to the shader's uniform buffer
-    if (Instance->Dirty)
-    {
-        for (auto It = Instance->Properties.vbegin(); It != Instance->Properties.vend(); It++)
-        {
-            MaterialProperty& Property = *It;
-            ShaderSystem::SetUniformByIndex(It->UniformIndex, (void*)(&Property.Memory[0]), Instance->Dirty);
-        }
-
-        Instance->Dirty = false;
-    }
-
-    ShaderSystem::ApplyInstanceProperties();
-}
-
-void MaterialSystem::ApplyLocalProperties(Material* Material, const Mat4f& Model)
-{
-    ShaderSystem::SetUniform("Model", Model);
-}
-
 bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const String& TexturePath)
 {
     Handle<Texture> NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
@@ -275,30 +251,35 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const Str
 
 bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Texture> NewTexture)
 {
-    auto It = Instance->Properties.find(Key);
-    if (It == Instance->Properties.iend())
-    {
-        KERROR("[MaterialSystem::SetTexture]: Unknown key %s", *Key);
-        return false;
-    }
+    // auto It = Instance->Shader->UniformCacheMapping.find(Key);
+    // if (It == Instance->Shader->UniformCacheMapping.iend())
+    // {
+    //     KERROR("[SetTexture]: Unknown key %s", *Key);
+    //     return false;
+    // }
 
-    MaterialProperty& Property = It->second;
+    // MaterialProperty* Property = Instance->Shader;
 
-    // Validate the Uniform
-    Shader*       Shader = Instance->Shader;
-    ShaderUniform Uniform;
-    if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
-        return false;
+    // // Validate the Uniform
+    // Shader*       Shader = Instance->Shader;
+    // ShaderUniform Uniform;
+    // if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
+    //     return false;
 
-    // Release the old texture
-    Handle<Texture> OldTexture = Instance->Textures[Uniform.Offset];
-    TextureSystem::ReleaseTexture(OldTexture);
+    // // Release the old texture
+    // Handle<Texture> OldTexture = Instance->Textures[Uniform.Offset];
+    // TextureSystem::ReleaseTexture(OldTexture);
 
-    Property.Set(NewTexture);
-    // Instance->Textures[Uniform.Offset] = NewTexture;
-    Instance->Dirty = true;
+    // Property.Set(NewTexture);
+    // // Instance->Textures[Uniform.Offset] = NewTexture;
+    // Instance->Dirty = true;
 
     return true;
+}
+
+uint8* MaterialSystem::GetMaterialsBuffer()
+{
+    return State->MaterialsBuffer;
 }
 
 //
@@ -323,7 +304,7 @@ static void ReleaseMaterialInternal(uint32 Index)
 
 static void CreateDefaultMaterialsInternal()
 {
-    MaterialData Data;
+    MaterialDataIntermediateFormat Data;
     Data.Name = "Materials.Default";
     Data.FilePath = "Material.Default.kmt";
     Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
@@ -333,7 +314,7 @@ static void CreateDefaultMaterialsInternal()
     KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
 }
 
-static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* Data)
+static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data)
 {
     filesystem::FileHandle File;
     bool                   Result = filesystem::OpenFile(FilePath, filesystem::FILE_OPEN_MODE_READ, true, &File);
@@ -417,11 +398,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                         Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
-                            KERROR(
-                                "[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.",
-                                *TexturePath,
-                                *FilePath
-                            );
+                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.", *TexturePath, *FilePath);
                             Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 
@@ -444,7 +421,25 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                             return false;
                         }
 
-                        if (Token.MatchesKeyword("vec4") || Token.MatchesKeyword("vec3") || Token.MatchesKeyword("vec2"))
+                        bool IsVector = false;
+                        int  ExpectedComponentCount = 0;
+                        if (Token.MatchesKeyword("vec4"))
+                        {
+                            IsVector = true;
+                            ExpectedComponentCount = 4;
+                        }
+                        else if (Token.MatchesKeyword("vec3"))
+                        {
+                            IsVector = true;
+                            ExpectedComponentCount = 3;
+                        }
+                        else if (Token.MatchesKeyword("vec2"))
+                        {
+                            IsVector = true;
+                            ExpectedComponentCount = 2;
+                        }
+
+                        if (IsVector)
                         {
                             if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
@@ -469,12 +464,20 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                                 }
                             }
 
+                            if (ExpectedComponentCount != ComponentCount)
+                            {
+                                KERROR("Failed to parse %s. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.", *FilePath, ExpectedComponentCount, *Key, ComponentCount, ComponentCount, ExpectedComponentCount);
+                                return false;
+                            }
+
                             if (ComponentCount == 4)
                                 Data->Properties[Key] = Vec4f(Components[0], Components[1], Components[2], Components[3]);
                             if (ComponentCount == 3)
                                 Data->Properties[Key] = Vec3f(Components[0], Components[1], Components[2]);
                             if (ComponentCount == 2)
                                 Data->Properties[Key] = Vec2f(Components[0], Components[1]);
+
+                            Data->Properties[Key].Size = sizeof(float32) * ComponentCount;
                         }
                         else if (Token.MatchesKeyword("float32"))
                         {
@@ -489,6 +492,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                             }
 
                             Data->Properties[Key] = float32(Token.FloatValue);
+                            Data->Properties[Key].Size = sizeof(float32);
 
                             if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
@@ -508,6 +512,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
                             }
 
                             Data->Properties[Key] = float64(Token.FloatValue);
+                            Data->Properties[Key].Size = sizeof(float64);
 
                             if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
@@ -534,14 +539,15 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialData* D
     return true;
 }
 
-#define MATERIAL_SYSTEM_SET_PROPERTY(Type)                                                                                                 \
-    template<>                                                                                                                             \
-    bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value)                                                   \
-    {                                                                                                                                      \
-        MaterialProperty& Property = Instance->Properties[Name];                                                                           \
-        Property.Set(Value);                                                                                                               \
-        Instance->Dirty = true;                                                                                                            \
-        return true;                                                                                                                       \
+#if 0
+#define MATERIAL_SYSTEM_SET_PROPERTY(Type)                                                                                                                                                             \
+    template<>                                                                                                                                                                                         \
+    bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value)                                                                                                               \
+    {                                                                                                                                                                                                  \
+        MaterialProperty& Property = Instance->Properties[Name];                                                                                                                                       \
+        Property.Set(Value);                                                                                                                                                                           \
+        Instance->Dirty = true;                                                                                                                                                                        \
+        return true;                                                                                                                                                                                   \
     }
 
 MATERIAL_SYSTEM_SET_PROPERTY(Mat4f);
@@ -555,5 +561,6 @@ MATERIAL_SYSTEM_SET_PROPERTY(UInt16);
 MATERIAL_SYSTEM_SET_PROPERTY(UInt32);
 MATERIAL_SYSTEM_SET_PROPERTY(UInt64);
 MATERIAL_SYSTEM_SET_PROPERTY(Handle<Texture>);
+#endif
 
-}
+} // namespace kraft

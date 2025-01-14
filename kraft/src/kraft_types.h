@@ -12,16 +12,21 @@ struct EngineConfig
     bool        ConsoleApp = false;
 };
 
-struct CreateWindowOptions
+//
+// --- GUI Only Code ---
+//
+
+#if defined(KRAFT_GUI_APP)
+
+struct WindowOptions
 {
     String Title = "";
     uint32 Width = 0;
     uint32 Height = 0;
     int    RenderererHint = 1;
     bool   Primary = true;
+    bool   StartMaximized = false;
 };
-
-#if defined(KRAFT_GUI_APP)
 
 enum RendererBackendType : int
 {
@@ -32,12 +37,14 @@ enum RendererBackendType : int
     RENDERER_BACKEND_TYPE_NUM_COUNT
 };
 
-struct CreateRendererOptions
+struct RendererOptions
 {
     RendererBackendType Backend = RENDERER_BACKEND_TYPE_VULKAN;
     bool                VSync = false;
     uint16              GlobalUBOSizeInBytes = 128;
     uint16              TextureCacheSize = 256;
+    uint16              MaxMaterials = 256;
+    uint16              MaterialBufferSize = 128; // Maximum size of a single material in bytes
 };
 
 #endif

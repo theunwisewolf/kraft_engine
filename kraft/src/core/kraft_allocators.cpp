@@ -12,6 +12,7 @@ ArenaAllocator* CreateArena(ArenaCreateOptions Options)
     Options.ChunkSize = kraft::math::AlignUp(Options.ChunkSize, Options.Alignment);
     uint64 ActualSize = sizeof(ArenaAllocator) + Options.ChunkSize;
     uint8* Memory = (uint8*)Malloc(ActualSize, kraft::MEMORY_TAG_NONE, true);
+    MemSet(Memory, 0, Options.ChunkSize);
 
     ArenaAllocator* OutArena = (ArenaAllocator*)Memory;
     OutArena->Ptr = Memory + sizeof(ArenaAllocator);
@@ -48,7 +49,7 @@ uint8* ArenaAllocator::Push(uint64 Size, bool Zero)
 {
     uint64 AlignedSize = kraft::math::AlignUp(Size, this->Options.Alignment);
     // TODO: Stretch
-    KASSERT((AlignedSize + this->Size) < this->Capacity);
+    KASSERT((AlignedSize + this->Size) <= this->Capacity);
 
     uint8* AddressIntoTheArena = this->Ptr + this->Size;
     this->Size += AlignedSize;

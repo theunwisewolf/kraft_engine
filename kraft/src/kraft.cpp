@@ -36,7 +36,7 @@ void DestroyEngine()
 
 namespace kraft {
 
-Window* CreateWindow(const CreateWindowOptions& Opts)
+Window* CreateWindow(const WindowOptions& Opts)
 {
     return Platform::CreatePlatformWindow(&Opts);
 }
@@ -49,14 +49,14 @@ kraft::Window* CreateWindow(String Title, uint32 Width, uint32 Height)
 void DestroyWindow(Window* Window)
 {}
 
-renderer::RendererFrontend* CreateRenderer(const CreateRendererOptions& Opts)
+renderer::RendererFrontend* CreateRenderer(const RendererOptions& Opts)
 {
     auto RendererInstance = renderer::CreateRendererFrontend(&Opts);
     KASSERT(RendererInstance);
 
     AssetDatabase::Init();
     TextureSystem::Init(Opts.TextureCacheSize);
-    MaterialSystem::Init({ .MaxMaterialsCount = 256 });
+    MaterialSystem::Init(Opts);
     GeometrySystem::Init({ .MaxGeometriesCount = 256 });
     ShaderSystem::Init(256);
 

@@ -19,7 +19,7 @@ struct KRAFT_API Window
     // Platform-specific window state
     PlatformWindowState* PlatformWindowState = nullptr;
 
-    int        Init(const struct CreateWindowOptions* Opts);
+    int        Init(const struct WindowOptions* Opts);
     bool       PollEvents(); // Returns false if the window wants to close
     void       SetWindowTitle(const char* title);
     void       Minimize();
