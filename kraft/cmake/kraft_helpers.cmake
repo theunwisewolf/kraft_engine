@@ -80,15 +80,15 @@ message(${KRAFT_PREBUILT_LIB_FOLDER})
 # set(KRAFT_STATIC_LIBS assimp::assimp)
 set(KRAFT_STATIC_LIBS)
 list(APPEND KRAFT_STATIC_LIBS 
-    ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    # ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/assimp${CMAKE_STATIC_LIBRARY_SUFFIX}
     Ufbx
 )
 # list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/assimp.lib)
-list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic${CMAKE_STATIC_LIBRARY_SUFFIX})
+# list(APPEND KRAFT_STATIC_LIBS ${KRAFT_PREBUILT_LIB_PATH}/zlib/${KRAFT_PREBUILT_LIB_FOLDER}/zlibstatic${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 set(KRAFT_STATIC_LIBS_INCLUDE_PATHS vendor)
 list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS 
-    ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include
+    # ${KRAFT_PREBUILT_LIB_PATH}/assimp/${KRAFT_PREBUILT_LIB_FOLDER}/include
     ${KRAFT_PATH}/vendor/ufbx/include 
 )
 # list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS ${KRAFT_PREBUILT_LIB_PATH}/assimp/windows-clang-x64-release/include)
@@ -118,21 +118,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
 else()
     # Kraft compile time definitions
     list(APPEND KRAFT_COMPILE_DEFINITIONS KRAFT_CONSOLE_APP)
-endif()
-
-# Common stuff
-if (NOT Vulkan_shaderc_combined_FOUND)
-    if (KRAFT_DEBUG_BUILD)
-        set(Vulkan_shaderc_combined_DEBUG_LIBRARY ${KRAFT_PREBUILT_LIB_PATH}/shaderc/${KRAFT_PREBUILT_LIB_FOLDER}/shaderc_combined${CMAKE_STATIC_LIBRARY_SUFFIX})
-    else()
-        find_library(Vulkan_shaderc_combined_LIBRARY NAMES shaderc_combined)
-    endif()
-endif()
-
-if (KRAFT_DEBUG_BUILD)
-    list(APPEND KRAFT_STATIC_LIBS ${Vulkan_shaderc_combined_DEBUG_LIBRARY})
-else()
-    list(APPEND KRAFT_STATIC_LIBS ${Vulkan_shaderc_combined_LIBRARY})
 endif()
 
 list(APPEND KRAFT_STATIC_LIBS_INCLUDE_PATHS 

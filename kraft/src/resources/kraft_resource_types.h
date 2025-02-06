@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer/kraft_renderer_types.h"
-#include "renderer/shaderfx/kraft_shaderfx_types.h"
+#include "shaderfx/kraft_shaderfx_types.h"
 
 #define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
@@ -33,7 +33,7 @@ struct Shader
 {
     ResourceID              ID;
     String                  Path;
-    renderer::ShaderEffect  ShaderEffect;
+    shaderfx::ShaderEffect  ShaderEffect;
     Array<ShaderUniform>    UniformCache;
     HashMap<String, uint32> UniformCacheMapping;
     uint32                  TextureCount;

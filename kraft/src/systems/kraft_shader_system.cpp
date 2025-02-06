@@ -1,13 +1,15 @@
 #include "kraft_shader_system.h"
 
 //#include <containers/kraft_buffer.h>
+#include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
 #include <renderer/kraft_renderer_frontend.h>
-#include <renderer/shaderfx/kraft_shaderfx.h>
-#include <renderer/shaderfx/kraft_shaderfx_types.h>
+#include <shaderfx/kraft_shaderfx.h>
+
 #include <resources/kraft_resource_types.h>
+#include <shaderfx/kraft_shaderfx_types.h>
 
 namespace kraft {
 
@@ -94,7 +96,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     }
 
     ShaderReference* Reference = &State->Shaders[FreeIndex];
-    if (!kraft::renderer::LoadShaderFX(ShaderPath, &Reference->Shader.ShaderEffect))
+    if (!shaderfx::LoadShaderFX(ShaderPath, &Reference->Shader.ShaderEffect))
     {
         KWARN("[ShaderSystem::AcquireShader]: Failed to load %s", *ShaderPath);
         return nullptr;
@@ -112,8 +114,8 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     Reference->Shader.UniformCacheMapping = HashMap<String, uint32>();
     Reference->Shader.UniformCache = Array<ShaderUniform>();
 
-    const ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
-    const RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
+    const shaderfx::ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
+    const shaderfx::RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
     Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Pass.Resources != nullptr ? Pass.Resources->ResourceBindings.Length : 0) + Pass.ConstantBuffers->Fields.Length);
     g_Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, RenderPassHandle);
 
@@ -123,11 +125,11 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     // Check what uniforms are required from the global UBO stuff
     if (Effect.UniformBuffers.Length > 0 && Effect.UniformBuffers[0].Name == "GlobalUniformBuffer")
     {
-        uint32                         Offset = 0;
-        const UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[0];
+        uint32                                   Offset = 0;
+        const shaderfx::UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[0];
         for (int FieldIdx = 0; FieldIdx < UniformBufferDef.Fields.Length; FieldIdx++)
         {
-            const UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
+            const shaderfx::UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
             AddUniform(&Reference->Shader, Field.Name, FieldIdx, Offset, ShaderDataType::SizeOf(Field.Type), ResourceType::UniformBuffer, Field.Type, ShaderUniformScope::Global);
 
             // 16-byte alignment
@@ -152,10 +154,10 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
             if (ResourceBinding.Type == ResourceType::UniformBuffer)
             {
                 KASSERT(ResourceBinding.ParentIndex != -1);
-                const UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[ResourceBinding.ParentIndex];
+                const shaderfx::UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[ResourceBinding.ParentIndex];
                 for (int FieldIdx = 0; FieldIdx < UniformBufferDef.Fields.Length; FieldIdx++)
                 {
-                    const UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
+                    const shaderfx::UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
                     AddUniform(
                         &Reference->Shader, Field.Name, ResourceBinding.Binding, Offset, ShaderDataType::SizeOf(Field.Type), ResourceType::UniformBuffer, Field.Type, ShaderUniformScope::Instance
                     );
@@ -257,7 +259,7 @@ Shader* ShaderSystem::GetDefaultShader()
 
 Shader* ShaderSystem::GetActiveShader()
 {
-	return State->CurrentShader;
+    return State->CurrentShader;
 }
 
 Shader* ShaderSystem::Bind(Shader* Shader)
@@ -270,7 +272,7 @@ Shader* ShaderSystem::Bind(Shader* Shader)
         State->CurrentShader = Shader;
     }
 
-	return Shader;
+    return Shader;
 }
 
 Shader* ShaderSystem::BindByID(uint32 ShaderID)
@@ -280,7 +282,7 @@ Shader* ShaderSystem::BindByID(uint32 ShaderID)
 
     ShaderSystem::Bind(&Reference->Shader);
 
-	return &Reference->Shader;
+    return &Reference->Shader;
 }
 
 void ShaderSystem::SetMaterialInstance(Material* Instance)
@@ -397,4 +399,4 @@ void ShaderSystem::ApplyInstanceProperties()
     g_Renderer->ApplyInstanceShaderProperties(State->CurrentShader);
 }
 
-}
+} // namespace kraft

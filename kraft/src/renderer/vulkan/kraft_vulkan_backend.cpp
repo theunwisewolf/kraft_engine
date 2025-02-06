@@ -29,8 +29,8 @@
 
 #include <kraft_types.h>
 #include <renderer/kraft_renderer_types.h>
-#include <renderer/shaderfx/kraft_shaderfx_types.h>
 #include <resources/kraft_resource_types.h>
+#include <shaderfx/kraft_shaderfx_types.h>
 
 namespace kraft::renderer {
 
@@ -598,11 +598,11 @@ void VulkanRendererBackend::OnResize(int width, int height)
 
 void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle)
 {
-    const ShaderEffect& Effect = Shader->ShaderEffect;
-    uint64              RenderPassesCount = Effect.RenderPasses.Length;
+    const shaderfx::ShaderEffect& Effect = Shader->ShaderEffect;
+    uint64                        RenderPassesCount = Effect.RenderPasses.Length;
 
-    const RenderPassDefinition&  Pass = Effect.RenderPasses[PassIndex];
-    VkGraphicsPipelineCreateInfo PipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    const shaderfx::RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
+    VkGraphicsPipelineCreateInfo          PipelineCreateInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
     // Shader stages
     uint64                ShaderStagesCount = Pass.ShaderStages.Length;
@@ -610,7 +610,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     Array<VkShaderModule> ShaderModules(ShaderStagesCount);
     for (int j = 0; j < ShaderStagesCount; j++)
     {
-        const RenderPassDefinition::ShaderDefinition& Shader = Pass.ShaderStages[j];
+        const shaderfx::RenderPassDefinition::ShaderDefinition& Shader = Pass.ShaderStages[j];
         VkShaderModule                                ShaderModule;
         VulkanCreateShaderModule(&s_Context, Shader.CodeFragment.Code.Data(), Shader.CodeFragment.Code.Length, &ShaderModule);
         KASSERT(ShaderModule);
@@ -630,7 +630,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     auto   InputBindingsDesc = Array<VkVertexInputBindingDescription>(InputBindingsCount);
     for (int j = 0; j < InputBindingsCount; j++)
     {
-        const VertexInputBinding& InputBinding = Pass.VertexLayout->InputBindings[j];
+        const shaderfx::VertexInputBinding& InputBinding = Pass.VertexLayout->InputBindings[j];
         InputBindingsDesc[j].binding = InputBinding.Binding;
         InputBindingsDesc[j].inputRate = InputBinding.InputRate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
         InputBindingsDesc[j].stride = InputBinding.Stride;
@@ -640,7 +640,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     auto   AttributesDesc = Array<VkVertexInputAttributeDescription>(AttributesCount);
     for (int j = 0; j < AttributesCount; j++)
     {
-        const VertexAttribute& VertexAttribute = Pass.VertexLayout->Attributes[j];
+        const shaderfx::VertexAttribute& VertexAttribute = Pass.VertexLayout->Attributes[j];
         AttributesDesc[j].location = VertexAttribute.Location;
         AttributesDesc[j].format = ToVulkanFormat(VertexAttribute.Format);
         AttributesDesc[j].binding = VertexAttribute.Binding;
@@ -655,7 +655,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     auto   DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
     for (int j = 0; j < ResourceBindingsCount; j++)
     {
-        const ResourceBinding& Binding = Pass.Resources->ResourceBindings[j];
+        const shaderfx::ResourceBinding& Binding = Pass.Resources->ResourceBindings[j];
         DescriptorSetLayoutBindings[j].binding = Binding.Binding;
 
         // TODO (amn): This descriptor count must be dynamic, based on the shader
@@ -681,7 +681,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     auto   PushConstantRanges = Array<VkPushConstantRange>(ConstantBuffersCount);
     for (int j = 0; j < ConstantBuffersCount; j++)
     {
-        const ConstantBufferEntry& Entry = Pass.ConstantBuffers->Fields[j];
+        const shaderfx::ConstantBufferEntry& Entry = Pass.ConstantBuffers->Fields[j];
         uint32                     AlignedSize = (uint32)math::AlignUp(ShaderDataType::SizeOf(Entry.Type), 4);
         PushConstantRanges[j].size = 128;
         PushConstantRanges[j].offset = ConstantBufferSize;

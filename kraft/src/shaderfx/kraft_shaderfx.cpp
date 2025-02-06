@@ -12,9 +12,7 @@
 #include <core/kraft_lexer_types.h>
 #include <platform/kraft_filesystem_types.h>
 #include <renderer/kraft_renderer_types.h>
-#include <renderer/shaderfx/kraft_shaderfx_types.h>
-
-#include <shaderc/shaderc.h>
+#include <shaderfx/kraft_shaderfx_types.h>
 
 #define MARK_ERROR(error)                                                                                                                                                                              \
     do                                                                                                                                                                                                 \
@@ -56,25 +54,25 @@
         return;                                                                                                                                                                                        \
     } while (0)
 
-namespace kraft::renderer {
+namespace kraft::shaderfx {
 
 int GetShaderStageFromString(StringView Value)
 {
     if (Value == "Vertex")
     {
-        return SHADER_STAGE_FLAGS_VERTEX;
+        return renderer::SHADER_STAGE_FLAGS_VERTEX;
     }
     else if (Value == "Fragment")
     {
-        return SHADER_STAGE_FLAGS_FRAGMENT;
+        return renderer::SHADER_STAGE_FLAGS_FRAGMENT;
     }
     else if (Value == "Compute")
     {
-        return SHADER_STAGE_FLAGS_COMPUTE;
+        return renderer::SHADER_STAGE_FLAGS_COMPUTE;
     }
     else if (Value == "Geometry")
     {
-        return SHADER_STAGE_FLAGS_GEOMETRY;
+        return renderer::SHADER_STAGE_FLAGS_GEOMETRY;
     }
 
     return 0;
@@ -262,15 +260,15 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition* ResourceB
         ResourceBinding Binding;
         if (Token.MatchesKeyword("UniformBuffer"))
         {
-            Binding.Type = ResourceType::UniformBuffer;
+            Binding.Type = renderer::ResourceType::UniformBuffer;
         }
         else if (Token.MatchesKeyword("StorageBuffer"))
         {
-            Binding.Type = ResourceType::StorageBuffer;
+            Binding.Type = renderer::ResourceType::StorageBuffer;
         }
         else if (Token.MatchesKeyword("Sampler"))
         {
-            Binding.Type = ResourceType::Sampler;
+            Binding.Type = renderer::ResourceType::Sampler;
         }
         else
         {
@@ -292,7 +290,7 @@ void ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition* ResourceB
 
             if (Pair.Key == "Stage")
             {
-                Binding.Stage = (ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
+                Binding.Stage = (renderer::ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
                 if (Binding.Stage == 0)
                 {
                     MARK_ERROR_WITH_FIELD("Invalid shader stage", Pair.Value.Text);
@@ -331,7 +329,7 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition* CBufferDefini
 
         // Parse the data type
         Entry.Type = this->ParseDataType(Token);
-        if (Entry.Type == ShaderDataType::Count)
+        if (Entry.Type == renderer::ShaderDataType::Count)
         {
             MARK_ERROR_WITH_FIELD("Invalid data type for constant buffer entry", Token.Text);
             return;
@@ -353,7 +351,7 @@ void ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition* CBufferDefini
             {
                 if (Pair.Key == "Stage")
                 {
-                    Entry.Stage = (ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
+                    Entry.Stage = (renderer::ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
                     if (Entry.Stage == 0)
                     {
                         MARK_ERROR_WITH_FIELD("Invalid shader stage", Pair.Value.Text);
@@ -389,7 +387,7 @@ void ShaderFXParser::ParseUniformBuffer(UniformBufferDefinition* UBufferDefiniti
 
         // Parse the data type
         Entry.Type = this->ParseDataType(Token);
-        if (Entry.Type == ShaderDataType::Count)
+        if (Entry.Type == renderer::ShaderDataType::Count)
         {
             MARK_ERROR_WITH_FIELD("Invalid data type for uniform buffer entry", Token.Text);
             return;
@@ -412,7 +410,7 @@ void ShaderFXParser::ParseUniformBuffer(UniformBufferDefinition* UBufferDefiniti
         return value;                                                                                                                                                                                  \
     }
 
-ShaderDataType::Enum ShaderFXParser::ParseDataType(const Token& Token)
+renderer::ShaderDataType::Enum ShaderFXParser::ParseDataType(const Token& Token)
 {
     char Char = Token.Text[0];
     switch (Char)
@@ -420,62 +418,62 @@ ShaderDataType::Enum ShaderFXParser::ParseDataType(const Token& Token)
         case 'f': // "Float", "Float2", "Float3", "Float4"
         case 'F':
         {
-            MATCH_FORMAT("float", ShaderDataType::Float);
-            MATCH_FORMAT("Float", ShaderDataType::Float);
-            MATCH_FORMAT("float2", ShaderDataType::Float2);
-            MATCH_FORMAT("Float2", ShaderDataType::Float2);
-            MATCH_FORMAT("float3", ShaderDataType::Float3);
-            MATCH_FORMAT("Float3", ShaderDataType::Float3);
-            MATCH_FORMAT("float4", ShaderDataType::Float4);
-            MATCH_FORMAT("Float4", ShaderDataType::Float4);
+            MATCH_FORMAT("float", renderer::ShaderDataType::Float);
+            MATCH_FORMAT("Float", renderer::ShaderDataType::Float);
+            MATCH_FORMAT("float2", renderer::ShaderDataType::Float2);
+            MATCH_FORMAT("Float2", renderer::ShaderDataType::Float2);
+            MATCH_FORMAT("float3", renderer::ShaderDataType::Float3);
+            MATCH_FORMAT("Float3", renderer::ShaderDataType::Float3);
+            MATCH_FORMAT("float4", renderer::ShaderDataType::Float4);
+            MATCH_FORMAT("Float4", renderer::ShaderDataType::Float4);
         }
         break;
         case 'm': // "Mat4"
         case 'M': // "Mat4"
         {
-            MATCH_FORMAT("mat4", ShaderDataType::Mat4);
-            MATCH_FORMAT("Mat4", ShaderDataType::Mat4);
+            MATCH_FORMAT("mat4", renderer::ShaderDataType::Mat4);
+            MATCH_FORMAT("Mat4", renderer::ShaderDataType::Mat4);
         }
         case 'b': // "Byte", "Byte4N"
         case 'B': // "Byte", "Byte4N"
         {
-            MATCH_FORMAT("byte", ShaderDataType::Byte);
-            MATCH_FORMAT("Byte", ShaderDataType::Byte);
-            MATCH_FORMAT("byte4n", ShaderDataType::Byte4N);
-            MATCH_FORMAT("Byte4N", ShaderDataType::Byte4N);
+            MATCH_FORMAT("byte", renderer::ShaderDataType::Byte);
+            MATCH_FORMAT("Byte", renderer::ShaderDataType::Byte);
+            MATCH_FORMAT("byte4n", renderer::ShaderDataType::Byte4N);
+            MATCH_FORMAT("Byte4N", renderer::ShaderDataType::Byte4N);
         }
         break;
         case 'u': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         case 'U': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         {
-            MATCH_FORMAT("ubyte", ShaderDataType::UByte);
-            MATCH_FORMAT("UByte", ShaderDataType::UByte);
-            MATCH_FORMAT("ubyte4n", ShaderDataType::UByte4N);
-            MATCH_FORMAT("UByte4N", ShaderDataType::UByte4N);
-            MATCH_FORMAT("uint", ShaderDataType::UInt);
-            MATCH_FORMAT("UInt", ShaderDataType::UInt);
-            MATCH_FORMAT("uint2", ShaderDataType::UInt2);
-            MATCH_FORMAT("UInt2", ShaderDataType::UInt2);
-            MATCH_FORMAT("uint4", ShaderDataType::UInt4);
-            MATCH_FORMAT("UInt4", ShaderDataType::UInt4);
+            MATCH_FORMAT("ubyte", renderer::ShaderDataType::UByte);
+            MATCH_FORMAT("UByte", renderer::ShaderDataType::UByte);
+            MATCH_FORMAT("ubyte4n", renderer::ShaderDataType::UByte4N);
+            MATCH_FORMAT("UByte4N", renderer::ShaderDataType::UByte4N);
+            MATCH_FORMAT("uint", renderer::ShaderDataType::UInt);
+            MATCH_FORMAT("UInt", renderer::ShaderDataType::UInt);
+            MATCH_FORMAT("uint2", renderer::ShaderDataType::UInt2);
+            MATCH_FORMAT("UInt2", renderer::ShaderDataType::UInt2);
+            MATCH_FORMAT("uint4", renderer::ShaderDataType::UInt4);
+            MATCH_FORMAT("UInt4", renderer::ShaderDataType::UInt4);
         }
         break;
         case 's': // "Short2", "Short2N", "Short4", "Short4N"
         case 'S': // "Short2", "Short2N", "Short4", "Short4N"
         {
-            MATCH_FORMAT("short2", ShaderDataType::Short2);
-            MATCH_FORMAT("Short2", ShaderDataType::Short2);
-            MATCH_FORMAT("short2n", ShaderDataType::Short2N);
-            MATCH_FORMAT("Short2N", ShaderDataType::Short2N);
-            MATCH_FORMAT("short4", ShaderDataType::Short4);
-            MATCH_FORMAT("Short4", ShaderDataType::Short4);
-            MATCH_FORMAT("short4n", ShaderDataType::Short4N);
-            MATCH_FORMAT("Short4N", ShaderDataType::Short4N);
+            MATCH_FORMAT("short2", renderer::ShaderDataType::Short2);
+            MATCH_FORMAT("Short2", renderer::ShaderDataType::Short2);
+            MATCH_FORMAT("short2n", renderer::ShaderDataType::Short2N);
+            MATCH_FORMAT("Short2N", renderer::ShaderDataType::Short2N);
+            MATCH_FORMAT("short4", renderer::ShaderDataType::Short4);
+            MATCH_FORMAT("Short4", renderer::ShaderDataType::Short4);
+            MATCH_FORMAT("short4n", renderer::ShaderDataType::Short4N);
+            MATCH_FORMAT("Short4N", renderer::ShaderDataType::Short4N);
         }
         break;
     }
 
-    return ShaderDataType::Count;
+    return renderer::ShaderDataType::Count;
 }
 
 #undef MATCH_FORMAT
@@ -537,7 +535,7 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition* Layout)
 {
     Token           CurrentToken;
     VertexAttribute Attribute;
-    Attribute.Format = ShaderDataType::Count;
+    Attribute.Format = renderer::ShaderDataType::Count;
 
     // Format identifier
     if (this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_IDENTIFIER))
@@ -545,7 +543,7 @@ void ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition* Layout)
         Attribute.Format = this->ParseDataType(CurrentToken);
     }
 
-    if (Attribute.Format == ShaderDataType::Count)
+    if (Attribute.Format == renderer::ShaderDataType::Count)
     {
         MARK_ERROR_WITH_FIELD("Invalid data type", CurrentToken.Text);
         return;
@@ -632,11 +630,11 @@ void ShaderFXParser::ParseVertexInputBinding(VertexLayoutDefinition* Layout)
     Token = this->Lexer->NextToken();
     if (Token.MatchesKeyword("vertex"))
     {
-        InputBinding.InputRate = VertexInputRate::PerVertex;
+        InputBinding.InputRate = renderer::VertexInputRate::PerVertex;
     }
     else if (Token.MatchesKeyword("instance"))
     {
-        InputBinding.InputRate = VertexInputRate::PerInstance;
+        InputBinding.InputRate = renderer::VertexInputRate::PerInstance;
     }
     else
     {
@@ -750,19 +748,19 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
 
             if (Token.MatchesKeyword("Back"))
             {
-                State->CullMode = CullModeFlags::Back;
+                State->CullMode = renderer::CullModeFlags::Back;
             }
             else if (Token.MatchesKeyword("Front"))
             {
-                State->CullMode = CullModeFlags::Front;
+                State->CullMode = renderer::CullModeFlags::Front;
             }
             else if (Token.MatchesKeyword("FrontAndBack"))
             {
-                State->CullMode = CullModeFlags::FrontAndBack;
+                State->CullMode = renderer::CullModeFlags::FrontAndBack;
             }
             else if (Token.MatchesKeyword("Off") || Token.MatchesKeyword("None"))
             {
-                State->CullMode = CullModeFlags::None;
+                State->CullMode = renderer::CullModeFlags::None;
             }
             else
             {
@@ -778,11 +776,11 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
             }
 
             bool Valid = false;
-            for (int i = 0; i < CompareOp::Count; i++)
+            for (int i = 0; i < renderer::CompareOp::Count; i++)
             {
-                if (Token.MatchesKeyword(CompareOp::Strings[i]))
+                if (Token.MatchesKeyword(renderer::CompareOp::Strings[i]))
                 {
-                    State->ZTestOperation = (CompareOp::Enum)i;
+                    State->ZTestOperation = (renderer::CompareOp::Enum)i;
                     Valid = true;
                     break;
                 }
@@ -914,11 +912,11 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
                 return;
             }
 
-            for (int i = 0; i < PolygonMode::Count; i++)
+            for (int i = 0; i < renderer::PolygonMode::Count; i++)
             {
-                if (Token.ToString() == PolygonMode::Strings[i])
+                if (Token.ToString() == renderer::PolygonMode::Strings[i])
                 {
-                    State->PolygonMode = (PolygonMode::Enum)i;
+                    State->PolygonMode = (renderer::PolygonMode::Enum)i;
                     break;
                 }
             }
@@ -935,14 +933,14 @@ void ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
     }
 }
 
-bool ShaderFXParser::ParseBlendFactor(const Token& Token, BlendFactor::Enum& Factor)
+bool ShaderFXParser::ParseBlendFactor(const Token& Token, renderer::BlendFactor::Enum& Factor)
 {
     bool Valid = false;
-    for (int i = 0; i < BlendFactor::Count; i++)
+    for (int i = 0; i < renderer::BlendFactor::Count; i++)
     {
-        if (Token.MatchesKeyword(BlendFactor::Strings[i]))
+        if (Token.MatchesKeyword(renderer::BlendFactor::Strings[i]))
         {
-            Factor = (BlendFactor::Enum)i;
+            Factor = (renderer::BlendFactor::Enum)i;
             Valid = true;
             break;
         }
@@ -959,14 +957,14 @@ bool ShaderFXParser::ParseBlendFactor(const Token& Token, BlendFactor::Enum& Fac
     return true;
 }
 
-bool ShaderFXParser::ParseBlendOp(const Token& Token, BlendOp::Enum& Op)
+bool ShaderFXParser::ParseBlendOp(const Token& Token, renderer::BlendOp::Enum& Op)
 {
     bool Valid = false;
-    for (int i = 0; i < BlendOp::Count; i++)
+    for (int i = 0; i < renderer::BlendOp::Count; i++)
     {
-        if (Token.MatchesKeyword(BlendOp::Strings[i]))
+        if (Token.MatchesKeyword(renderer::BlendOp::Strings[i]))
         {
-            Op = (BlendOp::Enum)i;
+            Op = (renderer::BlendOp::Enum)i;
             Valid = true;
             break;
         }
@@ -1103,14 +1101,14 @@ void ShaderFXParser::ParseRenderPassBlock(ShaderEffect* Effect)
         }
         else if (Token.MatchesKeyword("VertexShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Effect, &Pass, ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX))
+            if (!this->ParseRenderPassShaderStage(Effect, &Pass, renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX))
             {
                 return;
             }
         }
         else if (Token.MatchesKeyword("FragmentShader"))
         {
-            if (!this->ParseRenderPassShaderStage(Effect, &Pass, ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT))
+            if (!this->ParseRenderPassShaderStage(Effect, &Pass, renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT))
             {
                 return;
             }
@@ -1144,276 +1142,6 @@ bool ShaderFXParser::ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPass
     MARK_ERROR("Unknown shader");
 
     return false;
-}
-
-#define KRAFT_VERTEX_DEFINE       "VERTEX"
-#define KRAFT_GEOMETRY_DEFINE     "GEOMETRY"
-#define KRAFT_FRAGMENT_DEFINE     "FRAGMENT"
-#define KRAFT_COMPUTE_DEFINE      "COMPUTE"
-#define KRAFT_SHADERFX_ENABLE_VAL "1"
-
-bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose)
-{
-    KINFO("Compiling shaderfx %s", *InputPath);
-
-    filesystem::FileHandle File;
-    bool                   Result = filesystem::OpenFile(InputPath, filesystem::FILE_OPEN_MODE_READ, true, &File);
-    if (!Result)
-    {
-        return false;
-    }
-
-    ArenaAllocator* TempArena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(16), .Alignment = 64 });
-
-    uint64 BufferSize = kraft::filesystem::GetFileSize(&File) + 1;
-    uint8* FileDataBuffer = ArenaPush(TempArena, BufferSize);
-    filesystem::ReadAllBytes(&File, &FileDataBuffer);
-    filesystem::CloseFile(&File);
-
-    Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer);
-    renderer::ShaderFXParser Parser;
-    Parser.Verbose = Verbose;
-
-    ShaderEffect Effect = Parser.Parse(InputPath, &Lexer);
-    Result = CompileShaderFX(TempArena, Effect, OutputPath);
-
-    DestroyArena(TempArena);
-    return Result;
-}
-
-uint64 GetUniformBufferSize(const UniformBufferDefinition& UniformBuffer)
-{
-    uint64 SizeInBytes = 0;
-    for (int FieldIdx = 0; FieldIdx < UniformBuffer.Fields.Length; FieldIdx++)
-    {
-        const UniformBufferEntry& Field = UniformBuffer.Fields[FieldIdx];
-        SizeInBytes += ShaderDataType::SizeOf(Field.Type);
-    }
-
-    return SizeInBytes;
-}
-
-static bool CheckBufferDefinition(ShaderEffect& Shader, const Array<UniformBufferDefinition>* Buffers, ResourceBinding* BindingDescription)
-{
-    for (int UBIdx = 0; UBIdx < Buffers->Length; UBIdx++)
-    {
-        if ((*Buffers)[UBIdx].Name == BindingDescription->Name)
-        {
-            // Check if the size is incorrect
-            uint64 ExpectedSize = GetUniformBufferSize((*Buffers)[UBIdx]);
-            // TODO: Maybe auto fix?
-            if (BindingDescription->Size != ExpectedSize)
-            {
-                KERROR(
-                    "'%s' shader compilation failed with error: Incorrect Buffer size for '%s': '%d bytes'. Expected '%d bytes'.",
-                    *Shader.ResourcePath,
-                    *BindingDescription->Name,
-                    BindingDescription->Size,
-                    ExpectedSize
-                );
-
-                return false;
-            }
-
-            // Update the parent index
-            BindingDescription->ParentIndex = UBIdx;
-
-            return true;
-        }
-    }
-
-    KERROR("'%s' shader compilation failed with error: Missing BufferDefinition for '%s'.", *Shader.ResourcePath, *BindingDescription->Name);
-
-    return false;
-}
-
-struct ShaderIncludeUserData
-{
-    ArenaAllocator*       Arena;
-    ShaderEffect* Shader;
-};
-
-static shaderc_include_result* ShaderIncludeResolverFunction(void* UserData, const char* RequestedSource, int Type, const char* RequestingSource, size_t IncludeDepth)
-{
-    ShaderIncludeUserData* IncludeData = (ShaderIncludeUserData*)UserData;
-    ArenaAllocator*                Arena = IncludeData->Arena;
-    ShaderEffect*          Shader = IncludeData->Shader;
-
-    char* ShaderDirectory = filesystem::Dirname(Arena, Shader->ResourcePath);
-    char* IncludedFilePath = filesystem::PathJoin(Arena, ShaderDirectory, RequestedSource);
-
-    filesystem::FileHandle File;
-    KASSERT(filesystem::OpenFile(IncludedFilePath, kraft::filesystem::FILE_OPEN_MODE_READ, true, &File));
-    uint64 FileSize = filesystem::GetFileSize(&File);
-    uint8* FileBuffer = kraft::ArenaPush(Arena, FileSize);
-    filesystem::ReadAllBytes(&File, &FileBuffer);
-
-    shaderc_include_result* Result = (shaderc_include_result*)ArenaPush(Arena, sizeof(shaderc_include_result));
-    Result->content = (const char*)FileBuffer;
-    Result->content_length = FileSize;
-
-    uint64 SourceNameLength = StringLength(IncludedFilePath);
-    char*  SourceName = ArenaPushString(Arena, IncludedFilePath, SourceNameLength);
-    Result->source_name = SourceName;
-    Result->source_name_length = SourceNameLength;
-
-    return Result;
-}
-
-static void ShaderIncludeResultReleaseFunction(void* user_data, shaderc_include_result* include_result)
-{}
-
-bool CompileShaderFX(ArenaAllocator* Arena, ShaderEffect& Shader, const String& OutputPath, bool Verbose)
-{
-    // Basic verification
-    auto& Resources = Shader.Resources;
-    for (int i = 0; i < Resources.Length; i++)
-    {
-        auto& Resource = Resources[i];
-        for (int j = 0; j < Resource.ResourceBindings.Length; j++)
-        {
-            if (Resource.ResourceBindings[j].Type == ResourceType::UniformBuffer)
-            {
-                if (false == CheckBufferDefinition(Shader, &Shader.UniformBuffers, &Resource.ResourceBindings[j]))
-                {
-                    return false;
-                }
-            }
-            else if (Resource.ResourceBindings[j].Type == ResourceType::StorageBuffer)
-            {
-                if (false == CheckBufferDefinition(Shader, &Shader.StorageBuffers, &Resource.ResourceBindings[j]))
-                {
-                    return false;
-                }
-            }
-        }
-    }
-
-    shaderc_compiler_t           Compiler = shaderc_compiler_initialize();
-    shaderc_compilation_result_t Result;
-    shaderc_compile_options_t    CompileOptions;
-
-    kraft::Buffer BinaryOutput;
-    BinaryOutput.Write(Shader.Name);
-    BinaryOutput.Write(Shader.ResourcePath);
-    BinaryOutput.Write(Shader.VertexLayouts);
-    BinaryOutput.Write(Shader.Resources);
-    BinaryOutput.Write(Shader.ConstantBuffers);
-    BinaryOutput.Write(Shader.UniformBuffers);
-    BinaryOutput.Write(Shader.StorageBuffers);
-    BinaryOutput.Write(Shader.RenderStates);
-    BinaryOutput.Write(Shader.RenderPasses.Length);
-
-    // We don't have to write the vertex layouts or render states
-    // They are written as part of the renderpass definition
-    for (int i = 0; i < Shader.RenderPasses.Length; i++)
-    {
-        const RenderPassDefinition& Pass = Shader.RenderPasses[i];
-        BinaryOutput.Write(Pass.Name);
-
-        // Write the vertex layout & render state offsets
-        BinaryOutput.Write((int64)(Pass.VertexLayout - &Shader.VertexLayouts[0]));
-        BinaryOutput.Write((int64)(Shader.Resources.Length > 0 ? Pass.Resources - &Shader.Resources[0] : -1));
-        BinaryOutput.Write((int64)(Pass.ConstantBuffers - &Shader.ConstantBuffers[0]));
-        BinaryOutput.Write((int64)(Pass.RenderState - &Shader.RenderStates[0]));
-
-        // Manually write the shader code fragments to the buffer
-        BinaryOutput.Write(Pass.ShaderStages.Length);
-
-        for (int j = 0; j < Pass.ShaderStages.Length; j++)
-        {
-            const RenderPassDefinition::ShaderDefinition& Stage = Pass.ShaderStages[j];
-            if (Verbose)
-            {
-                KDEBUG("Compiling shaderstage %d for %s", Stage.Stage, *Shader.ResourcePath);
-            }
-
-            CompileOptions = shaderc_compile_options_initialize();
-            ShaderIncludeUserData UserData = {
-                .Arena = Arena,
-                .Shader = &Shader,
-            };
-            shaderc_compile_options_set_include_callbacks(CompileOptions, ShaderIncludeResolverFunction, ShaderIncludeResultReleaseFunction, &UserData);
-
-            shaderc_shader_kind ShaderKind;
-            switch (Stage.Stage)
-            {
-                case ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
-                {
-                    ShaderKind = shaderc_vertex_shader;
-                    shaderc_compile_options_add_macro_definition(
-                        CompileOptions, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                    );
-                }
-                break;
-
-                case ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
-                {
-                    ShaderKind = shaderc_geometry_shader;
-                    shaderc_compile_options_add_macro_definition(
-                        CompileOptions, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                    );
-                }
-                break;
-
-                case ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
-                {
-                    ShaderKind = shaderc_fragment_shader;
-                    shaderc_compile_options_add_macro_definition(
-                        CompileOptions, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                    );
-                }
-                break;
-
-                case ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
-                {
-                    ShaderKind = shaderc_compute_shader;
-                    shaderc_compile_options_add_macro_definition(
-                        CompileOptions, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                    );
-                }
-                break;
-            }
-
-            Result = shaderc_compile_into_spv(Compiler, *Stage.CodeFragment.Code, Stage.CodeFragment.Code.Length, ShaderKind, "shader", "main", CompileOptions);
-            if (shaderc_result_get_compilation_status(Result) == shaderc_compilation_status_success)
-            {
-                ShaderCodeFragment SpirvBinary;
-                SpirvBinary.Name = Stage.CodeFragment.Name;
-                SpirvBinary.Code = String(shaderc_result_get_bytes(Result), shaderc_result_get_length(Result));
-                BinaryOutput.Write(Stage.Stage);
-                BinaryOutput.Write(SpirvBinary);
-
-                shaderc_result_release(Result);
-            }
-            else
-            {
-                KERROR("%d shader compilation failed with error:\n%s", Stage.Stage, shaderc_result_get_error_message(Result));
-
-                shaderc_result_release(Result);
-                shaderc_compiler_release(Compiler);
-
-                return false;
-            }
-        }
-    }
-
-    shaderc_compiler_release(Compiler);
-
-    filesystem::FileHandle File;
-    if (filesystem::OpenFile(OutputPath, filesystem::FILE_OPEN_MODE_WRITE, true, &File))
-    {
-        filesystem::WriteFile(&File, BinaryOutput);
-        filesystem::CloseFile(&File);
-    }
-    else
-    {
-        KERROR("[CompileKFX]: Failed to write binary output to file %s", *OutputPath);
-        return false;
-    }
-
-    return true;
 }
 
 bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
@@ -1566,4 +1294,4 @@ bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
     return true;
 }
 
-}
+} // namespace kraft::shaderfx

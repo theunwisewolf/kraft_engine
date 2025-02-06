@@ -5,21 +5,21 @@
 #include <core/kraft_string.h>
 #include <renderer/kraft_renderer_types.h>
 
-namespace kraft::renderer {
+namespace kraft::shaderfx {
 
 struct VertexAttribute
 {
-    uint16               Location = 0;
-    uint16               Binding = 0;
-    uint16               Offset = 0;
-    ShaderDataType::Enum Format = ShaderDataType::Count;
+    uint16                         Location = 0;
+    uint16                         Binding = 0;
+    uint16                         Offset = 0;
+    renderer::ShaderDataType::Enum Format = renderer::ShaderDataType::Count;
 };
 
 struct VertexInputBinding
 {
-    uint16                Binding = 0;
-    uint16                Stride = 0;
-    VertexInputRate::Enum InputRate = VertexInputRate::Count;
+    uint16                          Binding = 0;
+    uint16                          Stride = 0;
+    renderer::VertexInputRate::Enum InputRate = renderer::VertexInputRate::Count;
 };
 
 struct VertexLayoutDefinition
@@ -45,12 +45,12 @@ struct VertexLayoutDefinition
 
 struct ResourceBinding
 {
-    String             Name;
-    uint16             Binding = 0;
-    uint16             Size = 0;
-    int16              ParentIndex = -1; // If this is a uniform buffer, index into the actual buffer
-    ResourceType::Enum Type;
-    ShaderStageFlags   Stage;
+    String                       Name;
+    uint16                       Binding = 0;
+    uint16                       Size = 0;
+    int16                        ParentIndex = -1; // If this is a uniform buffer, index into the actual buffer
+    renderer::ResourceType::Enum Type;
+    renderer::ShaderStageFlags   Stage;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -111,14 +111,14 @@ struct ShaderCodeFragment
 
 struct RenderStateDefinition
 {
-    String              Name;
-    CullModeFlags::Enum CullMode;
-    CompareOp::Enum     ZTestOperation;
-    bool                ZWriteEnable;
-    bool                BlendEnable;
-    BlendState          BlendMode;
-    PolygonMode::Enum   PolygonMode;
-    float32             LineWidth;
+    String                        Name;
+    renderer::CullModeFlags::Enum CullMode;
+    renderer::CompareOp::Enum     ZTestOperation;
+    bool                          ZWriteEnable;
+    bool                          BlendEnable;
+    renderer::BlendState          BlendMode;
+    renderer::PolygonMode::Enum   PolygonMode;
+    float32                       LineWidth;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -147,9 +147,9 @@ struct RenderStateDefinition
 
 struct ConstantBufferEntry
 {
-    String               Name;
-    ShaderStageFlags     Stage;
-    ShaderDataType::Enum Type;
+    String                         Name;
+    renderer::ShaderStageFlags     Stage;
+    renderer::ShaderDataType::Enum Type;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -186,8 +186,8 @@ struct ConstantBufferDefinition
 
 struct UniformBufferEntry
 {
-    ShaderDataType::Enum Type;
-    String               Name;
+    renderer::ShaderDataType::Enum Type;
+    String                         Name;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -224,8 +224,8 @@ struct RenderPassDefinition
 {
     struct ShaderDefinition
     {
-        ShaderStageFlags   Stage;
-        ShaderCodeFragment CodeFragment;
+        renderer::ShaderStageFlags Stage;
+        ShaderCodeFragment         CodeFragment;
 
         void WriteTo(kraft::Buffer* Out)
         {
@@ -317,4 +317,4 @@ struct ShaderEffect
     }
 };
 
-}
+} // namespace kraft::shaderfx

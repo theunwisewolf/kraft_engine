@@ -16,8 +16,8 @@
 #include <world/kraft_world.h>
 
 #include <kraft_types.h>
-#include <renderer/shaderfx/kraft_shaderfx_types.h>
 #include <resources/kraft_resource_types.h>
+#include <shaderfx/kraft_shaderfx_types.h>
 
 #include <math/kraft_math.h>
 #include <platform/kraft_platform.h>
@@ -226,7 +226,7 @@ bool RendererFrontend::DrawSurfaces()
                     float* Shininess = (float*)((uint8*)Specular + sizeof(Vec4f));
 
                     // MetadataComponent Metadata = Surface.World->GetEntity(Object.EntityId).GetComponent<MetadataComponent>();
-                    
+
                     // KDEBUG("-------------------------------------");
                     // KDEBUG("%s", *Metadata.Name);
                     // KDEBUG("Ambient = (%f, %f, %f, %f)", Ambient->x, Ambient->y, Ambient->z, Ambient->w);

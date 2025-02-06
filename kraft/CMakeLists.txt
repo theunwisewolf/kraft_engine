@@ -31,7 +31,7 @@ set(SRC_FILES
     src/platform/kraft_platform_common.cpp
     src/platform/windows/kraft_win32.cpp
 
-    src/renderer/shaderfx/kraft_shaderfx.cpp
+    src/shaderfx/kraft_shaderfx.cpp
 )
 
 if (WIN32)

@@ -379,11 +379,11 @@ void PipelineDebugger()
     if (!SelectedEntity.HasComponent<kraft::MeshComponent>())
         return;
 
-    auto&                Mesh = SelectedEntity.GetComponent<kraft::MeshComponent>();
-    kraft::Material*     MaterialInstance = Mesh.MaterialInstance;
-    kraft::Shader*       ShaderInstance = MaterialInstance->Shader;
-    kraft::ShaderEffect& Effect = ShaderInstance->ShaderEffect;
-    bool                 Recreate = false;
+    auto&                          Mesh = SelectedEntity.GetComponent<kraft::MeshComponent>();
+    kraft::Material*               MaterialInstance = Mesh.MaterialInstance;
+    kraft::Shader*                 ShaderInstance = MaterialInstance->Shader;
+    kraft::shaderfx::ShaderEffect& Effect = ShaderInstance->ShaderEffect;
+    bool                           Recreate = false;
 
     ImGui::Begin("Pipeline Debugger");
     ImGui::Text("%s", *Effect.Name);
