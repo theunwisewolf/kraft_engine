@@ -21,7 +21,8 @@
         "filesystem": "cpp",
         "format": "cpp",
         "xiosbase": "cpp",
-        "xlocale": "cpp"
+        "xlocale": "cpp",
+        "chrono": "cpp"
     },
     "cmake.configureArgs": [
         // "-DCMAKE_BUILD_TYPE=RelWithDebInfo"

@@ -3,7 +3,8 @@
 
 namespace kraft {
 struct Texture;
-}
+struct TextureSampler;
+} // namespace kraft
 
 namespace kraft::renderer {
 template<typename T>
@@ -117,7 +118,7 @@ struct Pool
     }
 };
 
-}
+} // namespace kraft::renderer
 
 namespace kraft {
 struct Texture;
@@ -126,6 +127,7 @@ struct Texture;
 namespace kraft::renderer {
 
 struct VulkanTexture;
+struct VulkanTextureSampler;
 struct VulkanBuffer;
 struct VulkanRenderPass;
 struct VulkanCommandBuffer;
@@ -136,9 +138,10 @@ struct CommandBuffer;
 struct CommandPool;
 
 extern template struct Pool<VulkanTexture, Texture>;
+extern template struct Pool<VulkanTextureSampler, TextureSampler>;
 extern template struct Pool<VulkanBuffer, Buffer>;
 extern template struct Pool<VulkanRenderPass, RenderPass>;
 extern template struct Pool<VulkanCommandBuffer, CommandBuffer>;
 extern template struct Pool<VulkanCommandPool, CommandPool>;
 
-}
+} // namespace kraft::renderer

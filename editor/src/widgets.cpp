@@ -37,7 +37,7 @@ void InitImguiWidgets()
 {
     GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
     //ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
-    ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
+    ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture, EditorState::Ptr->RenderSurface.TextureSampler);
 
     GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
     GizmoState.Mode = ImGuizmo::LOCAL;
@@ -244,7 +244,7 @@ void DrawImGuiWidgets(bool refresh)
 
         // Remove the old texture
         GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
-        ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture);
+        ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture, EditorState::Ptr->RenderSurface.TextureSampler);
         // ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
 
         if (usePerspectiveProjection)

@@ -9,6 +9,7 @@ struct ImDrawData;
 namespace kraft {
 
 struct Texture;
+struct TextureSampler;
 struct Material;
 struct Geometry;
 struct Shader;
@@ -64,6 +65,11 @@ public:
     {
         return Other.Generation != Generation || Other.Index != Index;
     }
+
+    uint16 GetIndex() const
+    {
+        return Index;
+    }
 };
 
 struct ShaderEffect;
@@ -74,11 +80,13 @@ struct alignas(16) GlobalShaderData
     {
         struct alignas(16)
         {
-            Mat4f Projection;
-            Mat4f View;
-            Vec3f GlobalLightPosition;
-            Vec4f GlobalLightColor;
-            Vec3f CameraPosition;
+            Mat4f  Projection;
+            Mat4f  View;
+            Vec3f  GlobalLightPosition;
+            uint32 Pad0;
+            Vec4f  GlobalLightColor;
+            Vec3f  CameraPosition;
+            uint32 Pad1;
         };
 
         char _[256];
@@ -121,6 +129,7 @@ struct RendererBackend
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*CreateMaterial)(Material* Material);
     void (*DestroyMaterial)(Material* Material);
+    void (*UpdateTextures)(Array<Handle<Texture>> Textures);
 
     // Geometry
     void (*DrawGeometryData)(uint32 GeometryID);
@@ -621,6 +630,8 @@ struct ColorTarget
 
 struct TextureSamplerDescription
 {
+    const char* DebugName = "";
+
     TextureFilter::Enum     MinFilter = TextureFilter::Linear;
     TextureFilter::Enum     MagFilter = TextureFilter::Linear;
     TextureWrapMode::Enum   WrapModeU = TextureWrapMode::Repeat;
@@ -628,7 +639,7 @@ struct TextureSamplerDescription
     TextureWrapMode::Enum   WrapModeW = TextureWrapMode::Repeat;
     TextureMipMapMode::Enum MipMapMode = TextureMipMapMode::Linear;
     CompareOp::Enum         Compare = CompareOp::Never;
-    bool                    AnisotropyEnabled = false;
+    bool                    AnisotropyEnabled = true;
 };
 
 struct TextureDescription
@@ -643,10 +654,6 @@ struct TextureDescription
     TextureSampleCountFlags SampleCount = TEXTURE_SAMPLE_COUNT_FLAGS_1;
     uint32                  MipLevels = 1;
     SharingMode::Enum       SharingMode = SharingMode::Exclusive;
-
-    // Sampler description
-    bool                      CreateSampler = true;
-    TextureSamplerDescription Sampler;
 };
 
 struct BufferDescription
@@ -789,9 +796,11 @@ struct RenderSurfaceT
     Handle<RenderPass>    RenderPass;
     Handle<Texture>       ColorPassTexture;
     Handle<Texture>       DepthPassTexture;
-    Handle<Buffer>        GlobalUBO;
-    World*                World;
-    kraft::Vec2f          RelativeMousePosition;
+    // Sampler to use for sampling color and depth textures
+    Handle<TextureSampler> TextureSampler;
+    Handle<Buffer>         GlobalUBO;
+    World*                 World;
+    kraft::Vec2f           RelativeMousePosition;
 
     void Begin();
     void End();

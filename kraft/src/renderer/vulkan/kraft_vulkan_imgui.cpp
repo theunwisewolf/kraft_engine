@@ -118,12 +118,12 @@ bool EndFrame(ImDrawData* DrawData)
     return true;
 }
 
-ImTextureID AddTexture(Handle<Texture> Resource)
+ImTextureID AddTexture(Handle<Texture> TextureHandle, Handle<TextureSampler> TextureSamplerHandle)
 {
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VulkanTexture* BackendTexture = VulkanResourceManagerApi::GetTexture(Resource);
+    VulkanTexture*        BackendTexture = VulkanResourceManagerApi::GetTexture(TextureHandle);
+    VulkanTextureSampler* Sampler = VulkanResourceManagerApi::GetTextureSampler(TextureSamplerHandle);
 
-    return ImGui_ImplVulkan_AddTexture(BackendTexture->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    return ImGui_ImplVulkan_AddTexture(Sampler->Sampler, BackendTexture->View, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 void RemoveTexture(ImTextureID TextureID)

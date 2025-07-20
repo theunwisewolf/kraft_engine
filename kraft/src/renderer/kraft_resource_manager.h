@@ -4,7 +4,8 @@
 
 namespace kraft {
 struct Texture;
-}
+struct TextureSampler;
+} // namespace kraft
 
 namespace kraft::renderer {
 
@@ -20,6 +21,7 @@ struct BufferView;
 struct UploadBufferDescription;
 struct ReadTextureDataDescription;
 struct TextureDescription;
+struct TextureSamplerDescription;
 struct BufferDescription;
 struct RenderPassDescription;
 struct CommandBufferDescription;
@@ -31,6 +33,7 @@ struct ResourceManager
 
     // Creation apis
     Handle<Texture> (*CreateTexture)(const TextureDescription& Description) = 0;
+    Handle<TextureSampler> (*CreateTextureSampler)(const TextureSamplerDescription& Description) = 0;
     Handle<Buffer> (*CreateBuffer)(const BufferDescription& Description) = 0;
     Handle<RenderPass> (*CreateRenderPass)(const RenderPassDescription& Description) = 0;
     Handle<CommandBuffer> (*CreateCommandBuffer)(const CommandBufferDescription& Description) = 0;
@@ -39,6 +42,7 @@ struct ResourceManager
 
     // Destruction apis
     void (*DestroyTexture)(Handle<Texture> Resource) = 0;
+    void (*DestroyTextureSampler)(Handle<TextureSampler> Resource) = 0;
     void (*DestroyBuffer)(Handle<Buffer> Resource) = 0;
     void (*DestroyRenderPass)(Handle<RenderPass> Resource) = 0;
     void (*DestroyCommandBuffer)(Handle<CommandBuffer> Resource);
@@ -50,8 +54,9 @@ struct ResourceManager
     // Creates a temporary buffer that gets destroyed at the end of the frame
     BufferView (*CreateTempBuffer)(uint64 Size) = 0;
 
-    // Uploads a raw buffer data to the GPU
+    // Uploads data from the the `Buffer` to the `Texture`
     bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;
+    // Uploads raw buffer data to the GPU
     bool (*UploadBuffer)(const UploadBufferDescription& Description) = 0;
     bool (*ReadTextureData)(const ReadTextureDataDescription& Description) = 0;
 
@@ -66,4 +71,4 @@ struct ResourceManager
 
 extern struct ResourceManager* ResourceManager;
 
-};
+}; // namespace kraft::renderer

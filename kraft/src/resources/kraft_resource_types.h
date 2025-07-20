@@ -63,11 +63,11 @@ struct Texture
     TextureSampleCountFlags SampleCount;
     TextureMapType          Type;
 
-    uint32 Generation;
-    void*  RendererData; // Renderer specific data
-
     char DebugName[255];
 };
+
+struct TextureSampler
+{};
 
 #define MATERIAL_PROPERTY_SET(Type)                                                                                                                                                                    \
     KRAFT_INLINE void Set(Type Val)                                                                                                                                                                    \
@@ -101,10 +101,10 @@ struct MaterialProperty
         Vec2f           Vec2fValue;
         Float32         Float32Value;
         Float64         Float64Value;
-        UInt8           UInt8Value;
-        UInt16          UInt16Value;
-        UInt32          UInt32Value;
-        UInt64          UInt64Value;
+        uint8           UInt8Value;
+        uint16          UInt16Value;
+        uint32          UInt32Value;
+        uint64          UInt64Value;
         Handle<Texture> TextureValue;
 
         char Memory[128];
@@ -125,10 +125,10 @@ struct MaterialProperty
     MATERIAL_PROPERTY_SETTERS(Vec2f);
     MATERIAL_PROPERTY_SETTERS(Float32);
     MATERIAL_PROPERTY_SETTERS(Float64);
-    MATERIAL_PROPERTY_SETTERS(UInt8);
-    MATERIAL_PROPERTY_SETTERS(UInt16);
-    MATERIAL_PROPERTY_SETTERS(UInt32);
-    MATERIAL_PROPERTY_SETTERS(UInt64);
+    MATERIAL_PROPERTY_SETTERS(uint8);
+    MATERIAL_PROPERTY_SETTERS(uint16);
+    MATERIAL_PROPERTY_SETTERS(uint32);
+    MATERIAL_PROPERTY_SETTERS(uint64);
     MATERIAL_PROPERTY_SETTERS(Handle<Texture>);
 
     template<typename T>
@@ -168,4 +168,4 @@ struct Geometry
     ResourceID InternalID;
 };
 
-}
+} // namespace kraft

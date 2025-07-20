@@ -12,6 +12,7 @@
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
+#include <systems/kraft_texture_system.h>
 #include <world/kraft_entity.h>
 #include <world/kraft_world.h>
 
@@ -154,6 +155,14 @@ void RendererFrontend::PrepareFrame()
         .DstOffset = 0,
         .SrcOffset = 0,
     });
+
+    // Get all the dirty textures and create descriptor sets for them
+    auto DirtyTextures = TextureSystem::GetDirtyTextures();
+    if (DirtyTextures.Length > 0)
+    {
+        RendererData.Backend->UpdateTextures(DirtyTextures);
+        TextureSystem::ClearDirtyTextures();
+    }
 }
 
 bool RendererFrontend::DrawSurfaces()
@@ -218,12 +227,14 @@ bool RendererFrontend::DrawSurfaces()
                     DummyDrawData.EntityId = Object.EntityId;
                     RendererData.Backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
 
-                    uint8* MaterialsBuffer = MaterialSystem::GetMaterialsBuffer();
-                    uint8* MaterialBuffer = MaterialsBuffer + DummyDrawData.MaterialIdx * Settings->MaterialBufferSize;
-                    Vec4f* Ambient = (Vec4f*)(MaterialBuffer);
-                    Vec4f* Diffuse = (Vec4f*)((uint8*)Ambient + sizeof(Vec4f));
-                    Vec4f* Specular = (Vec4f*)((uint8*)Diffuse + sizeof(Vec4f));
-                    float* Shininess = (float*)((uint8*)Specular + sizeof(Vec4f));
+                    // uint8* MaterialsBuffer = MaterialSystem::GetMaterialsBuffer();
+                    // uint8* MaterialBuffer = MaterialsBuffer + DummyDrawData.MaterialIdx * Settings->MaterialBufferSize;
+                    // Vec4f* Ambient = (Vec4f*)(MaterialBuffer);
+                    // Vec4f* Diffuse = (Vec4f*)((uint8*)Ambient + sizeof(Vec4f));
+                    // Vec4f* Specular = (Vec4f*)((uint8*)Diffuse + sizeof(Vec4f));
+                    // float* Shininess = (float*)((uint8*)Specular + sizeof(Vec4f));
+                    // // uint32* TextureHandle = (uint32*)((uint8*)Shininess + sizeof(Vec4f));
+                    // uint32* TextureHandle = (uint32*)(MaterialBuffer + 52);
 
                     // MetadataComponent Metadata = Surface.World->GetEntity(Object.EntityId).GetComponent<MetadataComponent>();
 
@@ -233,6 +244,7 @@ bool RendererFrontend::DrawSurfaces()
                     // KDEBUG("Diffuse = (%f, %f, %f, %f)", Diffuse->x, Diffuse->y, Diffuse->z, Diffuse->w);
                     // KDEBUG("Specular = (%f, %f, %f, %f)", Specular->x, Specular->y, Specular->z, Specular->w);
                     // KDEBUG("Shininess = %f", *Shininess);
+                    // KDEBUG("TextureHandle = %d", *TextureHandle);
                     // KDEBUG("-------------------------------------");
 
                     RendererData.Backend->DrawGeometryData(Object.GeometryId);
@@ -373,12 +385,13 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
         .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
         .Format = Format::BGRA8_UNORM,
         .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
-        .Sampler = {
-            .WrapModeU = TextureWrapMode::ClampToEdge,
-            .WrapModeV = TextureWrapMode::ClampToEdge,
-            .WrapModeW = TextureWrapMode::ClampToEdge,
-            .Compare = CompareOp::Always,
-        },
+    });
+
+    Surface.TextureSampler = ResourceManager->CreateTextureSampler({
+        .WrapModeU = TextureWrapMode::ClampToEdge,
+        .WrapModeV = TextureWrapMode::ClampToEdge,
+        .WrapModeW = TextureWrapMode::ClampToEdge,
+        .Compare = CompareOp::Always,
     });
 
     if (HasDepth)
@@ -388,12 +401,6 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
             .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
             .Format = ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
-            .Sampler = {
-                .WrapModeU = TextureWrapMode::ClampToEdge,
-                .WrapModeV = TextureWrapMode::ClampToEdge,
-                .WrapModeW = TextureWrapMode::ClampToEdge,
-                .Compare = CompareOp::Always,
-            },
         });
     }
 
@@ -525,6 +532,7 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         RendererData.Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
         RendererData.Backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
         RendererData.Backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
+        RendererData.Backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
         RendererData.Backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
         RendererData.Backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
         RendererData.Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;

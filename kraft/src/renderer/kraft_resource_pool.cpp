@@ -110,6 +110,7 @@ bool Pool<ConcreteType, Type>::ValidateHandle(HandleType Handle) const
 }
 
 template struct Pool<VulkanTexture, Texture>;
+template struct Pool<VulkanTextureSampler, TextureSampler>;
 template struct Pool<VulkanBuffer, Buffer>;
 template struct Pool<VulkanRenderPass, RenderPass>;
 template struct Pool<VulkanCommandBuffer, CommandBuffer>;

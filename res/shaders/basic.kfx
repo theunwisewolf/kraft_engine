@@ -50,6 +50,7 @@ Shader Basic
         #version 450
 
         #extension GL_GOOGLE_include_directive: require
+        #extension GL_EXT_nonuniform_qualifier: require
 
         #include "includes/kraft_shader_includes.h"
 
@@ -67,8 +68,10 @@ Shader Basic
             mat4 Projection;
             mat4 View;
             vec3 LightPosition;
+            uint Pad0;
             vec4 LightColor;
             vec3 CameraPosition;
+            uint Pad1;
         } globalState;
 
         struct MeshMaterial
@@ -77,9 +80,9 @@ Shader Basic
             vec4  Diffuse;
             vec4  Specular;
             float Shininess;
+            uint  DiffuseTexture;
             uint  Pad0;
             uint  Pad1;
-            uint  Pad2;
         };
 
         layout (set = 0, binding = 1) readonly buffer GlobalMaterialData
@@ -133,17 +136,18 @@ Shader Basic
         layout (location = 0) out vec4 outColor;
 
         // Written to; using descriptor sets
-        layout(set = 2, binding = 0, std140) uniform LocalUniformBuffer 
-        {
-            vec4  DiffuseColor;
-            vec3  Ambient;
-            vec3  Diffuse;
-            vec3  Specular;
-            float _;
-            float Shininess;
-        } localUniformBuffer;
+        // layout(set = 2, binding = 0, std140) uniform LocalUniformBuffer 
+        // {
+        //     vec4  DiffuseColor;
+        //     vec3  Ambient;
+        //     vec3  Diffuse;
+        //     vec3  Specular;
+        //     float _;
+        //     float Shininess;
+        // } localUniformBuffer;
 
-        layout(set = 2, binding = 1) uniform sampler2D DiffuseSampler;
+        layout(set = 0, binding = 3) uniform sampler TextureSampler;
+        layout (set = 2, binding = 0) uniform texture2D Textures[];
 
         void main() 
         {
@@ -180,7 +184,8 @@ Shader Basic
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), Material.Shininess);
             vec3 specular = globalState.LightColor.xyz * (spec * Material.Specular.xyz);
 
-            outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
+            outColor = vec4(ambient + diffuse + specular, 1.0) * vec4(texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).rgb, 1.0);
+            // outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
             // outColor = vec4(Material.Diffuse.x, 0.0, 0.0, 1.0);
         }
 

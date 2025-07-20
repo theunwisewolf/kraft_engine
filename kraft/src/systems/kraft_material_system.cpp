@@ -151,6 +151,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
 
     // Offset into the material buffer
     uint8* MaterialBuffer = State->MaterialsBuffer + FreeIndex * State->MaterialBufferSize;
+    MemZero(MaterialBuffer, State->MaterialBufferSize);
 
     // Create backend data such has descriptor sets
     g_Renderer->CreateMaterial(Instance);
@@ -185,8 +186,9 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         // Copy over the value
         if (Uniform->Type == ResourceType::Sampler)
         {
-            // MemCpy(MaterialBuffer, MaterialIt->second.Memory, sizeof(Handle<Texture>));
-            // KASSERT(false);
+            // TODO (amn): Handle texture loading properly
+            uint32 Index = (uint32)MaterialIt->second.TextureValue.GetIndex();
+            MemCpy(MaterialBuffer + 52, &Index, sizeof(uint32));
         }
         else
         {
@@ -251,14 +253,19 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const Str
 
 bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Texture> NewTexture)
 {
-    // auto It = Instance->Shader->UniformCacheMapping.find(Key);
-    // if (It == Instance->Shader->UniformCacheMapping.iend())
-    // {
-    //     KERROR("[SetTexture]: Unknown key %s", *Key);
-    //     return false;
-    // }
+    auto It = Instance->Shader->UniformCacheMapping.find(Key);
+    if (It == Instance->Shader->UniformCacheMapping.iend())
+    {
+        KERROR("[SetTexture]: Unknown key %s", *Key);
+        return false;
+    }
 
-    // MaterialProperty* Property = Instance->Shader;
+    uint8* MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
+    // TODO (amn): Handle texture loading properly
+    uint32 Index = NewTexture.GetIndex();
+    MemCpy(MaterialBuffer + 52, &Index, sizeof(uint32));
+
+    // MaterialProperty* Property = Instance->Shader->;
 
     // // Validate the Uniform
     // Shader*       Shader = Instance->Shader;
@@ -466,7 +473,15 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
 
                             if (ExpectedComponentCount != ComponentCount)
                             {
-                                KERROR("Failed to parse %s. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.", *FilePath, ExpectedComponentCount, *Key, ComponentCount, ComponentCount, ExpectedComponentCount);
+                                KERROR(
+                                    "Failed to parse %s. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.",
+                                    *FilePath,
+                                    ExpectedComponentCount,
+                                    *Key,
+                                    ComponentCount,
+                                    ComponentCount,
+                                    ExpectedComponentCount
+                                );
                                 return false;
                             }
 

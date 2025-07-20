@@ -481,9 +481,18 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     FeatureRequests2.features.fillModeNonSolid = Context->PhysicalDevice.Features.fillModeNonSolid;
     FeatureRequests2.features.wideLines = Context->PhysicalDevice.Features.wideLines;
     FeatureRequests2.features.fragmentStoresAndAtomics = true;
+    FeatureRequests2.features.samplerAnisotropy = true;
 
     VkPhysicalDeviceVulkan11Features FeatureRequests11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     VkPhysicalDeviceVulkan12Features FeatureRequests12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    FeatureRequests12.descriptorIndexing = true;
+    FeatureRequests12.shaderSampledImageArrayNonUniformIndexing = true;
+    FeatureRequests12.descriptorBindingSampledImageUpdateAfterBind = true;
+    FeatureRequests12.descriptorBindingVariableDescriptorCount = true;
+    FeatureRequests12.descriptorBindingPartiallyBound = true;
+    FeatureRequests12.runtimeDescriptorArray = true;
+    // FeatureRequests12.descriptorBindingUpdateUnusedWhilePending = true;
+
     VkPhysicalDeviceVulkan13Features FeatureRequests13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
     FeatureRequests13.dynamicRendering = true;
     FeatureRequests13.synchronization2 = true;

@@ -25,26 +25,36 @@ if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
 else()
     add_executable(${PROJECT_NAME} ${SRC_FILES})
-endif()
+endif ()
 
 target_link_libraries(${PROJECT_NAME} Kraft)
 
 # Compiler options
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
-endif()
+endif ()
 
 # add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 #     COMMAND ${CMAKE_COMMAND} -E copy_directory
 #     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 # )
 
-add_custom_target(kraft_editor_copy_resources ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/res
-        ${CMAKE_SOURCE_DIR}/bin/res
-    COMMENT "Copying resources..."
-)
+# Debug builds are created inside a /bin/Debug folder on Windows
+if (WIN32 AND KRAFT_DEBUG_BUILD)
+    add_custom_target(kraft_editor_copy_resources ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/res
+            ${CMAKE_SOURCE_DIR}/bin/Debug/res
+        COMMENT "Copying resources..."
+    )
+else ()
+    add_custom_target(kraft_editor_copy_resources ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/res
+            ${CMAKE_SOURCE_DIR}/bin/res
+        COMMENT "Copying resources..."
+    )
+endif ()
 
 add_dependencies(${PROJECT_NAME} kraft_editor_copy_resources)
 

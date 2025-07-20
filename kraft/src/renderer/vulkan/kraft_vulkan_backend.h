@@ -44,6 +44,7 @@ struct VulkanRendererBackend
     static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     static void ApplyInstanceShaderProperties(Shader* Shader);
     static void ApplyLocalShaderProperties(Shader* Shader, void* Data);
+    static void UpdateTextures(Array<Handle<Texture>> Textures);
 
     // Geometry
     static void DrawGeometryData(uint32 GeometryID);
@@ -59,6 +60,6 @@ struct VulkanRendererBackend
     static VulkanContext* Context();
 };
 
-}
+} // namespace renderer
 
-}
+} // namespace kraft

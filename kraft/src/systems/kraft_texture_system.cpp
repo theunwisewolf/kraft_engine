@@ -1,5 +1,6 @@
 #include "kraft_texture_system.h"
 
+#include <containers/kraft_array.h>
 #include <containers/kraft_buffer.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
@@ -41,6 +42,7 @@ struct TextureSystemState
 {
     uint32                            MaxTextureCount;
     HashMap<String, TextureReference> TextureCache;
+    Array<Handle<Texture>>            DirtyTextures;
 
     TextureSystemState(uint32 MaxTextures)
     {
@@ -183,6 +185,7 @@ void TextureSystem::ReleaseTexture(const String& TextureName)
 
 void TextureSystem::ReleaseTexture(Handle<Texture> Resource)
 {
+    KWARN("Not implemented");
     // TODO (amn): Figure this out
     // State->TextureCache.values()
     // if (Texture)
@@ -206,6 +209,10 @@ Handle<Texture> TextureSystem::CreateTextureWithData(TextureDescription&& Descri
     {
         KERROR("Texture upload failed");
         // TODO (amn): Delete texture handle
+    }
+    else
+    {
+        State->DirtyTextures.Push(TextureResource);
     }
 
     return TextureResource;
@@ -293,6 +300,16 @@ Handle<Texture> TextureSystem::GetDefaultDiffuseTexture()
     return State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME].Resource;
 }
 
+Array<Handle<Texture>> TextureSystem::GetDirtyTextures()
+{
+    return State->DirtyTextures;
+}
+
+void TextureSystem::ClearDirtyTextures()
+{
+    State->DirtyTextures.Clear();
+}
+
 //
 // Internal methods
 //
@@ -304,12 +321,13 @@ static void _createDefaultTextures()
     const int         Depth = 1;
     const int         Channels = 4;
     kraft::BufferView TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
-    Handle<Texture>   TextureResource = TextureSystem::CreateTextureWithData(
+
+    Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData(
         {
-              .DebugName = "Default-Diffuse-Texture",
-              .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
-              .Format = Format::RGBA8_UNORM,
-              .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+            .DebugName = "Default-Diffuse-Texture",
+            .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
+            .Format = Format::RGBA8_UNORM,
+            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
         TextureData.Memory
     );

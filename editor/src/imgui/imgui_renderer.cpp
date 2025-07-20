@@ -14,9 +14,9 @@
 
 #include <platform/kraft_filesystem_types.h>
 
+#include <imgui/backends/imgui_impl_vulkan.h>
 #include <imgui/extensions/imguizmo/ImGuizmo.h>
 #include <imgui/imgui.h>
-#include <imgui/backends/imgui_impl_vulkan.h>
 
 static bool WidgetsNeedRefresh = false;
 
@@ -57,7 +57,7 @@ bool RendererImGui::Init()
 
         uint64 Size = kraft::filesystem::GetFileSize(&Handle);
         uint8* Buffer = (uint8*)kraft::Malloc(Size);
-        bool JakartaRegular = kraft::filesystem::ReadAllBytes(&Handle, &Buffer, &Size);
+        bool   JakartaRegular = kraft::filesystem::ReadAllBytes(&Handle, &Buffer, &Size);
         KASSERT(JakartaRegular);
 
         // Atlas will be freed by ImGui
@@ -155,9 +155,9 @@ void RendererImGui::AddWidget(const kraft::String& Name, ImGuiRenderCallback Cal
     KINFO("Added imgui widget %s", *Name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> Resource)
+ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> Resource, kraft::renderer::Handle<kraft::TextureSampler> Sampler)
 {
-    return kraft::renderer::VulkanImgui::AddTexture(Resource);
+    return kraft::renderer::VulkanImgui::AddTexture(Resource, Sampler);
 }
 
 void RendererImGui::RemoveTexture(ImTextureID TextureID)

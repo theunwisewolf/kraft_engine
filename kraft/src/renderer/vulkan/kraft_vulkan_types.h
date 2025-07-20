@@ -8,6 +8,7 @@
 #include <core/kraft_core.h>
 #include <math/kraft_math.h>
 #include <renderer/kraft_renderer_types.h>
+#include <shaders/includes/kraft_shader_includes.h>
 
 #define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
     do                                                                                                                                                                                                 \
@@ -51,10 +52,14 @@ struct VulkanTexture
     VkImage        Image;
     VkImageView    View;
     VkDeviceMemory Memory;
-    VkSampler      Sampler;
 
-    VulkanTexture() : Width(0), Height(0), Image(0), View(0), Memory(0), Sampler(0)
+    VulkanTexture() : Width(0), Height(0), Image(0), View(0), Memory(0)
     {}
+};
+
+struct VulkanTextureSampler
+{
+    VkSampler Sampler;
 };
 
 struct VulkanGeometryData
@@ -256,14 +261,16 @@ struct VulkanContext
     VulkanMaterialData Materials[KRAFT_VULKAN_MAX_MATERIALS];
 
     // Global Data
-    VkDescriptorPool      GlobalDescriptorPool;
-    VkDescriptorSetLayout DescriptorSetLayouts[16];
-    VkDescriptorSet       GlobalDescriptorSets[16][KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-    uint8                 DescriptorSetLayoutsCount = 0;
-    Handle<Buffer>        GlobalUniformBuffer = Handle<Buffer>::Invalid();
-    Handle<Buffer>        GlobalPickingDataBuffer = Handle<Buffer>::Invalid();
-    void*                 GlobalUniformBufferMemory = 0;
-    void*                 GlobalPickingDataBufferMemory = 0;
+    VkDescriptorPool       GlobalDescriptorPool;
+    VkDescriptorSetLayout  DescriptorSetLayouts[16];
+    VkDescriptorSet        GlobalDescriptorSets[16][KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    VkDescriptorSet        GlobalTexturesDescriptorSet;
+    uint8                  DescriptorSetLayoutsCount = 0;
+    Handle<Buffer>         GlobalUniformBuffer = Handle<Buffer>::Invalid();
+    Handle<Buffer>         GlobalPickingDataBuffer = Handle<Buffer>::Invalid();
+    void*                  GlobalUniformBufferMemory = 0;
+    void*                  GlobalPickingDataBufferMemory = 0;
+    Handle<TextureSampler> DefaultTextureSampler;
 };
 
 struct VulkanPhysicalDeviceRequirements

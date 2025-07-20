@@ -278,10 +278,10 @@ bool Init()
         }
     }
 
-    kraft::Entity         WorldRoot = EditorState::Ptr->CurrentWorld->GetRoot();
-    kraft::Entity         GlobalLightEntity = EditorState::Ptr->CurrentWorld->CreateEntity("GlobalLight", WorldRoot);
-    kraft::LightComponent GlobalLight = GlobalLightEntity.AddComponent<kraft::LightComponent>();
-    GlobalLight.LightColor = kraft::Vec4fOne;
+    kraft::Entity          WorldRoot = EditorState::Ptr->CurrentWorld->GetRoot();
+    kraft::Entity          GlobalLightEntity = EditorState::Ptr->CurrentWorld->CreateEntity("GlobalLight", WorldRoot);
+    kraft::LightComponent& GlobalLight = GlobalLightEntity.AddComponent<kraft::LightComponent>();
+    GlobalLight.LightColor = kraft::Vec4f{ 1.0f, 1.0f, 1.0f, 1.0f };
     GlobalLightEntity.GetComponent<TransformComponent>().SetPosition({ 38.0f, 38.0f, 54.0f });
 
     EditorState::Ptr->CurrentWorld->GlobalLight = GlobalLightEntity.EntityHandle;
@@ -674,18 +674,18 @@ void Run()
 struct Str
 {
     const char* Data;
-    uint64 Length;
+    uint64      Length;
 
-    constexpr Str(const char* Data, uint64 Length) 
+    constexpr Str(const char* Data, uint64 Length)
     {
         this->Data = Data;
         this->Length = Length;
     }
 };
 
-constexpr inline Str operator "" _PrivateSV(const char* String, uint64 Size)
+constexpr inline Str operator"" _PrivateSV(const char* String, uint64 Size)
 {
-	return Str(String, Size);
+    return Str(String, Size);
 }
 
 #if KRAFT_USE_WINMAIN

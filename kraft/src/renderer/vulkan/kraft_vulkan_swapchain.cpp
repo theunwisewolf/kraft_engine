@@ -178,7 +178,6 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
             .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
             .Format = DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
-            .CreateSampler = false,
         });
     }
 

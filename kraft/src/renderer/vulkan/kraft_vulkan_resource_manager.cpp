@@ -170,13 +170,14 @@ static VkImageAspectFlags GetImageAspectMask(Format::Enum Type)
 
 struct ResourceManagerState
 {
-    ArenaAllocator*                          Arena;
-    Pool<VulkanTexture, Texture>             TexturePool;
-    Pool<VulkanBuffer, Buffer>               BufferPool;
-    Pool<VulkanRenderPass, RenderPass>       RenderPassPool;
-    Pool<VulkanCommandBuffer, CommandBuffer> CmdBufferPool;
-    Pool<VulkanCommandPool, CommandPool>     CmdPoolPool;
-    VulkanTempMemoryBlockAllocator*          TempGPUAllocator = nullptr;
+    ArenaAllocator*                            Arena;
+    Pool<VulkanTexture, Texture>               TexturePool;
+    Pool<VulkanTextureSampler, TextureSampler> TextureSamplerPool;
+    Pool<VulkanBuffer, Buffer>                 BufferPool;
+    Pool<VulkanRenderPass, RenderPass>         RenderPassPool;
+    Pool<VulkanCommandBuffer, CommandBuffer>   CmdBufferPool;
+    Pool<VulkanCommandPool, CommandPool>       CmdPoolPool;
+    VulkanTempMemoryBlockAllocator*            TempGPUAllocator = nullptr;
 };
 
 static ResourceManagerState* InternalState = nullptr;
@@ -220,9 +221,14 @@ static void                  Clear()
             vkDestroyImage(Device, Texture.Image, Context->AllocationCallbacks);
             Texture.Image = 0;
         }
+    }
 
-        vkDestroySampler(Device, Texture.Sampler, Context->AllocationCallbacks);
-        Texture.Sampler = 0;
+    for (int i = 0; i < InternalState->TextureSamplerPool.GetSize(); i++)
+    {
+        VulkanTextureSampler& TextureSampler = InternalState->TextureSamplerPool.Data[i];
+
+        vkDestroySampler(Device, TextureSampler.Sampler, Context->AllocationCallbacks);
+        TextureSampler.Sampler = 0;
     }
 
     for (int i = 0; i < InternalState->BufferPool.GetSize(); i++)
@@ -332,27 +338,6 @@ static Handle<Texture> CreateTexture(const TextureDescription& Description)
     KRAFT_VK_CHECK(vkCreateImageView(Device, &ImageViewCreateInfo, Context->AllocationCallbacks, &Output.View));
     Context->SetObjectName((uint64)Output.View, VK_OBJECT_TYPE_IMAGE_VIEW, Description.DebugName);
 
-    // Texture sampler
-    if (Description.CreateSampler)
-    {
-        VkSamplerCreateInfo SamplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-        SamplerInfo.magFilter = ToVulkanFilter(Description.Sampler.MagFilter);
-        SamplerInfo.minFilter = ToVulkanFilter(Description.Sampler.MinFilter);
-        SamplerInfo.addressModeU = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeU);
-        SamplerInfo.addressModeV = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeV);
-        SamplerInfo.addressModeW = ToVulkanSamplerAddressMode(Description.Sampler.WrapModeW);
-        SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        SamplerInfo.compareEnable = Description.Sampler.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
-        SamplerInfo.compareOp = ToVulkanCompareOp(Description.Sampler.Compare);
-        SamplerInfo.mipmapMode = ToVulkanSamplerMipMapMode(Description.Sampler.MipMapMode);
-        SamplerInfo.maxAnisotropy = 16.0f;
-        SamplerInfo.anisotropyEnable = Description.Sampler.AnisotropyEnabled;
-        SamplerInfo.unnormalizedCoordinates = VK_FALSE;
-
-        KRAFT_VK_CHECK(vkCreateSampler(Device, &SamplerInfo, Context->AllocationCallbacks, &Output.Sampler));
-        Context->SetObjectName((uint64)Output.Sampler, VK_OBJECT_TYPE_SAMPLER, Description.DebugName);
-    }
-
     Texture Metadata = {
         .Width = Description.Dimensions.x,
         .Height = Description.Dimensions.y,
@@ -364,6 +349,34 @@ static Handle<Texture> CreateTexture(const TextureDescription& Description)
     StringCopy(Metadata.DebugName, Description.DebugName);
 
     return InternalState->TexturePool.Insert(Metadata, Output);
+}
+
+static Handle<TextureSampler> CreateTextureSampler(const TextureSamplerDescription& Description)
+{
+    VulkanContext*       Context = VulkanRendererBackend::Context();
+    VkDevice             Device = Context->LogicalDevice.Handle;
+    VulkanTextureSampler Output = {};
+
+    VkSamplerCreateInfo SamplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    SamplerInfo.magFilter = ToVulkanFilter(Description.MagFilter);
+    SamplerInfo.minFilter = ToVulkanFilter(Description.MinFilter);
+    SamplerInfo.addressModeU = ToVulkanSamplerAddressMode(Description.WrapModeU);
+    SamplerInfo.addressModeV = ToVulkanSamplerAddressMode(Description.WrapModeV);
+    SamplerInfo.addressModeW = ToVulkanSamplerAddressMode(Description.WrapModeW);
+    SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    SamplerInfo.compareEnable = Description.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
+    SamplerInfo.compareOp = ToVulkanCompareOp(Description.Compare);
+    SamplerInfo.mipmapMode = ToVulkanSamplerMipMapMode(Description.MipMapMode);
+    SamplerInfo.maxAnisotropy = Description.AnisotropyEnabled ? 16.0f : 1.0f;
+    SamplerInfo.anisotropyEnable = Description.AnisotropyEnabled;
+    SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+    KRAFT_VK_CHECK(vkCreateSampler(Device, &SamplerInfo, Context->AllocationCallbacks, &Output.Sampler));
+    Context->SetObjectName((uint64)Output.Sampler, VK_OBJECT_TYPE_SAMPLER, Description.DebugName);
+
+    TextureSampler Metadata{};
+
+    return InternalState->TextureSamplerPool.Insert(Metadata, Output);
 }
 
 static Handle<Buffer> CreateBuffer(const BufferDescription& Description)
@@ -873,9 +886,13 @@ static void EndFrame(uint64 FrameNumber)
             vkDestroyImage(Device, Texture->Image, Context->AllocationCallbacks);
             Texture->Image = 0;
         }
+    });
 
-        vkDestroySampler(Device, Texture->Sampler, Context->AllocationCallbacks);
-        Texture->Sampler = 0;
+    InternalState->TextureSamplerPool.Cleanup([](VulkanTextureSampler* TextureSampler) {
+        VulkanContext* Context = VulkanRendererBackend::Context();
+        VkDevice       Device = Context->LogicalDevice.Handle;
+        vkDestroySampler(Device, TextureSampler->Sampler, Context->AllocationCallbacks);
+        TextureSampler->Sampler = 0;
     });
 
     InternalState->BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
@@ -915,6 +932,11 @@ VulkanTexture* VulkanResourceManagerApi::GetTexture(Handle<Texture> Resource)
     return InternalState->TexturePool.Get(Resource);
 }
 
+VulkanTextureSampler* VulkanResourceManagerApi::GetTextureSampler(Handle<TextureSampler> Resource)
+{
+    return InternalState->TextureSamplerPool.Get(Resource);
+}
+
 VulkanBuffer* VulkanResourceManagerApi::GetBuffer(Handle<Buffer> Resource)
 {
     return InternalState->BufferPool.Get(Resource);
@@ -939,7 +961,8 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
 {
     ResourceManagerState* State = (ResourceManagerState*)ArenaPush(Arena, sizeof(ResourceManagerState), true);
     State->Arena = Arena;
-    State->TexturePool.Grow(1024);
+    State->TexturePool.Grow(KRAFT_RENDERER__MAX_GLOBAL_TEXTURES);
+    State->TextureSamplerPool.Grow(4);
     State->BufferPool.Grow(1024);
     State->RenderPassPool.Grow(16);
     State->CmdBufferPool.Grow(16);
@@ -952,6 +975,7 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
     struct ResourceManager* Api = (struct ResourceManager*)ArenaPush(Arena, sizeof(struct ResourceManager), true);
     Api->Clear = Clear;
     Api->CreateTexture = CreateTexture;
+    Api->CreateTextureSampler = CreateTextureSampler;
     Api->CreateBuffer = CreateBuffer;
     Api->CreateRenderPass = CreateRenderPass;
     Api->CreateCommandBuffer = CreateCommandBuffer;
@@ -981,5 +1005,6 @@ void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager)
     InternalState->RenderPassPool.Destroy();
     InternalState->BufferPool.Destroy();
     InternalState->TexturePool.Destroy();
+    InternalState->TextureSamplerPool.Destroy();
 }
 } // namespace kraft::renderer

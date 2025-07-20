@@ -89,7 +89,7 @@ public:
     {
         Length = 0;
         Allocated = 0;
-        Arena = Arena;
+        this->Arena = Arena;
     }
 
     Array(std::initializer_list<ValueType> List)
@@ -133,10 +133,6 @@ public:
 
     constexpr Array(Array&& Arr) noexcept
     {
-        SizeType   _Length = Length;
-        SizeType   _Allocated = Allocated;
-        ValueType* _Buffer = InternalBuffer;
-
         Length = Arr.Length;
         InternalBuffer = Arr.InternalBuffer;
         Allocated = Arr.Allocated;
@@ -163,10 +159,6 @@ public:
 
     constexpr Array& operator=(Array&& Arr)
     {
-        SizeType   _Length = Length;
-        SizeType   _Allocated = Allocated;
-        ValueType* _Buffer = InternalBuffer;
-
         Length = Arr.Length;
         InternalBuffer = Arr.InternalBuffer;
         Allocated = Arr.Allocated;
