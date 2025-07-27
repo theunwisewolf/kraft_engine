@@ -26,7 +26,7 @@ namespace math {
 static const float Epsilon = 1e-6f;
 
 template<typename T>
-KRAFT_API KRAFT_INLINE void Swap(T& a, T& b)
+KRAFT_API KRAFT_INLINE static void Swap(T& a, T& b)
 {
     T c = a;
     a = b;
@@ -34,7 +34,7 @@ KRAFT_API KRAFT_INLINE void Swap(T& a, T& b)
 }
 
 template<typename T>
-KRAFT_API KRAFT_INLINE T Min(T a, T b)
+KRAFT_API KRAFT_INLINE static T Min(T a, T b)
 {
     return a > b ? b : a;
 }
@@ -45,17 +45,17 @@ KRAFT_API KRAFT_INLINE T Max(T a, T b)
     return a > b ? a : b;
 }
 
-KRAFT_INLINE uint64 AlignUp(uint64 UnalignedValue, uint64 Alignment)
+KRAFT_INLINE static uint64 AlignUp(uint64 UnalignedValue, uint64 Alignment)
 {
     return ((UnalignedValue + (Alignment - 1)) & ~(Alignment - 1));
 }
 
 template<typename T>
-KRAFT_INLINE T Clamp(T Value, T Min, T Max)
+KRAFT_INLINE static T Clamp(T Value, T Min, T Max)
 {
     return Value < Min ? Min : Value > Max ? Max : Value;
 }
-}
+} // namespace math
 
 //
 // Useful functions
@@ -68,29 +68,29 @@ KRAFT_API float32 Acos(float32 x);
 KRAFT_API float32 Sqrt(float32 x);
 KRAFT_API float32 Abs(float32 x);
 
-KRAFT_INLINE float32 DegToRadians(float32 degrees)
+KRAFT_INLINE static float32 DegToRadians(float32 degrees)
 {
     return degrees * (KRAFT_PI / 180.0f);
 }
 
-KRAFT_INLINE float32 RadiansToDegrees(float32 radians)
+KRAFT_INLINE static float32 RadiansToDegrees(float32 radians)
 {
     return (radians * 180.0f) / KRAFT_PI;
 }
 
 // Converts the given angle in degrees to radians
-KRAFT_INLINE float32 Radians(float32 Degrees)
+KRAFT_INLINE static float32 Radians(float32 Degrees)
 {
     return DegToRadians(Degrees);
 }
 
 // Converts the given angle in radians to degrees
-KRAFT_INLINE float32 Degrees(float32 Radians)
+KRAFT_INLINE static float32 Degrees(float32 Radians)
 {
     return RadiansToDegrees(Radians);
 }
 
-}
+} // namespace kraft
 
 /**
  *
@@ -106,135 +106,135 @@ KRAFT_INLINE float32 Degrees(float32 Radians)
 #define KRGB(r, g, b)     Vec3f(r / 255.f, g / 255.f, b / 255.f)
 #define KRGBA(r, g, b, a) Vec4f(r / 255.f, g / 255.f, b / 255.f, a / 255.f)
 
-#define COMMON_VECTOR_MEMBERS(n)                                                                                                           \
-    Vector(){};                                                                                                                            \
-                                                                                                                                           \
-    Vector(std::initializer_list<T> list)                                                                                                  \
-    {                                                                                                                                      \
-        int  count = (int)list.size() < n ? (int)list.size() : n;                                                                          \
-        auto it = list.begin();                                                                                                            \
-        for (int i = 0; i < count; ++i, ++it)                                                                                              \
-            _data[i] = *it;                                                                                                                \
-                                                                                                                                           \
-        for (int i = count; i < n; i++)                                                                                                    \
-            _data[i] = 0;                                                                                                                  \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    T& operator[](int i)                                                                                                                   \
-    {                                                                                                                                      \
-        return _data[i];                                                                                                                   \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    const T& operator[](int i) const                                                                                                       \
-    {                                                                                                                                      \
-        return _data[i];                                                                                                                   \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    /* Initialize the vector with a common value for all components */                                                                     \
-    explicit Vector(T value)                                                                                                               \
-    {                                                                                                                                      \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-            _data[i] = value;                                                                                                              \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    /* C array conversions */                                                                                                              \
-    typedef T(&array_t)[n];                                                                                                                \
-    operator array_t()                                                                                                                     \
-    {                                                                                                                                      \
-        return _data;                                                                                                                      \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    typedef const T(&const_array_t)[n];                                                                                                    \
-    operator const_array_t() const                                                                                                         \
-    {                                                                                                                                      \
-        return _data;                                                                                                                      \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    KRAFT_INLINE T Length() const                                                                                                          \
-    {                                                                                                                                      \
-        T LengthSquared = T(0);                                                                                                            \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-        {                                                                                                                                  \
-            LengthSquared += _data[i] * _data[i];                                                                                          \
-        }                                                                                                                                  \
-        return Sqrt(LengthSquared);                                                                                                        \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    KRAFT_INLINE T LengthSquared() const                                                                                                   \
-    {                                                                                                                                      \
-        T LengthSquared = T(0);                                                                                                            \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-        {                                                                                                                                  \
-            LengthSquared += _data[i] * _data[i];                                                                                          \
-        }                                                                                                                                  \
-        return LengthSquared;                                                                                                              \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    KRAFT_INLINE void Normalize()                                                                                                          \
-    {                                                                                                                                      \
-        kraft::Normalize(this);                                                                                                            \
-    }                                                                                                                                      \
-                                                                                                                                           \
-private:                                                                                                                                   \
-    operator bool();                                                                                                                       \
-                                                                                                                                           \
+#define COMMON_VECTOR_MEMBERS(n)                                                                                                                                                                       \
+    Vector(){};                                                                                                                                                                                        \
+                                                                                                                                                                                                       \
+    Vector(std::initializer_list<T> list)                                                                                                                                                              \
+    {                                                                                                                                                                                                  \
+        int  count = (int)list.size() < n ? (int)list.size() : n;                                                                                                                                      \
+        auto it = list.begin();                                                                                                                                                                        \
+        for (int i = 0; i < count; ++i, ++it)                                                                                                                                                          \
+            _data[i] = *it;                                                                                                                                                                            \
+                                                                                                                                                                                                       \
+        for (int i = count; i < n; i++)                                                                                                                                                                \
+            _data[i] = 0;                                                                                                                                                                              \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    T& operator[](int i)                                                                                                                                                                               \
+    {                                                                                                                                                                                                  \
+        return _data[i];                                                                                                                                                                               \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    const T& operator[](int i) const                                                                                                                                                                   \
+    {                                                                                                                                                                                                  \
+        return _data[i];                                                                                                                                                                               \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    /* Initialize the vector with a common value for all components */                                                                                                                                 \
+    explicit Vector(T value)                                                                                                                                                                           \
+    {                                                                                                                                                                                                  \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+            _data[i] = value;                                                                                                                                                                          \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    /* C array conversions */                                                                                                                                                                          \
+    typedef T(&array_t)[n];                                                                                                                                                                            \
+    operator array_t()                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        return _data;                                                                                                                                                                                  \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    typedef const T(&const_array_t)[n];                                                                                                                                                                \
+    operator const_array_t() const                                                                                                                                                                     \
+    {                                                                                                                                                                                                  \
+        return _data;                                                                                                                                                                                  \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    KRAFT_INLINE T Length() const                                                                                                                                                                      \
+    {                                                                                                                                                                                                  \
+        T LengthSquared = T(0);                                                                                                                                                                        \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+        {                                                                                                                                                                                              \
+            LengthSquared += _data[i] * _data[i];                                                                                                                                                      \
+        }                                                                                                                                                                                              \
+        return Sqrt(LengthSquared);                                                                                                                                                                    \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    KRAFT_INLINE T LengthSquared() const                                                                                                                                                               \
+    {                                                                                                                                                                                                  \
+        T LengthSquared = T(0);                                                                                                                                                                        \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+        {                                                                                                                                                                                              \
+            LengthSquared += _data[i] * _data[i];                                                                                                                                                      \
+        }                                                                                                                                                                                              \
+        return LengthSquared;                                                                                                                                                                          \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    KRAFT_INLINE void Normalize()                                                                                                                                                                      \
+    {                                                                                                                                                                                                  \
+        kraft::Normalize(this);                                                                                                                                                                        \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+private:                                                                                                                                                                                               \
+    operator bool();                                                                                                                                                                                   \
+                                                                                                                                                                                                       \
 public:
 
-#define UNARY_OPERATOR(op)                                                                                                                 \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n> operator op(Vector<T, n> in)                                                                                              \
-    {                                                                                                                                      \
-        Vector<T, n> out;                                                                                                                  \
-        for (int i = 0; i < n; i++)                                                                                                        \
-            out[i] = op in[i];                                                                                                             \
-        return out;                                                                                                                        \
+#define UNARY_OPERATOR(op)                                                                                                                                                                             \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n> operator op(Vector<T, n> in)                                                                                                                                                          \
+    {                                                                                                                                                                                                  \
+        Vector<T, n> out;                                                                                                                                                                              \
+        for (int i = 0; i < n; i++)                                                                                                                                                                    \
+            out[i] = op in[i];                                                                                                                                                                         \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_OPERATOR(op)                                                                                                                \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n> operator op(Vector<T, n> a, Vector<T, n> b)                                                                               \
-    {                                                                                                                                      \
-        Vector<T, n> out;                                                                                                                  \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-            out[i] = a[i] op b[i];                                                                                                         \
-        return out;                                                                                                                        \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    /* Scalar addition; vec2 + a */                                                                                                        \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n> operator op(Vector<T, n> a, T b)                                                                                          \
-    {                                                                                                                                      \
-        Vector<T, n> out;                                                                                                                  \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-            out[i] = a[i] op b;                                                                                                            \
-        return out;                                                                                                                        \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    /* Scalar addition; a + vec2 */                                                                                                        \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n> operator op(T a, Vector<T, n> b)                                                                                          \
-    {                                                                                                                                      \
-        Vector<T, n> out;                                                                                                                  \
-        for (int i = 0; i < n; ++i)                                                                                                        \
-            out[i] = a op b[i];                                                                                                            \
-        return out;                                                                                                                        \
+#define BINARY_OPERATOR(op)                                                                                                                                                                            \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n> operator op(Vector<T, n> a, Vector<T, n> b)                                                                                                                                           \
+    {                                                                                                                                                                                                  \
+        Vector<T, n> out;                                                                                                                                                                              \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+            out[i] = a[i] op b[i];                                                                                                                                                                     \
+        return out;                                                                                                                                                                                    \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    /* Scalar addition; vec2 + a */                                                                                                                                                                    \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n> operator op(Vector<T, n> a, T b)                                                                                                                                                      \
+    {                                                                                                                                                                                                  \
+        Vector<T, n> out;                                                                                                                                                                              \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+            out[i] = a[i] op b;                                                                                                                                                                        \
+        return out;                                                                                                                                                                                    \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    /* Scalar addition; a + vec2 */                                                                                                                                                                    \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n> operator op(T a, Vector<T, n> b)                                                                                                                                                      \
+    {                                                                                                                                                                                                  \
+        Vector<T, n> out;                                                                                                                                                                              \
+        for (int i = 0; i < n; ++i)                                                                                                                                                                    \
+            out[i] = a op b[i];                                                                                                                                                                        \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_INPLACE_OPERATOR(op)                                                                                                        \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n>& operator op(Vector<T, n>& a, Vector<T, n> b)                                                                             \
-    {                                                                                                                                      \
-        for (int i = 0; i < n; i++)                                                                                                        \
-            a[i] op b[i];                                                                                                                  \
-        return a;                                                                                                                          \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    template<typename T, int n>                                                                                                            \
-    Vector<T, n>& operator op(Vector<T, n>& a, T b)                                                                                        \
-    {                                                                                                                                      \
-        for (int i = 0; i < n; i++)                                                                                                        \
-            a[i] op b;                                                                                                                     \
-        return a;                                                                                                                          \
+#define BINARY_INPLACE_OPERATOR(op)                                                                                                                                                                    \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n>& operator op(Vector<T, n>& a, Vector<T, n> b)                                                                                                                                         \
+    {                                                                                                                                                                                                  \
+        for (int i = 0; i < n; i++)                                                                                                                                                                    \
+            a[i] op b[i];                                                                                                                                                                              \
+        return a;                                                                                                                                                                                      \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    template<typename T, int n>                                                                                                                                                                        \
+    Vector<T, n>& operator op(Vector<T, n>& a, T b)                                                                                                                                                    \
+    {                                                                                                                                                                                                  \
+        for (int i = 0; i < n; i++)                                                                                                                                                                    \
+            a[i] op b;                                                                                                                                                                                 \
+        return a;                                                                                                                                                                                      \
     }
 
 namespace kraft {
@@ -474,7 +474,7 @@ BINARY_INPLACE_OPERATOR(^=);
 #undef COMMON_VECTOR_MEMBERS
 
 template<typename T, int n>
-KRAFT_INLINE T Dot(Vector<T, n> a, Vector<T, n> b)
+KRAFT_INLINE static T Dot(Vector<T, n> a, Vector<T, n> b)
 {
     T Result = T(0);
     for (int i = 0; i < n; ++i)
@@ -484,7 +484,7 @@ KRAFT_INLINE T Dot(Vector<T, n> a, Vector<T, n> b)
 }
 
 template<typename T, int n>
-KRAFT_INLINE T LengthSquared(Vector<T, n> a)
+KRAFT_INLINE static T LengthSquared(Vector<T, n> a)
 {
     T Result = T(0);
     for (int i = 0; i < n; ++i)
@@ -494,19 +494,19 @@ KRAFT_INLINE T LengthSquared(Vector<T, n> a)
 }
 
 template<typename T, int n>
-KRAFT_INLINE T Length(Vector<T, n> a)
+KRAFT_INLINE static T Length(Vector<T, n> a)
 {
     return Sqrt(LengthSquared(a));
 }
 
 template<typename T, int n>
-KRAFT_INLINE Vector<T, n> Cross(Vector<T, n> a, Vector<T, n> b)
+KRAFT_INLINE static Vector<T, n> Cross(Vector<T, n> a, Vector<T, n> b)
 {
     return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
 }
 
 template<typename T, int n>
-KRAFT_INLINE void Normalize(Vector<T, n>* in)
+KRAFT_INLINE static void Normalize(Vector<T, n>* in)
 {
     T length = Length(*in);
     for (int i = 0; i < n; i++)
@@ -514,7 +514,7 @@ KRAFT_INLINE void Normalize(Vector<T, n>* in)
 }
 
 template<typename T, int n>
-KRAFT_INLINE Vector<T, n> Normalize(Vector<T, n> in)
+KRAFT_INLINE static Vector<T, n> Normalize(Vector<T, n> in)
 {
     Vector<T, n> out;
     const T      length = Length(in);
@@ -526,7 +526,7 @@ KRAFT_INLINE Vector<T, n> Normalize(Vector<T, n> in)
 }
 
 template<typename T, int n>
-T Distance(Vector<T, n> a, Vector<T, n> b)
+static T Distance(Vector<T, n> a, Vector<T, n> b)
 {
     Vector<T, n> vec;
     for (int i = 0; i < n; i++)
@@ -535,7 +535,7 @@ T Distance(Vector<T, n> a, Vector<T, n> b)
     return Length(vec);
 }
 
-KRAFT_INLINE const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3> b, float32 tolerance)
+KRAFT_INLINE static const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3> b, float32 tolerance)
 {
     if (Abs(a.x - b.x) > tolerance)
     {
@@ -565,7 +565,7 @@ extern const Vec4f Vec4fZero;
 extern const Vec3f Vec3fOne;
 extern const Vec4f Vec4fOne;
 
-}
+} // namespace kraft
 
 /**
  *
@@ -574,63 +574,63 @@ extern const Vec4f Vec4fOne;
  *
  */
 
-#define UNARY_OPERATOR(op)                                                                                                                 \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols> in)                                                                            \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            out._data[i] = op in._data[i];                                                                                                 \
-        return out;                                                                                                                        \
+#define UNARY_OPERATOR(op)                                                                                                                                                                             \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols> in)                                                                                                                                        \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            out._data[i] = op in._data[i];                                                                                                                                                             \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_OPERATOR(op)                                                                                                                \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(const Matrix<T, rows, cols>& a, const Matrix<T, rows, cols>& b)                                      \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            out._data[i] = a._data[i] op b._data[i];                                                                                       \
-        return out;                                                                                                                        \
+#define BINARY_OPERATOR(op)                                                                                                                                                                            \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(const Matrix<T, rows, cols>& a, const Matrix<T, rows, cols>& b)                                                                                                  \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            out._data[i] = a._data[i] op b._data[i];                                                                                                                                                   \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_SCALAR_OPERATOR(op)                                                                                                         \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(T a, Matrix<T, rows, cols> in)                                                                       \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            out._data[i] = a op in._data[i];                                                                                               \
-        return out;                                                                                                                        \
-    }                                                                                                                                      \
-                                                                                                                                           \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols> in, T a)                                                                       \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            out._data[i] = in._data[i] op a;                                                                                               \
-        return out;                                                                                                                        \
+#define BINARY_SCALAR_OPERATOR(op)                                                                                                                                                                     \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(T a, Matrix<T, rows, cols> in)                                                                                                                                   \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            out._data[i] = a op in._data[i];                                                                                                                                                           \
+        return out;                                                                                                                                                                                    \
+    }                                                                                                                                                                                                  \
+                                                                                                                                                                                                       \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols> in, T a)                                                                                                                                   \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            out._data[i] = in._data[i] op a;                                                                                                                                                           \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_INPLACE_OPERATOR(op)                                                                                                        \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols>& a, const Matrix<T, rows, cols>& b)                                            \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            a._data[i] op b._data[i];                                                                                                      \
-        return out;                                                                                                                        \
+#define BINARY_INPLACE_OPERATOR(op)                                                                                                                                                                    \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols>& a, const Matrix<T, rows, cols>& b)                                                                                                        \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            a._data[i] op b._data[i];                                                                                                                                                                  \
+        return out;                                                                                                                                                                                    \
     }
 
-#define BINARY_INPLACE_SCALAR_OPERATOR(op)                                                                                                 \
-    template<typename T, int rows, int cols>                                                                                               \
-    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols>& a, T b)                                                                       \
-    {                                                                                                                                      \
-        Matrix<T, rows, cols> out;                                                                                                         \
-        for (int i = 0; i < rows * cols; ++i)                                                                                              \
-            a._data[i] op b;                                                                                                               \
-        return out;                                                                                                                        \
+#define BINARY_INPLACE_SCALAR_OPERATOR(op)                                                                                                                                                             \
+    template<typename T, int rows, int cols>                                                                                                                                                           \
+    Matrix<T, rows, cols> operator op(Matrix<T, rows, cols>& a, T b)                                                                                                                                   \
+    {                                                                                                                                                                                                  \
+        Matrix<T, rows, cols> out;                                                                                                                                                                     \
+        for (int i = 0; i < rows * cols; ++i)                                                                                                                                                          \
+            a._data[i] op b;                                                                                                                                                                           \
+        return out;                                                                                                                                                                                    \
     }
 
 namespace kraft {
@@ -728,8 +728,7 @@ struct Matrix
         CopyM.OrthoNormalize();
 
         Rotation._data[0] = atan2f(CopyM._data4x4[1][2], CopyM._data4x4[2][2]);
-        Rotation._data[1] =
-            atan2f(-CopyM._data4x4[0][2], Sqrt(CopyM._data4x4[1][2] * CopyM._data4x4[1][2] + CopyM._data4x4[2][2] * CopyM._data4x4[2][2]));
+        Rotation._data[1] = atan2f(-CopyM._data4x4[0][2], Sqrt(CopyM._data4x4[1][2] * CopyM._data4x4[1][2] + CopyM._data4x4[2][2] * CopyM._data4x4[2][2]));
         Rotation._data[2] = atan2f(CopyM._data4x4[0][1], CopyM._data4x4[0][0]);
 
         Translation._data[0] = CopyM.V.Position.x;
@@ -737,8 +736,7 @@ struct Matrix
         Translation._data[2] = CopyM.V.Position.z;
     }
 
-    static void
-    Decompose(const Matrix<T, rows, cols>& M, Vector<T, cols - 1>& Translation, Vector<T, cols - 1>& Rotation, Vector<T, cols - 1>& Scale)
+    static void Decompose(const Matrix<T, rows, cols>& M, Vector<T, cols - 1>& Translation, Vector<T, cols - 1>& Rotation, Vector<T, cols - 1>& Scale)
     {
         static_assert(cols == 4);
         Matrix<T, rows, cols> CopyM = M;
@@ -749,8 +747,7 @@ struct Matrix
         CopyM.OrthoNormalize();
 
         Rotation._data[0] = atan2f(CopyM._data4x4[1][2], CopyM._data4x4[2][2]);
-        Rotation._data[1] =
-            atan2f(-CopyM._data4x4[0][2], Sqrt(CopyM._data4x4[1][2] * CopyM._data4x4[1][2] + CopyM._data4x4[2][2] * CopyM._data4x4[2][2]));
+        Rotation._data[1] = atan2f(-CopyM._data4x4[0][2], Sqrt(CopyM._data4x4[1][2] * CopyM._data4x4[1][2] + CopyM._data4x4[2][2] * CopyM._data4x4[2][2]));
         Rotation._data[2] = atan2f(CopyM._data4x4[0][1], CopyM._data4x4[0][0]);
 
         Translation._data[0] = CopyM.V.Position.x;
@@ -790,40 +787,23 @@ Matrix<T, 4, 4> operator*(const Matrix<T, 4, 4>& a, const Matrix<T, 4, 4>& b)
     Matrix<T, 4, 4> out(0);
     // const T         aPtr = a._data4x4;
     // const T         bPtr = b._data4x4;
-    T* outPtr = out._data;
 
-    out._data4x4[0][0] = a._data4x4[0][0] * b._data4x4[0][0] + a._data4x4[0][1] * b._data4x4[1][0] + a._data4x4[0][2] * b._data4x4[2][0] +
-                         a._data4x4[0][3] * b._data4x4[3][0];
-    out._data4x4[0][1] = a._data4x4[0][0] * b._data4x4[0][1] + a._data4x4[0][1] * b._data4x4[1][1] + a._data4x4[0][2] * b._data4x4[2][1] +
-                         a._data4x4[0][3] * b._data4x4[3][1];
-    out._data4x4[0][2] = a._data4x4[0][0] * b._data4x4[0][2] + a._data4x4[0][1] * b._data4x4[1][2] + a._data4x4[0][2] * b._data4x4[2][2] +
-                         a._data4x4[0][3] * b._data4x4[3][2];
-    out._data4x4[0][3] = a._data4x4[0][0] * b._data4x4[0][3] + a._data4x4[0][1] * b._data4x4[1][3] + a._data4x4[0][2] * b._data4x4[2][3] +
-                         a._data4x4[0][3] * b._data4x4[3][3];
-    out._data4x4[1][0] = a._data4x4[1][0] * b._data4x4[0][0] + a._data4x4[1][1] * b._data4x4[1][0] + a._data4x4[1][2] * b._data4x4[2][0] +
-                         a._data4x4[1][3] * b._data4x4[3][0];
-    out._data4x4[1][1] = a._data4x4[1][0] * b._data4x4[0][1] + a._data4x4[1][1] * b._data4x4[1][1] + a._data4x4[1][2] * b._data4x4[2][1] +
-                         a._data4x4[1][3] * b._data4x4[3][1];
-    out._data4x4[1][2] = a._data4x4[1][0] * b._data4x4[0][2] + a._data4x4[1][1] * b._data4x4[1][2] + a._data4x4[1][2] * b._data4x4[2][2] +
-                         a._data4x4[1][3] * b._data4x4[3][2];
-    out._data4x4[1][3] = a._data4x4[1][0] * b._data4x4[0][3] + a._data4x4[1][1] * b._data4x4[1][3] + a._data4x4[1][2] * b._data4x4[2][3] +
-                         a._data4x4[1][3] * b._data4x4[3][3];
-    out._data4x4[2][0] = a._data4x4[2][0] * b._data4x4[0][0] + a._data4x4[2][1] * b._data4x4[1][0] + a._data4x4[2][2] * b._data4x4[2][0] +
-                         a._data4x4[2][3] * b._data4x4[3][0];
-    out._data4x4[2][1] = a._data4x4[2][0] * b._data4x4[0][1] + a._data4x4[2][1] * b._data4x4[1][1] + a._data4x4[2][2] * b._data4x4[2][1] +
-                         a._data4x4[2][3] * b._data4x4[3][1];
-    out._data4x4[2][2] = a._data4x4[2][0] * b._data4x4[0][2] + a._data4x4[2][1] * b._data4x4[1][2] + a._data4x4[2][2] * b._data4x4[2][2] +
-                         a._data4x4[2][3] * b._data4x4[3][2];
-    out._data4x4[2][3] = a._data4x4[2][0] * b._data4x4[0][3] + a._data4x4[2][1] * b._data4x4[1][3] + a._data4x4[2][2] * b._data4x4[2][3] +
-                         a._data4x4[2][3] * b._data4x4[3][3];
-    out._data4x4[3][0] = a._data4x4[3][0] * b._data4x4[0][0] + a._data4x4[3][1] * b._data4x4[1][0] + a._data4x4[3][2] * b._data4x4[2][0] +
-                         a._data4x4[3][3] * b._data4x4[3][0];
-    out._data4x4[3][1] = a._data4x4[3][0] * b._data4x4[0][1] + a._data4x4[3][1] * b._data4x4[1][1] + a._data4x4[3][2] * b._data4x4[2][1] +
-                         a._data4x4[3][3] * b._data4x4[3][1];
-    out._data4x4[3][2] = a._data4x4[3][0] * b._data4x4[0][2] + a._data4x4[3][1] * b._data4x4[1][2] + a._data4x4[3][2] * b._data4x4[2][2] +
-                         a._data4x4[3][3] * b._data4x4[3][2];
-    out._data4x4[3][3] = a._data4x4[3][0] * b._data4x4[0][3] + a._data4x4[3][1] * b._data4x4[1][3] + a._data4x4[3][2] * b._data4x4[2][3] +
-                         a._data4x4[3][3] * b._data4x4[3][3];
+    out._data4x4[0][0] = a._data4x4[0][0] * b._data4x4[0][0] + a._data4x4[0][1] * b._data4x4[1][0] + a._data4x4[0][2] * b._data4x4[2][0] + a._data4x4[0][3] * b._data4x4[3][0];
+    out._data4x4[0][1] = a._data4x4[0][0] * b._data4x4[0][1] + a._data4x4[0][1] * b._data4x4[1][1] + a._data4x4[0][2] * b._data4x4[2][1] + a._data4x4[0][3] * b._data4x4[3][1];
+    out._data4x4[0][2] = a._data4x4[0][0] * b._data4x4[0][2] + a._data4x4[0][1] * b._data4x4[1][2] + a._data4x4[0][2] * b._data4x4[2][2] + a._data4x4[0][3] * b._data4x4[3][2];
+    out._data4x4[0][3] = a._data4x4[0][0] * b._data4x4[0][3] + a._data4x4[0][1] * b._data4x4[1][3] + a._data4x4[0][2] * b._data4x4[2][3] + a._data4x4[0][3] * b._data4x4[3][3];
+    out._data4x4[1][0] = a._data4x4[1][0] * b._data4x4[0][0] + a._data4x4[1][1] * b._data4x4[1][0] + a._data4x4[1][2] * b._data4x4[2][0] + a._data4x4[1][3] * b._data4x4[3][0];
+    out._data4x4[1][1] = a._data4x4[1][0] * b._data4x4[0][1] + a._data4x4[1][1] * b._data4x4[1][1] + a._data4x4[1][2] * b._data4x4[2][1] + a._data4x4[1][3] * b._data4x4[3][1];
+    out._data4x4[1][2] = a._data4x4[1][0] * b._data4x4[0][2] + a._data4x4[1][1] * b._data4x4[1][2] + a._data4x4[1][2] * b._data4x4[2][2] + a._data4x4[1][3] * b._data4x4[3][2];
+    out._data4x4[1][3] = a._data4x4[1][0] * b._data4x4[0][3] + a._data4x4[1][1] * b._data4x4[1][3] + a._data4x4[1][2] * b._data4x4[2][3] + a._data4x4[1][3] * b._data4x4[3][3];
+    out._data4x4[2][0] = a._data4x4[2][0] * b._data4x4[0][0] + a._data4x4[2][1] * b._data4x4[1][0] + a._data4x4[2][2] * b._data4x4[2][0] + a._data4x4[2][3] * b._data4x4[3][0];
+    out._data4x4[2][1] = a._data4x4[2][0] * b._data4x4[0][1] + a._data4x4[2][1] * b._data4x4[1][1] + a._data4x4[2][2] * b._data4x4[2][1] + a._data4x4[2][3] * b._data4x4[3][1];
+    out._data4x4[2][2] = a._data4x4[2][0] * b._data4x4[0][2] + a._data4x4[2][1] * b._data4x4[1][2] + a._data4x4[2][2] * b._data4x4[2][2] + a._data4x4[2][3] * b._data4x4[3][2];
+    out._data4x4[2][3] = a._data4x4[2][0] * b._data4x4[0][3] + a._data4x4[2][1] * b._data4x4[1][3] + a._data4x4[2][2] * b._data4x4[2][3] + a._data4x4[2][3] * b._data4x4[3][3];
+    out._data4x4[3][0] = a._data4x4[3][0] * b._data4x4[0][0] + a._data4x4[3][1] * b._data4x4[1][0] + a._data4x4[3][2] * b._data4x4[2][0] + a._data4x4[3][3] * b._data4x4[3][0];
+    out._data4x4[3][1] = a._data4x4[3][0] * b._data4x4[0][1] + a._data4x4[3][1] * b._data4x4[1][1] + a._data4x4[3][2] * b._data4x4[2][1] + a._data4x4[3][3] * b._data4x4[3][1];
+    out._data4x4[3][2] = a._data4x4[3][0] * b._data4x4[0][2] + a._data4x4[3][1] * b._data4x4[1][2] + a._data4x4[3][2] * b._data4x4[2][2] + a._data4x4[3][3] * b._data4x4[3][2];
+    out._data4x4[3][3] = a._data4x4[3][0] * b._data4x4[0][3] + a._data4x4[3][1] * b._data4x4[1][3] + a._data4x4[3][2] * b._data4x4[2][3] + a._data4x4[3][3] * b._data4x4[3][3];
 
     // for (int i = 0; i < 4; i++)
     // {
@@ -1099,7 +1079,7 @@ KRAFT_API Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, flo
 KRAFT_API Mat4f PerspectiveMatrix(float32 fieldOfViewRadians, float32 aspectRatio, float32 nearClip, float32 farClip);
 
 // Directional
-KRAFT_INLINE Vec3f ForwardVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f ForwardVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = -in._data[2];
@@ -1112,7 +1092,7 @@ KRAFT_INLINE Vec3f ForwardVector(const Mat4f& in)
 }
 
 template<typename T, int n>
-Vector<T, n> ForwardVector(const Matrix<T, n + 1, n + 1>& in)
+static Vector<T, n> ForwardVector(const Matrix<T, n + 1, n + 1>& in)
 {
     Vector<T, n> out;
     for (int i = 0; i < n; i++)
@@ -1123,7 +1103,7 @@ Vector<T, n> ForwardVector(const Matrix<T, n + 1, n + 1>& in)
     return out;
 }
 
-KRAFT_INLINE Vec3f BackwardVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f BackwardVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = in._data[2];
@@ -1147,7 +1127,7 @@ Vector<T, n> BackwardVector(const Matrix<T, n + 1, n + 1>& in)
     return out;
 }
 
-KRAFT_INLINE Vec3f UpVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f UpVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = in._data[1];
@@ -1159,7 +1139,7 @@ KRAFT_INLINE Vec3f UpVector(const Mat4f& in)
     return out;
 }
 
-KRAFT_INLINE Vec3f DownVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f DownVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = -in._data[1];
@@ -1171,7 +1151,7 @@ KRAFT_INLINE Vec3f DownVector(const Mat4f& in)
     return out;
 }
 
-KRAFT_INLINE Vec3f LeftVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f LeftVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = -in._data[0];
@@ -1183,7 +1163,7 @@ KRAFT_INLINE Vec3f LeftVector(const Mat4f& in)
     return out;
 }
 
-KRAFT_INLINE Vec3f RightVector(const Mat4f& in)
+KRAFT_INLINE static Vec3f RightVector(const Mat4f& in)
 {
     Vec3f out;
     out.x = in._data[0];
@@ -1204,4 +1184,4 @@ KRAFT_API Mat4f RotationMatrixFromEulerAngles(float32 rotationXRadians, float32 
 
 KRAFT_API Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f Up);
 
-}
+} // namespace kraft

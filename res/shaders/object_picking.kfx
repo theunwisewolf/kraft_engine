@@ -11,23 +11,52 @@ Shader ObjectPicking
             Attribute   float3 Normal 0 2 20
         }
 
+        StorageBuffer ObjectPickingBuffer
+        {
+            uint[] Data;
+        }
+
         UniformBuffer GlobalUniformBuffer
         {
-            mat4 Projection;
-            mat4 View;
+            mat4   Projection;
+            mat4   View;
+            float3 LightPosition;
+            float4 LightColor;
+            float3 CameraPosition;
+        }
+
+        global Resource GlobalResources
+        {
+            UniformBuffer GlobalUniformBuffer    Stage(Fragment) Set(0) Binding(0);
+            StorageBuffer ObjectPickingBuffer    Stage(Fragment) Set(3) Binding(0);
         }
 
         // Constant buffers/Push constants
         ConstantBuffer Main
         {
-            mat4    Model    Stage(Vertex);
-            float3  ObjectId Stage(Vertex);
+            mat4    Model           Stage(Vertex);
+            float2  MousePosition   Stage(Vertex);
+            uint    EntityId        Stage(Vertex);
         }
     }
 
     GLSL ToScreen
     {
         #version 450
+
+        #extension GL_GOOGLE_include_directive: require
+        #extension GL_EXT_nonuniform_qualifier: require
+
+        #include "includes/kraft_shader_includes.h"
+        #include "includes/common.glsl"
+
+        layout (push_constant) uniform pushConstants
+        {
+            mat4 Model;
+            vec2 MousePosition;
+            uint EntityId;
+        } variableState;
+
         #if defined VERTEX
 
         // Inputs
@@ -35,49 +64,58 @@ Shader ObjectPicking
         layout (location = 1) in vec2 inUV;
         layout (location = 2) in vec3 inNormal;
 
-        // Written to; using descriptor sets
-        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
-        {
-            mat4 Projection;
-            mat4 View;
-            vec3 LightPosition;
-            vec4 LightColor;
-            vec3 CameraPosition;
-        } globalState;
-
-        layout (push_constant) uniform pushConstants
-        {
-            mat4 Model;
-            vec3 ObjectId;
-        } variableState;
-
         // Output from the vertex shader to the fragment shader
-        layout(location = 0) out vec3 outObjectId;
+        layout(location = 0) out struct DataTransferObject 
+        {
+            vec2 UV;
+            vec3 Normal;
+            vec3 FragPosition;
+        } outDTO;
 
         void main()
         {
+            outDTO.UV = inUV;
+            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * inNormal; // For non-uniform scale
+            outDTO.FragPosition = vec3(variableState.Model * vec4(inPosition, 1.0));
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
-            outObjectId = variableState.ObjectId;
         }
 
         #endif // VERTEX
 
         #if defined FRAGMENT
 
-        layout(location = 0) in vec3 inObjectId;
+        #define DEPTH_ARRAY_SCALE 64
+        layout(set = 3, binding = 0) buffer GlobalObjectPickingStorageBuffer
+        {
+            uint Data[DEPTH_ARRAY_SCALE];
+        } globalObjectPickingStorage;
+
+        layout (location = 0) in struct DataTransferObject 
+        {
+            vec2 UV;
+            vec3 Normal;
+            vec3 FragPosition;
+        } inDTO;
 
         // Outputs
-        // layout(set = 1, binding = 1) writeonly buffer ObjectPickingSSBO 
-        // {
-        //     uint SelectedObjectId;
-        // } ssbo;
-
         layout (location = 0) out vec4 outColor;
 
         void main() 
         {
-            // ssbo.SelectedObjectId = inObjectId;
-            outColor = vec4(inObjectId.x / 255.0, inObjectId.y / 255.0, inObjectId.z / 255.0, 1);
+            if (length(variableState.MousePosition - gl_FragCoord.xy) < 10)
+            {
+                outColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+                uint zIndex = uint(gl_FragCoord.z * DEPTH_ARRAY_SCALE);
+                if (globalObjectPickingStorage.Data[zIndex] == 0)
+                {
+                    globalObjectPickingStorage.Data[zIndex] = variableState.EntityId;
+                }
+
+                return;
+            }
+
+            outColor = vec4(1.0, 1.0, 0.0, 1.0);
         }
 
         #endif // FRAGMENT
@@ -90,7 +128,7 @@ Shader ObjectPicking
             Cull            Off
             ZTest           Less
             ZWrite          On
-            Blend           Off
+            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
             BlendOp         Add, Add
             PolygonMode     Fill
             LineWidth       1.0   
@@ -101,7 +139,7 @@ Shader ObjectPicking
     {
         RenderState     Default
         VertexLayout    Main
-        Resources       Main
+        Resources       LocalResources
         ConstantBuffer  Main
         VertexShader    ToScreen
         FragmentShader  ToScreen

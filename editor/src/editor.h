@@ -13,7 +13,7 @@ namespace kraft {
 struct Entity;
 struct Camera;
 struct Shader;
-}
+} // namespace kraft
 
 struct ApplicationState
 {
@@ -33,11 +33,14 @@ struct EditorCameraSettings
 
 struct EditorState
 {
-    static EditorState*             Ptr;
-    kraft::EntityHandleT            SelectedEntity = kraft::EntityHandleInvalid;
-    kraft::World*                   CurrentWorld;
-    kraft::renderer::RenderSurfaceT RenderSurface;
-    EditorCameraSettings            ViewportCameraSettings = {};
+    static EditorState*                              Ptr;
+    kraft::EntityHandleT                             SelectedEntity = kraft::EntityHandleInvalid;
+    kraft::World*                                    CurrentWorld;
+    kraft::renderer::RenderSurfaceT                  RenderSurface;
+    kraft::renderer::RenderSurfaceT                  ObjectPickingRenderSurface;
+    EditorCameraSettings                             ViewportCameraSettings = {};
+    kraft::renderer::Handle<kraft::renderer::Buffer> picking_buffer = kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid();
+    void*                                            picking_buffer_memory = 0;
 
     EditorState();
     kraft::Entity GetSelectedEntity();

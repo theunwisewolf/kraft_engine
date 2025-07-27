@@ -24,6 +24,7 @@ struct RenderPass;
 struct Buffer;
 struct MeshMaterial;
 struct GlobalShaderData;
+struct GPUDevice;
 
 template<typename T>
 struct Handle;
@@ -51,16 +52,18 @@ struct RendererFrontend
     void UseShader(const Shader* Shader);
     void SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
     void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
+    void ApplyLocalShaderProperties(Shader* ActiveShader, void* Data);
     void ApplyInstanceShaderProperties(Shader* ActiveShader);
     void DrawGeometry(uint32 GeometryID);
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);
-    bool ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
 
     RenderSurfaceT CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth = false);
     void           BeginRenderSurface(const RenderSurfaceT& Surface);
     RenderSurfaceT ResizeRenderSurface(RenderSurfaceT& Surface, uint32 Width, uint32 Height);
     void           EndRenderSurface(const RenderSurfaceT& Surface);
+
+    void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx);
 };
 
 RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts);
@@ -69,5 +72,6 @@ void              DestroyRendererFrontend(RendererFrontend* Instance);
 } // namespace renderer
 
 extern renderer::RendererFrontend* g_Renderer;
+extern renderer::GPUDevice*        g_Device;
 
 } // namespace kraft

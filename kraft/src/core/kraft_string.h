@@ -4,7 +4,6 @@
 #include "core/kraft_memory.h"
 #include "core/kraft_string_utils.h"
 #include "core/kraft_string_view.h"
-#include "math/kraft_math.h"
 
 /*
     Much of the inspiration for this class is taken from the excellent talk 
@@ -394,7 +393,7 @@ public:
 
     constexpr KRAFT_INLINE SizeType Compare(const ValueType* a, SizeType aLen, const ValueType* b, SizeType bLen) const
     {
-        const SizeType Count = math::Min(aLen, bLen);
+        const SizeType Count = aLen < bLen ? aLen : bLen;
         SizeType       Result = MemCmp(a, b, Count);
         return Result ? Result : aLen - bLen;
     }
@@ -501,60 +500,60 @@ typedef WString TString;
 typedef String TString;
 #endif
 
-static WString CharToWChar(const String& Source)
-{
-    uint64  BufferSize = mbstowcs(nullptr, Source.Data(), 0);
-    WString Output(BufferSize, 0);
-    mbstowcs(Output.Data(), Source.Data(), BufferSize);
+// static WString CharToWChar(const String& Source)
+// {
+//     uint64  BufferSize = mbstowcs(nullptr, Source.Data(), 0);
+//     WString Output(BufferSize, 0);
+//     mbstowcs(Output.Data(), Source.Data(), BufferSize);
 
-    return Output;
-}
+//     return Output;
+// }
 
-static String WCharToChar(const WString& Source)
-{
-    uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
-    String Output(BufferSize, 0);
-    wcstombs(Output.Data(), Source.Data(), BufferSize);
+// static String WCharToChar(const WString& Source)
+// {
+//     uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
+//     String Output(BufferSize, 0);
+//     wcstombs(Output.Data(), Source.Data(), BufferSize);
 
-    return Output;
-}
+//     return Output;
+// }
 
-#if defined(KRAFT_PLATFORM_WINDOWS)
-static WString MultiByteStringToWideCharString(const String& Source);
-#endif
+// #if defined(KRAFT_PLATFORM_WINDOWS)
+// static WString MultiByteStringToWideCharString(const String& Source);
+// #endif
 
-KRAFT_INLINE uint64 StringLength(const char* in)
+KRAFT_INLINE static uint64 StringLength(const char* in)
 {
     return strlen(in);
 }
 
-KRAFT_INLINE uint64 StringLengthClamped(const char* in, uint64 max)
+KRAFT_INLINE static uint64 StringLengthClamped(const char* in, uint64 max)
 {
     uint64 length = StringLength(in);
     return length > max ? max : length;
 }
 
-KRAFT_INLINE char* StringCopy(char* dst, const char* src)
+KRAFT_INLINE static char* StringCopy(char* dst, const char* src)
 {
     return strcpy(dst, src);
 }
 
-KRAFT_INLINE char* StringNCopy(char* dst, const char* src, uint64 src_length_to_cpy)
+KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_length_to_cpy)
 {
     return strncpy(dst, src, src_length_to_cpy);
 }
 
-KRAFT_INLINE char* StringConcat(char* dst, const char* src)
+KRAFT_INLINE static char* StringConcat(char* dst, const char* src)
 {
     return strcat(dst, src);
 }
 
-KRAFT_INLINE char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
+KRAFT_INLINE static char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
 {
     return strncat(dst, src, src_length_to_cpy);
 }
 
-KRAFT_INLINE const char* StringTrim(const char* in)
+KRAFT_INLINE static const char* StringTrim(const char* in)
 {
     if (!in)
         return in;
@@ -579,7 +578,7 @@ KRAFT_INLINE const char* StringTrim(const char* in)
 }
 
 // Will not work with string-literals as they are read only!
-KRAFT_INLINE char* StringTrimLight(char* in)
+KRAFT_INLINE static char* StringTrimLight(char* in)
 {
     if (!in)
         return in;
@@ -599,26 +598,15 @@ KRAFT_INLINE char* StringTrimLight(char* in)
     return in;
 }
 
-KRAFT_INLINE uint64 StringEqual(const char* a, const char* b)
+KRAFT_INLINE static uint64 StringEqual(const char* a, const char* b)
 {
     return strcmp(a, b) == 0;
 }
 
-KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args);
-
 int32 StringFormat(char* buffer, int n, const char* format, ...);
+int32 StringFormatV(char* buffer, int n, const char* format, va_list args);
 
-KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
-{
-    if (buffer)
-    {
-        return vsnprintf(buffer, n, format, args);
-    }
-
-    return -1;
-}
-
-#define KRAFT_STRINGIFY(A) #A
+#define KRAFT_STRINGIFY(A)      #A
 #define KRAFT_STATIC_STR_CONCAT (strA, strB) strA strB
 
 // static wchar_t* CharToWChar(const char* Source)
@@ -643,4 +631,4 @@ KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_lis
 //     return Output;
 // }
 
-}
+} // namespace kraft

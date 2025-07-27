@@ -22,7 +22,13 @@
         "format": "cpp",
         "xiosbase": "cpp",
         "xlocale": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "bitset": "cpp",
+        "deque": "cpp",
+        "iterator": "cpp",
+        "list": "cpp",
+        "queue": "cpp",
+        "stack": "cpp"
     },
     "cmake.configureArgs": [
         // "-DCMAKE_BUILD_TYPE=RelWithDebInfo"

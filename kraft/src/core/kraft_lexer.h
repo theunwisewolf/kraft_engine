@@ -9,41 +9,88 @@
 
 namespace kraft {
 
-struct Token;
+struct LexerToken;
 
 namespace TokenType {
 enum Enum : uint32;
 }
 
+enum LexerError
+{
+    LEXER_ERROR_NONE,
+    LEXER_ERROR_UNEXPECTED_EOF,
+    LEXER_ERROR_UNTERMINATED_COMMENT,
+    LEXER_ERROR_UNTERMINATED_STRING,
+    LEXER_ERROR_UNEXPECTED_CHARACTER,
+};
+
 struct Lexer
 {
-    char*  Text;
-    uint64 Position;
-    uint64 Line;
-    uint64 Column;
-    uint64 ErrorLine;
-    bool   Error;
+    // Input text
+    char* Text;
 
-    void Create(char* Text);
+    // Length of the input text
+    uint64 Length;
+
+    // Current cursor position
+    uint64 Position;
+
+    // Current cursor line
+    uint32 Line;
+
+    // Current cursor column on the line
+    uint32 Column;
+
+    // If an error occurs, this is set to something other than LEXER_ERROR_NONE
+    LexerError Error = LEXER_ERROR_NONE;
+
+    void Create(char* Text, uint64 Length);
     void Destroy();
 
-    Token  NextToken();
-    double ParseNumber(Token& Token);
-    void   ConsumeWhitespaces();
+    LexerError NextToken(LexerToken* OutToken);
+    LexerError ParseNumber(const LexerToken* Token, double* OutNumber);
+    LexerError ConsumeWhitespaces();
+
+    KRAFT_INLINE bool ReachedEOF()
+    {
+        return (this->Position == this->Length);
+    }
+
+    KRAFT_INLINE uint64 BytesLeft()
+    {
+        return (this->Length - this->Position);
+    }
+
+    KRAFT_INLINE void Advance()
+    {
+        this->Position++;
+    }
+
+    // Moves the cursor to this position
+    KRAFT_INLINE LexerError MoveCursorTo(uint64 Position)
+    {
+        if (this->Position >= this->Length)
+        {
+            return LexerError::LEXER_ERROR_UNEXPECTED_EOF;
+        }
+
+        this->Position = Position;
+        return LexerError::LEXER_ERROR_NONE;
+    }
 
     // Expect the token to be of the given type
     // Sets an error if types do not match
-    bool ExpectToken(Token* Token, TokenType::Enum ExpectedType);
-    bool ExpectToken(Token* Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword);
+    bool ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType);
+    bool ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword);
 
     // Check if the token is of the given type
-    bool EqualsToken(Token* Token, TokenType::Enum ExpectedType);
+    bool EqualsToken(LexerToken* Token, TokenType::Enum ExpectedType);
 
     // Check the current token for errors
-    bool CheckToken(const Token& Token, TokenType::Enum ExpectedType);
+    bool CheckToken(const LexerToken* Token, TokenType::Enum ExpectedType);
 
     // Checks if the provided token matches the expected keyword
-    bool ExpectKeyword(const Token& Token, String ExpectedKeyword);
+    bool ExpectKeyword(const LexerToken* Token, String ExpectedKeyword);
 
     KRAFT_INLINE bool IsNewLine(char c)
     {
@@ -66,4 +113,4 @@ struct Lexer
     }
 };
 
-}
+} // namespace kraft

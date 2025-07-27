@@ -12,4 +12,4 @@ void VulkanDestroyFence(VulkanContext* context, VulkanFence* fence);
 void VulkanResetFence(VulkanContext* context, VulkanFence* fence);
 bool VulkanWaitForFence(VulkanContext* context, VulkanFence* fence, uint64 timeoutNS);
 
-}
+} // namespace kraft::renderer

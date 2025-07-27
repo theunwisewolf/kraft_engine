@@ -9,10 +9,10 @@ namespace kraft::shaderfx {
 
 struct VertexAttribute
 {
-    uint16                         Location = 0;
-    uint16                         Binding = 0;
-    uint16                         Offset = 0;
-    renderer::ShaderDataType::Enum Format = renderer::ShaderDataType::Count;
+    uint16                   Location = 0;
+    uint16                   Binding = 0;
+    uint16                   Offset = 0;
+    renderer::ShaderDataType Format = renderer::ShaderDataType::Invalid();
 };
 
 struct VertexInputBinding
@@ -46,6 +46,7 @@ struct VertexLayoutDefinition
 struct ResourceBinding
 {
     String                       Name;
+    uint16                       Set = 0;
     uint16                       Binding = 0;
     uint16                       Size = 0;
     int16                        ParentIndex = -1; // If this is a uniform buffer, index into the actual buffer
@@ -55,6 +56,7 @@ struct ResourceBinding
     void WriteTo(kraft::Buffer* Out)
     {
         Out->Write(Name);
+        Out->Write(Set);
         Out->Write(Binding);
         Out->Write(Size);
         Out->Write(ParentIndex);
@@ -65,6 +67,7 @@ struct ResourceBinding
     void ReadFrom(kraft::Buffer* In)
     {
         In->Read(&Name);
+        In->Read(&Set);
         In->Read(&Binding);
         In->Read(&Size);
         In->Read(&ParentIndex);
@@ -72,6 +75,14 @@ struct ResourceBinding
         In->Read(&Stage);
     }
 };
+
+namespace ResourceBindingType {
+enum Enum
+{
+    Local,
+    Global
+};
+}
 
 struct ResourceBindingsDefinition
 {
@@ -147,9 +158,9 @@ struct RenderStateDefinition
 
 struct ConstantBufferEntry
 {
-    String                         Name;
-    renderer::ShaderStageFlags     Stage;
-    renderer::ShaderDataType::Enum Type;
+    String                     Name;
+    renderer::ShaderStageFlags Stage;
+    renderer::ShaderDataType   Type;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -186,8 +197,8 @@ struct ConstantBufferDefinition
 
 struct UniformBufferEntry
 {
-    renderer::ShaderDataType::Enum Type;
-    String                         Name;
+    renderer::ShaderDataType Type;
+    String                   Name;
 
     void WriteTo(kraft::Buffer* Out)
     {
@@ -248,44 +259,46 @@ struct RenderPassDefinition
     Array<ShaderDefinition>           ShaderStages;
 };
 
+struct ShaderResource
+{
+    String                 Name;
+    uint16                 Set;
+    Array<ResourceBinding> ResourceBindings;
+
+    void WriteTo(kraft::Buffer* Out)
+    {
+        Out->Write(Name);
+        Out->Write(Set);
+        Out->Write(ResourceBindings);
+    }
+
+    void ReadFrom(kraft::Buffer* In)
+    {
+        In->Read(&Name);
+        In->Read(&Set);
+        In->Read(&ResourceBindings);
+    }
+};
+
 struct ShaderEffect
 {
     String                            Name;
     String                            ResourcePath;
     Array<VertexLayoutDefinition>     VertexLayouts;
-    Array<ResourceBindingsDefinition> Resources;
+    Array<ResourceBindingsDefinition> LocalResources;
+    Array<ResourceBindingsDefinition> GlobalResources;
     Array<ConstantBufferDefinition>   ConstantBuffers;
     Array<UniformBufferDefinition>    UniformBuffers;
     Array<UniformBufferDefinition>    StorageBuffers;
     Array<RenderStateDefinition>      RenderStates;
     Array<ShaderCodeFragment>         CodeFragments;
     Array<RenderPassDefinition>       RenderPasses;
+    Array<ShaderResource>             Resources;
 
     ShaderEffect() {};
     ShaderEffect(ShaderEffect& Other)
     {
-        Name = Other.Name;
-        ResourcePath = Other.ResourcePath;
-        VertexLayouts = Other.VertexLayouts;
-        Resources = Other.Resources;
-        ConstantBuffers = Other.ConstantBuffers;
-        UniformBuffers = Other.UniformBuffers;
-        StorageBuffers = Other.StorageBuffers;
-        RenderStates = Other.RenderStates;
-        CodeFragments = Other.CodeFragments;
-        RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
-
-        for (int i = 0; i < Other.RenderPasses.Length; i++)
-        {
-            RenderPasses[i].Name = Other.RenderPasses[i].Name;
-            RenderPasses[i].ShaderStages = Other.RenderPasses[i].ShaderStages;
-
-            // Correctly assign the offsets
-            RenderPasses[i].VertexLayout = &VertexLayouts[(Other.RenderPasses[i].VertexLayout - &Other.VertexLayouts[0])];
-            RenderPasses[i].Resources = &Resources[(Other.RenderPasses[i].Resources - &Other.Resources[0])];
-            RenderPasses[i].ConstantBuffers = &ConstantBuffers[(Other.RenderPasses[i].ConstantBuffers - &Other.ConstantBuffers[0])];
-            RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
-        }
+        *this = Other;
     }
 
     ShaderEffect& operator=(const ShaderEffect& Other)
@@ -293,12 +306,13 @@ struct ShaderEffect
         Name = Other.Name;
         ResourcePath = Other.ResourcePath;
         VertexLayouts = Other.VertexLayouts;
-        Resources = Other.Resources;
+        LocalResources = Other.LocalResources;
         ConstantBuffers = Other.ConstantBuffers;
         UniformBuffers = Other.UniformBuffers;
         StorageBuffers = Other.StorageBuffers;
         RenderStates = Other.RenderStates;
         CodeFragments = Other.CodeFragments;
+        Resources = Other.Resources;
         RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
 
         for (int i = 0; i < Other.RenderPasses.Length; i++)
@@ -308,7 +322,7 @@ struct ShaderEffect
 
             // Correctly assign the offsets
             RenderPasses[i].VertexLayout = &VertexLayouts[(Other.RenderPasses[i].VertexLayout - &Other.VertexLayouts[0])];
-            RenderPasses[i].Resources = &Resources[(Other.RenderPasses[i].Resources - &Other.Resources[0])];
+            RenderPasses[i].Resources = &LocalResources[(Other.RenderPasses[i].Resources - &Other.LocalResources[0])];
             RenderPasses[i].ConstantBuffers = &ConstantBuffers[(Other.RenderPasses[i].ConstantBuffers - &Other.ConstantBuffers[0])];
             RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
         }

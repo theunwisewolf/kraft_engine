@@ -57,9 +57,9 @@ static const char* String(Enum Value)
 {
     return (Value < Enum::TOKEN_TYPE_COUNT ? Strings[(int)Value] : "Unknown");
 }
-}
+} // namespace TokenType
 
-struct Token
+struct LexerToken
 {
     TokenType::Enum Type;
     char*           Text;
@@ -71,10 +71,10 @@ struct Token
     StringView ToStringView() const;
 };
 
-struct NamedToken
+struct LexerNamedToken
 {
     StringView Key;
-    Token      Value;
+    LexerToken Value;
 };
 
-}
+} // namespace kraft

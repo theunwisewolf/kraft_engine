@@ -6,6 +6,7 @@
 #include <core/kraft_engine.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
+#include <core/kraft_time.h>
 #include <renderer/kraft_camera.h>
 #include <renderer/kraft_resource_manager.h>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
@@ -26,7 +27,8 @@
 
 namespace kraft {
 renderer::RendererFrontend* g_Renderer = nullptr;
-}
+renderer::GPUDevice*        g_Device = nullptr;
+} // namespace kraft
 
 namespace kraft::renderer {
 
@@ -40,7 +42,7 @@ struct RenderDataT
 
 struct ResourceManager* ResourceManager = nullptr;
 
-struct RendererDataT
+struct RendererFrontendPrivate
 {
     MemoryBlock        BackendMemory;
     RenderablesT       Renderables;
@@ -126,14 +128,8 @@ void RendererFrontend::Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 
 
 void RendererFrontend::OnResize(int width, int height)
 {
-    if (RendererData.Backend)
-    {
-        RendererData.Backend->OnResize(width, height);
-    }
-    else
-    {
-        KERROR("[RendererFrontend::OnResize]: No backend!");
-    }
+    KASSERT(RendererData.Backend);
+    RendererData.Backend->OnResize(width, height);
 }
 
 void RendererFrontend::PrepareFrame()
@@ -174,6 +170,7 @@ bool RendererFrontend::DrawSurfaces()
     GlobalShaderData.View = this->Camera->GetViewMatrix();
     GlobalShaderData.CameraPosition = this->Camera->Position;
 
+    uint64 Start = kraft::Platform::TimeNowNS();
     for (int i = 0; i < RendererData.RenderSurfaces.Length; i++)
     {
         RenderDataT&    SurfaceRenderData = RendererData.RenderSurfaces[i];
@@ -205,47 +202,11 @@ bool RendererFrontend::DrawSurfaces()
                 {
                     Renderable Object = Objects[i];
 
-                    // MaterialSystem::ApplyInstanceProperties(Object.MaterialInstance);
-                    // MaterialSystem::ApplyLocalProperties(Object.MaterialInstance, Object.ModelMatrix);
-
-                    // float64 x, y;
-                    // kraft::Platform::GetWindow()->GetCursorPosition(&x, &y);
-                    // Vec2f MousePosition{ (float32)x, (float32)y };
-                    // ShaderSystem::SetUniform("MousePosition", kraft::Vec2f{ Surface.RelativeMousePosition.x, Surface.RelativeMousePosition.y });
-
-                    // uint8 Buffer[128] = { 0 };
-                    // MemCpy(Buffer, Object.ModelMatrix._data, sizeof(Object.ModelMatrix));
-                    // MemCpy(Buffer + sizeof(Object.ModelMatrix), Surface.RelativeMousePosition._data, sizeof(Surface.RelativeMousePosition));
-                    // MemCpy(Buffer + sizeof(Object.ModelMatrix) + sizeof(Surface.RelativeMousePosition), &Object.EntityId, sizeof(Object.EntityId));
-
-                    // RendererData.Backend->SetUniform(CurrentShader, kraft::ShaderUniform{ .Offset = 0, .Stride = 128, .Scope = ShaderUniformScope::Local }, Buffer, true);
-                    // ShaderSystem::SetUniform("EntityId", Object.EntityId);
-
                     DummyDrawData.Model = Object.ModelMatrix;
                     DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
                     DummyDrawData.MousePosition = Surface.RelativeMousePosition;
                     DummyDrawData.EntityId = Object.EntityId;
                     RendererData.Backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
-
-                    // uint8* MaterialsBuffer = MaterialSystem::GetMaterialsBuffer();
-                    // uint8* MaterialBuffer = MaterialsBuffer + DummyDrawData.MaterialIdx * Settings->MaterialBufferSize;
-                    // Vec4f* Ambient = (Vec4f*)(MaterialBuffer);
-                    // Vec4f* Diffuse = (Vec4f*)((uint8*)Ambient + sizeof(Vec4f));
-                    // Vec4f* Specular = (Vec4f*)((uint8*)Diffuse + sizeof(Vec4f));
-                    // float* Shininess = (float*)((uint8*)Specular + sizeof(Vec4f));
-                    // // uint32* TextureHandle = (uint32*)((uint8*)Shininess + sizeof(Vec4f));
-                    // uint32* TextureHandle = (uint32*)(MaterialBuffer + 52);
-
-                    // MetadataComponent Metadata = Surface.World->GetEntity(Object.EntityId).GetComponent<MetadataComponent>();
-
-                    // KDEBUG("-------------------------------------");
-                    // KDEBUG("%s", *Metadata.Name);
-                    // KDEBUG("Ambient = (%f, %f, %f, %f)", Ambient->x, Ambient->y, Ambient->z, Ambient->w);
-                    // KDEBUG("Diffuse = (%f, %f, %f, %f)", Diffuse->x, Diffuse->y, Diffuse->z, Diffuse->w);
-                    // KDEBUG("Specular = (%f, %f, %f, %f)", Specular->x, Specular->y, Specular->z, Specular->w);
-                    // KDEBUG("Shininess = %f", *Shininess);
-                    // KDEBUG("TextureHandle = %d", *TextureHandle);
-                    // KDEBUG("-------------------------------------");
 
                     RendererData.Backend->DrawGeometryData(Object.GeometryId);
                 }
@@ -257,6 +218,9 @@ bool RendererFrontend::DrawSurfaces()
         }
         Surface.End();
     }
+    uint64 End = kraft::Platform::TimeNowNS();
+
+    // KDEBUG("Render complete in: %f ms", f64(End - Start) / 1000000.0f);
 
     RendererData.RenderSurfaces.Clear();
 
@@ -268,7 +232,6 @@ bool RendererFrontend::AddRenderable(const Renderable& Object)
     RenderablesT* Renderables = nullptr;
     if (RendererData.ActiveSurface != -1)
     {
-        RenderSurfaceT& Surface = RendererData.RenderSurfaces[RendererData.ActiveSurface].Surface;
         Renderables = &RendererData.RenderSurfaces[RendererData.ActiveSurface].Renderables;
     }
     else
@@ -352,6 +315,11 @@ void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<
     RendererData.Backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer, GlobalMaterialsBuffer);
 }
 
+void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)
+{
+    RendererData.Backend->ApplyLocalShaderProperties(ActiveShader, Data);
+}
+
 void RendererFrontend::ApplyInstanceShaderProperties(Shader* ActiveShader)
 {
     RendererData.Backend->ApplyInstanceShaderProperties(ActiveShader);
@@ -365,11 +333,6 @@ bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, co
 void RendererFrontend::DestroyGeometry(Geometry* Geometry)
 {
     RendererData.Backend->DestroyGeometry(Geometry);
-}
-
-bool RendererFrontend::ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize)
-{
-    return RendererData.Backend->ReadObjectPickingBuffer(OutBuffer, BufferSize);
 }
 
 RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth)
@@ -452,9 +415,11 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
 
 void RendererFrontend::BeginRenderSurface(const RenderSurfaceT& Surface)
 {
-    RendererData.ActiveSurface = RendererData.RenderSurfaces.Push({
+    RendererData.RenderSurfaces.Push({
         .Surface = Surface,
     });
+
+    RendererData.ActiveSurface = RendererData.RenderSurfaces.Length - 1;
     // RendererData.Backend->BeginRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
@@ -489,6 +454,11 @@ void RendererFrontend::EndRenderSurface(const RenderSurfaceT& Surface)
     // RendererData.Backend->EndRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
+void RendererFrontend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx)
+{
+    RendererData.Backend->CmdSetCustomBuffer(shader, buffer, set_idx, binding_idx);
+}
+
 void RenderSurfaceT::Begin()
 {
     RendererData.Backend->BeginRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
@@ -510,6 +480,7 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 
     g_Renderer = (RendererFrontend*)RendererData.Arena->Push(sizeof(RendererFrontend), true);
     RendererData.Backend = (RendererBackend*)RendererData.Arena->Push(sizeof(RendererBackend), true);
+    g_Device = (GPUDevice*)RendererData.Arena->Push(sizeof(GPUDevice), true);
 
     g_Renderer->Settings = (struct RendererOptions*)RendererData.Arena->Push(sizeof(RendererOptions), true);
     MemCpy(g_Renderer->Settings, Opts, sizeof(RendererOptions));
@@ -539,12 +510,12 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         RendererData.Backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
         RendererData.Backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
-        //
-        RendererData.Backend->ReadObjectPickingBuffer = VulkanRendererBackend::ReadObjectPickingBuffer;
-
         // Render Passes
         RendererData.Backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
         RendererData.Backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
+
+        // Commands
+        RendererData.Backend->CmdSetCustomBuffer = VulkanRendererBackend::CmdSetCustomBuffer;
     }
     else if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
     {
@@ -555,6 +526,12 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
     {
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return nullptr;
+    }
+
+    // Post-init
+    if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
+    {
+        VulkanRendererBackend::SetDeviceData(g_Device);
     }
 
     g_Renderer->Init();

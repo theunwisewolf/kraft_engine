@@ -183,12 +183,12 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
             return nullptr;
         }
 
-        // Copy over the value
-        if (Uniform->Type == ResourceType::Sampler)
+        // KDEBUG("Setting uniform '%s' to '%d' (Stride = %d, Offset = %d)", *UniformName, MaterialIt->second.UInt32Value, Uniform->Stride, Uniform->Offset);
+
+        if (Uniform->DataType.UnderlyingType == ShaderDataType::TextureID)
         {
-            // TODO (amn): Handle texture loading properly
             uint32 Index = (uint32)MaterialIt->second.TextureValue.GetIndex();
-            MemCpy(MaterialBuffer + 52, &Index, sizeof(uint32));
+            MemCpy(MaterialBuffer + Uniform->Offset, &Index, Uniform->Stride);
         }
         else
         {
@@ -260,26 +260,17 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Te
         return false;
     }
 
-    uint8* MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
-    // TODO (amn): Handle texture loading properly
+    uint8*        MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
+    Shader*       Shader = Instance->Shader;
+    ShaderUniform Uniform;
+    if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
+    {
+        KERROR("GetUniform() failed for '%s'", *Key);
+        return false;
+    }
+
     uint32 Index = NewTexture.GetIndex();
-    MemCpy(MaterialBuffer + 52, &Index, sizeof(uint32));
-
-    // MaterialProperty* Property = Instance->Shader->;
-
-    // // Validate the Uniform
-    // Shader*       Shader = Instance->Shader;
-    // ShaderUniform Uniform;
-    // if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
-    //     return false;
-
-    // // Release the old texture
-    // Handle<Texture> OldTexture = Instance->Textures[Uniform.Offset];
-    // TextureSystem::ReleaseTexture(OldTexture);
-
-    // Property.Set(NewTexture);
-    // // Instance->Textures[Uniform.Offset] = NewTexture;
-    // Instance->Dirty = true;
+    MemCpy(MaterialBuffer + Uniform.Offset, &Index, Uniform.Stride);
 
     return true;
 }
@@ -316,7 +307,7 @@ static void CreateDefaultMaterialsInternal()
     Data.FilePath = "Material.Default.kmt";
     Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
     Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
-    Data.Properties["DiffuseSampler"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
+    Data.Properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
 
     KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
 }
@@ -336,11 +327,17 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
     filesystem::CloseFile(&File);
 
     Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer);
+    Lexer.Create((char*)FileDataBuffer, BufferSize - 1);
 
     while (true)
     {
-        Token Token = Lexer.NextToken();
+        LexerToken Token;
+        if (LexerError ErrorCode = Lexer.NextToken(&Token))
+        {
+            KERROR("Encountered an error while trying to get the next token from the material file");
+            return false;
+        }
+
         if (Token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
         {
             if (Token.MatchesKeyword("Material"))
@@ -409,7 +406,8 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
                             Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 
-                        Data->Properties["DiffuseSampler"] = Resource;
+                        Data->Properties["DiffuseTexture"] = Resource;
+                        Data->Properties["DiffuseTexture"].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
                     }
                     else if (Token.MatchesKeyword("Shader"))
                     {

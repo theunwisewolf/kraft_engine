@@ -234,14 +234,14 @@ public:
 
     /// @brief Inserts a new element at the back of the array
     /// @param Value The value to insert
-    /// @return Returns the index the value was inserted at
-    SizeType Push(const ValueType& Value)
+    /// @return Returns a pointer to the value so that was inserted
+    ValueType* Push(const ValueType& Value)
     {
         EnlargeBufferIfRequired(Length + 1);
         InternalBuffer[Length] = Value;
         Length++;
 
-        return Length - 1;
+        return &InternalBuffer[Length - 1];
     }
 
     bool Pop(SizeType Index)

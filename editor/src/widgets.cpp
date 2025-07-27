@@ -31,13 +31,23 @@ static struct GizmoStateT
     kraft::Vec3f        Snapping;
 } GizmoState = {};
 
-static ImTextureID ImSceneTexture;
+static ImTextureID                             ImSceneTexture;
+static kraft::renderer::Handle<kraft::Texture> active_viewport_texture;
+
+enum ActiveViewportTextureEnum
+{
+    SceneView,
+    ObjectPicking
+};
+
+static ActiveViewportTextureEnum active_viewport_texture_type;
 
 void InitImguiWidgets()
 {
     GlobalAppState.ImGuiRenderer.AddWidget("Debug", DrawImGuiWidgets);
-    //ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
-    ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture, EditorState::Ptr->RenderSurface.TextureSampler);
+    active_viewport_texture = EditorState::Ptr->RenderSurface.ColorPassTexture;
+    active_viewport_texture_type = ActiveViewportTextureEnum::SceneView;
+    ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(active_viewport_texture, EditorState::Ptr->RenderSurface.TextureSampler);
 
     GizmoState.CurrentOperation = ImGuizmo::TRANSLATE;
     GizmoState.Mode = ImGuizmo::LOCAL;
@@ -48,6 +58,88 @@ void InitImguiWidgets()
 void DrawImGuiWidgets(bool refresh)
 {
     kraft::Camera& Camera = EditorState::Ptr->CurrentWorld->Camera;
+    ImGuiID        DockspaceID = ImGui::GetID("MainDockspace");
+    // ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+    static ImGuiDockNodeFlags dockspace_flags = 0;
+
+    ImGuiWindowFlags     window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    static bool p_open = true;
+    ImGui::Begin("DockSpace", &p_open, window_flags);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
+
+    // const float titlebarHeight = 57.0f;
+    // const ImVec2 windowPadding = ImGui::GetCurrentWindow()->WindowPadding;
+
+    // ImGui::SetCursorPos(ImVec2(windowPadding.x, windowPadding.y));
+    // const ImVec2 titlebarMin = ImGui::GetCursorScreenPos();
+    // const ImVec2 titlebarMax = { ImGui::GetCursorScreenPos().x + ImGui::GetWindowWidth() - windowPadding.y * 2.0f,
+    //                                 ImGui::GetCursorScreenPos().y + titlebarHeight };
+    // auto* drawList = ImGui::GetWindowDrawList();
+    // drawList->AddRectFilled(titlebarMin, titlebarMax, Colours::Theme::titlebar);
+
+    // // Logo
+    // {
+    //     const int logoWidth = EditorResources::HazelLogoTexture->GetWidth();
+    //     const int logoHeight = EditorResources::HazelLogoTexture->GetHeight();
+    //     const ImVec2 logoOffset(16.0f + windowPadding.x, 8.0f + windowPadding.y);
+    //     const ImVec2 logoRectStart = { ImGui::GetItemRectMin().x + logoOffset.x, ImGui::GetItemRectMin().y + logoOffset.y };
+    //     const ImVec2 logoRectMax = { logoRectStart.x + logoWidth, logoRectStart.y + logoHeight };
+    //     drawList->AddImage(UI::GetTextureID(EditorResources::HazelLogoTexture), logoRectStart, logoRectMax);
+    // }
+
+    // ImGui::BeginHorizontal("Titlebar", { ImGui::GetWindowWidth() - windowPadding.y * 2.0f, ImGui::GetFrameHeightWithSpacing() });
+
+    // static float moveOffsetX;
+    // static float moveOffsetY;
+    // const float w = ImGui::GetContentRegionAvail().x;
+    // const float buttonsAreaWidth = 94;
+
+    // ImGui::InvisibleButton("##titleBarDragZone", ImVec2(w - buttonsAreaWidth, titlebarHeight));
+
+    ImGui::DockSpace(DockspaceID, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+    bool update_viewport_texture = false;
+
+    if (ImGui::BeginMenuBar())
+    {
+        if (ImGui::BeginMenu("Viewport Debug"))
+        {
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Draw Scene Viewport", "", active_viewport_texture_type == ActiveViewportTextureEnum::SceneView))
+            {
+                active_viewport_texture_type = ActiveViewportTextureEnum::SceneView;
+                update_viewport_texture = true;
+            }
+            if (ImGui::MenuItem("Draw Object Picking Viewport", "", active_viewport_texture_type == ActiveViewportTextureEnum::ObjectPicking))
+            {
+                active_viewport_texture_type = ActiveViewportTextureEnum::ObjectPicking;
+                update_viewport_texture = true;
+            }
+
+            ImGui::Separator();
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
+
+    ImGui::End();
+
+    // Extensions
+    ImGuizmo::BeginFrame();
 
     ImGui::Begin("Debug");
 
@@ -237,15 +329,24 @@ void DrawImGuiWidgets(bool refresh)
     //     ImGui::GetColorU32(ImVec4(1, 0, 0, 1))
     // );
 
-    bool ViewportNeedsResize = EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
+    bool ViewportNeedsResize = update_viewport_texture || EditorState::Ptr->RenderSurface.Width != ViewPortPanelSize.x || EditorState::Ptr->RenderSurface.Height != ViewPortPanelSize.y;
     if (ViewportNeedsResize)
     {
         EditorState::Ptr->RenderSurface = kraft::g_Renderer->ResizeRenderSurface(EditorState::Ptr->RenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+        EditorState::Ptr->ObjectPickingRenderSurface = kraft::g_Renderer->ResizeRenderSurface(EditorState::Ptr->ObjectPickingRenderSurface, ViewPortPanelSize.x, ViewPortPanelSize.y);
+
+        if (active_viewport_texture_type == ActiveViewportTextureEnum::SceneView)
+        {
+            active_viewport_texture = EditorState::Ptr->RenderSurface.ColorPassTexture;
+        }
+        else
+        {
+            active_viewport_texture = EditorState::Ptr->ObjectPickingRenderSurface.ColorPassTexture;
+        }
 
         // Remove the old texture
         GlobalAppState.ImGuiRenderer.RemoveTexture(ImSceneTexture);
-        ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->RenderSurface.ColorPassTexture, EditorState::Ptr->RenderSurface.TextureSampler);
-        // ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(EditorState::Ptr->ObjectPickingRenderTarget.ColorPassTexture);
+        ImSceneTexture = GlobalAppState.ImGuiRenderer.AddTexture(active_viewport_texture, EditorState::Ptr->RenderSurface.TextureSampler);
 
         if (usePerspectiveProjection)
         {
@@ -282,10 +383,10 @@ void DrawImGuiWidgets(bool refresh)
 
         if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT))
         {
-            EditorState::Ptr->RenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
-            uint32* BufferData;
-            uint32  BufferSize;
-            kraft::g_Renderer->ReadObjectPickingBuffer(&BufferData, &BufferSize);
+            EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
+            uint32* BufferData = (uint32*)EditorState::Ptr->picking_buffer_memory;
+            uint32  BufferSize = 64;
+            // kraft::g_Renderer->ReadObjectPickingBuffer(&BufferData, &BufferSize);
             for (size_t i = 0; i < BufferSize; i++)
             {
                 if (BufferData[i] != 0)
@@ -303,7 +404,7 @@ void DrawImGuiWidgets(bool refresh)
         }
         else
         {
-            EditorState::Ptr->RenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
+            EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
         }
     }
     //ImGui::SetCursorPos( { 0, 0 });
@@ -571,6 +672,7 @@ void PipelineDebugger()
         // Can't destroy the pipeline in this frame
         // Renderer->DestroyRenderPipeline(ShaderInstance);
         kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->RenderSurface.RenderPass);
+        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->ObjectPickingRenderSurface.RenderPass);
     }
 
     ImGui::End();

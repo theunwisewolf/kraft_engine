@@ -4,6 +4,8 @@
 
 #ifdef KRAFT_PLATFORM_WINDOWS
 
+#pragma comment(lib, "kernel32")
+
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <memory>
@@ -255,6 +257,35 @@ void Platform::ConsoleOutputStringError(const char* Str, int Color)
 void Platform::ConsoleResetFormatting()
 {
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
+}
+
+uint64 Platform::TimeNowNS()
+{
+    FILETIME       ft;
+    ULARGE_INTEGER uli;
+
+    GetSystemTimePreciseAsFileTime(&ft);
+
+    // Convert FILETIME (100-ns intervals since Jan 1 1601) into a 64-bit value
+    uli.LowPart = ft.dwLowDateTime;
+    uli.HighPart = ft.dwHighDateTime;
+
+    // Subtract the difference between 1601 and 1970 in 100-ns ticks:
+    //   369 years + 89 leap days = 11644473600 seconds -> 11644473600 * 10^7 = 116444736000000000 (100-ns units)
+    const uint64_t EPOCH_DIFF = 116444736000000000ULL;
+    uli.QuadPart -= EPOCH_DIFF;
+
+    // Now uli.QuadPart is the number of 100-ns ticks since 1970
+    // Multiply by 100 to get nanoseconds
+    return (uint64)(uli.QuadPart * 100);
+}
+
+float64 Platform::GetClockTimeNS()
+{
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+
+    return (float64)(now.QuadPart * 1000000000.0 / s_ClockFrequency.QuadPart);
 }
 
 float64 Platform::GetAbsoluteTime()

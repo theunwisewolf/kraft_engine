@@ -7,7 +7,7 @@
 namespace kraft {
 
 // https://learn.microsoft.com/en-us/cpp/porting/fix-your-dependencies-on-library-internals?view=msvc-170
-KRAFT_INLINE size_t FNV1AHashBytes(const unsigned char* Buffer, size_t Count)
+KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* Buffer, size_t Count)
 {
 #if defined(KRAFT_64BIT)
     static_assert(sizeof(size_t) == 8, "This code is for 64-bit size_t.");

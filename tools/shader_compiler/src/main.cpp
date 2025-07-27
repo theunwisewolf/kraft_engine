@@ -19,6 +19,17 @@
 #include <shaderfx/kraft_shaderfx_types.h>
 
 #include <shaderc/shaderc.h>
+#include <vendor/spirv-reflect/spirv_reflect.h>
+
+#define SPIRV_REFLECT_CHECK(x)                                                                                                                                                                         \
+    do                                                                                                                                                                                                 \
+    {                                                                                                                                                                                                  \
+        if ((x) != SPV_REFLECT_RESULT_SUCCESS)                                                                                                                                                         \
+        {                                                                                                                                                                                              \
+            fprintf(stderr, "Failed at line %d.\n", __LINE__);                                                                                                                                         \
+            exit(1);                                                                                                                                                                                   \
+        }                                                                                                                                                                                              \
+    } while (0)
 
 struct ApplicationState
 {};
@@ -33,6 +44,9 @@ using namespace kraft;
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose = false);
 bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, const String& OutputPath, bool Verbose = false);
+
+void SpirvErrorCallback(void* userdata, const char* error)
+{}
 
 bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Verbose)
 {
@@ -53,11 +67,17 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
     filesystem::CloseFile(&File);
 
     Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer);
+    Lexer.Create((char*)FileDataBuffer, BufferSize - 1);
     shaderfx::ShaderFXParser Parser;
     Parser.Verbose = Verbose;
 
-    shaderfx::ShaderEffect Effect = Parser.Parse(InputPath, &Lexer);
+    shaderfx::ShaderEffect Effect;
+    if (!Parser.Parse(InputPath, &Lexer, &Effect))
+    {
+        KERROR("Parsing failed\nLine: %d\nColumn: %d\nError: %s", Parser.ErrorLine, Parser.ErrorColumn, Parser.ErrorString);
+        return false;
+    }
+
     Result = CompileShaderFX(TempArena, Effect, OutputPath);
 
     DestroyArena(TempArena);
@@ -78,28 +98,16 @@ uint64 GetUniformBufferSize(const shaderfx::UniformBufferDefinition& UniformBuff
 
 static bool CheckBufferDefinition(shaderfx::ShaderEffect& Shader, const Array<shaderfx::UniformBufferDefinition>* Buffers, shaderfx::ResourceBinding* BindingDescription)
 {
-    for (int UBIdx = 0; UBIdx < Buffers->Length; UBIdx++)
+    for (int Idx = 0; Idx < Buffers->Length; Idx++)
     {
-        if ((*Buffers)[UBIdx].Name == BindingDescription->Name)
+        if ((*Buffers)[Idx].Name == BindingDescription->Name)
         {
             // Check if the size is incorrect
-            uint64 ExpectedSize = GetUniformBufferSize((*Buffers)[UBIdx]);
-            // TODO: Maybe auto fix?
-            if (BindingDescription->Size != ExpectedSize)
-            {
-                KERROR(
-                    "'%s' shader compilation failed with error: Incorrect Buffer size for '%s': '%d bytes'. Expected '%d bytes'.",
-                    *Shader.ResourcePath,
-                    *BindingDescription->Name,
-                    BindingDescription->Size,
-                    ExpectedSize
-                );
-
-                return false;
-            }
+            uint64 ExpectedSize = GetUniformBufferSize((*Buffers)[Idx]);
+            BindingDescription->Size = ExpectedSize;
 
             // Update the parent index
-            BindingDescription->ParentIndex = UBIdx;
+            BindingDescription->ParentIndex = Idx;
 
             return true;
         }
@@ -146,31 +154,40 @@ static shaderc_include_result* ShaderIncludeResolverFunction(void* UserData, con
 static void ShaderIncludeResultReleaseFunction(void* user_data, shaderc_include_result* include_result)
 {}
 
-bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+bool VerifyResources(shaderfx::ShaderEffect& Shader, Array<shaderfx::ResourceBindingsDefinition>& Resources)
 {
-    // Basic verification
-    auto& Resources = Shader.Resources;
     for (int i = 0; i < Resources.Length; i++)
     {
-        auto& Resource = Resources[i];
-        for (int j = 0; j < Resource.ResourceBindings.Length; j++)
+        shaderfx::ResourceBindingsDefinition* Resource = &Resources[i];
+        for (int j = 0; j < Resource->ResourceBindings.Length; j++)
         {
-            if (Resource.ResourceBindings[j].Type == renderer::ResourceType::UniformBuffer)
+            if (Resource->ResourceBindings[j].Type == renderer::ResourceType::UniformBuffer)
             {
-                if (false == CheckBufferDefinition(Shader, &Shader.UniformBuffers, &Resource.ResourceBindings[j]))
+                if (false == CheckBufferDefinition(Shader, &Shader.UniformBuffers, &Resource->ResourceBindings[j]))
                 {
                     return false;
                 }
             }
-            else if (Resource.ResourceBindings[j].Type == renderer::ResourceType::StorageBuffer)
+            else if (Resource->ResourceBindings[j].Type == renderer::ResourceType::StorageBuffer)
             {
-                if (false == CheckBufferDefinition(Shader, &Shader.StorageBuffers, &Resource.ResourceBindings[j]))
+                if (false == CheckBufferDefinition(Shader, &Shader.StorageBuffers, &Resource->ResourceBindings[j]))
                 {
                     return false;
                 }
             }
         }
     }
+
+    return true;
+}
+
+bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, const String& OutputPath, bool Verbose)
+{
+    // Basic verification
+    if (!VerifyResources(Shader, Shader.LocalResources))
+        return false;
+    if (!VerifyResources(Shader, Shader.GlobalResources))
+        return false;
 
     shaderc_compiler_t           Compiler = shaderc_compiler_initialize();
     shaderc_compilation_result_t Result;
@@ -180,7 +197,8 @@ bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, cons
     BinaryOutput.Write(Shader.Name);
     BinaryOutput.Write(Shader.ResourcePath);
     BinaryOutput.Write(Shader.VertexLayouts);
-    BinaryOutput.Write(Shader.Resources);
+    BinaryOutput.Write(Shader.LocalResources);
+    BinaryOutput.Write(Shader.GlobalResources);
     BinaryOutput.Write(Shader.ConstantBuffers);
     BinaryOutput.Write(Shader.UniformBuffers);
     BinaryOutput.Write(Shader.StorageBuffers);
@@ -196,7 +214,7 @@ bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, cons
 
         // Write the vertex layout & render state offsets
         BinaryOutput.Write((int64)(Pass.VertexLayout - &Shader.VertexLayouts[0]));
-        BinaryOutput.Write((int64)(Shader.Resources.Length > 0 ? Pass.Resources - &Shader.Resources[0] : -1));
+        BinaryOutput.Write((int64)(Shader.LocalResources.Length > 0 ? Pass.Resources - &Shader.LocalResources[0] : -1));
         BinaryOutput.Write((int64)(Pass.ConstantBuffers - &Shader.ConstantBuffers[0]));
         BinaryOutput.Write((int64)(Pass.RenderState - &Shader.RenderStates[0]));
 
@@ -266,6 +284,90 @@ bool CompileShaderFX(ArenaAllocator* Arena, shaderfx::ShaderEffect& Shader, cons
                 SpirvBinary.Code = String(shaderc_result_get_bytes(Result), shaderc_result_get_length(Result));
                 BinaryOutput.Write(Stage.Stage);
                 BinaryOutput.Write(SpirvBinary);
+
+                SpvReflectShaderModule module;
+                SpvReflectResult       result = spvReflectCreateShaderModule((size_t)shaderc_result_get_length(Result), (const void*)shaderc_result_get_bytes(Result), &module);
+                KASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
+
+                // Enumerate and extract shader's input variables
+                uint32_t var_count = 0;
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, NULL));
+
+                SpvReflectInterfaceVariable** input_vars = (SpvReflectInterfaceVariable**)Arena->Push(var_count * sizeof(SpvReflectInterfaceVariable*));
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, input_vars));
+
+                uint32 descriptor_set_count = 0;
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, NULL));
+
+                SpvReflectDescriptorSet** descriptor_sets = (SpvReflectDescriptorSet**)Arena->Push(descriptor_set_count * sizeof(SpvReflectDescriptorSet*));
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, descriptor_sets));
+
+                Shader.Resources.Reserve(descriptor_set_count);
+                for (uint32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
+                {
+                    SpvReflectDescriptorSet* descriptor_set = descriptor_sets[set_idx];
+                    printf("Set = %d Bindings = %d\n", descriptor_set->set, descriptor_set->binding_count);
+
+                    for (uint32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
+                    {
+                        SpvReflectDescriptorBinding* binding = descriptor_set->bindings[binding_idx];
+                        printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name);
+
+                        // shaderfx::ShaderResource Resource = {
+                        //     .Name = String(binding->name),
+                        //     .Set = descriptor_set->set,
+
+                        // };
+                    }
+                }
+
+                // Output variables, descriptor bindings, descriptor sets, and push constants
+                // can be enumerated and extracted using a similar mechanism.
+
+                // Destroy the reflection data when no longer required.
+                spvReflectDestroyShaderModule(&module);
+
+                // spvc_context                   context = NULL;
+                // spvc_parsed_ir                 ir = NULL;
+                // spvc_resources                 resources = NULL;
+                // spvc_compiler                  compiler_glsl = NULL;
+                // const spvc_reflected_resource* list = NULL;
+                // size_t                         count;
+
+                // SPVC_CHECKED_CALL(spvc_context_create(&context));
+                // spvc_context_set_error_callback(context, SpirvErrorCallback, (void*)&Shader);
+                // SPVC_CHECKED_CALL(spvc_context_parse_spirv(context, (SpvId*)shaderc_result_get_bytes(Result), shaderc_result_get_length(Result) / sizeof(SpvId), &ir));
+
+                // spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, &compiler_glsl);
+                // spvc_compiler_create_shader_resources(compiler_glsl, &resources);
+                // spvc_resources_get_resource_list_for_type(resources, SPVC_RESOURCE_TYPE_UNIFORM_BUFFER, &list, &count);
+
+                // for (i = 0; i < count; i++)
+                // {
+                //     printf("ID: %u, BaseTypeID: %u, TypeID: %u, Name: %s\n", list[i].id, list[i].base_type_id, list[i].type_id, list[i].name);
+                //     printf(
+                //         "  Set: %u, Binding: %u\n",
+                //         spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationDescriptorSet),
+                //         spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationBinding)
+                //     );
+                // }
+
+                // Also write spirv file
+                filesystem::FileHandle File;
+                String                 BaseDir = filesystem::Dirname(OutputPath);
+                String                 SpvOutputFilePath = BaseDir + "/" + Shader.Name + (ShaderKind == shaderc_vertex_shader ? ".vert" : ".frag") + ".spv";
+                if (filesystem::OpenFile(SpvOutputFilePath, filesystem::FILE_OPEN_MODE_WRITE, true, &File))
+                {
+                    filesystem::WriteFile(&File, (uint8*)*SpirvBinary.Code, SpirvBinary.Code.Length);
+                    filesystem::CloseFile(&File);
+
+                    KDEBUG("Wrote %s", *SpvOutputFilePath);
+                }
+                else
+                {
+                    KERROR("[CompileKFX]: Failed to write spv output to file %s", *OutputPath);
+                    return false;
+                }
 
                 shaderc_result_release(Result);
             }

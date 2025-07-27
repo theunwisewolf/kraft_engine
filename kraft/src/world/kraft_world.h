@@ -16,6 +16,7 @@ class basic_registry;
 namespace kraft {
 
 struct Entity;
+struct Material;
 
 struct World
 {
@@ -39,6 +40,7 @@ struct World
     void   DestroyEntity(Entity Entity);
 
     void                             Render();
+    void                             RenderWithMaterial(kraft::Material* MaterialInstance);
     Mat4f                            GetWorldSpaceTransformMatrix(Entity E);
     KRAFT_INLINE RegistryType& GetRegistry()
     {

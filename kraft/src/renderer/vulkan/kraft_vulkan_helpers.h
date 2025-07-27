@@ -8,14 +8,14 @@
 
 namespace kraft::renderer {
 
-static inline VkFormat ToVulkanFormat(ShaderDataType::Enum Format)
+static inline VkFormat ToVulkanFormat(ShaderDataType Format)
 {
     static VkFormat Mapping[ShaderDataType::Count] = { VK_FORMAT_R32_SFLOAT,          VK_FORMAT_R32G32_SFLOAT, VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT,
                                                        VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R8_SINT,       VK_FORMAT_R8G8B8A8_SNORM,   VK_FORMAT_R8_UINT,
                                                        VK_FORMAT_R8G8B8A8_UINT,       VK_FORMAT_R16G16_SINT,   VK_FORMAT_R16G16_SNORM,     VK_FORMAT_R16G16B16A16_SINT,
                                                        VK_FORMAT_R16G16B16A16_SNORM,  VK_FORMAT_R32_UINT,      VK_FORMAT_R32G32_UINT,      VK_FORMAT_R32G32B32A32_UINT };
 
-    return Mapping[Format];
+    return Mapping[Format.UnderlyingType];
 }
 
 static inline VkFormat ToVulkanFormat(Format::Enum Format)

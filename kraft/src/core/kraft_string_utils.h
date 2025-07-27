@@ -9,13 +9,13 @@ namespace kraft
 {
 
 // char
-KRAFT_INLINE uint64 Strlen(const char* Str)
+KRAFT_INLINE static uint64 Strlen(const char* Str)
 {
     return strlen(Str);
 }
 
 // wchar_t
-KRAFT_INLINE uint64 Strlen(const wchar_t* Str)
+KRAFT_INLINE static uint64 Strlen(const wchar_t* Str)
 {
     return wcslen(Str);
 }

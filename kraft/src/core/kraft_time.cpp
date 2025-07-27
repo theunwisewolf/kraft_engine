@@ -48,4 +48,4 @@ String Time::Format(String Format, uint64 Timestamp)
 
     return Out;
 }
-}
+} // namespace kraft

@@ -1,4 +1,4 @@
-Material Simple2D
+Material Simple3D
 {
     Shader          "res/shaders/basic.kfx.bkfx"
     Ambient         vec4(0.5, 0.5, 0.5, 1.0)

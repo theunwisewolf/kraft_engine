@@ -1,10 +1,7 @@
 #pragma once
 
-#ifndef KRAFT_RENDERER_TYPES_H_
-#define KRAFT_RENDERER_TYPES_H_
-#endif
-
-struct ImDrawData;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-function"
 
 namespace kraft {
 
@@ -140,8 +137,7 @@ struct RendererBackend
     void (*BeginRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
     void (*EndRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
 
-    // Misc
-    bool (*ReadObjectPickingBuffer)(uint32** OutBuffer, uint32* BufferSize);
+    void (*CmdSetCustomBuffer)(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx);
 
     DeviceInfoT DeviceInfo;
 };
@@ -159,61 +155,118 @@ struct Vertex3D
     Vec3f Normal;
 };
 
-namespace ShaderDataType {
-enum Enum : int
+struct ShaderDataType
 {
-    Float,
-    Float2,
-    Float3,
-    Float4,
-    Mat4,
-    Byte,
-    Byte4N,
-    UByte,
-    UByte4N,
-    Short2,
-    Short2N,
-    Short4,
-    Short4N,
-    UInt,
-    UInt2,
-    UInt4,
-    Count
-};
-
-static const char* Strings[] = { "Float", "Float2", "Float3", "Float4", "Mat4", "Byte", "Byte4N", "UByte", "UByte4N", "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4", "Count" };
-
-static const char* String(Enum Value)
-{
-    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
-}
-
-static uint64 SizeOf(Enum Value)
-{
-    switch (Value)
+    enum Enum : uint8
     {
-        case Float:   return 1 * sizeof(float32);
-        case Float2:  return 2 * sizeof(float32);
-        case Float3:  return 3 * sizeof(float32);
-        case Float4:  return 4 * sizeof(float32);
-        case Mat4:    return 16 * sizeof(float32);
-        case Byte:    return 1 * sizeof(byte);
-        case Byte4N:  return 4 * sizeof(byte);
-        case UByte:   return 4 * sizeof(byte);
-        case UByte4N: return 4 * sizeof(byte);
-        case Short2:  return 2 * sizeof(int16);
-        case Short2N: return 2 * sizeof(int16);
-        case Short4:  return 4 * sizeof(int16);
-        case Short4N: return 4 * sizeof(int16);
-        case UInt:    return 1 * sizeof(uint32);
-        case UInt2:   return 2 * sizeof(uint32);
-        case UInt4:   return 4 * sizeof(uint32);
-        case Count:   return 0;
+        Float,
+        Float2,
+        Float3,
+        Float4,
+        Mat4,
+        Byte,
+        Byte4N,
+        UByte,
+        UByte4N,
+        Short2,
+        Short2N,
+        Short4,
+        Short4N,
+        UInt,
+        UInt2,
+        UInt4,
+        TextureID,
+        Count
+    } UnderlyingType;
+
+    uint16             ArraySize = 1;
+    static const char* String(Enum Value)
+    {
+        static const char* Strings[] = { "Float",  "Float2",  "Float3", "Float4",  "Mat4", "Byte",  "Byte4N", "UByte",     "UByte4N",
+                                         "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4",  "TextureID", "Count" };
+        return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
     }
 
-    return 0;
-}
-} // namespace ShaderDataType
+    static uint64 SizeOf(ShaderDataType Value)
+    {
+        switch (Value.UnderlyingType)
+        {
+            case Float:     return 1 * sizeof(float32) * Value.ArraySize;
+            case Float2:    return 2 * sizeof(float32) * Value.ArraySize;
+            case Float3:    return 3 * sizeof(float32) * Value.ArraySize;
+            case Float4:    return 4 * sizeof(float32) * Value.ArraySize;
+            case Mat4:      return 16 * sizeof(float32) * Value.ArraySize;
+            case Byte:      return 1 * sizeof(byte) * Value.ArraySize;
+            case Byte4N:    return 4 * sizeof(byte) * Value.ArraySize;
+            case UByte:     return 4 * sizeof(byte) * Value.ArraySize;
+            case UByte4N:   return 4 * sizeof(byte) * Value.ArraySize;
+            case Short2:    return 2 * sizeof(int16) * Value.ArraySize;
+            case Short2N:   return 2 * sizeof(int16) * Value.ArraySize;
+            case Short4:    return 4 * sizeof(int16) * Value.ArraySize;
+            case Short4N:   return 4 * sizeof(int16) * Value.ArraySize;
+            case UInt:      return 1 * sizeof(uint32) * Value.ArraySize;
+            case UInt2:     return 2 * sizeof(uint32) * Value.ArraySize;
+            case UInt4:     return 4 * sizeof(uint32) * Value.ArraySize;
+            case TextureID: return sizeof(uint32);
+            case Count:     return 0;
+        }
+
+        return 0;
+    }
+
+    static uint64 AlignOf(ShaderDataType Value)
+    {
+        switch (Value.UnderlyingType)
+        {
+            case Float:     return 4;
+            case Float2:    return 8;
+            case Float3:    return 16;
+            case Float4:    return 16;
+            case Mat4:      return 16;
+            case Byte:      return 1;
+            case Byte4N:    return 4;
+            case UByte:     return 1;
+            case UByte4N:   return 4;
+            case Short2:    return 4;
+            case Short2N:   return 4;
+            case Short4:    return 8;
+            case Short4N:   return 8;
+            case UInt:      return 4;
+            case UInt2:     return 8;
+            case UInt4:     return 16;
+            case TextureID: return 4;
+            case Count:     return 1;
+        }
+
+        return 0;
+    }
+
+    KRAFT_INLINE static ShaderDataType WithType(ShaderDataType::Enum Type)
+    {
+        return ShaderDataType{
+            .UnderlyingType = Type,
+            .ArraySize = 1,
+        };
+    }
+
+    KRAFT_INLINE static ShaderDataType Invalid()
+    {
+        return ShaderDataType{
+            .UnderlyingType = Count,
+            .ArraySize = 0,
+        };
+    }
+
+    KRAFT_INLINE bool IsInvalid()
+    {
+        return this->UnderlyingType == Count;
+    }
+
+    KRAFT_INLINE bool operator==(const ShaderDataType Other)
+    {
+        return this->UnderlyingType == Other.UnderlyingType && this->ArraySize == Other.ArraySize;
+    }
+};
 
 namespace VertexInputRate {
 enum Enum
@@ -786,6 +839,13 @@ struct PhysicalDeviceFormatSpecs
     Format::Enum DepthBufferFormat;
 };
 
+struct GPUDevice
+{
+    uint64 min_uniform_buffer_alignment;
+    uint64 min_storage_buffer_alignment;
+    bool   supports_device_local_host_visible;
+};
+
 struct RenderSurfaceT
 {
     const char* DebugName;
@@ -800,7 +860,10 @@ struct RenderSurfaceT
     Handle<TextureSampler> TextureSampler;
     Handle<Buffer>         GlobalUBO;
     World*                 World;
-    kraft::Vec2f           RelativeMousePosition;
+
+    // Mouse position relative to the surface
+    // Used in global data
+    kraft::Vec2f RelativeMousePosition;
 
     void Begin();
     void End();
@@ -809,3 +872,5 @@ struct RenderSurfaceT
 } // namespace renderer
 
 } // namespace kraft
+
+#pragma clang diagnostic pop

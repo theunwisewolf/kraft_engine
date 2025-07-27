@@ -24,8 +24,7 @@ struct ShaderUniform
     uint32                   Location;
     uint32                   Offset;
     uint32                   Stride;
-    ResourceType::Enum       Type;
-    ShaderDataType::Enum     DataType;
+    ShaderDataType           DataType;
     ShaderUniformScope::Enum Scope;
 };
 
@@ -99,8 +98,8 @@ struct MaterialProperty
         Vec4f           Vec4fValue;
         Vec3f           Vec3fValue;
         Vec2f           Vec2fValue;
-        Float32         Float32Value;
-        Float64         Float64Value;
+        float32         Float32Value;
+        float64         Float64Value;
         uint8           UInt8Value;
         uint16          UInt16Value;
         uint32          UInt32Value;
@@ -123,8 +122,8 @@ struct MaterialProperty
     MATERIAL_PROPERTY_SETTERS(Vec4f);
     MATERIAL_PROPERTY_SETTERS(Vec3f);
     MATERIAL_PROPERTY_SETTERS(Vec2f);
-    MATERIAL_PROPERTY_SETTERS(Float32);
-    MATERIAL_PROPERTY_SETTERS(Float64);
+    MATERIAL_PROPERTY_SETTERS(float32);
+    MATERIAL_PROPERTY_SETTERS(float64);
     MATERIAL_PROPERTY_SETTERS(uint8);
     MATERIAL_PROPERTY_SETTERS(uint16);
     MATERIAL_PROPERTY_SETTERS(uint32);

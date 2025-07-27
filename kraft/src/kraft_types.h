@@ -42,9 +42,9 @@ struct RendererOptions
     RendererBackendType Backend = RENDERER_BACKEND_TYPE_VULKAN;
     bool                VSync = false;
     uint16              GlobalUBOSizeInBytes = 128;
-    uint16              TextureCacheSize = 256;
-    uint16              MaxMaterials = 256;
-    uint16              MaterialBufferSize = 128; // Maximum size of a single material in bytes
+    uint16              TextureCacheSize = 512;
+    uint16              MaxMaterials = 1024;
+    uint16              MaterialBufferSize = 64; // Maximum size of a single material in bytes
 };
 
 #endif

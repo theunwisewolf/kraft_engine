@@ -21,19 +21,24 @@ Shader Basic
         }
 
         // Our Material Data
-        UniformBuffer LocalUniformBuffer
+        UniformBuffer MaterialData
         {
             float4  Ambient;
             float4  Diffuse;
             float4  Specular;
             float   Shininess;
+            texID   DiffuseTexture;
         }
 
         // List of local Resources: Uniform buffers, samplers, etc
-        Resource Main
+        local Resource LocalResources
         {
-            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(52);
-            Sampler       DiffuseSampler        Stage(Fragment) Binding(1);
+            UniformBuffer MaterialData           Stage(Fragment) Set(0) Binding(1);
+        }
+
+        global Resource GlobalResources
+        {
+            UniformBuffer GlobalUniformBuffer    Stage(Fragment) Set(0) Binding(0);
         }
 
         // Constant buffers/Push constants
@@ -53,26 +58,7 @@ Shader Basic
         #extension GL_EXT_nonuniform_qualifier: require
 
         #include "includes/kraft_shader_includes.h"
-
-        layout (push_constant) uniform pushConstants
-        {
-            mat4 Model;
-            vec2 MousePosition;
-            uint EntityId;
-            uint MaterialIdx;
-        } variableState;
-
-        // Written to; using descriptor sets
-        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
-        {
-            mat4 Projection;
-            mat4 View;
-            vec3 LightPosition;
-            uint Pad0;
-            vec4 LightColor;
-            vec3 CameraPosition;
-            uint Pad1;
-        } globalState;
+        #include "includes/common.glsl"
 
         struct MeshMaterial
         {
@@ -81,20 +67,20 @@ Shader Basic
             vec4  Specular;
             float Shininess;
             uint  DiffuseTexture;
-            uint  Pad0;
-            uint  Pad1;
         };
 
-        layout (set = 0, binding = 1) readonly buffer GlobalMaterialData
+        layout (set = 0, binding = 2) readonly buffer GlobalMaterialData
         {
             MeshMaterial Materials[];
         };
 
-        #define DEPTH_ARRAY_SCALE 64
-        layout(set = 0, binding = 2) buffer GlobalObjectPickingStorageBuffer
+        layout (push_constant) uniform pushConstants
         {
-            uint Data[DEPTH_ARRAY_SCALE];
-        } globalObjectPickingStorage;
+            mat4 Model;
+            vec2 MousePosition;
+            uint EntityId;
+            uint MaterialIdx;
+        } variableState;
 
         #if defined VERTEX
 
@@ -135,34 +121,8 @@ Shader Basic
         // Outputs
         layout (location = 0) out vec4 outColor;
 
-        // Written to; using descriptor sets
-        // layout(set = 2, binding = 0, std140) uniform LocalUniformBuffer 
-        // {
-        //     vec4  DiffuseColor;
-        //     vec3  Ambient;
-        //     vec3  Diffuse;
-        //     vec3  Specular;
-        //     float _;
-        //     float Shininess;
-        // } localUniformBuffer;
-
-        layout(set = 0, binding = 3) uniform sampler TextureSampler;
-        layout (set = 2, binding = 0) uniform texture2D Textures[];
-
         void main() 
         {
-            if (length(variableState.MousePosition - gl_FragCoord.xy) < 1)
-            {
-                outColor = vec4(1.0, 1.0, 0.0, 1.0);
-
-                uint zIndex = uint(gl_FragCoord.z * DEPTH_ARRAY_SCALE);
-                if (globalObjectPickingStorage.Data[zIndex] == 0)
-                {
-                    globalObjectPickingStorage.Data[zIndex] = variableState.EntityId;
-                }
-                return;
-            }
-
             MeshMaterial Material = Materials[variableState.MaterialIdx];
             // vec2 normalizedMousePosition = normalize(variableState.MousePosition);
             // outColor = vec4(normalizedMousePosition.x, normalizedMousePosition.y, 0.0, 1.0);
@@ -210,7 +170,7 @@ Shader Basic
     {
         RenderState     Default
         VertexLayout    Main
-        Resources       Main
+        Resources       LocalResources
         ConstantBuffer  Main
         VertexShader    ToScreen
         FragmentShader  ToScreen

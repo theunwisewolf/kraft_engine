@@ -20,6 +20,10 @@
 #define KRAFT_VULKAN_MAX_GEOMETRIES       1024
 #define KRAFT_VULKAN_MAX_MATERIALS        1024
 #define KRAFT_VULKAN_MAX_BINDINGS         32
+#define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS 3
+#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS 4
+#define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
+#define KRAFT_VULKAN_MAX_BINDINGS_PER_SET 16
 
 namespace kraft {
 struct ArenaAllocator;
@@ -263,13 +267,10 @@ struct VulkanContext
     // Global Data
     VkDescriptorPool       GlobalDescriptorPool;
     VkDescriptorSetLayout  DescriptorSetLayouts[16];
-    VkDescriptorSet        GlobalDescriptorSets[16][KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     VkDescriptorSet        GlobalTexturesDescriptorSet;
     uint8                  DescriptorSetLayoutsCount = 0;
     Handle<Buffer>         GlobalUniformBuffer = Handle<Buffer>::Invalid();
-    Handle<Buffer>         GlobalPickingDataBuffer = Handle<Buffer>::Invalid();
     void*                  GlobalUniformBufferMemory = 0;
-    void*                  GlobalPickingDataBufferMemory = 0;
     Handle<TextureSampler> DefaultTextureSampler;
 };
 
@@ -285,26 +286,11 @@ struct VulkanPhysicalDeviceRequirements
     const char** DeviceExtensions;
 };
 
-struct VulkanShaderResources
-{
-    VkDescriptorSetLayout LocalDescriptorSetLayout = 0;
-    Handle<Buffer>        UniformBuffer = Handle<Buffer>::Invalid();
-    void*                 UniformBufferMemory = 0;
-
-    // This is used to figure out where in memory the next material
-    // uniform data will be stored
-    struct Slot
-    {
-        bool Used;
-    };
-    Slot UsedSlots[128];
-};
-
 struct VulkanShader
 {
-    VkPipeline            Pipeline;
-    VkPipelineLayout      PipelineLayout;
-    VulkanShaderResources ShaderResources;
+    VkPipeline       Pipeline;
+    VkPipelineLayout PipelineLayout;
+    VkDescriptorSetLayout descriptor_set_layouts[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
 };
 
 } // namespace kraft::renderer

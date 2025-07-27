@@ -20,6 +20,7 @@ struct CommandBuffer;
 struct RenderPass;
 struct GlobalShaderData;
 struct Buffer;
+struct GPUDevice;
 
 template<typename T>
 struct Handle;
@@ -41,6 +42,7 @@ struct VulkanRendererBackend
     static void SetGlobalShaderData(GlobalShaderData* Data);
     static void UseShader(const Shader* Shader);
     static void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
+    static void SetShaderBuffer(Shader* Shader, uint8 Set, uint8 BindingIndex, Handle<Buffer> Buffer);
     static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     static void ApplyInstanceShaderProperties(Shader* Shader);
     static void ApplyLocalShaderProperties(Shader* Shader, void* Data);
@@ -55,9 +57,13 @@ struct VulkanRendererBackend
     static void BeginRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
     static void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
 
+    // Commands
+    static void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx);
+
     // Misc
-    static bool           ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize);
     static VulkanContext* Context();
+
+    static void SetDeviceData(GPUDevice* device);
 };
 
 } // namespace renderer

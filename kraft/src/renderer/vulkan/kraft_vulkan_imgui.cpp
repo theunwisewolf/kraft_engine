@@ -28,7 +28,6 @@ namespace kraft::renderer {
 namespace VulkanImgui {
 
 // TODO: (amn) All of this code needs rework
-static VulkanCommandBuffer CommandBuffers[3];
 static VkDescriptorPool    ImGuiDescriptorPool;
 
 // TODO (Amn): Improve this?

@@ -10,6 +10,7 @@
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
+#include <renderer/kraft_renderer_frontend.h>
 #include <systems/kraft_asset_database.h>
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_material_system.h>
@@ -240,6 +241,8 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
     return false;
 }
 
+static kraft::Shader* ObjectPickingShader = nullptr;
+
 bool Init()
 {
     EditorState* Editor = new EditorState();
@@ -297,6 +300,33 @@ bool Init()
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
     KASSERT(VikingRoom);
+
+    const int MaxMeshCount = 20;
+    for (int MeshCountX = 0; MeshCountX < MaxMeshCount; MeshCountX++)
+    {
+        for (int MeshCountY = 0; MeshCountY < MaxMeshCount; MeshCountY++)
+        {
+            kraft::Entity VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
+            VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
+                kraft::Vec3f{ 0.0f + MeshCountX * 40.0f, 0.0f, MeshCountY * 50.0f },
+                kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) },
+                kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
+            );
+
+            EditorState::Ptr->SelectedEntity = VikingRoomMeshParent.EntityHandle;
+            for (int i = 0; i < VikingRoom->SubMeshes.Length; i++)
+            {
+                kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
+                MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
+                Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+                Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+
+                kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
+                VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
+                Transform.ComputeModelMatrix();
+            }
+        }
+    }
 
     kraft::Entity VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
@@ -398,7 +428,7 @@ bool Init()
 
         if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
         {
-            MaterialSystem::SetTexture(Mesh.MaterialInstance, "DiffuseSampler", RogueSkeleton->SubMeshes[i].Textures[0]);
+            MaterialSystem::SetTexture(Mesh.MaterialInstance, "DiffuseTexture", RogueSkeleton->SubMeshes[i].Textures[0]);
         }
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
@@ -434,6 +464,8 @@ bool Init()
     // UpdateObjectScale(1);
 
     InitImguiWidgets();
+
+    ObjectPickingShader = kraft::ShaderSystem::AcquireShader("res/shaders/object_picking.kfx.bkfx", EditorState::Ptr->ObjectPickingRenderSurface.RenderPass);
 
     return true;
 }
@@ -591,6 +623,24 @@ void Render()
     kraft::g_Renderer->BeginRenderSurface(EditorState::Ptr->RenderSurface);
     EditorState::Ptr->CurrentWorld->Render();
     kraft::g_Renderer->EndRenderSurface(EditorState::Ptr->RenderSurface);
+
+    // EditorState::Ptr->ObjectPickingRenderSurface.World = EditorState::Ptr->CurrentWorld;
+    // kraft::g_Renderer->BeginRenderSurface(EditorState::Ptr->ObjectPickingRenderSurface);
+    // EditorState::Ptr->CurrentWorld->Render();
+    // kraft::g_Renderer->EndRenderSurface(EditorState::Ptr->ObjectPickingRenderSurface);
+
+    // kraft::g_Renderer->Camera = &EditorState::Ptr->CurrentWorld->Camera;
+    // auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+    // for (auto EntityHandle : Group)
+    // {
+    //     auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+    //     kraft::g_Renderer->AddRenderable(kraft::renderer::Renderable{
+    //         .ModelMatrix = GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
+    //         .MaterialInstance = Mesh.MaterialInstance,
+    //         .GeometryId = Mesh.GeometryID,
+    //         .EntityId = (uint32)EntityHandle,
+    //     });
+    // }
 }
 
 void Shutdown()
@@ -600,6 +650,13 @@ void Shutdown()
 
     GlobalAppState.ImGuiRenderer.Destroy();
 }
+
+struct ObjectPickingDrawData
+{
+    kraft::Mat4f Model;
+    kraft::Vec2f MousePosition;
+    uint32       EntityId;
+} DummyDrawData;
 
 void Run()
 {
@@ -623,11 +680,45 @@ void Run()
             kraft::g_Renderer->PrepareFrame();
             kraft::g_Renderer->DrawSurfaces();
 
+            EditorState::Ptr->ObjectPickingRenderSurface.Begin();
+            {
+                kraft::renderer::GlobalShaderData GlobalShaderData = {};
+                GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
+                GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
+                GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
+
+                kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+
+                kraft::g_Renderer->UseShader(ObjectPickingShader);
+                kraft::g_Renderer->ApplyGlobalShaderProperties(
+                    ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
+                );
+
+                kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
+
+                auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+                for (auto EntityHandle : Group)
+                {
+                    auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+
+                    DummyDrawData.Model = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
+                    DummyDrawData.MousePosition = EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition;
+                    DummyDrawData.EntityId = (uint32)EntityHandle;
+
+                    kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
+                    kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
+                }
+            }
+            EditorState::Ptr->ObjectPickingRenderSurface.End();
+
             kraft::g_Renderer->BeginMainRenderpass();
             GlobalAppState.ImGuiRenderer.BeginFrame();
             GlobalAppState.ImGuiRenderer.RenderWidgets();
             GlobalAppState.ImGuiRenderer.EndFrame();
             kraft::g_Renderer->EndMainRenderpass();
+
+            // Clear the picking buffer now
+            kraft::MemSet(EditorState::Ptr->picking_buffer_memory, 0, sizeof(uint32) * 64);
 
             GlobalAppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
         }

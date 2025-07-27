@@ -48,7 +48,7 @@ Entity World::CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position
 
     Registry.emplace<MetadataComponent>(EntityHandle, Name);
     Registry.emplace<RelationshipComponent>(EntityHandle, Parent);
-    TransformComponent& Transform = Registry.emplace<TransformComponent>(EntityHandle, Position, Rotation, Scale);
+    Registry.emplace<TransformComponent>(EntityHandle, Position, Rotation, Scale);
     if (Parent != EntityHandleInvalid)
     {
         RelationshipComponent& Relationship = Registry.get<RelationshipComponent>(Parent);
@@ -103,6 +103,22 @@ void World::Render()
         g_Renderer->AddRenderable(kraft::renderer::Renderable{
             .ModelMatrix = GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
             .MaterialInstance = Mesh.MaterialInstance,
+            .GeometryId = Mesh.GeometryID,
+            .EntityId = (uint32)EntityHandle,
+        });
+    }
+}
+
+void World::RenderWithMaterial(kraft::Material* MaterialInstance)
+{
+    g_Renderer->Camera = &this->Camera;
+    auto Group = Registry.group<MeshComponent, TransformComponent>();
+    for (auto EntityHandle : Group)
+    {
+        auto [Transform, Mesh] = Group.get<TransformComponent, MeshComponent>(EntityHandle);
+        g_Renderer->AddRenderable(kraft::renderer::Renderable{
+            .ModelMatrix = GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
+            .MaterialInstance = MaterialInstance,
             .GeometryId = Mesh.GeometryID,
             .EntityId = (uint32)EntityHandle,
         });

@@ -49,17 +49,17 @@ static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Na
 static struct ResourceManager* s_ResourceManager = nullptr;
 static VulkanContext           s_Context = {};
 
-bool VulkanRendererBackend::ReadObjectPickingBuffer(uint32** OutBuffer, uint32* BufferSize)
-{
-    *OutBuffer = (uint32*)s_Context.GlobalPickingDataBufferMemory;
-    *BufferSize = KRAFT_RENDERER__OBJECT_PICKING_DEPTH_ARRAY_SCALE;
-
-    return true;
-}
-
 VulkanContext* VulkanRendererBackend::Context()
 {
     return &s_Context;
+}
+
+void VulkanRendererBackend::SetDeviceData(GPUDevice* device)
+{
+    VkPhysicalDeviceProperties* device_properties = &s_Context.PhysicalDevice.Properties;
+    device->min_storage_buffer_alignment = device_properties->limits.minStorageBufferOffsetAlignment;
+    device->min_uniform_buffer_alignment = device_properties->limits.minUniformBufferOffsetAlignment;
+    device->supports_device_local_host_visible = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible;
 }
 
 static bool createBuffers();
@@ -316,7 +316,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
         vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &DescriptorPoolCreateInfo, s_Context.AllocationCallbacks, &s_Context.GlobalDescriptorPool);
 
         // Descriptor sets
-        VkDescriptorSetLayoutBinding GlobalDataLayoutBinding[4] = {};
+        VkDescriptorSetLayoutBinding GlobalDataLayoutBinding[3] = {};
 
         // Binding #0: Global Shader Data - Projection, View, Camera, etc
         GlobalDataLayoutBinding[0].binding = 0;
@@ -325,26 +325,19 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
         GlobalDataLayoutBinding[0].pImmutableSamplers = 0;
         GlobalDataLayoutBinding[0].stageFlags = VK_SHADER_STAGE_ALL;
 
-        // Binding #1: Global materials array
+        // Binding #1: Default texture Sampler
         GlobalDataLayoutBinding[1].binding = 1;
         GlobalDataLayoutBinding[1].descriptorCount = 1;
-        GlobalDataLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        GlobalDataLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
         GlobalDataLayoutBinding[1].pImmutableSamplers = 0;
         GlobalDataLayoutBinding[1].stageFlags = VK_SHADER_STAGE_ALL;
 
-        // Binding #2: Object Picking Storage buffer
+        // Binding #2: Global materials array
         GlobalDataLayoutBinding[2].binding = 2;
         GlobalDataLayoutBinding[2].descriptorCount = 1;
         GlobalDataLayoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         GlobalDataLayoutBinding[2].pImmutableSamplers = 0;
         GlobalDataLayoutBinding[2].stageFlags = VK_SHADER_STAGE_ALL;
-
-        // Binding #3: Default texture Sampler
-        GlobalDataLayoutBinding[3].binding = 3;
-        GlobalDataLayoutBinding[3].descriptorCount = 1;
-        GlobalDataLayoutBinding[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-        GlobalDataLayoutBinding[3].pImmutableSamplers = 0;
-        GlobalDataLayoutBinding[3].stageFlags = VK_SHADER_STAGE_ALL;
 
         VkDescriptorSetLayoutCreateInfo GlobalDataLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         GlobalDataLayoutCreateInfo.bindingCount = KRAFT_C_ARRAY_SIZE(GlobalDataLayoutBinding);
@@ -355,20 +348,20 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
             s_Context.LogicalDevice.Handle, &GlobalDataLayoutCreateInfo, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
         ));
 
-        VkDescriptorSetLayoutBinding MaterialDataLayoutBinding = {};
-        MaterialDataLayoutBinding.binding = 0;
-        MaterialDataLayoutBinding.descriptorCount = 1;
-        MaterialDataLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        MaterialDataLayoutBinding.pImmutableSamplers = 0;
-        MaterialDataLayoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+        // Set 1: This Set is unused
+        VkDescriptorSetLayoutBinding __unused_set_layout_binding = {};
+        __unused_set_layout_binding.binding = 0;
+        __unused_set_layout_binding.descriptorCount = 1;
+        __unused_set_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        __unused_set_layout_binding.pImmutableSamplers = 0;
+        __unused_set_layout_binding.stageFlags = VK_SHADER_STAGE_ALL;
 
-        VkDescriptorSetLayoutCreateInfo MaterialDataLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        MaterialDataLayoutCreateInfo.bindingCount = 1;
-        MaterialDataLayoutCreateInfo.pBindings = &MaterialDataLayoutBinding;
-        GlobalDataLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+        VkDescriptorSetLayoutCreateInfo __unused_set_layout_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        __unused_set_layout_create_info.bindingCount = 1;
+        __unused_set_layout_create_info.pBindings = &__unused_set_layout_binding;
 
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
-            s_Context.LogicalDevice.Handle, &MaterialDataLayoutCreateInfo, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
+            s_Context.LogicalDevice.Handle, &__unused_set_layout_create_info, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
         ));
 
         // Set 2: Textures
@@ -409,22 +402,6 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
 
         KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &SetAllocateInfo, &s_Context.GlobalTexturesDescriptorSet));
 
-        // VkDescriptorSetLayout Layouts[16 * KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-        // for (int i = 0; i < s_Context.DescriptorSetLayoutsCount; i++)
-        // {
-        //     for (int j = 0; j < s_Context.Swapchain.ImageCount; j++)
-        //     {
-        //         Layouts[i * s_Context.Swapchain.ImageCount + j] = s_Context.DescriptorSetLayouts[i];
-        //     }
-        // }
-
-        // VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        // DescriptorSetAllocateInfo.descriptorPool = s_Context.GlobalDescriptorPool;
-        // DescriptorSetAllocateInfo.descriptorSetCount = s_Context.DescriptorSetLayoutsCount * s_Context.Swapchain.ImageCount;
-        // DescriptorSetAllocateInfo.pSetLayouts = &Layouts[0];
-
-        // KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &DescriptorSetAllocateInfo, &s_Context.GlobalDescriptorSets[0][0]));
-
         // Create the uniform buffer for data upload
         uint64 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
         s_Context.GlobalUniformBuffer = ResourceManager->CreateBuffer({
@@ -435,28 +412,8 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
             .MapMemory = true,
         });
 
-        s_Context.GlobalPickingDataBuffer = ResourceManager->CreateBuffer({
-            .DebugName = "GlobalPickingDataBuffer",
-            .Size = (uint64)math::AlignUp(KRAFT_RENDERER__OBJECT_PICKING_DEPTH_ARRAY_SCALE * sizeof(uint32), s_Context.PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment),
-            .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER,
-            .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | ExtraMemoryFlags,
-            .MapMemory = true,
-        });
-
         // Map the buffer memory
         s_Context.GlobalUniformBufferMemory = ResourceManager->GetBufferData(s_Context.GlobalUniformBuffer);
-        s_Context.GlobalPickingDataBufferMemory = ResourceManager->GetBufferData(s_Context.GlobalPickingDataBuffer);
-
-        // for (int i = 0; i < s_Context.DescriptorSetLayoutsCount; i++)
-        // {
-        //     for (int j = 0; j < s_Context.Swapchain.ImageCount; j++)
-        //     {
-        //         KString ObjName = "GlobalDescriptorSet";
-        //         ObjName.Append(i + '0');
-        //         ObjName.Append(j + '0');
-        //         SetObjectName((uint64)s_Context.GlobalDescriptorSets[i][j], VK_OBJECT_TYPE_DESCRIPTOR_SET, *ObjName);
-        //     }
-        // }
     }
 
     // Create vertex and index buffers
@@ -610,19 +567,6 @@ bool VulkanRendererBackend::EndFrame()
 
     VulkanRendererBackendState.BuffersToSubmitNum = 0;
 
-    // uint32* BufferData = (uint32*)s_Context.GlobalPickingDataBufferMemory;
-    // for (size_t i = 0; i < KRAFT_RENDERER__OBJECT_PICKING_DEPTH_ARRAY_SCALE; i++)
-    // {
-    //     if (BufferData[i] != 0)
-    //     {
-    //         uint32 SelectedEntity = BufferData[i];
-    //         KDEBUG("Selected: %d", SelectedEntity);
-    //         break;
-    //     }
-    // }
-
-    MemSet(s_Context.GlobalPickingDataBufferMemory, 0, sizeof(uint32) * KRAFT_RENDERER__OBJECT_PICKING_DEPTH_ARRAY_SCALE);
-
     return true;
 }
 
@@ -704,26 +648,26 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     uint64 ConstantBuffersCount = Pass.ConstantBuffers->Fields.Length;
 
     uint64 InstanceUBOSize = 128; // TODO: DONT HARDCODE
-    auto   DescriptorSetLayoutBindings = Array<VkDescriptorSetLayoutBinding>(ResourceBindingsCount);
-    for (int j = 0; j < ResourceBindingsCount; j++)
-    {
-        const shaderfx::ResourceBinding& Binding = Pass.Resources->ResourceBindings[j];
-        DescriptorSetLayoutBindings[j].binding = Binding.Binding;
 
-        // TODO (amn): This descriptor count must be dynamic, based on the shader
-        // because shaders could have array resources and in that case this should be
-        // equal to the array size in the shader
-        // Docs: https://docs.vulkan.org/spec/latest/chapters/descriptorsets.html
-        DescriptorSetLayoutBindings[j].descriptorCount = 1;
-        DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
-        DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
-        DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStageFlags(Binding.Stage);
+    // for (int j = 0; j < ResourceBindingsCount; j++)
+    // {
+    //     const shaderfx::ResourceBinding& Binding = Pass.Resources->ResourceBindings[j];
+    //     DescriptorSetLayoutBindings[j].binding = Binding.Binding;
 
-        if (Binding.Type == ResourceType::UniformBuffer)
-        {
-            // InstanceUBOSize += Binding.Size;
-        }
-    }
+    //     // TODO (amn): This descriptor count must be dynamic, based on the shader
+    //     // because shaders could have array resources and in that case this should be
+    //     // equal to the array size in the shader
+    //     // Docs: https://docs.vulkan.org/spec/latest/chapters/descriptorsets.html
+    //     DescriptorSetLayoutBindings[j].descriptorCount = 1;
+    //     DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
+    //     DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
+    //     DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStageFlags(Binding.Stage);
+
+    //     if (Binding.Type == ResourceType::UniformBuffer)
+    //     {
+    //         // InstanceUBOSize += Binding.Size;
+    //     }
+    // }
 
     Shader->InstanceUBOStride = (uint32)math::AlignUp(InstanceUBOSize, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     uint64 UBOSize = math::AlignUp(Shader->InstanceUBOStride * KRAFT_MATERIAL_MAX_INSTANCES, s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
@@ -834,27 +778,74 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     InputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     PipelineCreateInfo.pInputAssemblyState = &InputAssemblyStateCreateInfo;
 
-    VkDescriptorSetLayout DescriptorSetLayouts[16] = { 0 };
+    VkDescriptorSetLayout DescriptorSetLayouts[KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER] = { 0 };
     int                   LayoutsCount = 0;
     while (LayoutsCount < s_Context.DescriptorSetLayoutsCount)
     {
         DescriptorSetLayouts[LayoutsCount++] = s_Context.DescriptorSetLayouts[LayoutsCount];
     }
 
-    VulkanShader* VulkanShaderData = (VulkanShader*)Malloc(sizeof(VulkanShader), MEMORY_TAG_RENDERER, true);
+    KASSERT(LayoutsCount <= KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS);
+
+    VulkanShader* internal_shader_data = (VulkanShader*)Malloc(sizeof(VulkanShader), MEMORY_TAG_RENDERER, true);
+
+    // Collect bindings into sets
+    shaderfx::ResourceBinding bindings_by_set[KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER][KRAFT_VULKAN_MAX_BINDINGS_PER_SET] = {};
+    uint32                    max_set_number = 0;
+    for (uint32 i = 0; i < Shader->ShaderEffect.GlobalResources.Length; i++)
+    {
+        for (uint32 j = 0; j < Shader->ShaderEffect.GlobalResources[i].ResourceBindings.Length; j++)
+        {
+            const shaderfx::ResourceBinding& binding = Shader->ShaderEffect.GlobalResources[i].ResourceBindings[j];
+            bindings_by_set[binding.Set][binding.Binding] = binding;
+
+            max_set_number = binding.Set > max_set_number ? binding.Set : max_set_number;
+        }
+    }
+
+    for (uint32 i = 0; i < Shader->ShaderEffect.LocalResources.Length; i++)
+    {
+        for (uint32 j = 0; j < Shader->ShaderEffect.LocalResources[i].ResourceBindings.Length; j++)
+        {
+            const shaderfx::ResourceBinding& binding = Shader->ShaderEffect.LocalResources[i].ResourceBindings[j];
+            bindings_by_set[binding.Set][binding.Binding] = binding;
+
+            max_set_number = binding.Set > max_set_number ? binding.Set : max_set_number;
+        }
+    }
+
+    KASSERT(max_set_number < KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER);
 
     // Do we have any shader specific local resources?
-    if (ResourceBindingsCount > 0)
+    // We start from the set after the inbuilt ones
+    for (uint32 set = KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS; set <= max_set_number; set++)
     {
-        // VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        // DescriptorSetLayoutCreateInfo.bindingCount = (uint32)DescriptorSetLayoutBindings.Length;
-        // DescriptorSetLayoutCreateInfo.pBindings = &DescriptorSetLayoutBindings[0];
+        auto bindings = Array<VkDescriptorSetLayoutBinding>();
+        for (uint32 binding_idx = 0; binding_idx < 16; binding_idx++)
+        {
+            const shaderfx::ResourceBinding& binding = bindings_by_set[set][binding_idx];
+            // If these don't match, the binding isn't set
+            if (binding.Set == set)
+            {
+                auto binding_ref = bindings.Push(VkDescriptorSetLayoutBinding());
+                binding_ref->binding = binding.Binding;
+                binding_ref->descriptorCount = 1;
+                binding_ref->descriptorType = ToVulkanResourceType(binding.Type);
+                binding_ref->pImmutableSamplers = 0;
+                binding_ref->stageFlags = ToVulkanShaderStageFlags(binding.Stage);
+            }
+        }
 
-        // VkDescriptorSetLayout LocalDescriptorSetLayout;
-        // KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(s_Context.LogicalDevice.Handle, &DescriptorSetLayoutCreateInfo, s_Context.AllocationCallbacks, &LocalDescriptorSetLayout));
+        VkDescriptorSetLayoutCreateInfo descriptor_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        descriptor_create_info.bindingCount = (uint32)bindings.Length;
+        descriptor_create_info.pBindings = bindings.Data();
 
-        // DescriptorSetLayouts[LayoutsCount++] = LocalDescriptorSetLayout;
-        // VulkanShaderData->ShaderResources.LocalDescriptorSetLayout = LocalDescriptorSetLayout;
+        KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
+            s_Context.LogicalDevice.Handle, &descriptor_create_info, s_Context.AllocationCallbacks, &internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)]
+        ));
+
+        DescriptorSetLayouts[set] = internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
+        LayoutsCount = set + 1;
     }
 
     VkPipelineLayoutCreateInfo LayoutCreateInfo = {};
@@ -862,8 +853,6 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     LayoutCreateInfo.setLayoutCount = LayoutsCount;
     LayoutCreateInfo.pSetLayouts = &DescriptorSetLayouts[0];
     LayoutCreateInfo.pushConstantRangeCount = 1;
-    // LayoutCreateInfo.pushConstantRangeCount = (uint32)PushConstantRanges.Length;
-    // LayoutCreateInfo.pPushConstantRanges = &PushConstantRanges[0];
     auto PCRange = VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_ALL,
         .offset = 0,
@@ -897,21 +886,10 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* Shader, int PassIndex, 
     String DebugPipelineName = Shader->ShaderEffect.Name + "Pipeline";
     s_Context.SetObjectName((uint64)Pipeline, VK_OBJECT_TYPE_PIPELINE, *DebugPipelineName);
 
-    // Create the uniform buffer for data upload
-    uint64 ExtraMemoryFlags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
-    VulkanShaderData->ShaderResources.UniformBuffer = ResourceManager->CreateBuffer({
-        .DebugName = "UniformBuffer",
-        .Size = UBOSize,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
-        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | ExtraMemoryFlags,
-        .MapMemory = true,
-    });
-
     // Map the buffer memory
-    VulkanShaderData->ShaderResources.UniformBufferMemory = ResourceManager->GetBufferData(VulkanShaderData->ShaderResources.UniformBuffer);
-    VulkanShaderData->Pipeline = Pipeline;
-    VulkanShaderData->PipelineLayout = PipelineLayout;
-    Shader->RendererData = VulkanShaderData;
+    internal_shader_data->Pipeline = Pipeline;
+    internal_shader_data->PipelineLayout = PipelineLayout;
+    Shader->RendererData = internal_shader_data;
 
     // Release shader modules
     for (int j = 0; j < ShaderModules.Length; j++)
@@ -924,18 +902,9 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
 {
     if (Shader->RendererData)
     {
-        VulkanShader*         VulkanShaderData = (VulkanShader*)Shader->RendererData;
-        VulkanShaderResources ShaderResources = VulkanShaderData->ShaderResources;
-        VkPipeline            Pipeline = VulkanShaderData->Pipeline;
-        VkPipelineLayout      PipelineLayout = VulkanShaderData->PipelineLayout;
-
-        ResourceManager->DestroyBuffer(ShaderResources.UniformBuffer);
-
-        // VulkanDestroyBuffer(&s_Context, &ShaderResources.UniformBuffer);
-
-        vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, ShaderResources.LocalDescriptorSetLayout, s_Context.AllocationCallbacks);
-
-        // vkFreeDescriptorSets(s_Context.LogicalDevice.Handle, GlobalDescriptorPool, ShaderResources->DescriptorSets.Length, ShaderResources->DescriptorSets.Data());
+        VulkanShader*    VulkanShaderData = (VulkanShader*)Shader->RendererData;
+        VkPipeline       Pipeline = VulkanShaderData->Pipeline;
+        VkPipelineLayout PipelineLayout = VulkanShaderData->PipelineLayout;
 
         vkDestroyPipeline(s_Context.LogicalDevice.Handle, Pipeline, s_Context.AllocationCallbacks);
         vkDestroyPipelineLayout(s_Context.LogicalDevice.Handle, PipelineLayout, s_Context.AllocationCallbacks);
@@ -1029,52 +998,73 @@ void VulkanRendererBackend::UseShader(const Shader* Shader)
 
 void VulkanRendererBackend::SetUniform(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
 {
-    VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
-    VkPipeline           Pipeline = VulkanShaderData->Pipeline;
-    VkPipelineLayout     PipelineLayout = VulkanShaderData->PipelineLayout;
+    // VulkanShader*        VulkanShaderData = (VulkanShader*)Shader->RendererData;
+    // VkPipelineLayout     PipelineLayout = VulkanShaderData->PipelineLayout;
+    // VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
+
+    // if (Uniform.Scope == ShaderUniformScope::Local)
+    // {
+    //     vkCmdPushConstants(GPUCmdBuffer->Resource, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
+    // }
+    // else if (Uniform.Scope == ShaderUniformScope::Global)
+    // {
+    //     MemCpy(s_Context.GlobalUniformBufferMemory, Value, sizeof(GlobalShaderData));
+    // }
+    // else
+    // {
+    //     if (Uniform.Scope == ShaderUniformScope::Instance)
+    //     {
+    //         Material*           MaterialInstance = Shader->ActiveMaterial;
+    //         VulkanMaterialData* MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
+
+    //         if (Uniform.Type == ResourceType::Sampler)
+    //         {
+    //             MaterialInstance->Textures[Uniform.Offset] = *(Handle<Texture>*)Value;
+    //         }
+    //         else
+    //         {
+    //             void* Offset = (char*)VulkanShaderData->ShaderResources.UniformBufferMemory + MaterialData->InstanceUBOOffset + Uniform.Offset;
+    //             MemCpy(Offset, Value, Uniform.Stride);
+    //         }
+
+    //         if (Invalidate)
+    //         {
+    //             const int MaxSwapchainImages = 3;
+    //             for (int j = 0; j < MaxSwapchainImages; j++)
+    //             {
+    //                 MaterialData->DescriptorStates[Uniform.Location].Generations[j] = KRAFT_INVALID_ID_UINT8;
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         // TODO: Global textures
+    //         void* Offset = (char*)VulkanShaderData->ShaderResources.UniformBufferMemory + Uniform.Offset;
+    //         MemCpy(Offset, Value, Uniform.Stride);
+    //     }
+    // }
+}
+
+void VulkanRendererBackend::SetShaderBuffer(Shader* Shader, uint8 Set, uint8 BindingIndex, Handle<Buffer> Buffer)
+{
     VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
+    VulkanShader*        ShaderData = (VulkanShader*)Shader->RendererData;
+    VkBuffer             GPUBuffer = VulkanResourceManagerApi::GetBuffer(Buffer)->Handle;
 
-    if (Uniform.Scope == ShaderUniformScope::Local)
-    {
-        vkCmdPushConstants(GPUCmdBuffer->Resource, PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, Uniform.Offset, Uniform.Stride, Value);
-    }
-    else if (Uniform.Scope == ShaderUniformScope::Global)
-    {
-        MemCpy(s_Context.GlobalUniformBufferMemory, Value, sizeof(GlobalShaderData));
-    }
-    else
-    {
-        if (Uniform.Scope == ShaderUniformScope::Instance)
-        {
-            Material*           MaterialInstance = Shader->ActiveMaterial;
-            VulkanMaterialData* MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
+    VkDescriptorBufferInfo BufferInfo = {};
+    BufferInfo.buffer = GPUBuffer;
+    BufferInfo.offset = 0;
+    BufferInfo.range = VK_WHOLE_SIZE;
 
-            if (Uniform.Type == ResourceType::Sampler)
-            {
-                MaterialInstance->Textures[Uniform.Offset] = *(Handle<Texture>*)Value;
-            }
-            else
-            {
-                void* Offset = (char*)VulkanShaderData->ShaderResources.UniformBufferMemory + MaterialData->InstanceUBOOffset + Uniform.Offset;
-                MemCpy(Offset, Value, Uniform.Stride);
-            }
+    VkWriteDescriptorSet DescriptorWriteInfo;
+    DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    DescriptorWriteInfo.descriptorCount = 1;
+    DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    DescriptorWriteInfo.dstBinding = BindingIndex;
+    DescriptorWriteInfo.dstArrayElement = 0;
+    DescriptorWriteInfo.pBufferInfo = &BufferInfo;
 
-            if (Invalidate)
-            {
-                const int MaxSwapchainImages = 3;
-                for (int j = 0; j < MaxSwapchainImages; j++)
-                {
-                    MaterialData->DescriptorStates[Uniform.Location].Generations[j] = KRAFT_INVALID_ID_UINT8;
-                }
-            }
-        }
-        else
-        {
-            // TODO: Global textures
-            void* Offset = (char*)VulkanShaderData->ShaderResources.UniformBufferMemory + Uniform.Offset;
-            MemCpy(Offset, Value, Uniform.Stride);
-        }
-    }
+    vkCmdPushDescriptorSetKHR(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, Set, 1, &DescriptorWriteInfo);
 }
 
 void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer)
@@ -1088,163 +1078,149 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     GlobalDataBufferInfo.offset = 0;
     GlobalDataBufferInfo.range = VK_WHOLE_SIZE;
 
-    VkWriteDescriptorSet DescriptorWriteInfo[4] = {};
+    uint32               count = 0;
+    VkWriteDescriptorSet DescriptorWriteInfo[3] = {};
     DescriptorWriteInfo[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     DescriptorWriteInfo[0].descriptorCount = 1;
     DescriptorWriteInfo[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     DescriptorWriteInfo[0].dstBinding = 0;
     DescriptorWriteInfo[0].dstArrayElement = 0;
     DescriptorWriteInfo[0].pBufferInfo = &GlobalDataBufferInfo;
-
-    GPUBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer)->Handle;
-    VkDescriptorBufferInfo GlobalMaterialsBufferInfo = {};
-    GlobalMaterialsBufferInfo.buffer = GPUBuffer;
-    GlobalMaterialsBufferInfo.offset = 0;
-    GlobalMaterialsBufferInfo.range = VK_WHOLE_SIZE;
-
-    DescriptorWriteInfo[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    DescriptorWriteInfo[1].descriptorCount = 1;
-    DescriptorWriteInfo[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    DescriptorWriteInfo[1].dstBinding = 1;
-    DescriptorWriteInfo[1].dstArrayElement = 0;
-    DescriptorWriteInfo[1].pBufferInfo = &GlobalMaterialsBufferInfo;
-
-    VkBuffer               PickingGPUBuffer = VulkanResourceManagerApi::GetBuffer(s_Context.GlobalPickingDataBuffer)->Handle;
-    VkDescriptorBufferInfo GlobalPickingDataBufferInfo = {};
-    GlobalPickingDataBufferInfo.buffer = PickingGPUBuffer;
-    GlobalPickingDataBufferInfo.offset = 0;
-    GlobalPickingDataBufferInfo.range = VK_WHOLE_SIZE;
-
-    DescriptorWriteInfo[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    DescriptorWriteInfo[2].descriptorCount = 1;
-    DescriptorWriteInfo[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    DescriptorWriteInfo[2].dstBinding = 2;
-    DescriptorWriteInfo[2].dstArrayElement = 0;
-    DescriptorWriteInfo[2].pBufferInfo = &GlobalPickingDataBufferInfo;
+    count++;
 
     VkDescriptorImageInfo ImageInfo;
     ImageInfo.sampler = VulkanResourceManagerApi::GetTextureSampler(s_Context.DefaultTextureSampler)->Sampler;
     ImageInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     ImageInfo.imageView = VK_NULL_HANDLE;
 
-    DescriptorWriteInfo[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    DescriptorWriteInfo[3].descriptorCount = 1;
-    DescriptorWriteInfo[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    DescriptorWriteInfo[3].dstBinding = 3;
-    DescriptorWriteInfo[3].dstArrayElement = 0;
-    DescriptorWriteInfo[3].pImageInfo = &ImageInfo;
+    DescriptorWriteInfo[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    DescriptorWriteInfo[1].descriptorCount = 1;
+    DescriptorWriteInfo[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    DescriptorWriteInfo[1].dstBinding = 1;
+    DescriptorWriteInfo[1].dstArrayElement = 0;
+    DescriptorWriteInfo[1].pImageInfo = &ImageInfo;
+    count++;
 
-    // vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, 1, &DescriptorWriteInfo, 0, 0);
+    VulkanBuffer* VkBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer);
+    if (VkBuffer)
+    {
+        GPUBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer)->Handle;
+        VkDescriptorBufferInfo GlobalMaterialsBufferInfo = {};
+        GlobalMaterialsBufferInfo.buffer = GPUBuffer;
+        GlobalMaterialsBufferInfo.offset = 0;
+        GlobalMaterialsBufferInfo.range = VK_WHOLE_SIZE;
 
-    // VkDescriptorSet SetsToBind[] = {
-    //     s_Context.GlobalDescriptorSets[0][s_Context.CurrentSwapchainImageIndex],
-    //     s_Context.GlobalDescriptorSets[1][s_Context.CurrentSwapchainImageIndex],
-    // };
+        DescriptorWriteInfo[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        DescriptorWriteInfo[2].descriptorCount = 1;
+        DescriptorWriteInfo[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        DescriptorWriteInfo[2].dstBinding = 2;
+        DescriptorWriteInfo[2].dstArrayElement = 0;
+        DescriptorWriteInfo[2].pBufferInfo = &GlobalMaterialsBufferInfo;
+        count++;
+    }
 
-    // vkCmdBindDescriptorSets(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 0, KRAFT_C_ARRAY_SIZE(SetsToBind), &SetsToBind[0], 0, 0);
-
-    vkCmdPushDescriptorSetKHR(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 0, KRAFT_C_ARRAY_SIZE(DescriptorWriteInfo), &DescriptorWriteInfo[0]);
+    vkCmdPushDescriptorSetKHR(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 0, count, &DescriptorWriteInfo[0]);
     vkCmdBindDescriptorSets(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 2, 1, &s_Context.GlobalTexturesDescriptorSet, 0, nullptr);
 }
 
 void VulkanRendererBackend::ApplyInstanceShaderProperties(Shader* Shader)
 {
-    VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
-    Material*            MaterialInstance = Shader->ActiveMaterial;
-    VulkanMaterialData*  MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
-    uint32               WriteCount = 0;
-    VkWriteDescriptorSet WriteInfos[32] = {};
-    VkWriteDescriptorSet DescriptorWriteInfo = {};
+    // VulkanCommandBuffer* GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
+    // Material*            MaterialInstance = Shader->ActiveMaterial;
+    // VulkanMaterialData*  MaterialData = &s_Context.Materials[MaterialInstance->RendererDataIdx];
+    // uint32               WriteCount = 0;
+    // VkWriteDescriptorSet WriteInfos[32] = {};
+    // VkWriteDescriptorSet DescriptorWriteInfo = {};
 
-    VulkanShader*          ShaderData = (VulkanShader*)Shader->RendererData;
-    VulkanShaderResources* ShaderResources = &ShaderData->ShaderResources;
+    // VulkanShader*          ShaderData = (VulkanShader*)Shader->RendererData;
+    // // VulkanShaderResources* ShaderResources = &ShaderData->ShaderResources;
 
-    VkDescriptorBufferInfo DescriptorBufferInfo = {};
-    VkDescriptorImageInfo  DescriptorImageInfo[32] = {};
+    // VkDescriptorBufferInfo DescriptorBufferInfo = {};
+    // VkDescriptorImageInfo  DescriptorImageInfo[32] = {};
 
-    // uint64 ResourceBindingsCount = Shader->ShaderEffect.RenderPasses[0].Resources->ResourceBindings.Length;
-    // for (int j = 0; j < ResourceBindingsCount; j++)
+    // // uint64 ResourceBindingsCount = Shader->ShaderEffect.RenderPasses[0].Resources->ResourceBindings.Length;
+    // // for (int j = 0; j < ResourceBindingsCount; j++)
+    // // {
+    // //     const ResourceBinding& Binding = Shader->ShaderEffect.RenderPasses[0].Resources->ResourceBindings[j];
+    // //     DescriptorSetLayoutBindings[j].binding = Binding.Binding;
+
+    // //     // TODO (amn): This descriptor count must be dynamic, based on the shader
+    // //     // because shaders could have array resources and in that case this should be
+    // //     // equal to the array size in the shader
+    // //     // Docs: https://docs.vulkan.org/spec/latest/chapters/descriptorsets.html
+    // //     DescriptorSetLayoutBindings[j].descriptorCount = 1;
+    // //     DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
+    // //     DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
+    // //     DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStageFlags(Binding.Stage);
+
+    // //     if (Binding.Type == ResourceType::UniformBuffer)
+    // //     {
+    // //         // InstanceUBOSize += Binding.Size;
+    // //     }
+    // // }
+
+    // uint32 BindingIndex = 0;
+    // // Material data
+    // if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
     // {
-    //     const ResourceBinding& Binding = Shader->ShaderEffect.RenderPasses[0].Resources->ResourceBindings[j];
-    //     DescriptorSetLayoutBindings[j].binding = Binding.Binding;
+    //     DescriptorBufferInfo.buffer = VulkanResourceManagerApi::GetBuffer(ShaderData->ShaderResources.UniformBuffer)->Handle;
+    //     DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;
+    //     DescriptorBufferInfo.range = Shader->InstanceUBOStride;
 
-    //     // TODO (amn): This descriptor count must be dynamic, based on the shader
-    //     // because shaders could have array resources and in that case this should be
-    //     // equal to the array size in the shader
-    //     // Docs: https://docs.vulkan.org/spec/latest/chapters/descriptorsets.html
-    //     DescriptorSetLayoutBindings[j].descriptorCount = 1;
-    //     DescriptorSetLayoutBindings[j].descriptorType = ToVulkanResourceType(Binding.Type);
-    //     DescriptorSetLayoutBindings[j].pImmutableSamplers = 0;
-    //     DescriptorSetLayoutBindings[j].stageFlags = ToVulkanShaderStageFlags(Binding.Stage);
+    //     DescriptorWriteInfo = {};
+    //     DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //     DescriptorWriteInfo.descriptorCount = 1;
+    //     DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //     DescriptorWriteInfo.dstSet = MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
+    //     DescriptorWriteInfo.dstBinding = BindingIndex;
+    //     DescriptorWriteInfo.dstArrayElement = 0;
+    //     DescriptorWriteInfo.pBufferInfo = &DescriptorBufferInfo;
 
-    //     if (Binding.Type == ResourceType::UniformBuffer)
-    //     {
-    //         // InstanceUBOSize += Binding.Size;
-    //     }
+    //     WriteInfos[WriteCount] = DescriptorWriteInfo;
+    //     MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex]++;
+    //     WriteCount++;
     // }
 
-    uint32 BindingIndex = 0;
-    // Material data
-    if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
-    {
-        DescriptorBufferInfo.buffer = VulkanResourceManagerApi::GetBuffer(ShaderData->ShaderResources.UniformBuffer)->Handle;
-        DescriptorBufferInfo.offset = MaterialData->InstanceUBOOffset;
-        DescriptorBufferInfo.range = Shader->InstanceUBOStride;
+    // BindingIndex++;
 
-        DescriptorWriteInfo = {};
-        DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        DescriptorWriteInfo.descriptorCount = 1;
-        DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        DescriptorWriteInfo.dstSet = MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
-        DescriptorWriteInfo.dstBinding = BindingIndex;
-        DescriptorWriteInfo.dstArrayElement = 0;
-        DescriptorWriteInfo.pBufferInfo = &DescriptorBufferInfo;
+    // // Sampler
+    // if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
+    // {
+    //     for (int i = 0; i < MaterialInstance->Textures.Length; i++)
+    //     {
+    //         Handle<Texture> Resource = MaterialInstance->Textures[i];
+    //         VulkanTexture*  VkTexture = VulkanResourceManagerApi::GetTexture(Resource);
 
-        WriteInfos[WriteCount] = DescriptorWriteInfo;
-        MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex]++;
-        WriteCount++;
-    }
+    //         KASSERT(VkTexture->Image);
+    //         KASSERT(VkTexture->View);
 
-    BindingIndex++;
+    //         DescriptorImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //         DescriptorImageInfo[i].imageView = VkTexture->View;
+    //         // DescriptorImageInfo[i].sampler = VkTexture->Sampler;
+    //     }
 
-    // Sampler
-    if (MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex] == KRAFT_INVALID_ID_UINT8)
-    {
-        for (int i = 0; i < MaterialInstance->Textures.Length; i++)
-        {
-            Handle<Texture> Resource = MaterialInstance->Textures[i];
-            VulkanTexture*  VkTexture = VulkanResourceManagerApi::GetTexture(Resource);
+    //     DescriptorWriteInfo = {};
+    //     DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //     DescriptorWriteInfo.descriptorCount = (uint32)MaterialInstance->Textures.Length;
+    //     DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //     DescriptorWriteInfo.dstSet = MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
+    //     DescriptorWriteInfo.dstBinding = BindingIndex;
+    //     DescriptorWriteInfo.dstArrayElement = 0;
+    //     DescriptorWriteInfo.pImageInfo = DescriptorImageInfo;
 
-            KASSERT(VkTexture->Image);
-            KASSERT(VkTexture->View);
+    //     WriteInfos[WriteCount] = DescriptorWriteInfo;
+    //     MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex]++;
+    //     WriteCount++;
+    // }
 
-            DescriptorImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            DescriptorImageInfo[i].imageView = VkTexture->View;
-            // DescriptorImageInfo[i].sampler = VkTexture->Sampler;
-        }
+    // BindingIndex++;
 
-        DescriptorWriteInfo = {};
-        DescriptorWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        DescriptorWriteInfo.descriptorCount = (uint32)MaterialInstance->Textures.Length;
-        DescriptorWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        DescriptorWriteInfo.dstSet = MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex];
-        DescriptorWriteInfo.dstBinding = BindingIndex;
-        DescriptorWriteInfo.dstArrayElement = 0;
-        DescriptorWriteInfo.pImageInfo = DescriptorImageInfo;
+    // if (WriteCount > 0)
+    // {
+    //     vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, WriteCount, WriteInfos, 0, 0);
+    // }
 
-        WriteInfos[WriteCount] = DescriptorWriteInfo;
-        MaterialData->DescriptorStates[BindingIndex].Generations[s_Context.CurrentSwapchainImageIndex]++;
-        WriteCount++;
-    }
-
-    BindingIndex++;
-
-    if (WriteCount > 0)
-    {
-        vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, WriteCount, WriteInfos, 0, 0);
-    }
-
-    vkCmdBindDescriptorSets(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 2, 1, &MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex], 0, 0);
+    // vkCmdBindDescriptorSets(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, ShaderData->PipelineLayout, 2, 1, &MaterialData->LocalDescriptorSets[s_Context.CurrentSwapchainImageIndex], 0, 0);
 }
 
 void VulkanRendererBackend::ApplyLocalShaderProperties(Shader* Shader, void* Data)
@@ -1423,6 +1399,35 @@ void VulkanRendererBackend::EndRenderPass(Handle<CommandBuffer> CmdBufferHandle,
 
     VulkanEndCommandBuffer(GPUCmdBuffer);
     VulkanSetCommandBufferSubmitted(GPUCmdBuffer);
+}
+
+void VulkanRendererBackend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx)
+{
+    VulkanCommandBuffer*        GPUCmdBuffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
+    VulkanShader*               shader_data = (VulkanShader*)shader->RendererData;
+    VkDescriptorSetAllocateInfo set_allocate_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    set_allocate_info.descriptorPool = s_Context.GlobalDescriptorPool;
+    set_allocate_info.descriptorSetCount = 1;
+    set_allocate_info.pSetLayouts = &shader_data->descriptor_set_layouts[set_idx - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
+
+    VkDescriptorSet descriptor_set;
+    vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &set_allocate_info, &descriptor_set);
+
+    VkBuffer               buffer_handle = VulkanResourceManagerApi::GetBuffer(buffer)->Handle;
+    VkDescriptorBufferInfo info = {};
+    info.buffer = buffer_handle;
+    info.offset = 0;
+    info.range = VK_WHOLE_SIZE;
+
+    VkWriteDescriptorSet write_info = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    write_info.descriptorCount = 1;
+    write_info.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    write_info.dstBinding = binding_idx;
+    write_info.pBufferInfo = &info;
+    write_info.dstSet = descriptor_set;
+
+    vkUpdateDescriptorSets(s_Context.LogicalDevice.Handle, 1, &write_info, 0, 0);
+    vkCmdBindDescriptorSets(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, set_idx, 1, &descriptor_set, 0, nullptr);
 }
 
 #ifdef KRAFT_RENDERER_DEBUG

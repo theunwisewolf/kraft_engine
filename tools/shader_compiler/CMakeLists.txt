@@ -16,12 +16,23 @@ if (NOT KRAFT_BUILDING_BASE)
 endif()
 
 set(SRC_FILES 
+    vendor/spirv-reflect/spirv_reflect.c
     src/main.cpp
 )
+
+# set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_CLI OFF CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_ENABLE_GLSL ON CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_ENABLE_HLSL ON CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_ENABLE_CPP OFF CACHE BOOL "" FORCE)
+# set(SPIRV_CROSS_ENABLE_MSL OFF CACHE BOOL "" FORCE)
+# add_subdirectory("vendor/SPIRV-Cross")
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../src)
+target_include_directories(${PROJECT_NAME} PRIVATE .)
 target_compile_definitions(${PROJECT_NAME} PUBLIC KRAFT_STATIC)
 
 # add_library(Kraft STATIC IMPORTED)

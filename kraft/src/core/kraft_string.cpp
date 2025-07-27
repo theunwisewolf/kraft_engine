@@ -3,6 +3,8 @@
 #include <cstdarg>
 #include <wctype.h>
 
+#include <core/kraft_asserts.h>
+
 namespace kraft {
 
 template<>
@@ -41,43 +43,48 @@ KString<wchar_t>& KString<wchar_t>::Trim()
     return *this;
 }
 
-#if defined(KRAFT_PLATFORM_WINDOWS)
-#define WIN32_LEAN_AND_MEAN
-#include "Windows.h"
-WString MultiByteStringToWideCharString(const String& Source)
-{
-    int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, *Source, -1, NULL, 0);
-    if (!CharacterCount)
-    {
-        return {};
-    }
+// #if defined(KRAFT_PLATFORM_WINDOWS)
+// #define WIN32_LEAN_AND_MEAN
+// #include "Windows.h"
+// WString MultiByteStringToWideCharString(const String& Source)
+// {
+//     int CharacterCount = MultiByteToWideChar(CP_UTF8, 0, *Source, -1, NULL, 0);
+//     if (!CharacterCount)
+//     {
+//         return {};
+//     }
 
-    WString WideString(CharacterCount, 0);
-    if (!MultiByteToWideChar(CP_UTF8, 0, *Source, -1, *WideString, CharacterCount))
-    {
-        return {};
-    }
+//     WString WideString(CharacterCount, 0);
+//     if (!MultiByteToWideChar(CP_UTF8, 0, *Source, -1, *WideString, CharacterCount))
+//     {
+//         return {};
+//     }
 
-    return WideString;
-}
-#endif
+//     return WideString;
+// }
+// #endif
 
 int32 StringFormat(char* buffer, int n, const char* format, ...)
 {
-    if (buffer)
-    {
+    KASSERT(buffer);
+
 #ifdef KRAFT_COMPILER_MSVC
-        va_list args;
+    va_list args;
 #else
-        __builtin_va_list args;
+    __builtin_va_list args;
 #endif
-        va_start(args, format);
-        int32 written = StringFormatV(buffer, n, format, args);
-        va_end(args);
-        return written;
-    }
+    va_start(args, format);
+    int32 written = StringFormatV(buffer, n, format, args);
+    va_end(args);
+    return written;
 
     return -1;
 }
 
+KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
+{
+    KASSERT(buffer);
+    return vsnprintf(buffer, n, format, args);
 }
+
+} // namespace kraft

@@ -148,6 +148,12 @@ struct KRAFT_API Platform
     static void ConsoleResetFormatting();
 
     // Time
+    // Returns the unix timestamp in NS
+    static uint64 TimeNowNS();
+
+    // Returns the clock time in NS
+    static float64 GetClockTimeNS();
+
     // Returns the absolute time in seconds
     static float64 GetAbsoluteTime();
 

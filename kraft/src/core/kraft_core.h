@@ -40,6 +40,10 @@
 #endif
 
 // Inlining
+#ifdef KRAFT_DEBUG
+// No inlining in debug mode
+#define KRAFT_INLINE
+#else
 #if defined(_MSC_VER)
 #define KRAFT_INLINE   __forceinline
 #define KRAFT_NOINLINE __declspec(noinline)
@@ -49,6 +53,7 @@
 #else
 #define KRAFT_INLINE inline
 #define KRAFT_NOINLINE
+#endif
 #endif
 
 // Library export
@@ -123,9 +128,9 @@
 #include <cstdint>
 
 typedef double   float64;
-typedef double   Float64;
+typedef double   f64;
 typedef float    float32;
-typedef float    Float32;
+typedef float    f32;
 typedef int8_t   int8;
 typedef int8_t   i8;
 typedef int16_t  int16;
