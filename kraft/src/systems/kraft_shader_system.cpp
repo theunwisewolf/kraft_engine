@@ -373,8 +373,6 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
 {
     KASSERT(Index < State->CurrentShader->UniformCache.Length);
 
-    ShaderUniform Uniform = State->CurrentShader->UniformCache[Index];
-
     return true;
 }
 

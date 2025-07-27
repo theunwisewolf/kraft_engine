@@ -81,7 +81,7 @@ int32 StringFormat(char* buffer, int n, const char* format, ...)
     return -1;
 }
 
-KRAFT_INLINE int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
+int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
 {
     KASSERT(buffer);
     return vsnprintf(buffer, n, format, args);

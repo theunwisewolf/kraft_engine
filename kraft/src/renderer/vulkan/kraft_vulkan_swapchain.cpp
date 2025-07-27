@@ -157,7 +157,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // Depth buffer if required
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
-        Format::Enum DepthBufferFormat;
+        Format::Enum DepthBufferFormat = Format::Count;
         switch (context->PhysicalDevice.DepthBufferFormat)
         {
             case VK_FORMAT_D16_UNORM:          DepthBufferFormat = Format::D16_UNORM; break;

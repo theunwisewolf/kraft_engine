@@ -59,7 +59,6 @@ void ShaderFXParser::SetError(const char* format, ...)
     this->ErrorLine = this->Lexer->Line;
     this->ErrorColumn = this->Lexer->Column;
     this->ErroredOut = true;
-    this->ErrorCode = ErrorCode;
 }
 
 bool ShaderFXParser::Parse(const String& SourceFilePath, kraft::Lexer* Lexer, ShaderEffect* Out)

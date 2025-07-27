@@ -22,7 +22,7 @@ set(SRC_FILES
 )
 
 if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_executable(${PROJECT_NAME} WIN32 ${SRC_FILES})
+    add_executable(${PROJECT_NAME} ${SRC_FILES})
 else()
     add_executable(${PROJECT_NAME} ${SRC_FILES})
 endif ()
@@ -40,21 +40,12 @@ endif ()
 # )
 
 # Debug builds are created inside a /bin/Debug folder on Windows
-if (WIN32 AND KRAFT_DEBUG_BUILD)
-    add_custom_target(kraft_editor_copy_resources ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/res
-            ${CMAKE_SOURCE_DIR}/bin/Debug/res
-        COMMENT "Copying resources..."
-    )
-else ()
-    add_custom_target(kraft_editor_copy_resources ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/res
-            ${CMAKE_SOURCE_DIR}/bin/res
-        COMMENT "Copying resources..."
-    )
-endif ()
+add_custom_target(kraft_editor_copy_resources ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res
+    COMMENT "Copying resources..."
+)
 
 add_dependencies(${PROJECT_NAME} kraft_editor_copy_resources)
 

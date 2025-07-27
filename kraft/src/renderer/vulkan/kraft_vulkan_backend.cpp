@@ -945,12 +945,10 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     count++;
 
     VulkanBuffer* VkBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer);
+    VkDescriptorBufferInfo GlobalMaterialsBufferInfo = {};
     if (VkBuffer)
     {
-        GPUBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer)->Handle;
-        VkDescriptorBufferInfo GlobalMaterialsBufferInfo = {};
-        GlobalMaterialsBufferInfo.buffer = GPUBuffer;
-        GlobalMaterialsBufferInfo.offset = 0;
+        GlobalMaterialsBufferInfo.buffer = VkBuffer->Handle;
         GlobalMaterialsBufferInfo.range = VK_WHOLE_SIZE;
 
         DescriptorWriteInfo[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

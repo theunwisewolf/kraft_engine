@@ -37,7 +37,6 @@ void Logger::LogWithFileAndLine(LogLevel Level, const char* Filename, int Line, 
 
     kraft::String FormattedTime = kraft::Time::Format("%I:%M:%S%p", kraft::Time::Now());
     int           prefixLength = 4;
-    int           reservedSize = prefixLength + this->Padding + FormattedTime.Length + this->Padding;
     char          out[BUFFER_SIZE] = { 0 };
 
     va_list args;
@@ -89,7 +88,6 @@ void Logger::Log(LogLevel level, const char* message, ...)
 
     kraft::String FormattedTime = kraft::Time::Format("%I:%M:%S%p", kraft::Time::Now());
     int           prefixLength = 4;
-    int           reservedSize = prefixLength + this->Padding + FormattedTime.Length + this->Padding;
     char          out[BUFFER_SIZE] = { 0 };
 
     va_list args;

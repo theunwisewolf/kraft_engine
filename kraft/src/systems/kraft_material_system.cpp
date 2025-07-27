@@ -44,7 +44,7 @@ struct MaterialSystemState
 static MaterialSystemState* State = 0;
 
 static void ReleaseMaterialInternal(uint32 Index);
-static void CreateDefaultMaterialsInternal();
+// static void CreateDefaultMaterialsInternal();
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data);
 
 KRAFT_INLINE Material* GetMaterialByName(const String& Name)
@@ -289,17 +289,17 @@ static void ReleaseMaterialInternal(uint32 Index)
     }
 }
 
-static void CreateDefaultMaterialsInternal()
-{
-    MaterialDataIntermediateFormat Data;
-    Data.Name = "Materials.Default";
-    Data.FilePath = "Material.Default.kmt";
-    Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
-    Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
-    Data.Properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
+// static void CreateDefaultMaterialsInternal()
+// {
+//     MaterialDataIntermediateFormat Data;
+//     Data.Name = "Materials.Default";
+//     Data.FilePath = "Material.Default.kmt";
+//     Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
+//     Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
+//     Data.Properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
 
-    KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
-}
+//     KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
+// }
 
 static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data)
 {
@@ -316,14 +316,14 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
     filesystem::CloseFile(&File);
 
     Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer, BufferSize - 1);
+    Lexer.Create((char*)FileDataBuffer, BufferSize);
 
     while (true)
     {
         LexerToken Token;
         if (LexerError ErrorCode = Lexer.NextToken(&Token))
         {
-            KERROR("Encountered an error while trying to get the next token from the material file");
+            KERROR("Encountered an error while trying to get the next token from the material file! ErrorCode = %d", ErrorCode);
             return false;
         }
 

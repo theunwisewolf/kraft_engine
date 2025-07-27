@@ -35,6 +35,7 @@ void Lexer::Create(char* Text, uint64 Length)
     this->Line = 0;
     this->Column = 0;
     this->Error = LEXER_ERROR_NONE;
+    this->Length = Length;
 }
 
 LexerError Lexer::NextToken(LexerToken* OutToken)

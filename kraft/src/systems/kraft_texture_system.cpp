@@ -318,7 +318,6 @@ static void _createDefaultTextures()
 {
     const int         Width = 256;
     const int         Height = 256;
-    const int         Depth = 1;
     const int         Channels = 4;
     kraft::BufferView TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
 

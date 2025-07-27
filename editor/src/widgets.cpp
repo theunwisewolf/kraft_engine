@@ -446,7 +446,7 @@ void DrawImGuiWidgets(bool refresh)
         //     ImGui::GetColorU32(ImVec4(1, 1, 0, 1))
         // );
 
-        kraft::Mat4f EntityWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
+        kraft::Mat4f EntityWorldTransform = Transform.ModelMatrix;// EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
         ImGuizmo::Manipulate(
             Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, GizmoState.CurrentOperation, GizmoState.Mode, EntityWorldTransform, nullptr, GizmoState.Snap ? GizmoState.Snapping._data : nullptr
         );
@@ -454,11 +454,12 @@ void DrawImGuiWidgets(bool refresh)
 
         if (ImGuizmo::IsUsing())
         {
-            kraft::Entity ParentEntity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity.GetParent());
-            kraft::Mat4f  EntityParentWorldTransform = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(ParentEntity);
-            kraft::Mat4f  EntityLocalTransform = EntityWorldTransform * kraft::Inverse(EntityParentWorldTransform);
+            // kraft::Entity ParentEntity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity.GetParent());
+            // kraft::Mat4f  EntityParentWorldTransform = ParentEntity.GetComponent<kraft::TransformComponent>().ModelMatrix;//EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(ParentEntity);
+            // kraft::Mat4f  EntityLocalTransform = EntityWorldTransform * kraft::Inverse(EntityParentWorldTransform);
 
-            EntityLocalTransform.Decompose(Translation, Rotation, Scale);
+            // EntityLocalTransform.Decompose(Translation, Rotation, Scale);
+            EntityWorldTransform.Decompose(Translation, Rotation, Scale);
         }
     }
 

@@ -324,10 +324,12 @@ bool Init()
                 kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
                 VikingRoom->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
                 Transform.ComputeModelMatrix();
+                Transform.Set(EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(TestMesh));
             }
         }
     }
 
+#if 0
     kraft::Entity VikingRoomMeshParent = EditorState::Ptr->CurrentWorld->CreateEntity("VikingRoomParent", WorldRoot);
     VikingRoomMeshParent.GetComponent<TransformComponent>().SetTransform(
         kraft::Vec3f{ 0.0f, 0.0f, 16.0f }, kraft::Vec3f{ kraft::DegToRadians(90.0f), kraft::DegToRadians(-90.0f), kraft::DegToRadians(180.0f) }, kraft::Vec3f{ 20.0f, 20.0f, 20.0f }
@@ -379,6 +381,7 @@ bool Init()
         Chair->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
         Transform.ComputeModelMatrix();
     }
+#endif
 
 #if 0
     Array<kraft::Entity> NodeEntityHierarchy(RogueSkeleton->NodeHierarchy.Length);
@@ -434,6 +437,7 @@ bool Init()
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
         RogueSkeleton->SubMeshes[i].Transform.Decompose(Transform.Position, Transform.Rotation, Transform.Scale);
         Transform.ComputeModelMatrix();
+        Transform.Set(EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(TestMesh));
     }
 #endif
     // const float ObjectCount = 0.0f;
@@ -680,36 +684,37 @@ void Run()
             kraft::g_Renderer->PrepareFrame();
             kraft::g_Renderer->DrawSurfaces();
 
-            EditorState::Ptr->ObjectPickingRenderSurface.Begin();
-            {
-                kraft::renderer::GlobalShaderData GlobalShaderData = {};
-                GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
-                GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
-                GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
+            // EditorState::Ptr->ObjectPickingRenderSurface.Begin();
+            // {
+            //     kraft::renderer::GlobalShaderData GlobalShaderData = {};
+            //     GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
+            //     GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
+            //     GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
 
-                kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+            //     kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
 
-                kraft::g_Renderer->UseShader(ObjectPickingShader);
-                kraft::g_Renderer->ApplyGlobalShaderProperties(
-                    ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
-                );
+            //     kraft::g_Renderer->UseShader(ObjectPickingShader);
+            //     kraft::g_Renderer->ApplyGlobalShaderProperties(
+            //         ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
+            //     );
 
-                kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
+            //     kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
 
-                auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
-                for (auto EntityHandle : Group)
-                {
-                    auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+            //     auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+            //     for (auto EntityHandle : Group)
+            //     {
+            //         auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
 
-                    DummyDrawData.Model = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
-                    DummyDrawData.MousePosition = EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition;
-                    DummyDrawData.EntityId = (uint32)EntityHandle;
+            //         // DummyDrawData.Model = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
+            //         DummyDrawData.Model = Transform.ModelMatrix;
+            //         DummyDrawData.MousePosition = EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition;
+            //         DummyDrawData.EntityId = (uint32)EntityHandle;
 
-                    kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
-                    kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
-                }
-            }
-            EditorState::Ptr->ObjectPickingRenderSurface.End();
+            //         kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
+            //         kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
+            //     }
+            // }
+            // EditorState::Ptr->ObjectPickingRenderSurface.End();
 
             kraft::g_Renderer->BeginMainRenderpass();
             GlobalAppState.ImGuiRenderer.BeginFrame();
@@ -757,7 +762,7 @@ void Run()
 #include <kraft_types.h>
 
 #if defined(KRAFT_PLATFORM_WINDOWS) && !defined(KRAFT_DEBUG) && defined(KRAFT_GUI_APP)
-#define KRAFT_USE_WINMAIN 1
+#define KRAFT_USE_WINMAIN 0
 #else
 #define KRAFT_USE_WINMAIN 0
 #endif

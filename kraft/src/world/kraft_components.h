@@ -67,6 +67,12 @@ struct TransformComponent
         this->Scale = kraft::Vec3f{ Scale, Scale, Scale };
         this->ComputeModelMatrix();
     }
+
+    KRAFT_INLINE void Set(Mat4f matrix)
+    {
+        this->ModelMatrix = matrix;
+        this->ModelMatrix.Decompose(this->Position, this->Rotation, this->Scale);
+    }
 };
 
 struct RelationshipComponent

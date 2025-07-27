@@ -1,5 +1,8 @@
 #pragma once
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-function"
+
 namespace kraft {
 
 namespace TokenType {
@@ -78,3 +81,5 @@ struct LexerNamedToken
 };
 
 } // namespace kraft
+
+#pragma clang diagnostic pop

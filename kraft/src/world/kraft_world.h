@@ -32,16 +32,15 @@ struct World
 
     Entity GetRoot() const;
     Entity GetEntity(EntityHandleT Handle) const;
-    bool IsValidEntity(EntityHandleT Handle) const;
+    bool   IsValidEntity(EntityHandleT Handle) const;
 
     Entity CreateEntity();
     Entity CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
     Entity CreateEntity(StringView Name, const Entity& Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
     void   DestroyEntity(Entity Entity);
 
-    void                             Render();
-    void                             RenderWithMaterial(kraft::Material* MaterialInstance);
-    Mat4f                            GetWorldSpaceTransformMatrix(Entity E);
+    void                       Render();
+    Mat4f                      GetWorldSpaceTransformMatrix(Entity E);
     KRAFT_INLINE RegistryType& GetRegistry()
     {
         return Registry;
@@ -53,4 +52,4 @@ private:
     FlatHashMap<EntityHandleT, Entity> Entities;
 };
 
-}
+} // namespace kraft
