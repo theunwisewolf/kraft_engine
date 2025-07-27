@@ -47,13 +47,9 @@ struct RendererFrontend
     // API
     void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void DestroyRenderPipeline(Shader* Shader);
-    void CreateMaterial(Material* Material);
-    void DestroyMaterial(Material* Material);
     void UseShader(const Shader* Shader);
-    void SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
     void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void ApplyLocalShaderProperties(Shader* ActiveShader, void* Data);
-    void ApplyInstanceShaderProperties(Shader* ActiveShader);
     void DrawGeometry(uint32 GeometryID);
     bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
     void DestroyGeometry(Geometry* Geometry);

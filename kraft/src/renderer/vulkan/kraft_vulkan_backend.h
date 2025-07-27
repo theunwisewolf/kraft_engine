@@ -7,7 +7,6 @@ namespace kraft {
 struct Texture;
 struct Shader;
 struct ShaderUniform;
-struct Material;
 struct RendererOptions;
 struct Geometry;
 struct ArenaAllocator;
@@ -36,15 +35,10 @@ struct VulkanRendererBackend
 
     static void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     static void DestroyRenderPipeline(Shader* Shader);
-    static void CreateMaterial(Material* Material);
-    static void DestroyMaterial(Material* Material);
 
     static void SetGlobalShaderData(GlobalShaderData* Data);
     static void UseShader(const Shader* Shader);
-    static void SetUniform(Shader* Instance, const ShaderUniform& Uniform, void* Value, bool Invalidate);
-    static void SetShaderBuffer(Shader* Shader, uint8 Set, uint8 BindingIndex, Handle<Buffer> Buffer);
     static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
-    static void ApplyInstanceShaderProperties(Shader* Shader);
     static void ApplyLocalShaderProperties(Shader* Shader, void* Data);
     static void UpdateTextures(Array<Handle<Texture>> Textures);
 

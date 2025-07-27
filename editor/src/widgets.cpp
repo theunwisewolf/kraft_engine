@@ -141,7 +141,7 @@ void DrawImGuiWidgets(bool refresh)
     // Extensions
     ImGuizmo::BeginFrame();
 
-    ImGui::Begin("Debug");
+    ImGui::Begin("Inspector");
 
     static float left = -(float)kraft::Platform::GetWindow()->Width * 0.5f, right = (float)kraft::Platform::GetWindow()->Width * 0.5f, top = -(float)kraft::Platform::GetWindow()->Height * 0.5f,
                  bottom = (float)kraft::Platform::GetWindow()->Height * 0.5f, nearClip = -1.f, farClip = 1.f;
@@ -381,12 +381,12 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::SetNextItemAllowOverlap();
         ImGui::Text("Relative Mouse Position: %f, %f", RelativeMousePosition.x, RelativeMousePosition.y);
 
-        if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT))
+        if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT) && ImGui::IsWindowFocused())
         {
             EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
             uint32* BufferData = (uint32*)EditorState::Ptr->picking_buffer_memory;
             uint32  BufferSize = 64;
-            // kraft::g_Renderer->ReadObjectPickingBuffer(&BufferData, &BufferSize);
+
             for (size_t i = 0; i < BufferSize; i++)
             {
                 if (BufferData[i] != 0)
@@ -486,7 +486,7 @@ void PipelineDebugger()
     kraft::shaderfx::ShaderEffect& Effect = ShaderInstance->ShaderEffect;
     bool                           Recreate = false;
 
-    ImGui::Begin("Pipeline Debugger");
+    ImGui::Begin("Pipeline Debugger", 0, ImGuiWindowFlags_NoFocusOnAppearing);
     ImGui::Text("%s", *Effect.Name);
     ImGui::Separator();
     for (int i = 0; i < Effect.RenderStates.Length; i++)
@@ -695,6 +695,8 @@ static void DrawNodeHierarchy(kraft::Entity Root)
         {
             EditorState::Ptr->SelectedEntity = Root.EntityHandle;
             KDEBUG("%s clicked", *Metadata.Name);
+
+            ImGui::SetWindowFocus("Inspector");
         }
 
         for (int i = 0; i < Children.Length; i++)
@@ -839,31 +841,31 @@ void MaterialEditor()
     kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
     kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
 
-    // for (auto It = Material->Properties.ibegin(); It != Material->Properties.iend(); It++)
-    // {
-    //     kraft::MaterialProperty& Property = It->second;
-    //     kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
+    for (auto It = Material->Properties.begin(); It != Material->Properties.end(); It++)
+    {
+        kraft::MaterialProperty& Property = It->second;
+        kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
 
-    //     if (Uniform.DataType == kraft::renderer::ShaderDataType::Float3)
-    //     {
-    //         if (ImGui::DragFloat3(It->first.get().Data(), Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
-    //         {
-    //             Material->Dirty = true;
-    //         }
-    //     }
-    //     else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float4)
-    //     {
-    //         if (ImGui::DragFloat4(It->first.get().Data(), Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
-    //         {
-    //             Material->Dirty = true;
-    //         }
-    //     }
-    //     else if (Uniform.DataType == kraft::renderer::ShaderDataType::Float)
-    //     {
-    //         if (ImGui::DragFloat(It->first.get().Data(), &Property.Float32Value))
-    //         {
-    //             Material->Dirty = true;
-    //         }
-    //     }
-    // }
+        if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float3)
+        {
+            if (ImGui::DragFloat3(*It->first, Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
+            {
+                kraft::MaterialSystem::SetProperty(Material, It->first, Property.Vec3fValue);
+            }
+        }
+        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float4)
+        {
+            if (ImGui::DragFloat4(*It->first, Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
+            {
+                kraft::MaterialSystem::SetProperty(Material, It->first, Property.Vec4fValue);
+            }
+        }
+        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float)
+        {
+            if (ImGui::DragFloat(*It->first, &Property.Float32Value))
+            {
+                kraft::MaterialSystem::SetProperty(Material, It->first, Property.Float32Value);
+            }
+        }
+    }
 }

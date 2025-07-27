@@ -118,14 +118,10 @@ struct RendererBackend
 
     // Shader
     void (*UseShader)(const Shader* Shader);
-    void (*SetUniform)(Shader* Shader, const ShaderUniform& Uniform, void* Value, bool Invalidate);
     void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
-    void (*ApplyInstanceShaderProperties)(Shader* ActiveShader);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
-    void (*CreateMaterial)(Material* Material);
-    void (*DestroyMaterial)(Material* Material);
     void (*UpdateTextures)(Array<Handle<Texture>> Textures);
 
     // Geometry

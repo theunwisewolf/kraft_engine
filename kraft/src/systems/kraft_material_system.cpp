@@ -146,15 +146,10 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     Instance->Name = Data.Name;
     Instance->AssetPath = Data.FilePath;
     Instance->Shader = Shader;
-    Instance->Textures = Array<Handle<Texture>>(Shader->TextureCount);
-    Instance->Dirty = true;
 
     // Offset into the material buffer
     uint8* MaterialBuffer = State->MaterialsBuffer + FreeIndex * State->MaterialBufferSize;
     MemZero(MaterialBuffer, State->MaterialBufferSize);
-
-    // Create backend data such has descriptor sets
-    g_Renderer->CreateMaterial(Instance);
 
     // Copy over the material properties from the material data
     for (auto It = Shader->UniformCacheMapping.ibegin(); It != Shader->UniformCacheMapping.iend(); It++)
@@ -166,7 +161,6 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
 
         const String& UniformName = It->first;
-        // MaterialProperty Property = MaterialProperty();
 
         // Look to see if this property is present in the material
         auto MaterialIt = Data.Properties.find(UniformName);
@@ -196,6 +190,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
     }
 
+    Instance->Properties = Data.Properties;
     return Instance;
 }
 
@@ -223,20 +218,14 @@ void MaterialSystem::DestroyMaterial(Material* Instance)
 {
     KASSERT(Instance->ID < State->MaxMaterialsCount);
     KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", *Instance->Name);
-    MaterialReference* Reference = &State->MaterialReferences[Instance->ID];
 
+    MaterialReference* Reference = &State->MaterialReferences[Instance->ID];
     if (!Reference)
     {
         KERROR("Invalid material %s", *Instance->Name);
     }
 
-    for (uint32 i = 0; i < Instance->Textures.Length; i++)
-    {
-        TextureSystem::ReleaseTexture(Instance->Textures[i]);
-    }
-
     ShaderSystem::ReleaseShader(Instance->Shader);
-
     MemZero(Instance, sizeof(Material));
 }
 
@@ -263,7 +252,7 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Te
     uint8*        MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
     Shader*       Shader = Instance->Shader;
     ShaderUniform Uniform;
-    if (!ShaderSystem::GetUniform(Shader, Key, Uniform))
+    if (!ShaderSystem::GetUniform(Shader, Key, &Uniform))
     {
         KERROR("GetUniform() failed for '%s'", *Key);
         return false;
@@ -552,14 +541,33 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
     return true;
 }
 
-#if 0
 #define MATERIAL_SYSTEM_SET_PROPERTY(Type)                                                                                                                                                             \
     template<>                                                                                                                                                                                         \
-    bool MaterialSystem::SetProperty(Material* Instance, const String& Name, Type Value)                                                                                                               \
+    bool MaterialSystem::SetProperty(Material* instance, const String& key, Type value)                                                                                                                \
     {                                                                                                                                                                                                  \
-        MaterialProperty& Property = Instance->Properties[Name];                                                                                                                                       \
-        Property.Set(Value);                                                                                                                                                                           \
-        Instance->Dirty = true;                                                                                                                                                                        \
+        auto it = instance->Shader->UniformCacheMapping.find(key);                                                                                                                                     \
+        if (it == instance->Shader->UniformCacheMapping.iend())                                                                                                                                        \
+        {                                                                                                                                                                                              \
+            KERROR("[SetTexture]: Unknown key %s", *key);                                                                                                                                              \
+            return false;                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
+                                                                                                                                                                                                       \
+        uint8*        material_buffer = State->MaterialsBuffer + instance->ID * State->MaterialBufferSize;                                                                                             \
+        Shader*       shader = instance->Shader;                                                                                                                                                       \
+        ShaderUniform uniform;                                                                                                                                                                         \
+        if (!ShaderSystem::GetUniform(shader, key, &uniform))                                                                                                                                          \
+        {                                                                                                                                                                                              \
+            KERROR("GetUniform() failed for '%s'", *key);                                                                                                                                              \
+            return false;                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
+                                                                                                                                                                                                       \
+        if (sizeof(value) != uniform.Stride)                                                                                                                                                           \
+        {                                                                                                                                                                                              \
+            KERROR("You are trying to set a value of size '%d' when the uniform's stride is set to '%d'", sizeof(value), uniform.Stride);                                                              \
+            return false;                                                                                                                                                                              \
+        }                                                                                                                                                                                              \
+                                                                                                                                                                                                       \
+        MemCpy(material_buffer + uniform.Offset, &value, uniform.Stride);                                                                                                                              \
         return true;                                                                                                                                                                                   \
     }
 
@@ -567,13 +575,11 @@ MATERIAL_SYSTEM_SET_PROPERTY(Mat4f);
 MATERIAL_SYSTEM_SET_PROPERTY(Vec4f);
 MATERIAL_SYSTEM_SET_PROPERTY(Vec3f);
 MATERIAL_SYSTEM_SET_PROPERTY(Vec2f);
-MATERIAL_SYSTEM_SET_PROPERTY(Float32);
-MATERIAL_SYSTEM_SET_PROPERTY(Float64);
-MATERIAL_SYSTEM_SET_PROPERTY(UInt8);
-MATERIAL_SYSTEM_SET_PROPERTY(UInt16);
-MATERIAL_SYSTEM_SET_PROPERTY(UInt32);
-MATERIAL_SYSTEM_SET_PROPERTY(UInt64);
-MATERIAL_SYSTEM_SET_PROPERTY(Handle<Texture>);
-#endif
+MATERIAL_SYSTEM_SET_PROPERTY(float32);
+MATERIAL_SYSTEM_SET_PROPERTY(float64);
+MATERIAL_SYSTEM_SET_PROPERTY(u8);
+MATERIAL_SYSTEM_SET_PROPERTY(u16);
+MATERIAL_SYSTEM_SET_PROPERTY(u32);
+MATERIAL_SYSTEM_SET_PROPERTY(u64);
 
 } // namespace kraft

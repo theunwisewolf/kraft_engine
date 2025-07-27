@@ -285,24 +285,9 @@ void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
     RendererData.Backend->DestroyRenderPipeline(Shader);
 }
 
-void RendererFrontend::CreateMaterial(Material* Material)
-{
-    RendererData.Backend->CreateMaterial(Material);
-}
-
-void RendererFrontend::DestroyMaterial(Material* Instance)
-{
-    RendererData.Backend->DestroyMaterial(Instance);
-}
-
 void RendererFrontend::UseShader(const Shader* Shader)
 {
     RendererData.Backend->UseShader(Shader);
-}
-
-void RendererFrontend::SetUniform(Shader* ActiveShader, const ShaderUniform& Uniform, void* Value, bool Invalidate)
-{
-    RendererData.Backend->SetUniform(ActiveShader, Uniform, Value, Invalidate);
 }
 
 void RendererFrontend::DrawGeometry(uint32 GeometryID)
@@ -318,11 +303,6 @@ void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<
 void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)
 {
     RendererData.Backend->ApplyLocalShaderProperties(ActiveShader, Data);
-}
-
-void RendererFrontend::ApplyInstanceShaderProperties(Shader* ActiveShader)
-{
-    RendererData.Backend->ApplyInstanceShaderProperties(ActiveShader);
 }
 
 bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
@@ -499,13 +479,9 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         RendererData.Backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
         RendererData.Backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
         RendererData.Backend->UseShader = VulkanRendererBackend::UseShader;
-        RendererData.Backend->SetUniform = VulkanRendererBackend::SetUniform;
         RendererData.Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
-        RendererData.Backend->ApplyInstanceShaderProperties = VulkanRendererBackend::ApplyInstanceShaderProperties;
         RendererData.Backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
         RendererData.Backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
-        RendererData.Backend->CreateMaterial = VulkanRendererBackend::CreateMaterial;
-        RendererData.Backend->DestroyMaterial = VulkanRendererBackend::DestroyMaterial;
         RendererData.Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
         RendererData.Backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
         RendererData.Backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;

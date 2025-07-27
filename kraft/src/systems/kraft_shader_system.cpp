@@ -1,6 +1,5 @@
 #include "kraft_shader_system.h"
 
-//#include <containers/kraft_buffer.h>
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_asserts.h>
@@ -208,52 +207,6 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
         KDEBUG("%s = %s Binding %d Offset %d", *it.key(), ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
     }
 
-    // if (Pass.Resources)
-    // {
-    //     uint32 Offset = 0;
-    //     uint32 TextureCount = 0;
-    //     for (int i = 0; i < Pass.Resources->ResourceBindings.Length; i++)
-    //     {
-    //         auto& ResourceBinding = Pass.Resources->ResourceBindings[i];
-    //         if (ResourceBinding.Type == ResourceType::UniformBuffer)
-    //         {
-    //             KASSERT(ResourceBinding.ParentIndex != -1);
-    //             const shaderfx::UniformBufferDefinition& UniformBufferDef = Effect.UniformBuffers[ResourceBinding.ParentIndex];
-    //             for (int FieldIdx = 0; FieldIdx < UniformBufferDef.Fields.Length; FieldIdx++)
-    //             {
-    //                 const shaderfx::UniformBufferEntry& Field = UniformBufferDef.Fields[FieldIdx];
-    //                 AddUniform(
-    //                     &Reference->Shader, Field.Name, ResourceBinding.Binding, Offset, ShaderDataType::SizeOf(Field.Type), ResourceType::UniformBuffer, Field.Type, ShaderUniformScope::Instance
-    //                 );
-
-    //                 // 16-byte alignment
-    //                 Offset += math::AlignUp(ShaderDataType::SizeOf(Field.Type), 16);
-    //             }
-    //         }
-    //         else
-    //         {
-    //             AddUniform(
-    //                 &Reference->Shader,
-    //                 ResourceBinding.Name,
-    //                 ResourceBinding.Binding,
-    //                 TextureCount++,
-    //                 ResourceBinding.Size,
-    //                 ResourceBinding.Type,
-    //                 ShaderDataType::Invalid(),
-    //                 ShaderUniformScope::Instance
-    //             );
-    //         }
-    //     }
-
-    //     Reference->Shader.InstanceUniformsCount = (uint32)Reference->Shader.UniformCache.Size();
-    //     Reference->Shader.TextureCount = TextureCount;
-    // }
-    // else
-    // {
-    //     Reference->Shader.InstanceUniformsCount = 0;
-    //     Reference->Shader.TextureCount = 0;
-    // }
-
     // Cache constant buffers as local uniforms
     uint32 Offset = 0;
     for (uint64 i = 0; i < Pass.ConstantBuffers->Fields.Length; i++)
@@ -373,7 +326,7 @@ void ShaderSystem::Unbind()
     }
 }
 
-bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUniform& Uniform)
+bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUniform* Uniform)
 {
     auto It = Shader->UniformCacheMapping.find(Name);
     if (It == Shader->UniformCacheMapping.iend())
@@ -382,13 +335,13 @@ bool ShaderSystem::GetUniform(const Shader* Shader, const String& Name, ShaderUn
     return GetUniformByIndex(Shader, It->second.get(), Uniform);
 }
 
-bool ShaderSystem::GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform& Uniform)
+bool ShaderSystem::GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform* Uniform)
 {
     KASSERT(Index < Shader->UniformCache.Length);
     if (Index >= Shader->UniformCache.Length)
         return false;
 
-    Uniform = Shader->UniformCache[Index];
+    *Uniform = Shader->UniformCache[Index];
     return true;
 }
 
@@ -421,52 +374,8 @@ bool ShaderSystem::SetUniformByIndex(uint32 Index, void* Value, bool Invalidate)
     KASSERT(Index < State->CurrentShader->UniformCache.Length);
 
     ShaderUniform Uniform = State->CurrentShader->UniformCache[Index];
-    g_Renderer->SetUniform(State->CurrentShader, Uniform, Value, Invalidate);
 
     return true;
-}
-
-void ShaderSystem::ApplyGlobalProperties(renderer::Handle<renderer::Buffer> DstDataBuffer)
-{
-    KASSERT(State->CurrentShader);
-
-    // TODO: This is very YOLO for now
-    // if (State->CurrentShader->UniformCache.Length >= 5 && State->CurrentShader->UniformCache[4].Scope == ShaderUniformScope::Global)
-    // {
-    //     SetUniformByIndex(0, GlobalShaderData.Projection);
-    //     SetUniformByIndex(1, GlobalShaderData.View);
-    //     SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
-    //     SetUniformByIndex(3, GlobalShaderData.GlobalLightColor);
-    //     SetUniformByIndex(4, GlobalShaderData.CameraPosition);
-    // }
-    // else if (State->CurrentShader->UniformCache.Length >= 4 && State->CurrentShader->UniformCache[3].Scope == ShaderUniformScope::Global)
-    // {
-    //     SetUniformByIndex(0, GlobalShaderData.Projection);
-    //     SetUniformByIndex(1, GlobalShaderData.View);
-    //     SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
-    //     SetUniformByIndex(3, GlobalShaderData.GlobalLightColor);
-    // }
-    // else if (State->CurrentShader->UniformCache.Length >= 3 && State->CurrentShader->UniformCache[2].Scope == ShaderUniformScope::Global)
-    // {
-    //     SetUniformByIndex(0, GlobalShaderData.Projection);
-    //     SetUniformByIndex(1, GlobalShaderData.View);
-    //     SetUniformByIndex(2, GlobalShaderData.GlobalLightPosition);
-    // }
-    // else
-    // {
-    //     SetUniformByIndex(0, GlobalShaderData.Projection);
-    //     SetUniformByIndex(1, GlobalShaderData.View);
-    // }
-
-    //Shader* FirstShader = &State->Shaders[0].Shader;
-    //Renderer->SetUniform(FirstShader, ShaderUniform{ .Scope = ShaderUniformScope::Global }, (void*)&GlobalShaderData, true);
-    // g_Renderer->ApplyGlobalShaderProperties(State->CurrentShader, DstDataBuffer);
-}
-
-void ShaderSystem::ApplyInstanceProperties()
-{
-    KASSERT(State->CurrentShader);
-    g_Renderer->ApplyInstanceShaderProperties(State->CurrentShader);
 }
 
 } // namespace kraft

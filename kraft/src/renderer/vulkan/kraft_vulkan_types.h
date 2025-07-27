@@ -16,14 +16,14 @@
         KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                                                                                         \
     } while (0)
 
-#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES 3
-#define KRAFT_VULKAN_MAX_GEOMETRIES       1024
-#define KRAFT_VULKAN_MAX_MATERIALS        1024
-#define KRAFT_VULKAN_MAX_BINDINGS         32
-#define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS 3
-#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS 4
+#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES           3
+#define KRAFT_VULKAN_MAX_GEOMETRIES                 1024
+#define KRAFT_VULKAN_MAX_MATERIALS                  1024
+#define KRAFT_VULKAN_MAX_BINDINGS                   32
+#define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS    3
+#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS     4
 #define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
-#define KRAFT_VULKAN_MAX_BINDINGS_PER_SET 16
+#define KRAFT_VULKAN_MAX_BINDINGS_PER_SET           16
 
 namespace kraft {
 struct ArenaAllocator;
@@ -288,9 +288,10 @@ struct VulkanPhysicalDeviceRequirements
 
 struct VulkanShader
 {
-    VkPipeline       Pipeline;
-    VkPipelineLayout PipelineLayout;
+    VkPipeline            Pipeline;
+    VkPipelineLayout      PipelineLayout;
     VkDescriptorSetLayout descriptor_set_layouts[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
+    VkDescriptorSet       descriptor_sets[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
 };
 
 } // namespace kraft::renderer

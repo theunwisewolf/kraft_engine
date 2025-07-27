@@ -35,9 +35,6 @@ struct Shader
     shaderfx::ShaderEffect  ShaderEffect;
     Array<ShaderUniform>    UniformCache;
     HashMap<String, uint32> UniformCacheMapping;
-    uint32                  TextureCount;
-    uint32                  InstanceUniformsCount;
-    uint32                  InstanceUBOStride; // The stride will be same for all material instances
 
     Material*          ActiveMaterial;                                   // The shader will read instance properties from this material when bound
     Handle<RenderPass> RenderPassHandle = Handle<RenderPass>::Invalid(); // The renderpass of the shader's pipeline
@@ -144,16 +141,13 @@ struct MaterialProperty
 
 struct Material
 {
-    ResourceID ID;
-    String     Name;
-    String     AssetPath;
-    bool       Dirty;
+    ResourceID                            ID;
+    String                                Name;
+    String                                AssetPath;
+    FlatHashMap<String, MaterialProperty> Properties;
 
     // Reference to the underlying shader
     Shader* Shader;
-
-    // List of textures of this material instance
-    Array<Handle<Texture>> Textures;
 
     // Holds the backend renderer data such as descriptor sets
     ResourceID RendererDataIdx;

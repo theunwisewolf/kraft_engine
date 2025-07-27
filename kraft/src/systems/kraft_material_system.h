@@ -36,4 +36,4 @@ struct MaterialSystem
     static uint8* GetMaterialsBuffer();
 };
 
-}
+} // namespace kraft
