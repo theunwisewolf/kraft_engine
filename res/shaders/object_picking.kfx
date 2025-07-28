@@ -50,13 +50,6 @@ Shader ObjectPicking
         #include "includes/kraft_shader_includes.h"
         #include "includes/common.glsl"
 
-        layout (push_constant) uniform pushConstants
-        {
-            mat4 Model;
-            vec2 MousePosition;
-            uint EntityId;
-        } variableState;
-
         #if defined VERTEX
 
         // Inputs

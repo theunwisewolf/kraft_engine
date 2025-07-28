@@ -21,7 +21,7 @@ Shader Basic
         }
 
         // Our Material Data
-        UniformBuffer MaterialData
+        StorageBuffer MaterialData
         {
             float4  Ambient;
             float4  Diffuse;
@@ -33,7 +33,7 @@ Shader Basic
         // List of local Resources: Uniform buffers, samplers, etc
         local Resource LocalResources
         {
-            UniformBuffer MaterialData           Stage(Fragment) Set(0) Binding(1);
+            StorageBuffer MaterialData           Stage(Fragment) Set(0) Binding(1);
         }
 
         global Resource GlobalResources
@@ -73,14 +73,6 @@ Shader Basic
         {
             MeshMaterial Materials[];
         };
-
-        layout (push_constant) uniform pushConstants
-        {
-            mat4 Model;
-            vec2 MousePosition;
-            uint EntityId;
-            uint MaterialIdx;
-        } variableState;
 
         #if defined VERTEX
 

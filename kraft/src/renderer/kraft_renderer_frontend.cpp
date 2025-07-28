@@ -32,7 +32,7 @@ renderer::GPUDevice*        g_Device = nullptr;
 
 namespace kraft::renderer {
 
-using Renderables = FlatHashMap<ResourceID, FlatHashMap<ResourceID, Array<Renderable>>>;
+using Renderables = FlatHashMap<ResourceID, Array<Renderable>>;
 
 struct RenderDataT
 {
@@ -189,28 +189,26 @@ bool RendererFrontend::DrawSurfaces()
         {
             Shader* CurrentShader = ShaderSystem::BindByID(It->first);
             renderer_data_internal.backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
-            for (auto& MaterialIt : It->second)
+
+            auto&  Objects = It->second;
+            uint64 Count = Objects.Size();
+            if (!Count)
+                continue;
+
+            for (int i = 0; i < Count; i++)
             {
-                auto&  Objects = MaterialIt.second;
-                uint64 Count = Objects.Size();
-                if (!Count)
-                    continue;
+                Renderable Object = Objects[i];
 
-                for (int i = 0; i < Count; i++)
-                {
-                    Renderable Object = Objects[i];
+                DummyDrawData.Model = Object.ModelMatrix;
+                DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
+                DummyDrawData.MousePosition = Surface.RelativeMousePosition;
+                DummyDrawData.EntityId = Object.EntityId;
+                renderer_data_internal.backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
 
-                    DummyDrawData.Model = Object.ModelMatrix;
-                    DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
-                    DummyDrawData.MousePosition = Surface.RelativeMousePosition;
-                    DummyDrawData.EntityId = Object.EntityId;
-                    renderer_data_internal.backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
-
-                    renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
-                }
-
-                Objects.Clear();
+                renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
             }
+
+            Objects.Clear();
 
             ShaderSystem::Unbind();
         }
@@ -241,19 +239,15 @@ bool RendererFrontend::AddRenderable(const Renderable& renderable)
     auto       RenderablesIt = Renderables->find(Key);
     if (RenderablesIt == Renderables->end())
     {
-        auto Pair = Renderables->insert_or_assign(Key, FlatHashMap<ResourceID, Array<Renderable>>());
+        auto Pair = Renderables->insert_or_assign(Key, Array<Renderable>());
         auto It = Pair.first;
-        auto ArrayPair = It->second.insert_or_assign(renderable.MaterialInstance->ID, Array<Renderable>());
-        auto ArrayIt = ArrayPair.first;
-        ArrayIt->second.Reserve(1024);
-        ArrayIt->second.Push(renderable);
+        It->second.Reserve(1024);
+        It->second.Push(renderable);
     }
     else
     {
-        RenderablesIt->second[renderable.MaterialInstance->ID].Push(renderable);
+        RenderablesIt->second.Push(renderable);
     }
-
-    // (*Renderables)[Key].Push(Object);
 
     return true;
 }
