@@ -32,44 +32,43 @@ renderer::GPUDevice*        g_Device = nullptr;
 
 namespace kraft::renderer {
 
-using RenderablesT = FlatHashMap<ResourceID, FlatHashMap<ResourceID, Array<Renderable>>>;
+using Renderables = FlatHashMap<ResourceID, FlatHashMap<ResourceID, Array<Renderable>>>;
 
 struct RenderDataT
 {
     RenderSurfaceT Surface;
-    RenderablesT   Renderables;
+    Renderables    Renderables;
 };
 
 struct ResourceManager* ResourceManager = nullptr;
 
 struct RendererFrontendPrivate
 {
-    MemoryBlock        BackendMemory;
-    RenderablesT       Renderables;
-    Array<RenderDataT> RenderSurfaces;
-    RendererBackend*   Backend = nullptr;
-    int                ActiveSurface = -1;
-    int                CurrentFrameIndex = -1;
-    ArenaAllocator*    Arena;
+    Renderables        renderables;
+    Array<RenderDataT> surfaces;
+    RendererBackend*   backend = nullptr;
+    int                active_surface = -1;
+    int                current_frame_index = -1;
+    ArenaAllocator*    arena;
 
-    Handle<Buffer> GlobalUBO;
-    Handle<Buffer> MaterialsGPUBuffer;
-    Handle<Buffer> MaterialsStagingBuffers[3];
-} RendererData;
+    Handle<Buffer> global_ubo_buffer;
+    Handle<Buffer> materials_gpu_buffer;
+    Handle<Buffer> materials_staging_buffer[3];
+} renderer_data_internal;
 
 void RendererFrontend::Init()
 {
     uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
-    RendererData.MaterialsGPUBuffer = ResourceManager->CreateBuffer({
+    renderer_data_internal.materials_gpu_buffer = ResourceManager->CreateBuffer({
         .Size = MaterialsBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         .SharingMode = SharingMode::Exclusive,
     });
 
-    for (int i = 0; i < KRAFT_C_ARRAY_SIZE(RendererData.MaterialsStagingBuffers); i++)
+    for (int i = 0; i < KRAFT_C_ARRAY_SIZE(renderer_data_internal.materials_staging_buffer); i++)
     {
-        RendererData.MaterialsStagingBuffers[i] = ResourceManager->CreateBuffer({
+        renderer_data_internal.materials_staging_buffer[i] = ResourceManager->CreateBuffer({
             .Size = MaterialsBufferSize,
             .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC,
             .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
@@ -78,7 +77,7 @@ void RendererFrontend::Init()
         });
     }
 
-    RendererData.GlobalUBO = ResourceManager->CreateBuffer({
+    renderer_data_internal.global_ubo_buffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalUBO",
         .Size = sizeof(GlobalShaderData),
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
@@ -98,55 +97,55 @@ struct __DrawData
 
 void RendererFrontend::Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 GeometryId)
 {
-    KASSERT(RendererData.CurrentFrameIndex >= 0 && RendererData.CurrentFrameIndex < 3);
+    KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
 
-    uint8* BufferData = ResourceManager->GetBufferData(RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex]);
+    uint8* BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
     auto   Materials = MaterialSystem::GetMaterialsBuffer();
     uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
 
     MemCpy(BufferData, Materials, MaterialsBufferSize);
 
     ResourceManager->UploadBuffer({
-        .DstBuffer = RendererData.MaterialsGPUBuffer,
-        .SrcBuffer = RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex],
+        .DstBuffer = renderer_data_internal.materials_gpu_buffer,
+        .SrcBuffer = renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index],
         .SrcSize = MaterialsBufferSize,
         .DstOffset = 0,
         .SrcOffset = 0,
     });
 
-    MemCpy((void*)ResourceManager->GetBufferData(RendererData.GlobalUBO), (void*)GlobalUBO, sizeof(GlobalShaderData));
+    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)GlobalUBO, sizeof(GlobalShaderData));
 
-    RendererData.Backend->UseShader(Shader);
-    RendererData.Backend->ApplyGlobalShaderProperties(Shader, RendererData.GlobalUBO, RendererData.MaterialsGPUBuffer);
+    renderer_data_internal.backend->UseShader(Shader);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(Shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
 
     DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 300.0f, 300.0f, 300.0f });
     DummyDrawData.MaterialIdx = 0;
-    RendererData.Backend->ApplyLocalShaderProperties(Shader, &DummyDrawData);
+    renderer_data_internal.backend->ApplyLocalShaderProperties(Shader, &DummyDrawData);
 
-    RendererData.Backend->DrawGeometryData(GeometryId);
+    renderer_data_internal.backend->DrawGeometryData(GeometryId);
 }
 
 void RendererFrontend::OnResize(int width, int height)
 {
-    KASSERT(RendererData.Backend);
-    RendererData.Backend->OnResize(width, height);
+    KASSERT(renderer_data_internal.backend);
+    renderer_data_internal.backend->OnResize(width, height);
 }
 
 void RendererFrontend::PrepareFrame()
 {
     renderer::ResourceManager->EndFrame(0);
-    RendererData.CurrentFrameIndex = RendererData.Backend->PrepareFrame();
+    renderer_data_internal.current_frame_index = renderer_data_internal.backend->PrepareFrame();
 
     // Upload all the materials
-    uint8* BufferData = ResourceManager->GetBufferData(RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex]);
+    uint8* BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
     auto   Materials = MaterialSystem::GetMaterialsBuffer();
     uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
 
     MemCpy(BufferData, Materials, MaterialsBufferSize);
 
     ResourceManager->UploadBuffer({
-        .DstBuffer = RendererData.MaterialsGPUBuffer,
-        .SrcBuffer = RendererData.MaterialsStagingBuffers[RendererData.CurrentFrameIndex],
+        .DstBuffer = renderer_data_internal.materials_gpu_buffer,
+        .SrcBuffer = renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index],
         .SrcSize = MaterialsBufferSize,
         .DstOffset = 0,
         .SrcOffset = 0,
@@ -156,14 +155,14 @@ void RendererFrontend::PrepareFrame()
     auto DirtyTextures = TextureSystem::GetDirtyTextures();
     if (DirtyTextures.Length > 0)
     {
-        RendererData.Backend->UpdateTextures(DirtyTextures);
+        renderer_data_internal.backend->UpdateTextures(DirtyTextures);
         TextureSystem::ClearDirtyTextures();
     }
 }
 
 bool RendererFrontend::DrawSurfaces()
 {
-    KASSERTM(RendererData.CurrentFrameIndex >= 0, "Did you forget to call Renderer.PrepareFrame()?");
+    KASSERTM(renderer_data_internal.current_frame_index >= 0, "Did you forget to call Renderer.PrepareFrame()?");
 
     GlobalShaderData GlobalShaderData = {};
     GlobalShaderData.Projection = this->Camera->ProjectionMatrix;
@@ -171,9 +170,9 @@ bool RendererFrontend::DrawSurfaces()
     GlobalShaderData.CameraPosition = this->Camera->Position;
 
     uint64 Start = kraft::Platform::TimeNowNS();
-    for (int i = 0; i < RendererData.RenderSurfaces.Length; i++)
+    for (int i = 0; i < renderer_data_internal.surfaces.Length; i++)
     {
-        RenderDataT&    SurfaceRenderData = RendererData.RenderSurfaces[i];
+        RenderDataT&    SurfaceRenderData = renderer_data_internal.surfaces[i];
         RenderSurfaceT& Surface = SurfaceRenderData.Surface;
 
         if (Surface.World->GlobalLight != EntityHandleInvalid)
@@ -189,15 +188,14 @@ bool RendererFrontend::DrawSurfaces()
         for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
         {
             Shader* CurrentShader = ShaderSystem::BindByID(It->first);
-            RendererData.Backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, RendererData.MaterialsGPUBuffer);
+            renderer_data_internal.backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
             for (auto& MaterialIt : It->second)
             {
                 auto&  Objects = MaterialIt.second;
                 uint64 Count = Objects.Size();
                 if (!Count)
                     continue;
-                // ShaderSystem::Bind(Objects[0].MaterialInstance->Shader);
-                ShaderSystem::SetMaterialInstance(Objects[0].MaterialInstance);
+
                 for (int i = 0; i < Count; i++)
                 {
                     Renderable Object = Objects[i];
@@ -206,9 +204,9 @@ bool RendererFrontend::DrawSurfaces()
                     DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
                     DummyDrawData.MousePosition = Surface.RelativeMousePosition;
                     DummyDrawData.EntityId = Object.EntityId;
-                    RendererData.Backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
+                    renderer_data_internal.backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
 
-                    RendererData.Backend->DrawGeometryData(Object.GeometryId);
+                    renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
                 }
 
                 Objects.Clear();
@@ -222,38 +220,37 @@ bool RendererFrontend::DrawSurfaces()
 
     // KDEBUG("Render complete in: %f ms", f64(End - Start) / 1000000.0f);
 
-    RendererData.RenderSurfaces.Clear();
+    renderer_data_internal.surfaces.Clear();
 
     return true;
 }
 
-bool RendererFrontend::AddRenderable(const Renderable& Object)
+bool RendererFrontend::AddRenderable(const Renderable& renderable)
 {
-    RenderablesT* Renderables = nullptr;
-    if (RendererData.ActiveSurface != -1)
+    Renderables* Renderables = nullptr;
+    if (renderer_data_internal.active_surface != -1)
     {
-        Renderables = &RendererData.RenderSurfaces[RendererData.ActiveSurface].Renderables;
+        Renderables = &renderer_data_internal.surfaces[renderer_data_internal.active_surface].Renderables;
     }
     else
     {
-        Renderables = &RendererData.Renderables;
+        Renderables = &renderer_data_internal.renderables;
     }
 
-    ResourceID Key = Object.MaterialInstance->Shader->ID;
-    // ResourceID Key = Object.MaterialInstance->ID;
-    auto RenderablesIt = Renderables->find(Key);
+    ResourceID Key = renderable.MaterialInstance->Shader->ID;
+    auto       RenderablesIt = Renderables->find(Key);
     if (RenderablesIt == Renderables->end())
     {
         auto Pair = Renderables->insert_or_assign(Key, FlatHashMap<ResourceID, Array<Renderable>>());
         auto It = Pair.first;
-        auto ArrayPair = It->second.insert_or_assign(Object.MaterialInstance->ID, Array<Renderable>());
+        auto ArrayPair = It->second.insert_or_assign(renderable.MaterialInstance->ID, Array<Renderable>());
         auto ArrayIt = ArrayPair.first;
         ArrayIt->second.Reserve(1024);
-        ArrayIt->second.Push(Object);
+        ArrayIt->second.Push(renderable);
     }
     else
     {
-        RenderablesIt->second[Object.MaterialInstance->ID].Push(Object);
+        RenderablesIt->second[renderable.MaterialInstance->ID].Push(renderable);
     }
 
     // (*Renderables)[Key].Push(Object);
@@ -263,12 +260,12 @@ bool RendererFrontend::AddRenderable(const Renderable& Object)
 
 void RendererFrontend::BeginMainRenderpass()
 {
-    RendererData.Backend->BeginFrame();
+    renderer_data_internal.backend->BeginFrame();
 }
 
 void RendererFrontend::EndMainRenderpass()
 {
-    RendererData.Backend->EndFrame();
+    renderer_data_internal.backend->EndFrame();
 }
 
 //
@@ -277,42 +274,42 @@ void RendererFrontend::EndMainRenderpass()
 
 void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle)
 {
-    RendererData.Backend->CreateRenderPipeline(Shader, PassIndex, RenderPassHandle);
+    renderer_data_internal.backend->CreateRenderPipeline(Shader, PassIndex, RenderPassHandle);
 }
 
 void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
 {
-    RendererData.Backend->DestroyRenderPipeline(Shader);
+    renderer_data_internal.backend->DestroyRenderPipeline(Shader);
 }
 
 void RendererFrontend::UseShader(const Shader* Shader)
 {
-    RendererData.Backend->UseShader(Shader);
+    renderer_data_internal.backend->UseShader(Shader);
 }
 
 void RendererFrontend::DrawGeometry(uint32 GeometryID)
 {
-    RendererData.Backend->DrawGeometryData(GeometryID);
+    renderer_data_internal.backend->DrawGeometryData(GeometryID);
 }
 
 void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer)
 {
-    RendererData.Backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer, GlobalMaterialsBuffer);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer, GlobalMaterialsBuffer);
 }
 
 void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)
 {
-    RendererData.Backend->ApplyLocalShaderProperties(ActiveShader, Data);
+    renderer_data_internal.backend->ApplyLocalShaderProperties(ActiveShader, Data);
 }
 
 bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
 {
-    return RendererData.Backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
+    return renderer_data_internal.backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
 }
 
 void RendererFrontend::DestroyGeometry(Geometry* Geometry)
 {
-    RendererData.Backend->DestroyGeometry(Geometry);
+    renderer_data_internal.backend->DestroyGeometry(Geometry);
 }
 
 RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth)
@@ -395,11 +392,11 @@ RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Wi
 
 void RendererFrontend::BeginRenderSurface(const RenderSurfaceT& Surface)
 {
-    RendererData.RenderSurfaces.Push({
+    renderer_data_internal.surfaces.Push({
         .Surface = Surface,
     });
 
-    RendererData.ActiveSurface = RendererData.RenderSurfaces.Length - 1;
+    renderer_data_internal.active_surface = renderer_data_internal.surfaces.Length - 1;
     // RendererData.Backend->BeginRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
@@ -430,75 +427,75 @@ RenderSurfaceT RendererFrontend::ResizeRenderSurface(RenderSurfaceT& Surface, ui
 
 void RendererFrontend::EndRenderSurface(const RenderSurfaceT& Surface)
 {
-    RendererData.ActiveSurface = -1;
+    renderer_data_internal.active_surface = -1;
     // RendererData.Backend->EndRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
 void RendererFrontend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx)
 {
-    RendererData.Backend->CmdSetCustomBuffer(shader, buffer, set_idx, binding_idx);
+    renderer_data_internal.backend->CmdSetCustomBuffer(shader, buffer, set_idx, binding_idx);
 }
 
 void RenderSurfaceT::Begin()
 {
-    RendererData.Backend->BeginRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
+    renderer_data_internal.backend->BeginRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
 }
 
 void RenderSurfaceT::End()
 {
-    RendererData.Backend->EndRenderPass(this->CmdBuffers[RendererData.CurrentFrameIndex], this->RenderPass);
+    renderer_data_internal.backend->EndRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
 }
 
 RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 {
     KASSERT(g_Renderer == nullptr);
 
-    RendererData.Arena = CreateArena({
+    renderer_data_internal.arena = CreateArena({
         .ChunkSize = KRAFT_SIZE_MB(1),
         .Alignment = 64,
     });
 
-    g_Renderer = (RendererFrontend*)RendererData.Arena->Push(sizeof(RendererFrontend), true);
-    RendererData.Backend = (RendererBackend*)RendererData.Arena->Push(sizeof(RendererBackend), true);
-    g_Device = (GPUDevice*)RendererData.Arena->Push(sizeof(GPUDevice), true);
+    g_Renderer = (RendererFrontend*)renderer_data_internal.arena->Push(sizeof(RendererFrontend), true);
+    renderer_data_internal.backend = (RendererBackend*)renderer_data_internal.arena->Push(sizeof(RendererBackend), true);
+    g_Device = (GPUDevice*)renderer_data_internal.arena->Push(sizeof(GPUDevice), true);
 
-    g_Renderer->Settings = (struct RendererOptions*)RendererData.Arena->Push(sizeof(RendererOptions), true);
+    g_Renderer->Settings = (struct RendererOptions*)renderer_data_internal.arena->Push(sizeof(RendererOptions), true);
     MemCpy(g_Renderer->Settings, Opts, sizeof(RendererOptions));
     KASSERTM(g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 
-    ResourceManager = CreateVulkanResourceManager(RendererData.Arena);
+    ResourceManager = CreateVulkanResourceManager(renderer_data_internal.arena);
 
     if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_VULKAN)
     {
-        RendererData.Backend->Init = VulkanRendererBackend::Init;
-        RendererData.Backend->Shutdown = VulkanRendererBackend::Shutdown;
-        RendererData.Backend->PrepareFrame = VulkanRendererBackend::PrepareFrame;
-        RendererData.Backend->BeginFrame = VulkanRendererBackend::BeginFrame;
-        RendererData.Backend->EndFrame = VulkanRendererBackend::EndFrame;
-        RendererData.Backend->OnResize = VulkanRendererBackend::OnResize;
-        RendererData.Backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
-        RendererData.Backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
-        RendererData.Backend->UseShader = VulkanRendererBackend::UseShader;
-        RendererData.Backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
-        RendererData.Backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
-        RendererData.Backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
-        RendererData.Backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
-        RendererData.Backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
-        RendererData.Backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
+        renderer_data_internal.backend->Init = VulkanRendererBackend::Init;
+        renderer_data_internal.backend->Shutdown = VulkanRendererBackend::Shutdown;
+        renderer_data_internal.backend->PrepareFrame = VulkanRendererBackend::PrepareFrame;
+        renderer_data_internal.backend->BeginFrame = VulkanRendererBackend::BeginFrame;
+        renderer_data_internal.backend->EndFrame = VulkanRendererBackend::EndFrame;
+        renderer_data_internal.backend->OnResize = VulkanRendererBackend::OnResize;
+        renderer_data_internal.backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
+        renderer_data_internal.backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
+        renderer_data_internal.backend->UseShader = VulkanRendererBackend::UseShader;
+        renderer_data_internal.backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
+        renderer_data_internal.backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
+        renderer_data_internal.backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
+        renderer_data_internal.backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
+        renderer_data_internal.backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
+        renderer_data_internal.backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
         // Render Passes
-        RendererData.Backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
-        RendererData.Backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
+        renderer_data_internal.backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
+        renderer_data_internal.backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
 
         // Commands
-        RendererData.Backend->CmdSetCustomBuffer = VulkanRendererBackend::CmdSetCustomBuffer;
+        renderer_data_internal.backend->CmdSetCustomBuffer = VulkanRendererBackend::CmdSetCustomBuffer;
     }
     else if (g_Renderer->Settings->Backend == RendererBackendType::RENDERER_BACKEND_TYPE_OPENGL)
     {
         return nullptr;
     }
 
-    if (!RendererData.Backend->Init(RendererData.Arena, g_Renderer->Settings))
+    if (!renderer_data_internal.backend->Init(renderer_data_internal.arena, g_Renderer->Settings))
     {
         KERROR("[RendererFrontend::Init]: Failed to initialize renderer backend!");
         return nullptr;
@@ -517,11 +514,11 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 
 void DestroyRendererFrontend(RendererFrontend* Instance)
 {
-    RendererData.Backend->Shutdown();
-    MemZero(RendererData.Backend, sizeof(RendererBackend));
+    renderer_data_internal.backend->Shutdown();
+    MemZero(renderer_data_internal.backend, sizeof(RendererBackend));
 
     DestroyVulkanResourceManager(ResourceManager);
-    DestroyArena(RendererData.Arena);
+    DestroyArena(renderer_data_internal.arena);
 }
 
 } // namespace kraft::renderer

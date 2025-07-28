@@ -36,7 +36,6 @@ struct Shader
     Array<ShaderUniform>    UniformCache;
     HashMap<String, uint32> UniformCacheMapping;
 
-    Material*          ActiveMaterial;                                   // The shader will read instance properties from this material when bound
     Handle<RenderPass> RenderPassHandle = Handle<RenderPass>::Invalid(); // The renderpass of the shader's pipeline
     void*              RendererData;
 };

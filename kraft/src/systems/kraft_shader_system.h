@@ -31,9 +31,6 @@ struct ShaderSystem
     static Shader* BindByID(uint32 ID);
     static void    Unbind();
 
-    // Sets the material instance to read the instance level uniform values from
-    static void SetMaterialInstance(Material* Instance);
-
     // Finds a uniform by name in the given shader
     static bool GetUniform(const Shader* Shader, const String& Name, ShaderUniform* Uniform);
     static bool GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform* Uniform);

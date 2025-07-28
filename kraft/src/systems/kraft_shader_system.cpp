@@ -308,19 +308,10 @@ Shader* ShaderSystem::BindByID(uint32 ShaderID)
     return &Reference->Shader;
 }
 
-void ShaderSystem::SetMaterialInstance(Material* Instance)
-{
-    KASSERT(Instance);
-    KASSERT(State->CurrentShader);
-
-    State->CurrentShader->ActiveMaterial = Instance;
-}
-
 void ShaderSystem::Unbind()
 {
     if (State->CurrentShader)
     {
-        State->CurrentShader->ActiveMaterial = nullptr;
         State->CurrentShaderID = KRAFT_INVALID_ID;
         State->CurrentShader = nullptr;
     }
