@@ -51,21 +51,6 @@ bool RendererImGui::Init()
 
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();
-    {
-        kraft::filesystem::FileHandle Handle;
-        KASSERT(kraft::filesystem::OpenFile("res/fonts/PlusJakartaSans-Regular.ttf", kraft::filesystem::FILE_OPEN_MODE_READ, true, &Handle));
-
-        uint64 Size = kraft::filesystem::GetFileSize(&Handle);
-        uint8* Buffer = (uint8*)kraft::Malloc(Size);
-        bool   JakartaRegular = kraft::filesystem::ReadAllBytes(&Handle, &Buffer, &Size);
-        KASSERT(JakartaRegular);
-
-        // Atlas will be freed by ImGui
-        IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14.0f * DPI);
-        // ImGui_ImplVulkan_CreateFontsTexture();
-
-        // kraft::Free(Buffer/*, Size, kraft::MEMORY_TAG_FILE_BUF*/);
-    }
 
     ImGui::GetStyle().WindowPadding = ImVec2(14, 8);
     ImGui::GetStyle().FramePadding = ImVec2(10, 8);
@@ -212,4 +197,28 @@ void RendererImGui::EndFrame()
     ImDrawData* DrawData = ImGui::GetDrawData();
 
     kraft::renderer::VulkanImgui::EndFrame(DrawData);
+}
+
+ImFont* RendererImGui::AddImGuiFont(const kraft::String path)
+{
+    const float                   DPI = kraft::Platform::GetWindow()->DPI;
+    ImGuiIO&                      IO = ImGui::GetIO();
+    kraft::filesystem::FileHandle handle = {};
+    if (!kraft::filesystem::OpenFile(path, kraft::filesystem::FILE_OPEN_MODE_READ, true, &handle))
+    {
+        KERROR("AddImGuiFont: Failed to open file '%s'", *path);
+        return false;
+    }
+
+    uint64 size = kraft::filesystem::GetFileSize(&handle);
+    uint8* buffer = (uint8*)kraft::Malloc(size);
+    bool   result = kraft::filesystem::ReadAllBytes(&handle, &buffer, &size);
+    if (!result)
+    {
+        KERROR("AddImGuiFont: Failed to read data from file '%s'", *path);
+        return false;
+    }
+
+    // Atlas will be freed by ImGui
+    return IO.Fonts->AddFontFromMemoryTTF(buffer, (int)size, 14.0f * DPI);
 }

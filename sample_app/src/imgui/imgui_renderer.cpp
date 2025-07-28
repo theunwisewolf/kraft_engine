@@ -151,9 +151,9 @@ void RendererImGui::AddWidget(const kraft::String& Name, ImGuiRenderCallback Cal
     KINFO("Added imgui widget %s", *Name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> Resource)
+ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> texture, kraft::renderer::Handle<kraft::TextureSampler> sampler)
 {
-    return kraft::renderer::VulkanImgui::AddTexture(Resource);
+    return kraft::renderer::VulkanImgui::AddTexture(texture, sampler);
 }
 
 void RendererImGui::RemoveTexture(ImTextureID TextureID)

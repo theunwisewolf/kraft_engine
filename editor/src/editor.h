@@ -9,6 +9,8 @@
 
 #include "imgui/imgui_renderer.h"
 
+struct ImFont;
+
 namespace kraft {
 struct Entity;
 struct Camera;
@@ -33,7 +35,11 @@ struct EditorCameraSettings
 
 struct EditorState
 {
-    static EditorState*                              Ptr;
+    static EditorState* Ptr;
+
+    ImFont* FontRegular;
+    ImFont* FontBold;
+
     kraft::EntityHandleT                             SelectedEntity = kraft::EntityHandleInvalid;
     kraft::World*                                    CurrentWorld;
     kraft::renderer::RenderSurfaceT                  RenderSurface;

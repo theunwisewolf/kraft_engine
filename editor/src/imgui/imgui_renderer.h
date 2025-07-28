@@ -51,6 +51,7 @@ struct RendererImGui
     void        RenderWidgets();
     void        Destroy();
     void        EndFrameUpdatePlatformWindows();
+    ImFont*     AddImGuiFont(const kraft::String path);
 
     void BeginFrame();
     void EndFrame();

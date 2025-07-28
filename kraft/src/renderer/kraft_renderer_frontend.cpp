@@ -517,7 +517,7 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 
 void DestroyRendererFrontend(RendererFrontend* Instance)
 {
-    bool RetVal = RendererData.Backend->Shutdown();
+    RendererData.Backend->Shutdown();
     MemZero(RendererData.Backend, sizeof(RendererBackend));
 
     DestroyVulkanResourceManager(ResourceManager);

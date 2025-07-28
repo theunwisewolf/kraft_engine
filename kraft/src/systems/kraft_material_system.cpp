@@ -260,6 +260,7 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Te
 
     uint32 Index = NewTexture.GetIndex();
     MemCpy(MaterialBuffer + Uniform.Offset, &Index, Uniform.Stride);
+    Instance->Properties[Key].TextureValue = NewTexture;
 
     return true;
 }
@@ -380,7 +381,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
                             Data->Properties["DiffuseColor"] = Vec4f(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2], DiffuseColor[3]);
                         }
                     }
-                    else if (Token.MatchesKeyword("DiffuseMapName"))
+                    else if (Token.MatchesKeyword("DiffuseTexture"))
                     {
                         if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
                         {

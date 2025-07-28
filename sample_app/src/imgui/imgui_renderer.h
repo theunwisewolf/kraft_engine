@@ -9,6 +9,7 @@
 namespace kraft {
 
 struct Texture;
+struct TextureSampler;
 namespace renderer {
 
 template<typename>
@@ -44,7 +45,7 @@ struct RendererImGui
 
     bool        Init();
     void        AddWidget(const kraft::String& Name, ImGuiRenderCallback Callback);
-    ImTextureID AddTexture(kraft::renderer::Handle<kraft::Texture> Texture);
+    ImTextureID AddTexture(kraft::renderer::Handle<kraft::Texture> texture, kraft::renderer::Handle<kraft::TextureSampler> sampler);
     void        RemoveTexture(ImTextureID Texture);
     void        OnResize(int Width, int Height);
     void        RenderWidgets();

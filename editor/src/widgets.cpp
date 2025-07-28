@@ -446,7 +446,7 @@ void DrawImGuiWidgets(bool refresh)
         //     ImGui::GetColorU32(ImVec4(1, 1, 0, 1))
         // );
 
-        kraft::Mat4f EntityWorldTransform = Transform.ModelMatrix;// EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
+        kraft::Mat4f EntityWorldTransform = Transform.ModelMatrix; // EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(SelectedEntity);
         ImGuizmo::Manipulate(
             Camera.ViewMatrix._data, Camera.ProjectionMatrix._data, GizmoState.CurrentOperation, GizmoState.Mode, EntityWorldTransform, nullptr, GizmoState.Snap ? GizmoState.Snapping._data : nullptr
         );
@@ -841,6 +841,8 @@ void MaterialEditor()
     kraft::Material*                       Material = Mesh.MaterialInstance;
     kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
     kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
+    static auto                            last_texture = kraft::renderer::Handle<kraft::Texture>::Invalid();
+    static ImTextureID                     last_texture_id = nullptr;
 
     for (auto It = Material->Properties.begin(); It != Material->Properties.end(); It++)
     {
@@ -868,5 +870,34 @@ void MaterialEditor()
                 kraft::MaterialSystem::SetProperty(Material, It->first, Property.Float32Value);
             }
         }
+        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::TextureID)
+        {
+            if (last_texture != Property.TextureValue)
+            {
+                if (last_texture_id != nullptr)
+                {
+                    GlobalAppState.ImGuiRenderer.RemoveTexture(last_texture_id);
+                }
+
+                last_texture_id = GlobalAppState.ImGuiRenderer.AddTexture(Property.TextureValue, EditorState::Ptr->RenderSurface.TextureSampler);
+                last_texture = Property.TextureValue;
+            }
+        }
+    }
+
+    if (last_texture.IsInvalid() == false)
+    {
+        auto metadata = kraft::ResourceManager->GetTextureMetadata(last_texture);
+        ImGui::PushFont(EditorState::Ptr->FontBold);
+        ImGui::Text("%s", metadata->DebugName);
+        ImGui::SameLine();
+        ImGui::PopFont();
+        ImGui::Text("(%.0fpx x %.0fpx)", metadata->Width, metadata->Height);
+
+        auto aspect_ratio = metadata->Height / metadata->Width;
+        auto height = 256.0f;
+        auto width = height * aspect_ratio;
+
+        ImGui::Image(last_texture_id, { width, height }, { 0, 1 }, { 1, 0 });
     }
 }

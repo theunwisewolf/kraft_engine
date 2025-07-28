@@ -247,6 +247,10 @@ bool Init()
 {
     EditorState* Editor = new EditorState();
     GlobalAppState.ImGuiRenderer.Init();
+
+    Editor->FontRegular = GlobalAppState.ImGuiRenderer.AddImGuiFont("res/fonts/PlusJakartaSans-Regular.ttf");
+    Editor->FontBold = GlobalAppState.ImGuiRenderer.AddImGuiFont("res/fonts/PlusJakartaSans-Bold.ttf");
+
     EditorState::Ptr->CurrentWorld = (kraft::World*)kraft::Malloc(sizeof(kraft::World), kraft::MEMORY_TAG_NONE, true);
     new (EditorState::Ptr->CurrentWorld) kraft::World();
 
@@ -684,37 +688,37 @@ void Run()
             kraft::g_Renderer->PrepareFrame();
             kraft::g_Renderer->DrawSurfaces();
 
-            // EditorState::Ptr->ObjectPickingRenderSurface.Begin();
-            // {
-            //     kraft::renderer::GlobalShaderData GlobalShaderData = {};
-            //     GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
-            //     GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
-            //     GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
+            EditorState::Ptr->ObjectPickingRenderSurface.Begin();
+            {
+                kraft::renderer::GlobalShaderData GlobalShaderData = {};
+                GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
+                GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
+                GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
 
-            //     kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+                kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
 
-            //     kraft::g_Renderer->UseShader(ObjectPickingShader);
-            //     kraft::g_Renderer->ApplyGlobalShaderProperties(
-            //         ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
-            //     );
+                kraft::g_Renderer->UseShader(ObjectPickingShader);
+                kraft::g_Renderer->ApplyGlobalShaderProperties(
+                    ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
+                );
 
-            //     kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
+                kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
 
-            //     auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
-            //     for (auto EntityHandle : Group)
-            //     {
-            //         auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
+                auto Group = EditorState::Ptr->CurrentWorld->GetRegistry().group<kraft::MeshComponent, kraft::TransformComponent>();
+                for (auto EntityHandle : Group)
+                {
+                    auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
 
-            //         // DummyDrawData.Model = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
-            //         DummyDrawData.Model = Transform.ModelMatrix;
-            //         DummyDrawData.MousePosition = EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition;
-            //         DummyDrawData.EntityId = (uint32)EntityHandle;
+                    // DummyDrawData.Model = EditorState::Ptr->CurrentWorld->GetWorldSpaceTransformMatrix(kraft::Entity(EntityHandle, EditorState::Ptr->CurrentWorld));
+                    DummyDrawData.Model = Transform.ModelMatrix;
+                    DummyDrawData.MousePosition = EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition;
+                    DummyDrawData.EntityId = (uint32)EntityHandle;
 
-            //         kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
-            //         kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
-            //     }
-            // }
-            // EditorState::Ptr->ObjectPickingRenderSurface.End();
+                    kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
+                    kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
+                }
+            }
+            EditorState::Ptr->ObjectPickingRenderSurface.End();
 
             kraft::g_Renderer->BeginMainRenderpass();
             GlobalAppState.ImGuiRenderer.BeginFrame();

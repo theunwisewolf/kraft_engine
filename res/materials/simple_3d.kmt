@@ -5,5 +5,5 @@ Material Simple3D
     Diffuse         vec4(0.741, 0.922, 0.361, 1.0)
     Specular        vec4(0.5, 0.5, 0.5, 1.0)
     Shininess       float32(32)
-    DiffuseMapName  "res/textures/viking_room.png"
+    DiffuseTexture  "res/textures/viking_room.png"
 }
