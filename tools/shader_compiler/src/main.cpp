@@ -67,7 +67,7 @@ bool CompileShaderFX(const String& InputPath, const String& OutputPath, bool Ver
     filesystem::CloseFile(&File);
 
     Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer, BufferSize - 1);
+    Lexer.Create((char*)FileDataBuffer, BufferSize);
     shaderfx::ShaderFXParser Parser;
     Parser.Verbose = Verbose;
 
