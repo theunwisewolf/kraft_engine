@@ -243,6 +243,8 @@ bool OnResize(kraft::EventType, void*, void*, kraft::EventData Data)
 
 static kraft::Shader* ObjectPickingShader = nullptr;
 
+using namespace kraft;
+
 bool Init()
 {
     EditorState* Editor = new EditorState();
@@ -301,11 +303,17 @@ bool Init()
     Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
 #endif
 
+    Entity plane = EditorState::Ptr->CurrentWorld->CreateEntity("plane", WorldRoot);
+    auto&  mesh = plane.AddComponent<MeshComponent>();
+    mesh.GeometryID = GeometrySystem::GetDefaultGeometry()->InternalID;
+    mesh.MaterialInstance = MaterialSystem::CreateMaterialFromFile("res/materials/plane.kmt", EditorState::Ptr->RenderSurface.RenderPass);
+    plane.GetComponent<TransformComponent>().SetTransform(Vec3fZero, { DegToRadians(-90.0f), 0.0f, 0.0f }, Vec3f(100.0f));
+
     // kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room/viking_room.fbx");
     kraft::MeshAsset* VikingRoom = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
     KASSERT(VikingRoom);
 
-    const int MaxMeshCount = 20;
+    const int MaxMeshCount = 0;
     for (int MeshCountX = 0; MeshCountX < MaxMeshCount; MeshCountX++)
     {
         for (int MeshCountY = 0; MeshCountY < MaxMeshCount; MeshCountY++)

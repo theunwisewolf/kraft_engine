@@ -208,7 +208,7 @@ void _createDefaultGeometries()
 
         uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
 
-        Ref->Geometry.ID = 0;
+        Ref->Geometry.ID = 1;
         Ref->AutoRelease = false;
         Ref->ReferenceCount = 1;
 
