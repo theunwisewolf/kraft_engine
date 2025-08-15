@@ -40,7 +40,7 @@ endif()
 add_custom_target(sample_app_copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/res
-        ${CMAKE_SOURCE_DIR}/bin/res
+        ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res
     COMMENT "Copying resources..."
 )
 

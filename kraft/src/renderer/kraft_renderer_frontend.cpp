@@ -99,26 +99,12 @@ void RendererFrontend::Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 
 {
     KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
 
-    uint8* BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
-    auto   Materials = MaterialSystem::GetMaterialsBuffer();
-    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
-
-    MemCpy(BufferData, Materials, MaterialsBufferSize);
-
-    ResourceManager->UploadBuffer({
-        .DstBuffer = renderer_data_internal.materials_gpu_buffer,
-        .SrcBuffer = renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index],
-        .SrcSize = MaterialsBufferSize,
-        .DstOffset = 0,
-        .SrcOffset = 0,
-    });
-
     MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)GlobalUBO, sizeof(GlobalShaderData));
 
     renderer_data_internal.backend->UseShader(Shader);
     renderer_data_internal.backend->ApplyGlobalShaderProperties(Shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
 
-    DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 300.0f, 300.0f, 300.0f });
+    DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
     DummyDrawData.MaterialIdx = 0;
     renderer_data_internal.backend->ApplyLocalShaderProperties(Shader, &DummyDrawData);
 

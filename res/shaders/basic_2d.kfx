@@ -10,45 +10,66 @@ Shader Basic2D
             Attribute   float2 UV 0 1 12
         }
 
-        UniformBuffer LocalUniformBuffer
+        UniformBuffer GlobalUniformBuffer
         {
-            float4 DiffuseColor;
+            mat4   Projection;
+            mat4   View;
+            float3 LightPosition;
+            float4 LightColor;
+            float3 CameraPosition;
         }
 
-        // Uniform buffers
-        local Resource Main
+        // Our Material Data
+        StorageBuffer MaterialData
         {
-            UniformBuffer LocalUniformBuffer    Stage(Fragment) Binding(0) Size(16);
-            Sampler       DiffuseSampler        Stage(Fragment) Binding(1);
+            float4  DiffuseColor;
+            texID   DiffuseTexture;
+        }
+
+        // List of local Resources: Uniform buffers, samplers, etc
+        local Resource LocalResources
+        {
+            StorageBuffer MaterialData           Stage(Fragment) Set(0) Binding(1);
+        }
+
+        global Resource GlobalResources
+        {
+            UniformBuffer GlobalUniformBuffer    Stage(Fragment) Set(0) Binding(0);
         }
 
         // Constant buffers/Push constants
         ConstantBuffer Main
         {
-            mat4    Model Stage(Vertex);
+            mat4    Model           Stage(Vertex);
         }
     }
 
     GLSL ToScreen
     {
         #version 450
+
+        #extension GL_GOOGLE_include_directive: require
+        #extension GL_EXT_nonuniform_qualifier: require
+
+        #include "includes/kraft_shader_includes.h"
+        #include "includes/common.glsl"
+
+        struct MeshMaterial
+        {
+            vec4  DiffuseColor;
+            uint  DiffuseTexture;
+        };
+
+        layout (set = 0, binding = 2) readonly buffer GlobalMaterialData
+        {
+            MeshMaterial Materials[];
+        };
+
         #if defined VERTEX
 
         // Inputs
         layout (location = 0) in vec3 inPosition;
         layout (location = 1) in vec2 inUV;
-
-        // Written to; using descriptor sets
-        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
-        {
-            mat4 Projection;
-            mat4 View;
-        } globalState;
-
-        layout (push_constant) uniform pushConstants
-        {
-            mat4 Model;
-        } variableState;
 
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
@@ -74,17 +95,11 @@ Shader Basic2D
         // Outputs
         layout (location = 0) out vec4 outColor;
 
-        // Written to; using descriptor sets
-        layout(set = 2, binding = 0) uniform LocalUniformBuffer 
-        {
-            vec4 DiffuseColor;
-        } localUniformBuffer;
-
-        layout(set = 2, binding = 1) uniform sampler2D DiffuseSampler;
-
         void main() 
         {
-            outColor = localUniformBuffer.DiffuseColor * texture(DiffuseSampler, inDTO.UV);
+            MeshMaterial Material = Materials[variableState.MaterialIdx];
+            outColor = Material.DiffuseColor * texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV);
+            // outColor = Material.DiffuseColor;
         }
 
         #endif // FRAGMENT
@@ -108,7 +123,7 @@ Shader Basic2D
     {
         RenderState     Default
         VertexLayout    Main
-        Resources       Main
+        Resources       LocalResources
         ConstantBuffer  Main
         VertexShader    ToScreen
         FragmentShader  ToScreen

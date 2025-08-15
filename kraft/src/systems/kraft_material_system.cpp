@@ -346,42 +346,7 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
                 // Parse material block
                 while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
-                    if (Token.MatchesKeyword("DiffuseColor"))
-                    {
-                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
-                        {
-                            return false;
-                        }
-
-                        if (Token.MatchesKeyword("vec4"))
-                        {
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
-                            {
-                                return false;
-                            }
-
-                            float32 DiffuseColor[4];
-                            int     Index = 0;
-                            while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
-                            {
-                                if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
-                                {
-                                    continue;
-                                }
-                                else if (Token.Type == TokenType::TOKEN_TYPE_NUMBER)
-                                {
-                                    DiffuseColor[Index++] = (float32)Token.FloatValue;
-                                }
-                                else
-                                {
-                                    return false;
-                                }
-                            }
-
-                            Data->Properties["DiffuseColor"] = Vec4f(DiffuseColor[0], DiffuseColor[1], DiffuseColor[2], DiffuseColor[3]);
-                        }
-                    }
-                    else if (Token.MatchesKeyword("DiffuseTexture"))
+                    if (Token.MatchesKeyword("DiffuseTexture"))
                     {
                         if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
                         {
