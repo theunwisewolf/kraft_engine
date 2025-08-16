@@ -36,10 +36,11 @@ bool                Engine::Suspended = false;
 String              Engine::BasePath = {};
 
 #if defined(KRAFT_GUI_APP)
-static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData Data)
+static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData event_data)
 {
-    uint32 Width = Data.UInt32Value[0];
-    uint32 Height = Data.UInt32Value[1];
+    EventDataResize data = *(EventDataResize*)(&event_data);
+    uint32 Width = data.width;
+    uint32 Height = data.height;
 
     if (Width == 0 && Height == 0)
     {

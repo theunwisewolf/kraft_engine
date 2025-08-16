@@ -143,12 +143,12 @@ void Window::WindowSizeCallback(GLFWwindow* window, int Width, int Height)
     Self->Width = Width;
     Self->Height = Height;
 
-    EventData data;
-    data.UInt32Value[0] = Width;
-    data.UInt32Value[1] = Height;
-    data.UInt32Value[2] = 0; // Maximized
+    EventDataResize data;
+    data.width = Width;
+    data.height = Height;
+    data.maximized = false;
 
-    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, data, Self);
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, *(EventData*)(&data), Self);
 }
 
 void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
@@ -160,12 +160,12 @@ void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
     Self->Width = Width;
     Self->Height = Height;
 
-    EventData data;
-    data.UInt32Value[0] = Width;
-    data.UInt32Value[1] = Height;
-    data.UInt32Value[2] = maximized;
+    EventDataResize data;
+    data.width = Width;
+    data.height = Height;
+    data.maximized = true;
 
-    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_MAXIMIZE, data, Self);
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_MAXIMIZE, *(EventData*)(&data), Self);
 }
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)

@@ -4,8 +4,7 @@
 
 // inspiration from the kohi engine
 
-namespace kraft
-{
+namespace kraft {
 
 // Different event types
 enum EventType
@@ -26,22 +25,29 @@ enum EventType
     EVENT_TYPE_NUM_COUNT
 };
 
+struct EventDataResize
+{
+    uint32 width;
+    uint32 height;
+    bool   maximized;
+};
+
 // Data associated with any event
 struct EventData
 {
     // a 128 bit struct
     union
     {
-        char    CharValue[16];
-        int8    Int8Value[16];
-        int16   Int16Value[8];
-        int32   Int32Value[4];
-        int64   Int64Value[2];
+        char  CharValue[16];
+        int8  Int8Value[16];
+        int16 Int16Value[8];
+        int32 Int32Value[4];
+        int64 Int64Value[2];
 
-        uint8   UInt8Value[16];
-        uint16  UInt16Value[8];
-        uint32  UInt32Value[4];
-        uint64  UInt64Value[2];
+        uint8  UInt8Value[16];
+        uint16 UInt16Value[8];
+        uint32 UInt32Value[4];
+        uint64 UInt64Value[2];
 
         float32 Float32Value[4];
         float64 Float64Value[2];
@@ -52,15 +58,15 @@ struct EventData
 // listener that is handling multiple event types
 typedef bool (*EventCallback)(EventType type, void* sender, void* listener, EventData data);
 
-struct Event
+struct EventListener
 {
-    void*           Listener;
-    EventCallback   Callback;
+    void*         Listener;
+    EventCallback Callback;
 };
 
 struct EventEntry
 {
-    Event* Events;
+    EventListener* Events;
 };
 
 struct EventSystemState
@@ -71,7 +77,7 @@ struct EventSystemState
 struct KRAFT_API EventSystem
 {
     static EventSystemState State;
-    static bool Initialized;
+    static bool             Initialized;
 
     static bool Init();
     static bool Shutdown();
@@ -80,4 +86,4 @@ struct KRAFT_API EventSystem
     static void Dispatch(EventType type, EventData data, void* sender);
 };
 
-}
+} // namespace kraft

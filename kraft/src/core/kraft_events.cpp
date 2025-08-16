@@ -27,7 +27,7 @@ bool EventSystem::Shutdown()
 {
     for (int i = 0; i < EventType::EVENT_TYPE_NUM_COUNT; i++)
     {
-        Event* events = State.EventEntries[i].Events;
+        EventListener* events = State.EventEntries[i].Events;
         arrfree(events);
 
         State.EventEntries[i].Events = nullptr;
@@ -38,7 +38,7 @@ bool EventSystem::Shutdown()
 
 bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
 {
-    Event* events = State.EventEntries[type].Events;
+    EventListener* events = State.EventEntries[type].Events;
 
     // Check for duplicate events
     for (int i = 0; i < arrlen(events); ++i)
@@ -51,7 +51,7 @@ bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
         }
     }
 
-    Event e;
+    EventListener e;
     e.Listener = listener;
     e.Callback = callback;
 
@@ -62,10 +62,10 @@ bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
 
 bool EventSystem::Unlisten(EventType type, void* listener, EventCallback callback)
 {
-    Event* events = State.EventEntries[type].Events;
+    EventListener* events = State.EventEntries[type].Events;
     for (int i = 0; i < arrlen(events); i++)
     {
-        Event event = events[i];
+        EventListener event = events[i];
         if (event.Listener == listener && event.Callback == callback)
         {
             arrdel(events, i);
@@ -78,10 +78,10 @@ bool EventSystem::Unlisten(EventType type, void* listener, EventCallback callbac
 
 void EventSystem::Dispatch(EventType type, EventData data, void* sender)
 {
-    Event* events = State.EventEntries[type].Events;
+    EventListener* events = State.EventEntries[type].Events;
     for (int i = 0; i < arrlen(events); ++i)
     {
-        Event e = events[i];
+        EventListener e = events[i];
         if (e.Callback(type, sender, e.Listener, data))
         {
             return;
