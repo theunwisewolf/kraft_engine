@@ -138,7 +138,7 @@ KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
     rewind(handle->Handle);
 
     buffer output = {};
-    output.ptr = ArenaPushArray(arena, char, size);
+    output.ptr = ArenaPushArray(arena, u8, size);
     output.count = size;
 
     size_t read = fread(output.ptr, 1, size, handle->Handle);
@@ -197,22 +197,25 @@ void CleanPath(const char* path, char* out)
     }
 }
 
-String CleanPath(const String& Path)
+String8 CleanPath(ArenaAllocator* arena, String8 path)
 {
-    String Output(Path.Length, 0);
-    for (int i = 0; i < Path.Length; i++)
+    String8 result = {};
+    result.ptr = ArenaPushArray(arena, u8, path.count);
+    result.count = path.count;
+
+    for (i32 i = 0; i < (i32)path.count; i++)
     {
-        if (Path[i] == '\\')
+        if (path.ptr[i] == '\\')
         {
-            Output[i] = '/';
+            result.ptr[i] = '/';
         }
         else
         {
-            Output[i] = Path[i];
+            result.ptr[i] = path.ptr[i];
         }
     }
 
-    return Output;
+    return result;
 }
 
 void Dirname(const char* Path, char* Out)
@@ -238,17 +241,23 @@ void Dirname(const char* Path, uint64 PathLength, char* Out)
     Out[PathLength] = 0;
 }
 
-String Dirname(const String& Path)
+String8 Dirname(ArenaAllocator* arena, String8 path)
 {
-    for (int i = (int)Path.Length - 1; i >= 0; i--)
+    String8 result = {};
+    result.ptr = ArenaPushArray(arena, u8, path.count);
+    i32 i = (i32)path.count - 1;
+    for (; i >= 0; i--)
     {
-        if (Path[i] == '/' || Path[i] == '\\')
+        if (path.ptr[i] == '/' || path.ptr[i] == '\\')
         {
-            return String(Path, 0, i);
+            break;
         }
     }
 
-    return Path;
+    MemCpy(result.ptr, path.ptr, i);
+    result.count = i;
+
+    return result;
 }
 
 char* Dirname(ArenaAllocator* Arena, const String& Path)
@@ -282,17 +291,24 @@ void Basename(const char* path, char* out)
     }
 }
 
-String Basename(const String& Path)
+String8 Basename(ArenaAllocator* arena, String8 path)
 {
-    for (int i = (int)Path.Length - 1; i >= 0; i--)
+    String8 result = {};
+    result.ptr = ArenaPushArray(arena, u8, path.count);
+    i32 i = (i32)path.count - 1;
+    for (; i >= 0; i--)
     {
-        if (Path[i] == '/' || Path[i] == '\\')
+        if (path.ptr[i] == '/' || path.ptr[i] == '\\')
         {
-            return String(Path, i + 1, Path.Length - i + 1);
+            break;
         }
     }
 
-    return Path;
+    result.count = path.count - i + 1;
+    MemCpy(result.ptr, path.ptr + i + 1, result.count);
+    ArenaPop(arena, path.count - result.count);
+
+    return result;
 }
 
 char* PathJoin(ArenaAllocator* arena, const char* A, const char* B)

@@ -1,13 +1,9 @@
 #include "kraft_input.h"
 
-#include "core/kraft_events.h"
-#include "core/kraft_log.h"
-#include "core/kraft_memory.h"
-
 namespace kraft {
 
 bool             InputSystem::Initialized = false;
-InputSystemState InputSystem::State = { 0 };
+InputSystemState InputSystem::State = {};
 
 bool InputSystem::Init()
 {

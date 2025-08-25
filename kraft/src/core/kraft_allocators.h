@@ -33,24 +33,25 @@ struct TempArena
     u64             position;
 };
 
-kraft_internal ArenaAllocator* CreateArena(ArenaCreateOptions options);
-kraft_internal void            DestroyArena(ArenaAllocator* arena);
-kraft_internal u64             ArenaPosition(ArenaAllocator* arena);
+ArenaAllocator* CreateArena(ArenaCreateOptions options);
+void            DestroyArena(ArenaAllocator* arena);
+u64             ArenaPosition(ArenaAllocator* arena);
 
-kraft_internal void    ArenaPop(ArenaAllocator* arena, u64 size);
-kraft_internal void    ArenaPopToPosition(ArenaAllocator* arena, u64 position);
-kraft_internal char*   ArenaPushString(ArenaAllocator* arena, const char* src, uint64 length);
-kraft_internal string8 ArenaPushString8Copy(ArenaAllocator* arena, string8 str);
-kraft_internal void    ArenaPopString8(ArenaAllocator* arena, string8 str);
+void    ArenaPop(ArenaAllocator* arena, u64 size);
+void    ArenaPopToPosition(ArenaAllocator* arena, u64 position);
+char*   ArenaPushString(ArenaAllocator* arena, const char* src, uint64 length);
+String8 ArenaPushString8Copy(ArenaAllocator* arena, String8 str);
+void    ArenaPopString8(ArenaAllocator* arena, String8 str);
 
 #define ArenaPushArrayAligned(arena, T, count)       (T*)arena->Push(sizeof(T) * count, AlignOf(T), true)
 #define ArenaPushArrayAlignedNoZero(arena, T, count) (T*)arena->Push(sizeof(T) * count, AlignOf(T), false)
 #define ArenaPushArray(arena, T, count)              ArenaPushArrayAligned(arena, T, count)
 #define ArenaPushArrayNoZero(arena, T, count)        ArenaPushArrayAlignedNoZero(arena, T, count)
 #define ArenaPush(arena, T)                          ArenaPushArray(arena, T, 1)
+#define ArenaAlloc()                                 CreateArena({ .ChunkSize = KRAFT_SIZE_MB(64), .Alignment = KRAFT_SIZE_KB(64) })
 
-kraft_internal TempArena TempBegin(ArenaAllocator* arena);
-kraft_internal void      TempEnd(TempArena temp);
+TempArena TempBegin(ArenaAllocator* arena);
+void      TempEnd(TempArena temp);
 
 #define ScratchBegin(conflicting_arenas, conflicting_arenas_count) kraft::TempBegin(kraft::GetScratchArena(conflicting_arenas, conflicting_arenas_count))
 #define ScratchEnd(scratch_arena)                                  kraft::TempEnd(scratch_arena);

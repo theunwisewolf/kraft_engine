@@ -1,7 +1,5 @@
 #pragma once
 
-#include <core/kraft_core.h>
-
 #define KRAFT_ENABLE_LOGGING_FILENAMES true
 
 namespace kraft {

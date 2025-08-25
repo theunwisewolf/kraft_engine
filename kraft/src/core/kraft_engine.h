@@ -4,23 +4,29 @@
 
 namespace kraft {
 
-struct EngineConfig;
+struct EngineConfig
+{
+    int     argc = 0;
+    char**  argv = 0;
+    String8 application_name = {};
+    bool    console_app = false;
+};
 
 struct KRAFT_API Engine
 {
-    static EngineConfig Config;
+    static EngineConfig config;
 
     // The location of the executable without a trailing slash
-    static String BasePath;
+    static String8 base_path;
 
     // "true" if the application is running and no exit event was recorded
-    static bool Running;
+    static bool running;
 
     // "true" if the application is the background/minimized
-    static bool Suspended;
+    static bool suspended;
 
     // Initializes the engine
-    static bool Init(const EngineConfig& Config);
+    static bool Init(const EngineConfig* config);
 
     // Ticks one frame
     static bool Tick();
@@ -31,7 +37,7 @@ struct KRAFT_API Engine
     // Shutdown
     static void Destroy();
 
-    static const Array<String>& GetCommandLineArgs();
+    static const String8Array GetCommandLineArgs();
 };
 
 } // namespace kraft

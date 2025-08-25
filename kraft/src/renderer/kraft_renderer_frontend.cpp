@@ -3,7 +3,6 @@
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
-#include <core/kraft_engine.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_time.h>

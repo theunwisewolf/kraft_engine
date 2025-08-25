@@ -1,13 +1,6 @@
 #include "kraft_engine.h"
 
 #include <containers/kraft_array.h>
-#include <core/kraft_events.h>
-#include <core/kraft_input.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_string.h>
-#include <core/kraft_allocators.h>
-#include <core/kraft_time.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
@@ -28,32 +21,33 @@ namespace kraft {
 
 struct EngineState
 {
-    Array<String> CliArgs;
-} InternalState;
+    ArenaAllocator* arena;
+    String8Array    cli_args;
+}* internal_state;
 
-struct EngineConfig Engine::Config = {};
-bool                Engine::Running = false;
-bool                Engine::Suspended = false;
-String              Engine::BasePath = {};
+struct EngineConfig Engine::config = {};
+bool                Engine::running = false;
+bool                Engine::suspended = false;
+String8             Engine::base_path = {};
 
 #if defined(KRAFT_GUI_APP)
 static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData event_data)
 {
     EventDataResize data = *(EventDataResize*)(&event_data);
-    uint32 Width = data.width;
-    uint32 Height = data.height;
+    uint32          Width = data.width;
+    uint32          Height = data.height;
 
     if (Width == 0 && Height == 0)
     {
         KINFO("[Engine]: Application suspended");
-        Engine::Suspended = true;
+        Engine::suspended = true;
     }
     else
     {
-        if (Engine::Suspended)
+        if (Engine::suspended)
         {
             KINFO("[Engine]: Application resumed");
-            Engine::Suspended = false;
+            Engine::suspended = false;
         }
 
         g_Renderer->OnResize(Width, Height);
@@ -63,20 +57,24 @@ static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, E
 }
 #endif
 
-bool Engine::Init(const EngineConfig& Config)
+bool Engine::Init(const EngineConfig* config)
 {
-    MemCpy(&Engine::Config, &Config, sizeof(EngineConfig));
+    ArenaAllocator* arena = ArenaAlloc();
+    MemCpy(&Engine::config, config, sizeof(EngineConfig));
 
-    InternalState.CliArgs = Array<String>(Config.Argc);
-    for (int i = 0; i < Config.Argc; i++)
+    internal_state = ArenaPush(arena, EngineState);
+    internal_state->arena = arena;
+    internal_state->cli_args.ptr = ArenaPushArray(arena, String8, config->argc);
+
+    for (int i = 0; i < config->argc; i++)
     {
-        InternalState.CliArgs[i] = Config.Argv[i];
+        internal_state->cli_args.ptr[i] = ArenaPushString8Copy(arena, String8FromCString(config->argv[i]));
     }
 
-    BasePath = filesystem::Dirname(InternalState.CliArgs[0]);
-    BasePath = filesystem::CleanPath(BasePath);
+    base_path = filesystem::Dirname(arena, internal_state->cli_args.ptr[0]);
+    base_path = filesystem::CleanPath(arena, base_path);
 
-    Platform::Init(&Engine::Config);
+    Platform::Init(&Engine::config);
     EventSystem::Init();
     InputSystem::Init();
 
@@ -84,8 +82,8 @@ bool Engine::Init(const EngineConfig& Config)
     EventSystem::Listen(EventType::EVENT_TYPE_WINDOW_RESIZE, nullptr, WindowResizeListener);
 #endif
 
-    Engine::Running = true;
-    Engine::Suspended = false;
+    Engine::running = true;
+    Engine::suspended = false;
 
     Time::Start();
 
@@ -98,7 +96,7 @@ bool Engine::Tick()
 
 #if defined(KRAFT_GUI_APP)
     InputSystem::Update();
-    Engine::Running = Platform::PollEvents();
+    Engine::running = Platform::PollEvents();
 #endif
 
     return true;
@@ -130,9 +128,9 @@ void Engine::Destroy()
     KSUCCESS("[Engine]: Engine shutdown complete");
 }
 
-const Array<String>& Engine::GetCommandLineArgs()
+const String8Array Engine::GetCommandLineArgs()
 {
-    return InternalState.CliArgs;
+    return internal_state->cli_args;
 }
 
 } // namespace kraft

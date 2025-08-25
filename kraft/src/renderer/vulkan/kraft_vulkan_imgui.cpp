@@ -8,7 +8,6 @@
 
 #include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>
-#include <core/kraft_engine.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
 #include <platform/kraft_filesystem.h>
@@ -28,7 +27,7 @@ namespace kraft::renderer {
 namespace VulkanImgui {
 
 // TODO: (amn) All of this code needs rework
-static VkDescriptorPool    ImGuiDescriptorPool;
+static VkDescriptorPool ImGuiDescriptorPool;
 
 // TODO (Amn): Improve this?
 static void CheckVkResult(VkResult err)

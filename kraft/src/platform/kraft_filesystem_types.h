@@ -3,8 +3,8 @@
 namespace kraft::filesystem {
 struct FileInfo
 {
-    String Name;
-    uint64 FileSize;
+    String8 Name;
+    uint64  FileSize;
 };
 
 struct FileHandle
@@ -24,4 +24,4 @@ enum FileOpenMode
     FILE_OPEN_MODE_WRITE = 0x2,
     FILE_OPEN_MODE_APPEND = 0x4,
 };
-}
+} // namespace kraft::filesystem

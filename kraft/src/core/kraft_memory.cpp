@@ -1,7 +1,5 @@
 #include "kraft_memory.h"
 
-#include <core/kraft_log.h>
-#include <core/kraft_asserts.h>
 #include <platform/kraft_platform.h>
 
 namespace kraft {

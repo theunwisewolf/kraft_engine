@@ -1,8 +1,6 @@
 #include "kraft_events.h"
 
 #include <containers/kraft_carray.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
 
 namespace kraft {
 

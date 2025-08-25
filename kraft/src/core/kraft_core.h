@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 // Platform detection
 #if defined(WIN32) || defined(_WIN32)
 #define KRAFT_PLATFORM_WINDOWS
@@ -149,13 +151,13 @@ typedef uint32_t u32;
 typedef uint64_t uint64;
 typedef uint64_t u64;
 
-struct string8
+struct String8
 {
-    char* ptr;
-    u64   count;
+    u8* ptr;
+    u64 count;
 };
 
-typedef string8 buffer;
+typedef String8 buffer;
 
 #define CArray(Type) Type*
 

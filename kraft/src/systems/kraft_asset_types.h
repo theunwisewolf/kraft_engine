@@ -10,8 +10,8 @@ struct Asset
         Mesh,
     } Type;
 
-    String Directory;
-    String Filename;
+    String8 Directory;
+    String8 Filename;
 };
 
 struct MeshT

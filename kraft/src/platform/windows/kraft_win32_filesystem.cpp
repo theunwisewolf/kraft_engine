@@ -75,7 +75,7 @@ bool ReadDir(const String& Path, Array<FileInfo>& OutFiles)
             FileSize.HighPart = FindData.nFileSizeHigh;
             // KDEBUG("  %s   %ld bytes", FindData.cFileName, FileSize.QuadPart);
 
-            OutFiles.Push({ .Name = FindData.cFileName, .FileSize = (uint64)FileSize.QuadPart });
+            OutFiles.Push({ .Name = String8FromCString(FindData.cFileName), .FileSize = (uint64)FileSize.QuadPart });
         }
     } while (FindNextFile(hFind, &FindData) != 0);
 

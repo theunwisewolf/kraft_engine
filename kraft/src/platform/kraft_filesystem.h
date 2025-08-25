@@ -30,20 +30,19 @@ KRAFT_API bool FileExists(const String& path);
 
 // Very basic for now, just replaces all windows path separators
 // with unix path separators
-KRAFT_API void   CleanPath(const char* path, char* out);
-KRAFT_API String CleanPath(const String& Path);
+KRAFT_API void    CleanPath(const char* path, char* out);
+KRAFT_API String8 CleanPath(ArenaAllocator* arena, String8 path);
 
 // Returns the directory without the filename
-KRAFT_API void   Dirname(const char* path, char* out);
-KRAFT_API void   Dirname(const char* Path, uint64 PathLength, char* Out);
-KRAFT_API String Dirname(const String& Path);
-KRAFT_API char*  Dirname(ArenaAllocator* Arena, const String& Path);
-KRAFT_API char*  Dirname(ArenaAllocator* Arena, const char* Path);
-KRAFT_API char*  Dirname(ArenaAllocator* Arena, const char* Path, uint64 PathLength);
+KRAFT_API void    Dirname(const char* path, char* out);
+KRAFT_API void    Dirname(const char* Path, uint64 PathLength, char* Out);
+KRAFT_API String8 Dirname(ArenaAllocator* arena, String8 path);
+KRAFT_API char*   Dirname(ArenaAllocator* arena, const char* Path);
+KRAFT_API char*   Dirname(ArenaAllocator* arena, const char* Path, uint64 PathLength);
 
 // Returns the filename without the directory
-KRAFT_API void   Basename(const char* path, char* out);
-KRAFT_API String Basename(const String& Path);
+KRAFT_API void    Basename(const char* path, char* out);
+KRAFT_API String8 Basename(ArenaAllocator* arena, String8 path);
 
 KRAFT_API char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B);
 

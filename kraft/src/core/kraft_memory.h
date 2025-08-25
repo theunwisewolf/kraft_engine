@@ -1,7 +1,5 @@
 #pragma once
 
-#include <core/kraft_core.h>
-
 namespace kraft {
 
 enum MemoryTag : int

@@ -30,15 +30,15 @@ u64 Time::Now()
     return (u64)time(nullptr);
 }
 
-string8 Time::Format(ArenaAllocator* arena, char* format, u64 timestamp)
+String8 Time::Format(ArenaAllocator* arena, const char* format, u64 timestamp)
 {
     const u64 max_length = 128;
-    string8   result = { .ptr = ArenaPushArray(arena, char, max_length), .count = max_length };
+    String8   result = { .ptr = ArenaPushArray(arena, u8, max_length), .count = max_length };
 
     time_t     timer = (time_t)timestamp;
     struct tm* time_info = localtime(&timer);
 
-    result.count = strftime(result.ptr, result.count, format, time_info);
+    result.count = strftime((char*)result.ptr, result.count, format, time_info);
     return result;
 }
 } // namespace kraft

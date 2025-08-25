@@ -19,8 +19,6 @@
 #include <platform/kraft_window.h>
 #endif
 
-#include <core/kraft_engine.h>
-#include <core/kraft_log.h>
 #include <core/kraft_string.h>
 #include <platform/kraft_platform.h>
 #include <platform/windows/kraft_win32_types.h>

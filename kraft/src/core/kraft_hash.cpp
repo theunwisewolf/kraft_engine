@@ -1,7 +1,5 @@
 #include "kraft_hash.h"
 
-#include <core/kraft_asserts.h>
-
 namespace kraft {
 
 static uint32 InvertShiftXor(uint32 hs, uint32 s);

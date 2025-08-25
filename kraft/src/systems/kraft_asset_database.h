@@ -23,6 +23,7 @@ struct Material;
 struct Texture;
 struct MeshAsset;
 struct TextureAsset;
+struct ArenaAllocator;
 
 namespace renderer {
 template<typename T>
@@ -33,8 +34,8 @@ KRAFT_API struct AssetDatabase
 {
     static void          Init();
     static void          Shutdown();
-    static MeshAsset*    LoadMesh(const String& Path);
-    static TextureAsset* LoadTexture(const String& Path);
+    static MeshAsset*    LoadMesh(ArenaAllocator* arena, String8 path);
+    static TextureAsset* LoadTexture(ArenaAllocator* arena, String8 path);
 
 private:
 #if USE_ASSIMP

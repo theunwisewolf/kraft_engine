@@ -26,10 +26,11 @@ namespace kraft {
 
 struct AssetDatabaseStateT
 {
-    kraft::FlatHashMap<String, uint16> AssetsIndexMap;
-    Asset*                             Assets;
-    MeshAsset*                         Meshes;
-    uint16                             MeshCount = 0;
+    // kraft::FlatHashMap<String8, uint16> AssetsIndexMap;
+    Asset*     Assets;
+    u64        assets_count;
+    MeshAsset* Meshes;
+    uint16     MeshCount = 0;
 };
 
 static MemoryBlock          AssetDatabaseMemory;
@@ -45,6 +46,7 @@ void AssetDatabase::Init()
     new (AssetDatabaseStatePtr) AssetDatabaseStateT;
 
     AssetDatabaseStatePtr->Assets = (Asset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT));
+    AssetDatabaseStatePtr->assets_count = 0;
     AssetDatabaseStatePtr->Meshes = (MeshAsset*)(AssetDatabaseMemory.Data + sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)));
 }
 
@@ -190,13 +192,18 @@ void AssetDatabase::ProcessAINode(MeshAsset& BaseMesh, aiNode* Node, const aiSce
 
 #endif
 
-MeshAsset* AssetDatabase::LoadMesh(const String& Path)
+MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
 {
-    auto It = AssetDatabaseStatePtr->AssetsIndexMap.find(Path);
-    if (It != AssetDatabaseStatePtr->AssetsIndexMap.end())
-    {
-        return &AssetDatabaseStatePtr->Meshes[It->second];
-    }
+    // auto It = AssetDatabaseStatePtr->AssetsIndexMap.find(path);
+    // if (It != AssetDatabaseStatePtr->AssetsIndexMap.end())
+    // {
+    //     return &AssetDatabaseStatePtr->Meshes[It->second];
+    // }
+
+    // for (i32 i = 0; i < AssetDatabaseStatePtr->assets_count; i++)
+    // {
+    //     if (StringEqual(AssetDatabaseStatePtr->Assets[i].)
+    // }
 
 #if USE_ASSIMP
     const struct aiScene* Scene =
@@ -226,7 +233,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
     // Options.space_conversion = UFBX_SPACE_CONVERSION_MODIFY_GEOMETRY;
     Options.generate_missing_normals = true;
     ufbx_error  UfbxError;
-    ufbx_scene* Scene = ufbx_load_file(*Path, &Options, &UfbxError);
+    ufbx_scene* Scene = ufbx_load_file_len((char*)path.ptr, path.count, &Options, &UfbxError);
 
     if (!Scene)
     {
@@ -235,8 +242,8 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
     }
 
     MeshAsset& Mesh = AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount];
-    Mesh.Directory = filesystem::Dirname(Path);
-    Mesh.Filename = filesystem::Basename(Path);
+    Mesh.Directory = filesystem::Dirname(arena, path);
+    Mesh.Filename = filesystem::Basename(arena, path);
     Mesh.SubMeshes.Reserve(Scene->meshes.count);
 
     Array<int32>    NodeToMeshInstanceMapping(Scene->nodes.count, -1);
@@ -344,8 +351,7 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
                 ufbx_texture*  UfbxTexture = UfbxMaterial->pbr.base_color.texture;
                 if (UfbxTexture)
                 {
-                    Handle<Texture> LoadedTexture =
-                        TextureSystem::AcquireTexture(String(UfbxTexture->filename.data, UfbxTexture->filename.length));
+                    Handle<Texture> LoadedTexture = TextureSystem::AcquireTexture(String(UfbxTexture->filename.data, UfbxTexture->filename.length));
                     if (LoadedTexture.IsInvalid())
                     {
                         KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", UfbxTexture->filename.data);
@@ -420,4 +426,4 @@ MeshAsset* AssetDatabase::LoadMesh(const String& Path)
     return &AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount++];
 }
 
-}
+} // namespace kraft

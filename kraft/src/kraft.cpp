@@ -2,8 +2,10 @@
 
 // HACK: for now
 #include <core/kraft_base_includes.h>
+#include <platform/kraft_platform_includes.h>
 
 #include <core/kraft_base_includes.cpp>
+#include <platform/kraft_platform_includes.cpp>
 
 #include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>
@@ -18,9 +20,9 @@
 
 namespace kraft {
 
-bool CreateEngine(const EngineConfig& Config)
+bool CreateEngine(const EngineConfig* config)
 {
-    return Engine::Init(Config);
+    return Engine::Init(config);
 }
 
 void DestroyEngine()
@@ -38,6 +40,8 @@ void DestroyEngine()
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
+
+#undef CreateWindow
 
 namespace kraft {
 

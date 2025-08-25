@@ -14,44 +14,25 @@ set(SRC_FILES
     src/containers/kraft_carray.cpp
     src/containers/kraft_array.cpp
     src/containers/kraft_buffer.cpp
-    src/core/kraft_log.cpp
-    src/core/kraft_asserts.cpp
-    src/core/kraft_input.cpp
-    src/core/kraft_events.cpp
-    src/core/kraft_engine.cpp
-    src/core/kraft_memory.cpp
     src/core/kraft_string.cpp
     src/core/kraft_string_view.cpp
     src/core/kraft_lexer.cpp
-    src/core/kraft_hash.cpp
     src/math/kraft_math.cpp
-    src/platform/kraft_filesystem.cpp
-    src/platform/kraft_platform_common.cpp
-    src/platform/windows/kraft_win32.cpp
 
     src/shaderfx/kraft_shaderfx.cpp
 )
 
 if (WIN32)
-    list(APPEND SRC_FILES src/platform/windows/kraft_win32_filesystem.cpp)
 endif()
 
 set(HEADER_FILES
     src/util.h
-    src/core/kraft_core.h
-    src/core/kraft_log.h
-    src/core/kraft_memory.h
-    src/core/kraft_asserts.h
     src/math/kraft_math.h
-    src/platform/kraft_platform.h
 )
 
 
 if (KRAFT_APP_TYPE STREQUAL "GUI")
     list(APPEND HEADER_FILES
-        # Platform
-        src/platform/kraft_window.cpp
-    
         # Renderer
         src/renderer/kraft_camera.cpp
         src/renderer/kraft_renderer_frontend.cpp
@@ -102,10 +83,8 @@ endif()
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 if (APPLE)
-    list(APPEND SRC_FILES src/platform/macos/kraft_macos.mm)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_MACOS_MVK")
 elseif (UNIX)
-    list(APPEND SRC_FILES src/platform/linux/kraft_linux.cpp)
 endif()
 
 set(CODE_FILES ${SRC_FILES} ${HEADER_FILES})

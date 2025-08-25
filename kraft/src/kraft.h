@@ -7,7 +7,7 @@ namespace kraft {
 struct Window;
 struct EngineConfig;
 
-bool CreateEngine(const EngineConfig& Config);
+bool CreateEngine(const EngineConfig* config);
 void DestroyEngine();
 
 } // namespace kraft

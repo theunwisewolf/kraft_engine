@@ -1,7 +1,3 @@
-#include "kraft_asserts.h"
-
-#include <core/kraft_log.h>
-
 namespace kraft {
 
 void LogAssert(const char* Expression, const char* Message, const char* File, int Line)

@@ -2,12 +2,10 @@
 
 #include <stddef.h>
 
-#include <core/kraft_core.h>
-
 namespace kraft {
 
 // https://learn.microsoft.com/en-us/cpp/porting/fix-your-dependencies-on-library-internals?view=msvc-170
-KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* Buffer, size_t Count)
+KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* buffer, size_t count)
 {
 #if defined(KRAFT_64BIT)
     static_assert(sizeof(size_t) == 8, "This code is for 64-bit size_t.");
@@ -20,10 +18,10 @@ KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* Buffer, size_t Co
 #endif /* defined(_WIN64) */
 
     size_t result = fnv_offset_basis;
-    for (size_t next = 0; next < Count; ++next)
+    for (size_t next = 0; next < count; ++next)
     {
         // fold in another byte
-        result ^= (size_t)Buffer[next];
+        result ^= (size_t)buffer[next];
         result *= fnv_prime;
     }
 
@@ -32,9 +30,9 @@ KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* Buffer, size_t Co
 
 // Credit:
 // http://bitsquid.blogspot.com/2011/08/code-snippet-murmur-hash-inverse-pre.html
-uint32 MurmurHash(const void* key, int len, uint32 seed);
-uint32 MurmurHashInverse(uint32 h, uint32 seed);
-uint64 MurmurHash64(const void* key, int len, uint64 seed);
-uint64 MurmurHash64Inverse(uint64 h, uint64 seed);
+u32 MurmurHash(const void* key, int len, u32 seed);
+u32 MurmurHashInverse(u32 h, u32 seed);
+u64 MurmurHash64(const void* key, int len, u64 seed);
+u64 MurmurHash64Inverse(u64 h, u64 seed);
 
 }

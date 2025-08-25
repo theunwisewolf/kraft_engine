@@ -6,8 +6,6 @@
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 
-#include "core/kraft_base_includes.h"
-
 namespace kraft {
 
 struct Logger LoggerInstance = kraft::Logger();
@@ -20,15 +18,18 @@ bool Logger::Init()
 void Logger::Shutdown()
 {}
 
-void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, const char* message, ...)
+KRAFT_INLINE kraft_internal const char* get_level_prefix(LogLevel level)
 {
-    TempArena          scratch = ScratchBegin(0, 0);
-    const int          BUFFER_SIZE = 32000;
-    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
+    static const char* levels_prefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
         "FATA", "ERRO", "WARN", "INFO", "SUCC", "DEBU",
     };
 
-    static const char* LevelColor[LogLevel::LOG_LEVEL_NUM_COUNT] = {
+    return levels_prefix[level];
+}
+
+KRAFT_INLINE kraft_internal const char* get_level_color(LogLevel level)
+{
+    static const char* level_color[LogLevel::LOG_LEVEL_NUM_COUNT] = {
         KRAFT_CONSOLE_COLOR_256(134), // Fatal
         KRAFT_CONSOLE_COLOR_256(204), // Error
         KRAFT_CONSOLE_COLOR_256(192), // Warning
@@ -37,17 +38,21 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
         KRAFT_CONSOLE_COLOR_256(63),  // Debug
     };
 
-    string8 formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
-    int     prefixLength = 4;
-    char    out[BUFFER_SIZE] = { 0 };
+    return level_color[level];
+}
+
+void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, const char* message_with_format, ...)
+{
+    TempArena scratch = ScratchBegin(0, 0);
+    String8   formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
 
     va_list args;
-    va_start(args, message);
-    StringFormatV(out, BUFFER_SIZE, message, args);
+    va_start(args, message_with_format);
+    String8 out = StringFormatV(scratch.arena, message_with_format, args);
     va_end(args);
 
-    char FilenameBuffer[256] = { 0 };
-    filesystem::Basename(filename, FilenameBuffer);
+    char filename_buffer[256] = { 0 };
+    filesystem::Basename(filename, filename_buffer);
 
     // Pad filename
     // int FilenameLength = StringLengthClamped(FilenameBuffer, 255);
@@ -56,60 +61,36 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
     //     FilenameBuffer[i] = ' ';
     // }
 
-    // Platform::ConsoleSetColor(Platform::ConsoleColorHiGray);
-    // Platform::ConsoleOutputString();
-
     fprintf(
         stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "%s\n",
-        formatted_time.count,
-        formatted_time.ptr,
-        LevelColor[level],
-        levelsPrefix[level],
-        FilenameBuffer,
+        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "%.*s\n",
+        String8VArg(formatted_time),
+        get_level_color(level),
+        get_level_prefix(level),
+        filename_buffer,
         line,
-        out
+        String8VArg(out)
     );
 }
 
-void Logger::Log(LogLevel level, const char* message, ...)
+void Logger::Log(LogLevel level, const char* message_with_format, ...)
 {
 #if 1
-    TempArena          scratch = ScratchBegin(0, 0);
-    const int          BUFFER_SIZE = 32000;
-    static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
-        "FATA", "ERRO", "WARN", "INFO", "SUCC", "DEBU",
-    };
-
-    static const char* LevelColor[LogLevel::LOG_LEVEL_NUM_COUNT] = {
-        KRAFT_CONSOLE_COLOR_256(134), // Fatal
-        KRAFT_CONSOLE_COLOR_256(204), // Error
-        KRAFT_CONSOLE_COLOR_256(192), // Warning
-        KRAFT_CONSOLE_COLOR_256(86),  // Info
-        KRAFT_CONSOLE_COLOR_256(47),  // Success
-        KRAFT_CONSOLE_COLOR_256(63),  // Debug
-    };
-
-    string8 formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
-    int     prefixLength = 4;
-    char    out[BUFFER_SIZE] = { 0 };
+    TempArena scratch = ScratchBegin(0, 0);
+    String8   formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
 
     va_list args;
-    va_start(args, message);
-    StringFormatV(out, BUFFER_SIZE, message, args);
+    va_start(args, message_with_format);
+    String8 out = StringFormatV(scratch.arena, message_with_format, args);
     va_end(args);
-
-    // Platform::ConsoleSetColor(Platform::ConsoleColorHiGray);
-    // Platform::ConsoleOutputString();
 
     fprintf(
         stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%s\n",
-        formatted_time.count,
-        formatted_time.ptr,
-        LevelColor[level],
-        levelsPrefix[level],
-        out
+        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%.*s\n",
+        String8VArg(formatted_time),
+        get_level_color(level),
+        get_level_prefix(level),
+        String8VArg(out)
     );
 #else
     const int          BUFFER_SIZE = 32000;

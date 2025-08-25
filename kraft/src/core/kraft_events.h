@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/kraft_core.h"
-
 // inspiration from the kohi engine
 
 namespace kraft {

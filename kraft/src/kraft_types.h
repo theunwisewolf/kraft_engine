@@ -4,14 +4,6 @@
 
 namespace kraft {
 
-struct EngineConfig
-{
-    int         Argc = 0;
-    char**      Argv = 0;
-    const char* ApplicationName = "";
-    bool        ConsoleApp = false;
-};
-
 //
 // --- GUI Only Code ---
 //

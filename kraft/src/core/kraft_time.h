@@ -13,7 +13,7 @@ struct Time
     static void    Update();
     static void    Stop();
     static u64     Now();
-    static string8 Format(ArenaAllocator* arena, char* format, u64 timestamp);
+    static String8 Format(ArenaAllocator* arena, const char* format, u64 timestamp);
 };
 
 } // namespace kraft

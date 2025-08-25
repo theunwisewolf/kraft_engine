@@ -1,5 +1,6 @@
 #define STB_DS_IMPLEMENTATION
 
+#include "core/kraft_core.h"
 #include "core/kraft_memory.h"
 
 #define STBDS_REALLOC(context, ptr, size)   kraft::Realloc(ptr, size)
