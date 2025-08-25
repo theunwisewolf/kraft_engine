@@ -12,7 +12,7 @@ AccessModifierOffset: -4
 ContinuationIndentWidth: 4
 ColumnLimit: 200
 IndentWidth: '4'
-SortIncludes: 'true'
+SortIncludes: 'false'
 TabWidth: '4'
 UseTab: Never
 ReflowComments: false
