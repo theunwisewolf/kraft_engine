@@ -149,6 +149,14 @@ typedef uint32_t u32;
 typedef uint64_t uint64;
 typedef uint64_t u64;
 
+struct string8
+{
+    char* ptr;
+    u64   count;
+};
+
+typedef string8 buffer;
+
 #define CArray(Type) Type*
 
 // TODO (amn): Unicode
@@ -209,3 +217,20 @@ struct Vector;
 
 typedef Vector<float32, 4> Vec4f;
 } // namespace kraft
+
+// Storage Classes
+#define kraft_internal
+
+#if defined(KRAFT_COMPILER_MSVC)
+#define kraft_thread_internal __declspec(thread)
+#elif defined(KRAFT_COMPILER_CLANG) || defined(KRAFT_COMPILER_GCC)
+#define kraft_thread_internal __thread
+#endif
+
+#if defined(KRAFT_COMPILER_MSVC) || defined(KRAFT_COMPILER_CLANG)
+#define AlignOf(type) __alignof(type)
+#elif defined(KRAFT_COMPILER_GCC)
+#define AlignOf(type) __alignof__(type)
+#endif
+
+#define AlignPow2(value, alignment) ((value + (alignment - 1)) & ~(alignment - 1))

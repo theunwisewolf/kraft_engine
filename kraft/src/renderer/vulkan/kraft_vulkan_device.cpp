@@ -71,7 +71,7 @@ bool checkQueueSupport(
     uint32 QueueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &QueueFamilyCount, nullptr);
 
-    VkQueueFamilyProperties* QueueFamilies = ArenaPushCArray<VkQueueFamilyProperties>(Arena, QueueFamilyCount, true);
+    VkQueueFamilyProperties* QueueFamilies = ArenaPushArray(Arena, VkQueueFamilyProperties, QueueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &QueueFamilyCount, QueueFamilies);
 
     // We want find dedicated queues for transfer and compute
@@ -127,7 +127,7 @@ bool checkQueueSupport(
         }
     }
 
-    ArenaPopCArray(Arena, QueueFamilies, QueueFamilyCount);
+    ArenaPop(Arena, sizeof(VkQueueFamilyProperties) * QueueFamilyCount);
 
     uint32 UnsupportedQueueCount = 0;
     if (Requirements->Graphics && QueueFamilyInfo->GraphicsQueueIndex == -1)
@@ -177,7 +177,7 @@ bool checkExtensionsSupport(ArenaAllocator* Arena, VkPhysicalDevice device, VkPh
         return false;
     }
 
-    VkExtensionProperties* AvailableExtensions = ArenaPushCArray<VkExtensionProperties>(Arena, AvailableExtensionsCount, true);
+    VkExtensionProperties* AvailableExtensions = ArenaPushArray(Arena, VkExtensionProperties, AvailableExtensionsCount);
     KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &AvailableExtensionsCount, AvailableExtensions));
 
     int MissingExtensionsCount = 0;
@@ -203,7 +203,7 @@ bool checkExtensionsSupport(ArenaAllocator* Arena, VkPhysicalDevice device, VkPh
         }
     }
 
-    ArenaPopCArray(Arena, AvailableExtensions, AvailableExtensionsCount);
+    ArenaPop(Arena, sizeof(VkExtensionProperties) * AvailableExtensionsCount);
     if (MissingExtensionsCount > 0)
     {
         KINFO("Device %s skipped", properties.deviceName);
@@ -226,7 +226,7 @@ void VulkanGetSwapchainSupportInfo(ArenaAllocator* Arena, VkPhysicalDevice Physi
         KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface, &Out->FormatCount, 0));
         if (Out->FormatCount > 0)
         {
-            Out->Formats = ArenaPushCArray<VkSurfaceFormatKHR>(Arena, Out->FormatCount, true);
+            Out->Formats = ArenaPushArray(Arena, VkSurfaceFormatKHR, Out->FormatCount);
             KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface, &Out->FormatCount, Out->Formats));
         }
     }
@@ -237,7 +237,7 @@ void VulkanGetSwapchainSupportInfo(ArenaAllocator* Arena, VkPhysicalDevice Physi
         KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(PhysicalDevice, Surface, &Out->PresentModeCount, 0));
         if (Out->PresentModeCount > 0)
         {
-            Out->PresentModes = ArenaPushCArray<VkPresentModeKHR>(Arena, Out->PresentModeCount, true);
+            Out->PresentModes = ArenaPushArray(Arena, VkPresentModeKHR, Out->PresentModeCount);
             KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(PhysicalDevice, Surface, &Out->PresentModeCount, Out->PresentModes));
         }
     }
@@ -287,10 +287,10 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         return false;
     }
 
-    VkPhysicalDevice* PhysicalDevices = ArenaPushCArray<VkPhysicalDevice>(Arena, DeviceCount, true);
+    VkPhysicalDevice* PhysicalDevices = ArenaPushArray(Arena, VkPhysicalDevice, DeviceCount);
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &DeviceCount, PhysicalDevices));
 
-    VulkanPhysicalDevice* SuitablePhysicalDevices = ArenaPushCArray<VulkanPhysicalDevice>(Arena, DeviceCount, true);
+    VulkanPhysicalDevice* SuitablePhysicalDevices = ArenaPushArray(Arena, VulkanPhysicalDevice, DeviceCount);
 
     int SuitablePhysicalDevicesCount = 0;
     for (uint32 i = 0; i < DeviceCount; ++i)
@@ -420,8 +420,8 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
     if (out)
         *out = Context->PhysicalDevice;
 
-    ArenaPopCArray(Arena, PhysicalDevices, DeviceCount);
-    ArenaPopCArray(Arena, SuitablePhysicalDevices, DeviceCount);
+    ArenaPop(Arena, sizeof(VkPhysicalDevice) * DeviceCount);
+    ArenaPop(Arena, sizeof(VulkanPhysicalDevice) * DeviceCount);
 
     return true;
 }
@@ -432,7 +432,7 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     LogicalDevice.PhysicalDevice = Context->PhysicalDevice;
     Context->LogicalDevice = LogicalDevice;
 
-    uint32                Indices[3] = {0};
+    uint32                Indices[3] = { 0 };
     uint32                QueueCreateInfoCount = 1; // We need at least 1 queue
     VulkanQueueFamilyInfo FamilyInfo = Context->PhysicalDevice.QueueFamilyInfo;
     Indices[0] = FamilyInfo.GraphicsQueueIndex;
@@ -456,7 +456,7 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
         QueueCreateInfoCount++;
     }
 
-    VkDeviceQueueCreateInfo* QueueCreateInfos = ArenaPushCArray<VkDeviceQueueCreateInfo>(Arena, QueueCreateInfoCount, true);
+    VkDeviceQueueCreateInfo* QueueCreateInfos = ArenaPushArray(Arena, VkDeviceQueueCreateInfo, QueueCreateInfoCount);
     float32                  QueuePriorities = 1.0f;
 
     for (uint32 i = 0; i < QueueCreateInfoCount; ++i)
@@ -523,7 +523,7 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
 
     KRAFT_VK_CHECK(vkCreateDevice(Context->PhysicalDevice.Handle, &DeviceCreateInfo, Context->AllocationCallbacks, &Context->LogicalDevice.Handle));
 
-    ArenaPopCArray(Arena, QueueCreateInfos, QueueCreateInfoCount);
+    ArenaPop(Arena, sizeof(VkDeviceQueueCreateInfo) * QueueCreateInfoCount);
 
     volkLoadDevice(Context->LogicalDevice.Handle);
 
@@ -551,4 +551,4 @@ void VulkanDestroyLogicalDevice(VulkanContext* Context)
     KDEBUG("[VulkanDestroyLogicalDevice]: Destroyed VkDevice");
 }
 
-}
+} // namespace kraft::renderer

@@ -1,67 +1,102 @@
-#include "kraft_allocators.h"
-
 #include <core/kraft_asserts.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
-#include <math/kraft_math.h>
+#include "kraft_allocators.h"
 
 namespace kraft {
 
-ArenaAllocator* CreateArena(ArenaCreateOptions Options)
+kraft_internal ArenaAllocator* CreateArena(ArenaCreateOptions Options)
 {
-    Options.ChunkSize = kraft::math::AlignUp(Options.ChunkSize, Options.Alignment);
+    Options.ChunkSize = AlignPow2(Options.ChunkSize, Options.Alignment);
     uint64 ActualSize = sizeof(ArenaAllocator) + Options.ChunkSize;
     uint8* Memory = (uint8*)Malloc(ActualSize, kraft::MEMORY_TAG_NONE, true);
     MemSet(Memory, 0, Options.ChunkSize);
 
     ArenaAllocator* OutArena = (ArenaAllocator*)Memory;
-    OutArena->Ptr = Memory + sizeof(ArenaAllocator);
-    OutArena->Capacity = Options.ChunkSize;
-    OutArena->Size = 0;
-    OutArena->Options = Options;
+    OutArena->base_ptr = Memory + sizeof(ArenaAllocator);
+    OutArena->base_position = 0;
+    OutArena->options = Options;
+    OutArena->capacity = Options.ChunkSize;
+    OutArena->position = sizeof(ArenaAllocator);
 
     return OutArena;
 }
 
-void DestroyArena(ArenaAllocator* Arena)
+kraft_internal void DestroyArena(ArenaAllocator* Arena)
 {
-    Free(Arena, Arena->Capacity, MEMORY_TAG_NONE);
+    Free(Arena, Arena->capacity, MEMORY_TAG_NONE);
 }
 
-void ArenaPop(ArenaAllocator* Arena, uint64 Size)
+kraft_internal void ArenaPop(ArenaAllocator* arena, u64 size)
 {
-    uint64 AlignedSize = kraft::math::AlignUp(Size, Arena->Options.Alignment);
-    Arena->Size = Arena->Size - AlignedSize;
+    u64 new_position = arena->position - size;
+    ArenaPopToPosition(arena, new_position);
 
-    KDEBUG("Deallocating %d bytes from arena", AlignedSize);
+    // KDEBUG("Deallocated %d bytes from arena", size);
 }
 
-char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 LengthInBytes)
+kraft_internal void ArenaPopToPosition(ArenaAllocator* arena, u64 position)
 {
-    char* Dst = (char*)ArenaPush(Arena, LengthInBytes + 1);
-    MemCpy(Dst, SrcStr, LengthInBytes);
-
-    Dst[LengthInBytes] = 0;
-    return Dst;
+    arena->position = position;
+    KASSERT(arena->position >= sizeof(ArenaAllocator));
 }
 
-uint8* ArenaAllocator::Push(uint64 Size, bool Zero)
+kraft_internal string8 ArenaPushString8Copy(ArenaAllocator* arena, string8 str)
 {
-    uint64 AlignedSize = kraft::math::AlignUp(Size, this->Options.Alignment);
+    string8 result = {};
+    result.ptr = ArenaPushArrayNoZero(arena, char, str.count);
+    result.count = str.count;
+    MemCpy(result.ptr, str.ptr, str.count);
+
+    return result;
+}
+
+kraft_internal void ArenaPopString8(ArenaAllocator* arena, string8 str)
+{
+    ArenaPop(arena, str.count);
+}
+
+kraft_internal char* ArenaPushString(ArenaAllocator* arena, const char* src, u64 length)
+{
+    char* dst = (char*)arena->Push(length + 1, AlignOf(char), false);
+    MemCpy(dst, src, length);
+
+    dst[length] = 0;
+    return dst;
+}
+
+void* ArenaAllocator::Push(u64 size, u64 alignment, bool zero)
+{
+    u64 start_position = AlignPow2(this->position, alignment);
+    u64 end_position = start_position + size;
+
     // TODO: Stretch
-    KASSERT((AlignedSize + this->Size) <= this->Capacity);
+    KASSERT(end_position <= this->capacity);
+    this->position = end_position;
 
-    uint8* AddressIntoTheArena = this->Ptr + this->Size;
-    this->Size += AlignedSize;
-
-    if (Zero)
+    uint8* address_into_the_arena = this->base_ptr + start_position;
+    if (zero)
     {
-        MemSet(AddressIntoTheArena, 0, Size);
+        MemZero(address_into_the_arena, size);
     }
 
-    KDEBUG("Allocating %d bytes from arena", AlignedSize);
+    // KDEBUG("Allocated %llu bytes from arena", size);
+    return address_into_the_arena;
+}
 
-    return AddressIntoTheArena;
+kraft_internal u64 ArenaPosition(ArenaAllocator* arena)
+{
+    return arena->base_position + arena->position;
+}
+
+kraft_internal TempArena TempBegin(ArenaAllocator* arena)
+{
+    return TempArena{ .arena = arena, .position = ArenaPosition(arena) };
+}
+
+kraft_internal void TempEnd(TempArena temp_arena)
+{
+    ArenaPopToPosition(temp_arena.arena, temp_arena.position);
 }
 
 } // namespace kraft

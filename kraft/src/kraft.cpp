@@ -1,5 +1,10 @@
 #include "kraft.h"
 
+// HACK: for now
+#include <core/kraft_base_includes.h>
+
+#include <core/kraft_base_includes.cpp>
+
 #include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_engine.h>

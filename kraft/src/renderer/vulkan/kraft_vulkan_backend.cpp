@@ -141,7 +141,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
     uint32 AvailableLayersCount = 0;
     KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, 0));
 
-    auto AvailableLayerProperties = ArenaPushCArray<VkLayerProperties>(Arena, AvailableLayersCount);
+    auto AvailableLayerProperties = ArenaPushArray(Arena, VkLayerProperties, AvailableLayersCount);
     KRAFT_VK_CHECK(vkEnumerateInstanceLayerProperties(&AvailableLayersCount, AvailableLayerProperties));
 
     for (int i = 0; i < KRAFT_C_ARRAY_SIZE(InstanceLayers); ++i)
@@ -167,7 +167,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
 
     KRAFT_VK_CHECK(vkCreateInstance(&instanceCreateInfo, s_Context.AllocationCallbacks, &s_Context.Instance));
 
-    ArenaPopCArray(Arena, AvailableLayerProperties, AvailableLayersCount);
+    ArenaPop(Arena, sizeof(VkLayerProperties) * AvailableLayersCount);
 
     volkLoadInstance(s_Context.Instance);
 
@@ -201,7 +201,8 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
     Requirements.DepthBuffer = true;
     Requirements.DeviceExtensionsCount = 2;
     // We add + 1 for VK_KHR_portability_subset
-    Requirements.DeviceExtensions = ArenaPushCArray<const char*>(Arena, Requirements.DeviceExtensionsCount + 1, true);
+    u64 max_device_extensions_count = 3;
+    Requirements.DeviceExtensions = ArenaPushArray(Arena, const char*, max_device_extensions_count);
 
     Requirements.DeviceExtensions[0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
     Requirements.DeviceExtensions[1] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
@@ -221,8 +222,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* Arena, RendererOptions* Opts)
     });
 
     KDEBUG("[VulkanRendererBackend::Init]: Graphics command pool created");
-
-    ArenaPopCArray(Arena, Requirements.DeviceExtensions, Requirements.DeviceExtensionsCount);
+    ArenaPop(Arena, sizeof(const char*) * max_device_extensions_count);
 
     PhysicalDeviceFormatSpecs FormatSpecs;
     {
@@ -944,7 +944,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* Shader, Handle<B
     DescriptorWriteInfo[1].pImageInfo = &ImageInfo;
     count++;
 
-    VulkanBuffer* VkBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer);
+    VulkanBuffer*          VkBuffer = VulkanResourceManagerApi::GetBuffer(GlobalMaterialsBuffer);
     VkDescriptorBufferInfo GlobalMaterialsBufferInfo = {};
     if (VkBuffer)
     {

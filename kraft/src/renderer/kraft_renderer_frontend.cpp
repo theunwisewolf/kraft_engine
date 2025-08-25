@@ -435,11 +435,11 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         .Alignment = 64,
     });
 
-    g_Renderer = (RendererFrontend*)renderer_data_internal.arena->Push(sizeof(RendererFrontend), true);
-    renderer_data_internal.backend = (RendererBackend*)renderer_data_internal.arena->Push(sizeof(RendererBackend), true);
-    g_Device = (GPUDevice*)renderer_data_internal.arena->Push(sizeof(GPUDevice), true);
+    g_Renderer = ArenaPush(renderer_data_internal.arena, RendererFrontend);
+    renderer_data_internal.backend = ArenaPush(renderer_data_internal.arena, RendererBackend);
+    g_Device = ArenaPush(renderer_data_internal.arena, GPUDevice);
 
-    g_Renderer->Settings = (struct RendererOptions*)renderer_data_internal.arena->Push(sizeof(RendererOptions), true);
+    g_Renderer->Settings = ArenaPush(renderer_data_internal.arena, RendererOptions);
     MemCpy(g_Renderer->Settings, Opts, sizeof(RendererOptions));
     KASSERTM(g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
 

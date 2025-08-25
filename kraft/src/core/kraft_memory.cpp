@@ -4,8 +4,6 @@
 #include <core/kraft_asserts.h>
 #include <platform/kraft_platform.h>
 
-#include <containers/kraft_hashmap.h>
-
 namespace kraft {
 
 struct MemoryStats g_MemoryStats;

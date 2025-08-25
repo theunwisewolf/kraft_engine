@@ -210,7 +210,7 @@ struct ShaderDataType
         return 0;
     }
 
-    static uint64 AlignOf(ShaderDataType Value)
+    static uint64 GetAlignment(ShaderDataType Value)
     {
         switch (Value.UnderlyingType)
         {

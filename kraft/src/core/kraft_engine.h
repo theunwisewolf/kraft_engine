@@ -15,6 +15,7 @@ struct KRAFT_API Engine
 
     // "true" if the application is running and no exit event was recorded
     static bool Running;
+
     // "true" if the application is the background/minimized
     static bool Suspended;
 

@@ -3,9 +3,10 @@
 #include <cstdarg>
 
 #include <core/kraft_string.h>
-#include <core/kraft_time.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
+
+#include "core/kraft_base_includes.h"
 
 namespace kraft {
 
@@ -19,8 +20,9 @@ bool Logger::Init()
 void Logger::Shutdown()
 {}
 
-void Logger::LogWithFileAndLine(LogLevel Level, const char* Filename, int Line, const char* Message, ...)
+void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, const char* message, ...)
 {
+    TempArena          scratch = ScratchBegin(0, 0);
     const int          BUFFER_SIZE = 32000;
     static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
         "FATA", "ERRO", "WARN", "INFO", "SUCC", "DEBU",
@@ -35,17 +37,17 @@ void Logger::LogWithFileAndLine(LogLevel Level, const char* Filename, int Line, 
         KRAFT_CONSOLE_COLOR_256(63),  // Debug
     };
 
-    kraft::String FormattedTime = kraft::Time::Format("%I:%M:%S%p", kraft::Time::Now());
-    int           prefixLength = 4;
-    char          out[BUFFER_SIZE] = { 0 };
+    string8 formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
+    int     prefixLength = 4;
+    char    out[BUFFER_SIZE] = { 0 };
 
     va_list args;
-    va_start(args, Message);
-    StringFormatV(out, BUFFER_SIZE, Message, args);
+    va_start(args, message);
+    StringFormatV(out, BUFFER_SIZE, message, args);
     va_end(args);
 
-    char FilenameBuffer[256] = {0};
-    filesystem::Basename(Filename, FilenameBuffer);
+    char FilenameBuffer[256] = { 0 };
+    filesystem::Basename(filename, FilenameBuffer);
 
     // Pad filename
     // int FilenameLength = StringLengthClamped(FilenameBuffer, 255);
@@ -59,12 +61,13 @@ void Logger::LogWithFileAndLine(LogLevel Level, const char* Filename, int Line, 
 
     fprintf(
         stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "%s\n",
-        *FormattedTime,
-        LevelColor[Level],
-        levelsPrefix[Level],
+        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "%s\n",
+        formatted_time.count,
+        formatted_time.ptr,
+        LevelColor[level],
+        levelsPrefix[level],
         FilenameBuffer,
-        Line,
+        line,
         out
     );
 }
@@ -72,6 +75,7 @@ void Logger::LogWithFileAndLine(LogLevel Level, const char* Filename, int Line, 
 void Logger::Log(LogLevel level, const char* message, ...)
 {
 #if 1
+    TempArena          scratch = ScratchBegin(0, 0);
     const int          BUFFER_SIZE = 32000;
     static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {
         "FATA", "ERRO", "WARN", "INFO", "SUCC", "DEBU",
@@ -86,9 +90,9 @@ void Logger::Log(LogLevel level, const char* message, ...)
         KRAFT_CONSOLE_COLOR_256(63),  // Debug
     };
 
-    kraft::String FormattedTime = kraft::Time::Format("%I:%M:%S%p", kraft::Time::Now());
-    int           prefixLength = 4;
-    char          out[BUFFER_SIZE] = { 0 };
+    string8 formatted_time = Time::Format(scratch.arena, "%I:%M:%S%p", Time::Now());
+    int     prefixLength = 4;
+    char    out[BUFFER_SIZE] = { 0 };
 
     va_list args;
     va_start(args, message);
@@ -100,8 +104,9 @@ void Logger::Log(LogLevel level, const char* message, ...)
 
     fprintf(
         stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%s\n",
-        *FormattedTime,
+        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%s\n",
+        formatted_time.count,
+        formatted_time.ptr,
         LevelColor[level],
         levelsPrefix[level],
         out
@@ -159,4 +164,4 @@ void Logger::Log(LogLevel level, const char* message, ...)
 #endif
 }
 
-}
+} // namespace kraft

@@ -6,6 +6,7 @@
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_time.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>

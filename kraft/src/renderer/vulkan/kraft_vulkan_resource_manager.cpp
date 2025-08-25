@@ -95,7 +95,7 @@ BufferView VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint6
 {
     if (!CurrentBlock)
     {
-        CurrentBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), true);
+        CurrentBlock = ArenaPush(Arena, TempMemoryBlock);
         CurrentBlock->Block = AllocateGPUMemory(Arena);
     }
 
@@ -109,7 +109,7 @@ BufferView VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, uint6
         // Are there any previously allocated blocks ahead of this block?
         if (!CurrentBlock->Next)
         {
-            TempMemoryBlock* NewBlock = (TempMemoryBlock*)ArenaPush(Arena, sizeof(TempMemoryBlock), true);
+            TempMemoryBlock* NewBlock = ArenaPush(Arena, TempMemoryBlock);
             NewBlock->Prev = CurrentBlock;
             CurrentBlock->Next = NewBlock;
             CurrentBlock = NewBlock;
@@ -959,7 +959,7 @@ VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(Handle<CommandPool> 
 
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
 {
-    ResourceManagerState* State = (ResourceManagerState*)ArenaPush(Arena, sizeof(ResourceManagerState), true);
+    ResourceManagerState* State = ArenaPush(Arena, ResourceManagerState);
     State->Arena = Arena;
     State->TexturePool.Grow(KRAFT_RENDERER__MAX_GLOBAL_TEXTURES);
     State->TextureSamplerPool.Grow(4);
@@ -967,12 +967,12 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
     State->RenderPassPool.Grow(16);
     State->CmdBufferPool.Grow(16);
     State->CmdPoolPool.Grow(1);
-    State->TempGPUAllocator = (VulkanTempMemoryBlockAllocator*)ArenaPush(Arena, sizeof(VulkanTempMemoryBlockAllocator), true);
+    State->TempGPUAllocator = ArenaPush(Arena, VulkanTempMemoryBlockAllocator);
     State->TempGPUAllocator->Initialize(Arena, KRAFT_SIZE_MB(128));
 
     InternalState = State;
 
-    struct ResourceManager* Api = (struct ResourceManager*)ArenaPush(Arena, sizeof(struct ResourceManager), true);
+    struct ResourceManager* Api = ArenaPush(Arena, struct ResourceManager);
     Api->Clear = Clear;
     Api->CreateTexture = CreateTexture;
     Api->CreateTextureSampler = CreateTextureSampler;

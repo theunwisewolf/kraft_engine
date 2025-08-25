@@ -1,7 +1,5 @@
 #pragma once
 
-#include <core/kraft_core.h>
-
 #define KRAFT_SIZE_KB(Size) Size * 1024
 #define KRAFT_SIZE_MB(Size) KRAFT_SIZE_KB(Size) * 1024
 
@@ -19,36 +17,42 @@ struct ArenaCreateOptions
 // TODO: Arena->Next
 struct ArenaAllocator
 {
-    MemoryTag          Tag;
-    uint8*             Ptr;
-    uint64             Capacity = 0;
-    uint64             Size = 0;
-    ArenaCreateOptions Options;
+    MemoryTag          tag;
+    u8*                base_ptr;
+    u64                capacity = 0;
+    u64                base_position;
+    u64                position;
+    ArenaCreateOptions options;
 
-    uint8* Push(uint64 Size, bool Zero = false);
+    void* Push(u64 size, u64 alignment, bool zero);
 };
 
-ArenaAllocator* CreateArena(ArenaCreateOptions Options);
-void            DestroyArena(ArenaAllocator* Arena);
-
-static inline uint8* ArenaPush(ArenaAllocator* Arena, uint64 Size, bool Zero = false)
+struct TempArena
 {
-    return Arena->Push(Size, Zero);
-}
+    ArenaAllocator* arena;
+    u64             position;
+};
 
-void  ArenaPop(ArenaAllocator* Arena, uint64 Size);
-char* ArenaPushString(ArenaAllocator* Arena, const char* SrcStr, uint64 Length);
+kraft_internal ArenaAllocator* CreateArena(ArenaCreateOptions options);
+kraft_internal void            DestroyArena(ArenaAllocator* arena);
+kraft_internal u64             ArenaPosition(ArenaAllocator* arena);
 
-template<typename T>
-KRAFT_INLINE T* ArenaPushCArray(ArenaAllocator* Arena, uint32 ElementCount, bool Zero = false)
-{
-    return (T*)(ArenaPush(Arena, sizeof(T) * ElementCount, Zero));
-}
+kraft_internal void    ArenaPop(ArenaAllocator* arena, u64 size);
+kraft_internal void    ArenaPopToPosition(ArenaAllocator* arena, u64 position);
+kraft_internal char*   ArenaPushString(ArenaAllocator* arena, const char* src, uint64 length);
+kraft_internal string8 ArenaPushString8Copy(ArenaAllocator* arena, string8 str);
+kraft_internal void    ArenaPopString8(ArenaAllocator* arena, string8 str);
 
-template<typename T>
-KRAFT_INLINE void ArenaPopCArray(ArenaAllocator* Arena, T* _, uint32 ElementCount)
-{
-    ArenaPop(Arena, sizeof(T) * ElementCount);
-}
+#define ArenaPushArrayAligned(arena, T, count)       (T*)arena->Push(sizeof(T) * count, AlignOf(T), true)
+#define ArenaPushArrayAlignedNoZero(arena, T, count) (T*)arena->Push(sizeof(T) * count, AlignOf(T), false)
+#define ArenaPushArray(arena, T, count)              ArenaPushArrayAligned(arena, T, count)
+#define ArenaPushArrayNoZero(arena, T, count)        ArenaPushArrayAlignedNoZero(arena, T, count)
+#define ArenaPush(arena, T)                          ArenaPushArray(arena, T, 1)
+
+kraft_internal TempArena TempBegin(ArenaAllocator* arena);
+kraft_internal void      TempEnd(TempArena temp);
+
+#define ScratchBegin(conflicting_arenas, conflicting_arenas_count) kraft::TempBegin(kraft::GetScratchArena(conflicting_arenas, conflicting_arenas_count))
+#define ScratchEnd(scratch_arena)                                  kraft::TempEnd(scratch_arena);
 
 } // namespace kraft

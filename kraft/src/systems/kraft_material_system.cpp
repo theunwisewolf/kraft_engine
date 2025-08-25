@@ -60,15 +60,14 @@ KRAFT_INLINE Material* GetMaterialByName(const String& Name)
 
 void MaterialSystem::Init(const RendererOptions& Opts)
 {
-    uint64          SizeRequirement = Opts.MaxMaterials * Opts.MaterialBufferSize + Opts.MaxMaterials * sizeof(MaterialReference) + sizeof(MaterialSystemState);
-    ArenaAllocator* Arena = CreateArena({ .ChunkSize = SizeRequirement, .Alignment = 64, .Tag = MEMORY_TAG_MATERIAL_SYSTEM });
+    ArenaAllocator* arena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(64), .Alignment = 64, .Tag = MEMORY_TAG_MATERIAL_SYSTEM });
 
-    State = (MaterialSystemState*)Arena->Push(sizeof(MaterialSystemState));
-    State->Arena = Arena;
+    State = ArenaPush(arena, MaterialSystemState);
+    State->Arena = arena;
     State->MaterialBufferSize = Opts.MaterialBufferSize;
     State->MaxMaterialsCount = Opts.MaxMaterials;
-    State->MaterialsBuffer = Arena->Push(State->MaterialBufferSize * State->MaxMaterialsCount);
-    State->MaterialReferences = (MaterialReference*)Arena->Push(sizeof(MaterialReference) * State->MaxMaterialsCount);
+    State->MaterialsBuffer = ArenaPushArray(arena, u8, State->MaterialBufferSize * State->MaxMaterialsCount);
+    State->MaterialReferences = ArenaPushArray(arena, MaterialReference, State->MaxMaterialsCount);
 
     new (&State->IndexMapping) FlatHashMap<String, int>();
     State->IndexMapping.reserve(State->MaxMaterialsCount);

@@ -1,51 +1,44 @@
-#include "kraft_time.h"
-
 #include <time.h>
 
-#include <core/kraft_asserts.h>
-#include <core/kraft_string.h>
 #include <platform/kraft_platform.h>
 
 namespace kraft {
 
-float64 Time::StartTime = 0;
-float64 Time::ElapsedTime = 0;
-float64 Time::DeltaTime = 0;
-float64 Time::FrameTime = 0;
+f64 Time::start_time = 0;
+f64 Time::elapsed_time = 0;
+f64 Time::delta_time = 0;
+f64 Time::frame_time = 0;
 
 void Time::Start()
 {
-    StartTime = Platform::GetAbsoluteTime();
-    ElapsedTime = 0;
+    start_time = Platform::GetAbsoluteTime();
+    elapsed_time = 0;
 }
 
 void Time::Update()
 {
-    ElapsedTime = Platform::GetAbsoluteTime() - StartTime;
+    elapsed_time = Platform::GetAbsoluteTime() - start_time;
 }
 
 void Time::Stop()
 {
-    StartTime = 0;
+    start_time = 0;
 }
 
-uint64 Time::Now()
+u64 Time::Now()
 {
-    return (uint64)time(nullptr);
+    return (u64)time(nullptr);
 }
 
-String Time::Format(String Format, uint64 Timestamp)
+string8 Time::Format(ArenaAllocator* arena, char* format, u64 timestamp)
 {
-    const uint64 MaxLength = 128;
-    String       Out(MaxLength, 0);
-    Out.Length = 0;
-    time_t     Timer = (time_t)Timestamp;
-    struct tm* TimeInfo = localtime(&Timer);
+    const u64 max_length = 128;
+    string8   result = { .ptr = ArenaPushArray(arena, char, max_length), .count = max_length };
 
-    Out.Length = strftime(*Out, Out.Allocated, *Format, TimeInfo);
+    time_t     timer = (time_t)timestamp;
+    struct tm* time_info = localtime(&timer);
 
-    KASSERT(Out.Length <= MaxLength);
-
-    return Out;
+    result.count = strftime(result.ptr, result.count, format, time_info);
+    return result;
 }
 } // namespace kraft

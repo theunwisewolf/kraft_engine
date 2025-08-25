@@ -4,7 +4,6 @@
 #define KRAFT_ARRAY_H_
 #endif
 
-#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_core.h>
 #include <core/kraft_memory.h>
@@ -19,7 +18,6 @@ struct Array
     typedef uint64 SizeType;
 
     ValueType*      InternalBuffer = nullptr;
-    ArenaAllocator* Arena = nullptr;
 
     // Number of elements currently in the buffer
     SizeType Length = 0;
@@ -49,7 +47,7 @@ protected:
         SizeType   OldAllocationSize = GetBufferSizeInBytes();
 
         Allocated = ExactFit ? NewSize : ChooseAllocationSize(NewSize);
-        ValueType* NewBuffer = Arena ? (ValueType*)ArenaPush(Arena, GetBufferSizeInBytes(), true) : (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+        ValueType* NewBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
 
         // If we had any data, copy over
         if (OldBuffer)
@@ -83,13 +81,6 @@ public:
     {
         Length = 0;
         Allocated = 0;
-    }
-
-    Array(ArenaAllocator* Arena)
-    {
-        Length = 0;
-        Allocated = 0;
-        this->Arena = Arena;
     }
 
     Array(std::initializer_list<ValueType> List)
@@ -217,7 +208,7 @@ public:
         if (Size > Allocated)
         {
             Allocated = Size;
-            InternalBuffer = Arena ? (ValueType*)ArenaPush(Arena, GetBufferSizeInBytes(), true) : (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
+            InternalBuffer = (ValueType*)Malloc(GetBufferSizeInBytes(), MEMORY_TAG_ARRAY, true);
         }
     }
 

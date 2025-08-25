@@ -156,9 +156,6 @@ public:
         }
     }
 
-    // constexpr KString(KStringView<ValueType> View) : KString(View.Buffer, View.Length)
-    // {}
-
     constexpr KString(const ValueType* Str, SizeType Count)
     {
         Length = Count;

@@ -135,7 +135,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
                 for (int field_idx = 0; field_idx < buffer_definition.Fields.Length; field_idx++)
                 {
                     const auto& field = buffer_definition.Fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::AlignOf(field.Type));
+                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.Type));
                     AddUniform(&Reference->Shader, field.Name, field_idx, cursor, ShaderDataType::SizeOf(field.Type), field.Type, ShaderUniformScope::Global);
 
                     cursor += ShaderDataType::SizeOf(field.Type);
@@ -148,7 +148,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
                 for (int field_idx = 0; field_idx < buffer_definition.Fields.Length; field_idx++)
                 {
                     const auto& field = buffer_definition.Fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::AlignOf(field.Type));
+                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.Type));
                     AddUniform(&Reference->Shader, field.Name, field_idx, cursor, ShaderDataType::SizeOf(field.Type), field.Type, ShaderUniformScope::Global);
 
                     cursor += ShaderDataType::SizeOf(field.Type);
@@ -175,7 +175,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
                 for (int field_idx = 0; field_idx < buffer_definition.Fields.Length; field_idx++)
                 {
                     const auto& field = buffer_definition.Fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::AlignOf(field.Type));
+                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.Type));
                     AddUniform(&Reference->Shader, field.Name, field_idx, cursor, ShaderDataType::SizeOf(field.Type), field.Type, ShaderUniformScope::Instance);
 
                     cursor += ShaderDataType::SizeOf(field.Type);
@@ -188,7 +188,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
                 for (int field_idx = 0; field_idx < buffer_definition.Fields.Length; field_idx++)
                 {
                     const auto& field = buffer_definition.Fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::AlignOf(field.Type));
+                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.Type));
                     AddUniform(&Reference->Shader, field.Name, field_idx, cursor, ShaderDataType::SizeOf(field.Type), field.Type, ShaderUniformScope::Instance);
 
                     cursor += ShaderDataType::SizeOf(field.Type);

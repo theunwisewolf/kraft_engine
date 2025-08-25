@@ -1,21 +1,19 @@
 #pragma once
 
-#include <core/kraft_core.h>
-
 namespace kraft {
 
 struct Time
 {
-    static float64 StartTime;
-    static float64 ElapsedTime;
-    static float64 DeltaTime;
-    static float64 FrameTime;
+    static f64 start_time;
+    static f64 elapsed_time;
+    static f64 delta_time;
+    static f64 frame_time;
 
-    static void Start();
-    static void Update();
-    static void Stop();
-    static uint64 Now();
-    static String Format(String Format, uint64 Timestamp);
+    static void    Start();
+    static void    Update();
+    static void    Stop();
+    static u64     Now();
+    static string8 Format(ArenaAllocator* arena, char* format, u64 timestamp);
 };
 
-}
+} // namespace kraft

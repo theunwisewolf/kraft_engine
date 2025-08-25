@@ -14,13 +14,11 @@ set(SRC_FILES
     src/containers/kraft_carray.cpp
     src/containers/kraft_array.cpp
     src/containers/kraft_buffer.cpp
-    src/core/kraft_allocators.cpp
     src/core/kraft_log.cpp
     src/core/kraft_asserts.cpp
     src/core/kraft_input.cpp
     src/core/kraft_events.cpp
     src/core/kraft_engine.cpp
-    src/core/kraft_time.cpp
     src/core/kraft_memory.cpp
     src/core/kraft_string.cpp
     src/core/kraft_string_view.cpp

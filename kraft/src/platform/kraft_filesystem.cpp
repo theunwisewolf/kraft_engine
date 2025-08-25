@@ -131,6 +131,22 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
     return true;
 }
 
+KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
+{
+    fseek(handle->Handle, 0, SEEK_END);
+    u64 size = ftell(handle->Handle);
+    rewind(handle->Handle);
+
+    buffer output = {};
+    output.ptr = ArenaPushArray(arena, char, size);
+    output.count = size;
+
+    size_t read = fread(output.ptr, 1, size, handle->Handle);
+    KASSERT(read == size);
+
+    return output;
+}
+
 bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
 {
     FileHandle handle;
@@ -245,12 +261,12 @@ char* Dirname(ArenaAllocator* Arena, const char* Path)
     return Dirname(Arena, Path, StringLength(Path));
 }
 
-KRAFT_API char* Dirname(ArenaAllocator* Arena, const char* Path, uint64 PathLength)
+KRAFT_API char* Dirname(ArenaAllocator* arena, const char* path, uint64 path_length)
 {
-    char* Out = (char*)ArenaPush(Arena, PathLength + 1);
-    Dirname(Path, PathLength, Out);
+    char* out = ArenaPushArray(arena, char, path_length + 1);
+    Dirname(path, path_length, out);
 
-    return Out;
+    return out;
 }
 
 void Basename(const char* path, char* out)
@@ -279,12 +295,12 @@ String Basename(const String& Path)
     return Path;
 }
 
-char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B)
+char* PathJoin(ArenaAllocator* arena, const char* A, const char* B)
 {
     uint64 StringALength = StringLength(A);
     uint64 StringBLength = StringLength(B);
-    uint64 FinalPathSize = StringALength + StringBLength + sizeof(KRAFT_PATH_SEPARATOR) + 1;
-    char*  OutBuffer = (char*)ArenaPush(Arena, FinalPathSize);
+    uint64 final_path_size = StringALength + StringBLength + sizeof(KRAFT_PATH_SEPARATOR) + 1;
+    char*  OutBuffer = ArenaPushArray(arena, char, final_path_size);
     char*  Ptr = OutBuffer;
 
     StringNCopy(Ptr, A, StringALength);
@@ -295,13 +311,13 @@ char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B)
 
     StringNCopy(Ptr, B, StringBLength);
     Ptr += StringBLength;
-    
+
     *Ptr = 0;
 
-    KASSERT((Ptr - OutBuffer + 1) == FinalPathSize);
+    KASSERT((Ptr - OutBuffer + 1) == final_path_size);
 
     return OutBuffer;
 }
-}
+} // namespace filesystem
 
-}
+} // namespace kraft

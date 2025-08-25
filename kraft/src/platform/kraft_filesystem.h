@@ -48,15 +48,16 @@ KRAFT_API String Basename(const String& Path);
 KRAFT_API char* PathJoin(ArenaAllocator* Arena, const char* A, const char* B);
 
 // outBuffer, if null is allocated & must be freed by the caller
-KRAFT_API bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);
-KRAFT_API bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead = nullptr);
-KRAFT_API bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size);
-KRAFT_API bool WriteFile(FileHandle* Handle, const kraft::Buffer& Buffer);
+KRAFT_API bool   ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead = nullptr);
+KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle);
+KRAFT_API bool   ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead = nullptr);
+KRAFT_API bool   WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size);
+KRAFT_API bool   WriteFile(FileHandle* Handle, const kraft::Buffer& Buffer);
 
 // Platform dependent APIs
 KRAFT_API bool           ReadDir(const String& Path, Array<FileInfo>& OutFiles);
 KRAFT_API FileMMapHandle MMap(const String& Path);
 
-}
+} // namespace filesystem
 
-};
+}; // namespace kraft
