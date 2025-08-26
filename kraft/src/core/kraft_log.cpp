@@ -71,6 +71,8 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
         line,
         String8VArg(out)
     );
+
+    ScratchEnd(scratch);
 }
 
 void Logger::Log(LogLevel level, const char* message_with_format, ...)
@@ -92,6 +94,8 @@ void Logger::Log(LogLevel level, const char* message_with_format, ...)
         get_level_prefix(level),
         String8VArg(out)
     );
+
+    ScratchEnd(scratch);
 #else
     const int          BUFFER_SIZE = 32000;
     static const char* levelsPrefix[LogLevel::LOG_LEVEL_NUM_COUNT] = {

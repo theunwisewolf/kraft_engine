@@ -13,6 +13,7 @@ struct String8Array
 String8 StringFormat(ArenaAllocator* arena, const char* format, ...);
 String8 StringFormatV(ArenaAllocator* arena, const char* format, va_list args);
 bool    StringEqual(String8 a, String8 b);
+String8 StringCat(ArenaAllocator* arena, String8 a, String8 b);
 
 u64 CString8Length(u8* c_str);
 

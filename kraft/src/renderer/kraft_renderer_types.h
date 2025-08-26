@@ -122,7 +122,7 @@ struct RendererBackend
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
-    void (*UpdateTextures)(Array<Handle<Texture>> Textures);
+    void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
     void (*DrawGeometryData)(uint32 GeometryID);

@@ -40,6 +40,18 @@ bool StringEqual(String8 a, String8 b)
     return true;
 }
 
+String8 StringCat(ArenaAllocator* arena, String8 a, String8 b)
+{
+    String8 result = {};
+    result.count = a.count + b.count;
+    result.ptr = ArenaPushArray(arena, u8, result.count + 1);
+    MemCpy(result.ptr, a.ptr, a.count);
+    MemCpy(result.ptr + a.count, b.ptr, b.count);
+    result.ptr[result.count] = 0;
+
+    return result;
+}
+
 u64 CString8Length(u8* c_str)
 {
     u8* ptr = c_str;

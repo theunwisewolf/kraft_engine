@@ -1,9 +1,6 @@
 #include "kraft_engine.h"
 
 #include <containers/kraft_array.h>
-#include <platform/kraft_filesystem.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
 #include <systems/kraft_asset_database.h>
 
 #if defined(KRAFT_GUI_APP)

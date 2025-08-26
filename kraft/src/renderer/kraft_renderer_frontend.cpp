@@ -140,7 +140,7 @@ void RendererFrontend::PrepareFrame()
     auto DirtyTextures = TextureSystem::GetDirtyTextures();
     if (DirtyTextures.Length > 0)
     {
-        renderer_data_internal.backend->UpdateTextures(DirtyTextures);
+        renderer_data_internal.backend->UpdateTextures(DirtyTextures.Data(), DirtyTextures.Length);
         TextureSystem::ClearDirtyTextures();
     }
 }
