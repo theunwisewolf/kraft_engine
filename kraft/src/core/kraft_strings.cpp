@@ -20,7 +20,7 @@ String8 StringFormatV(ArenaAllocator* arena, const char* format, va_list args)
     // All strings returned by stb sprintf are null terminated, so + 1
     u32 final_string_length = kraft_vsnprintf(0, 0, format, args) + 1;
     result.ptr = ArenaPushArray(arena, u8, final_string_length);
-    result.count = kraft_vsnprintf((char*)result.ptr, final_string_length, format, args);
+    result.count = kraft_vsnprintf((char*)result.ptr, final_string_length, format, args_copy);
 
     va_end(args_copy);
 

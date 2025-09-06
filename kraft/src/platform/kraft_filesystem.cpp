@@ -56,7 +56,7 @@ bool OpenFile(const char* Path, int Mode, bool binary, FileHandle* out)
 #endif
     if (!out->Handle)
     {
-        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", Path, StrError(errno));
+        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", Path, strerror(errno));
         return false;
     }
 

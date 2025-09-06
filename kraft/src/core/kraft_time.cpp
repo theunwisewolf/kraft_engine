@@ -1,7 +1,5 @@
 #include <time.h>
 
-#include <platform/kraft_platform.h>
-
 namespace kraft {
 
 f64 Time::start_time = 0;

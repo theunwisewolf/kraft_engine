@@ -609,6 +609,8 @@ STBSP__PUBLICDEF int STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB *callback,
          String8 input_str = va_arg(va, String8);
          if (input_str.count == 0)
             s = (char *)"null";
+         else 
+            s = (char *)input_str.ptr;
          l = (u32)input_str.count;
          lead[0] = 0;
          tail[0] = 0;
