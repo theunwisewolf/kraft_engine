@@ -75,7 +75,7 @@ struct ShaderFXParser
     bool ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPassDefinition* Pass, renderer::ShaderStageFlags ShaderStage);
 };
 
-bool LoadShaderFX(const String& Path, ShaderEffect* Shader);
+bool LoadShaderFX(String8 path, ShaderEffect* Shader);
 bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB);
 
 } // namespace kraft::shaderfx

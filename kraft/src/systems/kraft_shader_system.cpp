@@ -10,6 +10,8 @@
 #include <resources/kraft_resource_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
 
+#include <core/kraft_base_includes.h>
+
 namespace kraft {
 
 using namespace renderer;
@@ -26,24 +28,27 @@ struct ShaderReference
 
 struct ShaderSystemState
 {
-    uint32                  MaxShaderCount;
-    ShaderReference*        Shaders;
-    HashMap<String, uint32> IndexMapping;
-    uint32                  CurrentShaderID;
-    Shader*                 CurrentShader;
+    ArenaAllocator* arena;
+
+    uint32           MaxShaderCount;
+    ShaderReference* Shaders;
+    // HashMap<String, uint32> IndexMapping;
+    uint32  CurrentShaderID;
+    Shader* CurrentShader;
 };
 
 static ShaderSystemState* State = nullptr;
 
 void ShaderSystem::Init(uint32 MaxShaderCount)
 {
-    uint32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * MaxShaderCount;
-    char*  RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
+    ArenaAllocator* arena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(64), .Alignment = 64, .Tag = MEMORY_TAG_SHADER_SYSTEM });
 
-    State = (ShaderSystemState*)RawMemory;
-    State->Shaders = (ShaderReference*)(RawMemory + sizeof(ShaderSystemState));
+    // uint32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * MaxShaderCount;
+    // char*  RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
+    State = ArenaPush(arena, ShaderSystemState);
+    State->Shaders = ArenaPushArray(arena, ShaderReference, MaxShaderCount);
     State->MaxShaderCount = MaxShaderCount;
-    State->IndexMapping = HashMap<String, uint32>();
+    // State->IndexMapping = HashMap<String, uint32>();
     State->CurrentShaderID = KRAFT_INVALID_ID;
     State->CurrentShader = nullptr;
 
@@ -58,24 +63,20 @@ void ShaderSystem::Shutdown()
     // Free the default shader
     ReleaseShaderInternal(0);
 
-    uint32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * State->MaxShaderCount;
-    kraft::Free(State, SizeRequirement, MEMORY_TAG_SHADER_SYSTEM);
+    DestroyArena(State->arena);
 
     KINFO("[ShaderSystem::Shutdown]: Shutting down shader system");
 }
 
-Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass> RenderPassHandle, bool AutoRelease)
+Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> render_pass_handle, bool auto_release)
 {
-    auto It = State->IndexMapping.find(ShaderPath);
-    if (It != State->IndexMapping.iend())
+    for (i32 i = 0; i < State->MaxShaderCount; i++)
     {
-        uint32 Index = It->second;
-        if (Index > 0)
+        if (StringEqual(State->Shaders[i].Shader.Path, shader_path))
         {
-            State->Shaders[Index].RefCount++;
+            State->Shaders[i].RefCount++;
+            return &State->Shaders[i].Shader;
         }
-
-        return &State->Shaders[Index].Shader;
     }
 
     int FreeIndex = -1;
@@ -95,17 +96,17 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     }
 
     ShaderReference* Reference = &State->Shaders[FreeIndex];
-    if (!shaderfx::LoadShaderFX(ShaderPath, &Reference->Shader.ShaderEffect))
+    if (!shaderfx::LoadShaderFX(shader_path, &Reference->Shader.ShaderEffect))
     {
-        KWARN("[ShaderSystem::AcquireShader]: Failed to load %s", *ShaderPath);
+        KWARN("[ShaderSystem::AcquireShader]: Failed to load %S", shader_path);
         return nullptr;
     }
 
-    State->IndexMapping[ShaderPath] = FreeIndex;
+    // State->IndexMapping[shader_path] = FreeIndex;
     Reference->Shader.ID = FreeIndex; // Cache the index
-    Reference->Shader.Path = ShaderPath;
+    Reference->Shader.Path = shader_path;
     Reference->RefCount = 1;
-    Reference->AutoRelease = AutoRelease;
+    Reference->AutoRelease = auto_release;
 
     // TODO (amn): What to do with other passes?
     const uint32 PassIndex = 0;
@@ -116,7 +117,7 @@ Shader* ShaderSystem::AcquireShader(const String& ShaderPath, Handle<RenderPass>
     const shaderfx::ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
     const shaderfx::RenderPassDefinition& Pass = Effect.RenderPasses[PassIndex];
     Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Pass.Resources != nullptr ? Pass.Resources->ResourceBindings.Length : 0) + Pass.ConstantBuffers->Fields.Length);
-    g_Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, RenderPassHandle);
+    g_Renderer->CreateRenderPipeline(&Reference->Shader, PassIndex, render_pass_handle);
 
     // Cache the uniforms
     // The instance uniforms begin after the global data
@@ -256,23 +257,24 @@ static void ReleaseShaderInternal(uint32 Index)
     }
 }
 
-void ShaderSystem::ReleaseShader(Shader* Shader)
+bool ShaderSystem::ReleaseShader(Shader* shader)
 {
-    auto It = State->IndexMapping.find(Shader->Path);
-    if (It == State->IndexMapping.iend())
+    for (i32 i = 0; i < State->MaxShaderCount; i++)
     {
-        KWARN("[ShaderSystem::ReleaseShader]: Shader not found %s", *Shader->Path);
-        return;
+        if (StringEqual(State->Shaders[i].Shader.Path, shader->Path))
+        {
+            if (i == 0)
+            {
+                KWARN("[ShaderSystem::ReleaseShader]: Default shader cannot be released");
+                return false;
+            }
+
+            ReleaseShaderInternal(i);
+            return true;
+        }
     }
 
-    uint32 Index = It->second;
-    if (Index == 0)
-    {
-        KWARN("[ShaderSystem::ReleaseShader]: Default shader cannot be released");
-        return;
-    }
-
-    ReleaseShaderInternal(Index);
+    return false;
 }
 
 Shader* ShaderSystem::GetDefaultShader()

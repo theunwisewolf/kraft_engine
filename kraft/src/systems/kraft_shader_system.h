@@ -22,8 +22,8 @@ struct ShaderSystem
     static void Init(uint32 MaxShadersCount);
     static void Shutdown();
 
-    static Shader* AcquireShader(const String& ShaderPath, renderer::Handle<renderer::RenderPass> RenderPassHandle, bool AutoRelease = true);
-    static void    ReleaseShader(Shader* Shader);
+    static Shader* AcquireShader(String8 shader_path, renderer::Handle<renderer::RenderPass> render_pass_handle, bool auto_release = true);
+    static bool    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
     static Shader* GetActiveShader();
 

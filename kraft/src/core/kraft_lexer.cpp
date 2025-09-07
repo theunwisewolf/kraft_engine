@@ -5,6 +5,8 @@
 
 #include <core/kraft_lexer_types.h>
 
+#include <core/kraft_base_includes.h>
+
 #define CHECK_EOF_ERROR()                                                                                                                                                                              \
     if (this->ReachedEOF())                                                                                                                                                                            \
         return LEXER_ERROR_UNEXPECTED_EOF;
@@ -21,6 +23,11 @@ bool LexerToken::MatchesKeyword(const String& ExpectedKeyword) const
 kraft::String LexerToken::ToString() const
 {
     return kraft::String(Text, Length);
+}
+
+String8 LexerToken::ToString8()
+{
+    return String8FromPtrAndLength((u8*)Text, Length);
 }
 
 kraft::StringView LexerToken::ToStringView() const

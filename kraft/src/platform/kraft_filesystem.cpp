@@ -15,48 +15,44 @@ namespace kraft {
 
 namespace filesystem {
 
-bool OpenFile(const String& Path, int Mode, bool Binary, FileHandle* Out)
+bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
 {
-    return OpenFile(Path.Data(), Mode, Binary, Out);
-}
+    KASSERT(result);
+    result->Handle = {};
 
-bool OpenFile(const char* Path, int Mode, bool binary, FileHandle* out)
-{
-    out->Handle = {};
-
-    const char* ModeString;
-    if (Mode & FILE_OPEN_MODE_APPEND)
+    const char* mode_string;
+    if (mode & FILE_OPEN_MODE_APPEND)
     {
-        ModeString = binary ? "a+b" : "a+";
+        mode_string = binary ? "a+b" : "a+";
     }
-    else if ((Mode & FILE_OPEN_MODE_READ) && (Mode & FILE_OPEN_MODE_WRITE))
+    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE))
     {
-        ModeString = binary ? "w+b" : "w+";
+        mode_string = binary ? "w+b" : "w+";
     }
-    else if ((Mode & FILE_OPEN_MODE_READ) && (Mode & FILE_OPEN_MODE_WRITE) == 0)
+    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0)
     {
-        ModeString = binary ? "r+b" : "r";
+        mode_string = binary ? "r+b" : "r";
     }
-    else if ((Mode & FILE_OPEN_MODE_READ) == 0 && (Mode & FILE_OPEN_MODE_WRITE))
+    else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE))
     {
-        ModeString = binary ? "wb" : "w";
+        mode_string = binary ? "wb" : "w";
     }
     else
     {
-        KERROR("[FileSystem::OpenFile] Invalid mode %d", Mode);
-        return false;
+        KERROR("[FileSystem::OpenFile] Invalid mode %d", mode);
+        return {};
     }
 
 #if UNICODE && defined(KRAFT_PLATFORM_WINDOWS)
-    WString WideStringPath = MultiByteStringToWideCharString(Path);
-    WString WideStringMode = MultiByteStringToWideCharString(ModeString);
-    out->Handle = _wfopen(*WideStringPath, *WideStringMode);
+    WString WideStringPath = MultiByteStringToWideCharString(path.ptr);
+    WString WideStringMode = MultiByteStringToWideCharString(mode_string);
+    result->Handle = _wfopen(*WideStringPath, *WideStringMode);
 #else
-    out->Handle = fopen(Path, ModeString);
+    result->Handle = fopen((char*)path.ptr, mode_string);
 #endif
-    if (!out->Handle)
+    if (!result->Handle)
     {
-        KERROR("[FileSystem::OpenFile]: Failed to open %s with error %s", Path, strerror(errno));
+        KERROR("[FileSystem::OpenFile]: Failed to open %S with error %s", path, strerror(errno));
         return false;
     }
 
@@ -83,7 +79,7 @@ void CloseFile(FileHandle* handle)
     }
 }
 
-bool FileExists(const char* path)
+bool FileExists(String8 path)
 {
     FileHandle temp;
     if (OpenFile(path, FILE_OPEN_MODE_READ, true, &temp))
@@ -93,11 +89,6 @@ bool FileExists(const char* path)
     }
 
     return false;
-}
-
-bool FileExists(const String& Path)
-{
-    return FileExists(Path.Data());
 }
 
 // outBuffer, if null is allocated
@@ -147,18 +138,18 @@ KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
     return output;
 }
 
-bool ReadAllBytes(const char* path, uint8** outBuffer, uint64* bytesRead)
+KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
 {
-    FileHandle handle;
+    FileHandle handle = {};
     if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
     {
-        return false;
+        return {};
     }
 
-    bool retval = ReadAllBytes(&handle, outBuffer, bytesRead);
+    buffer result = ReadAllBytes(arena, &handle);
     CloseFile(&handle);
 
-    return retval;
+    return result;
 }
 
 bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)

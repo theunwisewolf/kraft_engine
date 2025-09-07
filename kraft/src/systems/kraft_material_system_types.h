@@ -8,9 +8,9 @@ namespace kraft {
 struct MaterialDataIntermediateFormat
 {
     bool                                  AutoRelease;
-    String                                Name;
-    String                                FilePath;
-    String                                ShaderAsset;
+    String8                               name;
+    String8                               filepath;
+    String8                               shader_asset;
     FlatHashMap<String, MaterialProperty> Properties;
 
     MaterialDataIntermediateFormat()

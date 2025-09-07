@@ -14,7 +14,7 @@
 
 namespace kraft::renderer {
 
-bool VulkanCreateShaderModule(VulkanContext* context, const char* path, VkShaderModule* out)
+bool VulkanCreateShaderModule(VulkanContext* context, String8 path, VkShaderModule* out)
 {
     filesystem::FileHandle handle;
     if (!filesystem::OpenFile(path, filesystem::FILE_OPEN_MODE_READ, true, &handle))

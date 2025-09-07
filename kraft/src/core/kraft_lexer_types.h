@@ -70,6 +70,7 @@ struct LexerToken
     float64         FloatValue;
 
     bool       MatchesKeyword(const String& ExpectedKeyword) const;
+    String8    ToString8();
     String     ToString() const;
     StringView ToStringView() const;
 };

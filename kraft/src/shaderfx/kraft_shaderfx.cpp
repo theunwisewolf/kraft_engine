@@ -1374,14 +1374,14 @@ bool ShaderFXParser::ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPass
     return false;
 }
 
-bool LoadShaderFX(const String& Path, ShaderEffect* Shader)
+bool LoadShaderFX(String8 path, ShaderEffect* Shader)
 {
     filesystem::FileHandle File;
 
     // Read test
-    if (!filesystem::OpenFile(Path, filesystem::FILE_OPEN_MODE_READ, true, &File))
+    if (!filesystem::OpenFile(path, filesystem::FILE_OPEN_MODE_READ, true, &File))
     {
-        KERROR("Failed to read file %s", *Path);
+        KERROR("Failed to read file %S", path);
         return false;
     }
 

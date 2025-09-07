@@ -31,7 +31,7 @@ struct ShaderUniform
 struct Shader
 {
     ResourceID              ID;
-    String                  Path;
+    String8                 Path;
     shaderfx::ShaderEffect  ShaderEffect;
     Array<ShaderUniform>    UniformCache;
     HashMap<String, uint32> UniformCacheMapping;
@@ -141,8 +141,8 @@ struct MaterialProperty
 struct Material
 {
     ResourceID                            ID;
-    String                                Name;
-    String                                AssetPath;
+    String8                               Name;
+    String8                               AssetPath;
     FlatHashMap<String, MaterialProperty> Properties;
 
     // Reference to the underlying shader

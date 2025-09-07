@@ -40,6 +40,25 @@ bool StringEqual(String8 a, String8 b)
     return true;
 }
 
+bool StringEndsWith(String8 str, String8 suffix)
+{
+    if (str.count < suffix.count)
+    {
+        return false;
+    }
+
+    u64 start = str.count - suffix.count;
+    for (u64 i = start, j = 0; j < suffix.count; i++, j++)
+    {
+        if (str.ptr[i] != suffix.ptr[j])
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 String8 StringCat(ArenaAllocator* arena, String8 a, String8 b)
 {
     String8 result = {};

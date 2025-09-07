@@ -1,43 +1,40 @@
 #include "kraft_material_system.h"
 
-#include <containers/kraft_array.h>
-#include <containers/kraft_hashmap.h>
-#include <core/kraft_allocators.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_lexer.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_string.h>
-#include <math/kraft_math.h>
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_filesystem_types.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
 
+#include <core/kraft_string.h>
+#include <containers/kraft_hashmap.h>
+#include <containers/kraft_array.h>
 #include <core/kraft_lexer_types.h>
 #include <kraft_types.h>
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_material_system_types.h>
+#include <core/kraft_lexer.h>
+
+// TODO (amn): Remove
+#include <core/kraft_base_includes.h>
 
 namespace kraft {
 
 struct MaterialReference
 {
-    uint32   RefCount;
-    Material Material;
+    Material material;
+    u32      ref_count;
 };
 
 struct MaterialSystemState
 {
-    ArenaAllocator*          Arena;
-    FlatHashMap<String, int> IndexMapping;
+    ArenaAllocator* arena;
 
     uint16 MaterialBufferSize;
     uint16 MaxMaterialsCount;
 
-    CArray(MaterialReference) MaterialReferences;
+    MaterialReference* material_references;
     CArray(uint8) MaterialsBuffer;
 };
 
@@ -45,39 +42,28 @@ static MaterialSystemState* State = 0;
 
 static void ReleaseMaterialInternal(uint32 Index);
 // static void CreateDefaultMaterialsInternal();
-static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data);
-
-KRAFT_INLINE Material* GetMaterialByName(const String& Name)
-{
-    auto It = State->IndexMapping.find(Name);
-    if (It == State->IndexMapping.end())
-    {
-        return nullptr;
-    }
-
-    return &State->MaterialReferences[It->second].Material;
-}
+static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_path, MaterialDataIntermediateFormat* data);
 
 void MaterialSystem::Init(const RendererOptions& Opts)
 {
     ArenaAllocator* arena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(64), .Alignment = 64, .Tag = MEMORY_TAG_MATERIAL_SYSTEM });
 
     State = ArenaPush(arena, MaterialSystemState);
-    State->Arena = arena;
+    State->arena = arena;
     State->MaterialBufferSize = Opts.MaterialBufferSize;
     State->MaxMaterialsCount = Opts.MaxMaterials;
     State->MaterialsBuffer = ArenaPushArray(arena, u8, State->MaterialBufferSize * State->MaxMaterialsCount);
-    State->MaterialReferences = ArenaPushArray(arena, MaterialReference, State->MaxMaterialsCount);
+    State->material_references = ArenaPushArray(arena, MaterialReference, State->MaxMaterialsCount);
 
-    new (&State->IndexMapping) FlatHashMap<String, int>();
-    State->IndexMapping.reserve(State->MaxMaterialsCount);
+    // new (&State->IndexMapping) FlatHashMap<String, int>();
+    // State->IndexMapping.reserve(State->MaxMaterialsCount);
 
     // CreateDefaultMaterialsInternal();
 }
 
 void MaterialSystem::Shutdown()
 {
-    DestroyArena(State->Arena);
+    DestroyArena(State->arena);
 }
 
 Material* MaterialSystem::GetDefaultMaterial()
@@ -88,26 +74,34 @@ Material* MaterialSystem::GetDefaultMaterial()
         return nullptr;
     }
 
-    return &State->MaterialReferences[0].Material;
+    return &State->material_references[0].material;
 }
 
-Material* MaterialSystem::CreateMaterialFromFile(const String& Path, Handle<RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, Handle<RenderPass> RenderPassHandle)
 {
-    String FilePath = Path;
-    if (!FilePath.EndsWith(".kmt"))
+    TempArena scratch = ScratchBegin(0, 0);
+    String8   _file_path = file_path;
+    if (!StringEndsWith(file_path, String8Raw(".kmt")))
     {
-        FilePath = FilePath + ".kmt";
+        _file_path = StringCat(scratch.arena, file_path, String8Raw(".kmt"));
     }
 
-    MaterialDataIntermediateFormat Data;
-    Data.FilePath = FilePath;
-    if (!LoadMaterialFromFileInternal(FilePath, &Data))
+    // String file_path = file_path;
+    // if (!file_path.EndsWith(".kmt"))
+    // {
+    //     file_path = file_path + ".kmt";
+    // }
+
+    MaterialDataIntermediateFormat data;
+    data.filepath = ArenaPushString8Copy(State->arena, _file_path);
+    if (!LoadMaterialFromFileInternal(State->arena, _file_path, &data))
     {
-        KINFO("[CreateMaterialFromFile]: Failed to parse material %s", *FilePath);
+        KINFO("[CreateMaterialFromFile]: Failed to parse material %S", file_path);
         return nullptr;
     }
 
-    return CreateMaterialWithData(Data, RenderPassHandle);
+    ScratchEnd(scratch);
+    return CreateMaterialWithData(data, RenderPassHandle);
 }
 
 Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, Handle<RenderPass> RenderPassHandle)
@@ -115,7 +109,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     uint32 FreeIndex = uint32(-1);
     for (uint32 i = 0; i < State->MaxMaterialsCount; ++i)
     {
-        if (State->MaterialReferences[i].RefCount == 0)
+        if (State->material_references[i].ref_count == 0)
         {
             FreeIndex = i;
             break;
@@ -128,22 +122,22 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         return nullptr;
     }
 
-    State->IndexMapping[Data.Name] = FreeIndex;
-    MaterialReference* Reference = &State->MaterialReferences[FreeIndex];
-    Reference->RefCount = 1;
+    // State->IndexMapping[Data.Name] = FreeIndex;
+    MaterialReference* Reference = &State->material_references[FreeIndex];
+    Reference->ref_count = 1;
 
     // Load the shader
-    Shader* Shader = ShaderSystem::AcquireShader(Data.ShaderAsset, RenderPassHandle);
+    Shader* Shader = ShaderSystem::AcquireShader(Data.shader_asset, RenderPassHandle);
     if (!Shader)
     {
-        KERROR("[CreateMaterialWithData]: Failed to load shader %s reference by the material %s", *Data.ShaderAsset, *Data.Name);
+        KERROR("[CreateMaterialWithData]: Failed to load shader %S reference by the material %S", Data.shader_asset, Data.name);
         return nullptr;
     }
 
-    Material* Instance = &Reference->Material;
+    Material* Instance = &Reference->material;
     Instance->ID = FreeIndex;
-    Instance->Name = Data.Name;
-    Instance->AssetPath = Data.FilePath;
+    Instance->Name = Data.name;
+    Instance->AssetPath = Data.filepath;
     Instance->Shader = Shader;
 
     // Offset into the material buffer
@@ -165,14 +159,14 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         auto MaterialIt = Data.Properties.find(UniformName);
         if (MaterialIt == Data.Properties.end())
         {
-            KWARN("[CreateMaterialWithData]: Material %s does not contain shader uniform %s", *Data.Name, *UniformName);
+            KWARN("[CreateMaterialWithData]: Material %S does not contain shader uniform %s", Data.name, *UniformName);
             continue;
         }
 
         const MaterialProperty* Property = &MaterialIt->second;
         if (Property->Size != Uniform->Stride)
         {
-            KERROR("[CreateMaterialWithData]: Material %s data type mismatch for uniform %s. Expected size: %d, got %d.", *Data.Name, *UniformName, Uniform->Stride, Property->Size);
+            KERROR("[CreateMaterialWithData]: Material %S data type mismatch for uniform %s. Expected size: %d, got %d.", Data.name, *UniformName, Uniform->Stride, Property->Size);
             return nullptr;
         }
 
@@ -193,39 +187,47 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     return Instance;
 }
 
-void MaterialSystem::DestroyMaterial(const String& Name)
+void MaterialSystem::DestroyMaterial(String8 name)
 {
-    Material* Instance = GetMaterialByName(Name);
-    KDEBUG("[MaterialSystem::DestroyMaterial]: Releasing material %s", *Name);
-
-    if (Instance == nullptr)
+    Material* instance = 0;
+    for (i32 i = 0; i < State->MaxMaterialsCount; i++)
     {
-        KERROR("[MaterialSystem::DestroyMaterial]: Unknown material %s", *Name);
+        if (StringEqual(State->material_references[i].material.Name, name))
+        {
+            instance = &State->material_references[i].material;
+            break;
+        }
+    }
+
+    if (!instance)
+    {
+        KERROR("[MaterialSystem::DestroyMaterial]: Unknown material %S", name);
         return;
     }
 
-    if (Instance->ID == 0)
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Releasing material %S", name);
+    if (instance->ID == 0)
     {
         KWARN("[MaterialSystem::DestroyMaterial]: Default material cannot be released!");
         return;
     }
 
-    ReleaseMaterialInternal(Instance->ID);
+    ReleaseMaterialInternal(instance->ID);
 }
 
-void MaterialSystem::DestroyMaterial(Material* Instance)
+void MaterialSystem::DestroyMaterial(Material* instance)
 {
-    KASSERT(Instance->ID < State->MaxMaterialsCount);
-    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %s", *Instance->Name);
+    KASSERT(instance->ID < State->MaxMaterialsCount);
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %S", instance->Name);
 
-    MaterialReference* Reference = &State->MaterialReferences[Instance->ID];
+    MaterialReference* Reference = &State->material_references[instance->ID];
     if (!Reference)
     {
-        KERROR("Invalid material %s", *Instance->Name);
+        KERROR("Invalid material %S", instance->Name);
     }
 
-    ShaderSystem::ReleaseShader(Instance->Shader);
-    MemZero(Instance, sizeof(Material));
+    ShaderSystem::ReleaseShader(instance->Shader);
+    MemZero(instance, sizeof(Material));
 }
 
 bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const String& TexturePath)
@@ -275,17 +277,17 @@ uint8* MaterialSystem::GetMaterialsBuffer()
 
 static void ReleaseMaterialInternal(uint32 Index)
 {
-    MaterialReference Reference = State->MaterialReferences[Index];
-    if (Reference.RefCount == 0)
+    MaterialReference ref = State->material_references[Index];
+    if (ref.ref_count == 0)
     {
-        KWARN("[MaterialSystem::ReleaseMaterial]: Material %s already released!", *Reference.Material.Name);
+        KWARN("[MaterialSystem::ReleaseMaterial]: Material %S already released!", ref.material.Name);
         return;
     }
 
-    Reference.RefCount--;
-    if (Reference.RefCount == 0)
+    ref.ref_count--;
+    if (ref.ref_count == 0)
     {
-        MaterialSystem::DestroyMaterial(&Reference.Material);
+        MaterialSystem::DestroyMaterial(&ref.material);
     }
 }
 
@@ -293,7 +295,7 @@ static void ReleaseMaterialInternal(uint32 Index)
 // {
 //     MaterialDataIntermediateFormat Data;
 //     Data.Name = "Materials.Default";
-//     Data.FilePath = "Material.Default.kmt";
+//     Data.file_path = "Material.Default.kmt";
 //     Data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
 //     Data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
 //     Data.Properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
@@ -301,10 +303,10 @@ static void ReleaseMaterialInternal(uint32 Index)
 //     KASSERT(MaterialSystem::CreateMaterialWithData(Data, Handle<RenderPass>::Invalid()));
 // }
 
-static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataIntermediateFormat* Data)
+static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_path, MaterialDataIntermediateFormat* Data)
 {
     filesystem::FileHandle File;
-    bool                   Result = filesystem::OpenFile(FilePath, filesystem::FILE_OPEN_MODE_READ, true, &File);
+    bool                   Result = filesystem::OpenFile(file_path, filesystem::FILE_OPEN_MODE_READ, true, &File);
     if (!Result)
     {
         return false;
@@ -315,84 +317,84 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
     filesystem::ReadAllBytes(&File, &FileDataBuffer);
     filesystem::CloseFile(&File);
 
-    Lexer Lexer;
-    Lexer.Create((char*)FileDataBuffer, BufferSize);
+    Lexer lexer;
+    lexer.Create((char*)FileDataBuffer, BufferSize);
 
     while (true)
     {
-        LexerToken Token;
-        if (LexerError ErrorCode = Lexer.NextToken(&Token))
+        LexerToken token;
+        if (LexerError ErrorCode = lexer.NextToken(&token))
         {
             KERROR("Encountered an error while trying to get the next token from the material file! ErrorCode = %d", ErrorCode);
             return false;
         }
 
-        if (Token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            if (Token.MatchesKeyword("Material"))
+            if (token.MatchesKeyword("Material"))
             {
-                if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 {
                     return false;
                 }
 
-                Data->Name = Token.ToString();
-                if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+                Data->name = ArenaPushString8Copy(arena, String8FromPtrAndLength((u8*)token.Text, token.Length));
+                if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
                 {
                     return false;
                 }
 
                 // Parse material block
-                while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+                while (!lexer.EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
-                    if (Token.MatchesKeyword("DiffuseTexture"))
+                    if (token.MatchesKeyword("DiffuseTexture"))
                     {
-                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
+                        if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        const String&   TexturePath = Token.ToString();
+                        const String&   TexturePath = token.ToString();
                         Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
-                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %s. Using default texture.", *TexturePath, *FilePath);
+                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %S. Using default texture.", *TexturePath, file_path);
                             Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 
                         Data->Properties["DiffuseTexture"] = Resource;
                         Data->Properties["DiffuseTexture"].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
                     }
-                    else if (Token.MatchesKeyword("Shader"))
+                    else if (token.MatchesKeyword("Shader"))
                     {
-                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_STRING))
+                        if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        Data->ShaderAsset = Token.ToString();
+                        Data->shader_asset = ArenaPushString8Copy(arena, String8FromPtrAndLength((u8*)token.Text, token.Length));
                     }
                     else
                     {
-                        String Key = Token.ToString();
-                        if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+                        String Key = token.ToString();
+                        if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
                             return false;
                         }
 
                         bool IsVector = false;
                         int  ExpectedComponentCount = 0;
-                        if (Token.MatchesKeyword("vec4"))
+                        if (token.MatchesKeyword("vec4"))
                         {
                             IsVector = true;
                             ExpectedComponentCount = 4;
                         }
-                        else if (Token.MatchesKeyword("vec3"))
+                        else if (token.MatchesKeyword("vec3"))
                         {
                             IsVector = true;
                             ExpectedComponentCount = 3;
                         }
-                        else if (Token.MatchesKeyword("vec2"))
+                        else if (token.MatchesKeyword("vec2"))
                         {
                             IsVector = true;
                             ExpectedComponentCount = 2;
@@ -400,22 +402,22 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
 
                         if (IsVector)
                         {
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
                                 return false;
                             }
 
                             float32 Components[4];
                             int     ComponentCount = 0;
-                            while (!Lexer.EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            while (!lexer.EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
-                                if (Token.Type == TokenType::TOKEN_TYPE_COMMA)
+                                if (token.Type == TokenType::TOKEN_TYPE_COMMA)
                                 {
                                     continue;
                                 }
-                                else if (Token.Type == TokenType::TOKEN_TYPE_NUMBER)
+                                else if (token.Type == TokenType::TOKEN_TYPE_NUMBER)
                                 {
-                                    Components[ComponentCount++] = (float32)Token.FloatValue;
+                                    Components[ComponentCount++] = (float32)token.FloatValue;
                                 }
                                 else
                                 {
@@ -426,8 +428,8 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
                             if (ExpectedComponentCount != ComponentCount)
                             {
                                 KERROR(
-                                    "Failed to parse %s. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.",
-                                    *FilePath,
+                                    "Failed to parse %S. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.",
+                                    file_path,
                                     ExpectedComponentCount,
                                     *Key,
                                     ComponentCount,
@@ -446,56 +448,56 @@ static bool LoadMaterialFromFileInternal(const String& FilePath, MaterialDataInt
 
                             Data->Properties[Key].Size = sizeof(float32) * ComponentCount;
                         }
-                        else if (Token.MatchesKeyword("float32"))
+                        else if (token.MatchesKeyword("float32"))
                         {
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
                                 return false;
                             }
 
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
                             {
                                 return false;
                             }
 
-                            Data->Properties[Key] = float32(Token.FloatValue);
+                            Data->Properties[Key] = float32(token.FloatValue);
                             Data->Properties[Key].Size = sizeof(float32);
 
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
                                 return false;
                             }
                         }
-                        else if (Token.MatchesKeyword("float64"))
+                        else if (token.MatchesKeyword("float64"))
                         {
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
                                 return false;
                             }
 
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
                             {
                                 return false;
                             }
 
-                            Data->Properties[Key] = float64(Token.FloatValue);
+                            Data->Properties[Key] = float64(token.FloatValue);
                             Data->Properties[Key].Size = sizeof(float64);
 
-                            if (!Lexer.ExpectToken(&Token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
                                 return false;
                             }
                         }
                         else
                         {
-                            KERROR("Material has an invalid field %s", *Token.ToString());
+                            KERROR("Material has an invalid field %s", *token.ToString());
                             return false;
                         }
                     }
                 }
             }
         }
-        else if (Token.Type == TokenType::TOKEN_TYPE_END_OF_STREAM)
+        else if (token.Type == TokenType::TOKEN_TYPE_END_OF_STREAM)
         {
             break;
         }
