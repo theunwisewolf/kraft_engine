@@ -7,7 +7,6 @@
 
 #include <containers/kraft_carray.h>
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_allocators.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <platform/kraft_platform.h>
@@ -21,7 +20,6 @@
 #include <renderer/vulkan/kraft_vulkan_image.h>
 #include <renderer/vulkan/kraft_vulkan_renderpass.h>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
-#include <renderer/vulkan/kraft_vulkan_shader.h>
 #include <renderer/vulkan/kraft_vulkan_swapchain.h>
 #include <shaders/includes/kraft_shader_includes.h>
 
@@ -595,69 +593,74 @@ void VulkanRendererBackend::OnResize(int width, int height)
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
 }
 
-void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, Handle<RenderPass> RenderPassHandle)
+void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, Handle<RenderPass> RenderPassHandle)
 {
     TempArena                     scratch = ScratchBegin(0, 0);
     const shaderfx::ShaderEffect& effect = shader->ShaderEffect;
 
-    const shaderfx::RenderPassDefinition& pass = effect.RenderPasses[PassIndex];
+    const shaderfx::RenderPassDefinition& pass = effect.render_pass_def;
     VkGraphicsPipelineCreateInfo          pipeline_create_info = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 
     // Shader stages
-    u64                              shader_stage_count = pass.ShaderStages.Length;
+    u32                              shader_stage_count = pass.shader_stage_count;
     VkPipelineShaderStageCreateInfo* pipeline_shader_stage_create_infos = ArenaPushArray(scratch.arena, VkPipelineShaderStageCreateInfo, shader_stage_count);
     VkShaderModule*                  shader_modules = ArenaPushArray(scratch.arena, VkShaderModule, shader_stage_count);
 
     for (int j = 0; j < shader_stage_count; j++)
     {
-        const shaderfx::RenderPassDefinition::ShaderDefinition& shader_def = pass.ShaderStages[j];
+        const shaderfx::RenderPassDefinition::ShaderDefinition& shader_def = pass.shader_stages[j];
         VkShaderModule                                          shader_module;
-        VulkanCreateShaderModule(&s_Context, shader_def.CodeFragment.Code.Data(), shader_def.CodeFragment.Code.Length, &shader_module);
+
+        VkShaderModuleCreateInfo info = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+        info.codeSize = shader_def.code_fragment.code.count;
+        info.pCode = (u32*)shader_def.code_fragment.code.ptr;
+
+        KRAFT_VK_CHECK(vkCreateShaderModule(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &shader_module));
         KASSERT(shader_module);
 
         VkPipelineShaderStageCreateInfo shader_stage_info = {};
         shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shader_stage_info.module = shader_module;
         shader_stage_info.pName = "main";
-        shader_stage_info.stage = ToVulkanShaderStageFlagBits(shader_def.Stage);
+        shader_stage_info.stage = ToVulkanShaderStageFlagBits(shader_def.stage);
 
         pipeline_shader_stage_create_infos[j] = shader_stage_info;
         shader_modules[j] = shader_module;
     }
 
     // Input bindings and attributes
-    u64                              input_binding_count = pass.VertexLayout->InputBindings.Length;
+    u64                              input_binding_count = pass.vertex_layout->input_binding_count;
     VkVertexInputBindingDescription* input_binding_descs = ArenaPushArray(scratch.arena, VkVertexInputBindingDescription, input_binding_count);
     for (int j = 0; j < input_binding_count; j++)
     {
-        const shaderfx::VertexInputBinding& input_binding_def = pass.VertexLayout->InputBindings[j];
-        input_binding_descs[j].binding = input_binding_def.Binding;
-        input_binding_descs[j].inputRate = input_binding_def.InputRate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
-        input_binding_descs[j].stride = input_binding_def.Stride;
+        const shaderfx::VertexInputBinding& input_binding_def = pass.vertex_layout->input_bindings[j];
+        input_binding_descs[j].binding = input_binding_def.binding;
+        input_binding_descs[j].inputRate = input_binding_def.input_rate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+        input_binding_descs[j].stride = input_binding_def.stride;
     }
 
-    uint64                             attribute_count = pass.VertexLayout->Attributes.Length;
+    uint64                             attribute_count = pass.vertex_layout->attribute_count;
     VkVertexInputAttributeDescription* attribute_descs = ArenaPushArray(scratch.arena, VkVertexInputAttributeDescription, attribute_count);
     for (int j = 0; j < attribute_count; j++)
     {
-        const shaderfx::VertexAttribute& vertex_attribute_def = pass.VertexLayout->Attributes[j];
-        attribute_descs[j].location = vertex_attribute_def.Location;
-        attribute_descs[j].format = ToVulkanFormat(vertex_attribute_def.Format);
-        attribute_descs[j].binding = vertex_attribute_def.Binding;
-        attribute_descs[j].offset = vertex_attribute_def.Offset;
+        const shaderfx::VertexAttribute& vertex_attribute_def = pass.vertex_layout->attributes[j];
+        attribute_descs[j].location = vertex_attribute_def.location;
+        attribute_descs[j].format = ToVulkanFormat(vertex_attribute_def.format);
+        attribute_descs[j].binding = vertex_attribute_def.binding;
+        attribute_descs[j].offset = vertex_attribute_def.offset;
     }
 
     // Shader resources
-    u64 resource_binding_count = pass.Resources != nullptr ? pass.Resources->ResourceBindings.Length : 0;
-    u64 constant_buffer_count = pass.ConstantBuffers->Fields.Length;
+    u64 resource_binding_count = pass.resources != nullptr ? pass.resources->binding_count : 0;
+    u64 constant_buffer_count = pass.contant_buffers->field_count;
 
     // Constant Buffers
     u32                  constant_buffer_size = 0;
     VkPushConstantRange* push_contant_ranges = ArenaPushArray(scratch.arena, VkPushConstantRange, constant_buffer_count);
     for (int j = 0; j < constant_buffer_count; j++)
     {
-        const shaderfx::ConstantBufferEntry& entry = pass.ConstantBuffers->Fields[j];
-        u32                                  aligned_size = (uint32)math::AlignUp(ShaderDataType::SizeOf(entry.Type), 4);
+        const shaderfx::ConstantBufferEntry& entry = pass.contant_buffers->fields[j];
+        u32                                  aligned_size = (uint32)math::AlignUp(ShaderDataType::SizeOf(entry.type), 4);
         push_contant_ranges[j].size = 128;
         push_contant_ranges[j].offset = constant_buffer_size;
         push_contant_ranges[j].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -677,9 +680,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
     RasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     RasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
     RasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
-    RasterizationStateCreateInfo.polygonMode = ToVulkanPolygonMode(pass.RenderState->PolygonMode);
-    RasterizationStateCreateInfo.lineWidth = s_Context.PhysicalDevice.Features.wideLines ? pass.RenderState->LineWidth : 1.0f;
-    RasterizationStateCreateInfo.cullMode = ToVulkanCullModeFlagBits(pass.RenderState->CullMode);
+    RasterizationStateCreateInfo.polygonMode = ToVulkanPolygonMode(pass.render_state->polygon_mode);
+    RasterizationStateCreateInfo.lineWidth = s_Context.PhysicalDevice.Features.wideLines ? pass.render_state->line_width : 1.0f;
+    RasterizationStateCreateInfo.cullMode = ToVulkanCullModeFlagBits(pass.render_state->cull_mode);
     // If culling is eanbled & counter-clockwise is specified, the vertices
     // for any triangle must be specified in a counter-clockwise fashion.
     // Vice-versa for clockwise.
@@ -702,23 +705,23 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
 
     VkPipelineDepthStencilStateCreateInfo DepthStencilStateCreateInfo = {};
     DepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    DepthStencilStateCreateInfo.depthTestEnable = pass.RenderState->ZTestOperation > CompareOp::Never ? VK_TRUE : VK_FALSE;
-    DepthStencilStateCreateInfo.depthWriteEnable = pass.RenderState->ZWriteEnable;
-    DepthStencilStateCreateInfo.depthCompareOp = ToVulkanCompareOp(pass.RenderState->ZTestOperation);
+    DepthStencilStateCreateInfo.depthTestEnable = pass.render_state->z_test_op > CompareOp::Never ? VK_TRUE : VK_FALSE;
+    DepthStencilStateCreateInfo.depthWriteEnable = pass.render_state->z_write_enable;
+    DepthStencilStateCreateInfo.depthCompareOp = ToVulkanCompareOp(pass.render_state->z_test_op);
     DepthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
     DepthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
     pipeline_create_info.pDepthStencilState = &DepthStencilStateCreateInfo;
 
     VkPipelineColorBlendAttachmentState ColorBlendAttachmentState = {};
-    ColorBlendAttachmentState.blendEnable = pass.RenderState->BlendEnable;
-    if (pass.RenderState->BlendEnable)
+    ColorBlendAttachmentState.blendEnable = pass.render_state->blend_enable;
+    if (pass.render_state->blend_enable)
     {
-        ColorBlendAttachmentState.srcColorBlendFactor = ToVulkanBlendFactor(pass.RenderState->BlendMode.SrcColorBlendFactor);
-        ColorBlendAttachmentState.dstColorBlendFactor = ToVulkanBlendFactor(pass.RenderState->BlendMode.DstColorBlendFactor);
-        ColorBlendAttachmentState.colorBlendOp = ToVulkanBlendOp(pass.RenderState->BlendMode.ColorBlendOperation);
-        ColorBlendAttachmentState.srcAlphaBlendFactor = ToVulkanBlendFactor(pass.RenderState->BlendMode.SrcAlphaBlendFactor);
-        ColorBlendAttachmentState.dstAlphaBlendFactor = ToVulkanBlendFactor(pass.RenderState->BlendMode.DstAlphaBlendFactor);
-        ColorBlendAttachmentState.alphaBlendOp = ToVulkanBlendOp(pass.RenderState->BlendMode.AlphaBlendOperation);
+        ColorBlendAttachmentState.srcColorBlendFactor = ToVulkanBlendFactor(pass.render_state->blend_mode.src_color_blend_factor);
+        ColorBlendAttachmentState.dstColorBlendFactor = ToVulkanBlendFactor(pass.render_state->blend_mode.dst_color_blend_factor);
+        ColorBlendAttachmentState.colorBlendOp = ToVulkanBlendOp(pass.render_state->blend_mode.color_blend_op);
+        ColorBlendAttachmentState.srcAlphaBlendFactor = ToVulkanBlendFactor(pass.render_state->blend_mode.src_alpha_blend_factor);
+        ColorBlendAttachmentState.dstAlphaBlendFactor = ToVulkanBlendFactor(pass.render_state->blend_mode.dst_alpha_blend_factor);
+        ColorBlendAttachmentState.alphaBlendOp = ToVulkanBlendOp(pass.render_state->blend_mode.alpha_blend_op);
     }
 
     ColorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -770,26 +773,26 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
 
     // Collect bindings into sets
     shaderfx::ResourceBinding bindings_by_set[KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER][KRAFT_VULKAN_MAX_BINDINGS_PER_SET] = {};
-    uint32                    max_set_number = 0;
-    for (uint32 i = 0; i < shader->ShaderEffect.GlobalResources.Length; i++)
+    u32                       max_set_number = 0;
+    for (u32 i = 0; i < shader->ShaderEffect.global_resource_count; i++)
     {
-        for (uint32 j = 0; j < shader->ShaderEffect.GlobalResources[i].ResourceBindings.Length; j++)
+        for (u32 j = 0; j < shader->ShaderEffect.global_resources[i].binding_count; j++)
         {
-            const shaderfx::ResourceBinding& binding = shader->ShaderEffect.GlobalResources[i].ResourceBindings[j];
-            bindings_by_set[binding.Set][binding.Binding] = binding;
+            const shaderfx::ResourceBinding& binding = shader->ShaderEffect.global_resources[i].bindings[j];
+            bindings_by_set[binding.set][binding.binding] = binding;
 
-            max_set_number = binding.Set > max_set_number ? binding.Set : max_set_number;
+            max_set_number = binding.set > max_set_number ? binding.set : max_set_number;
         }
     }
 
-    for (uint32 i = 0; i < shader->ShaderEffect.LocalResources.Length; i++)
+    for (u32 i = 0; i < shader->ShaderEffect.local_resource_count; i++)
     {
-        for (uint32 j = 0; j < shader->ShaderEffect.LocalResources[i].ResourceBindings.Length; j++)
+        for (u32 j = 0; j < shader->ShaderEffect.local_resources[i].binding_count; j++)
         {
-            const shaderfx::ResourceBinding& binding = shader->ShaderEffect.LocalResources[i].ResourceBindings[j];
-            bindings_by_set[binding.Set][binding.Binding] = binding;
+            const shaderfx::ResourceBinding& binding = shader->ShaderEffect.local_resources[i].bindings[j];
+            bindings_by_set[binding.set][binding.binding] = binding;
 
-            max_set_number = binding.Set > max_set_number ? binding.Set : max_set_number;
+            max_set_number = binding.set > max_set_number ? binding.set : max_set_number;
         }
     }
 
@@ -805,14 +808,14 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
         {
             const shaderfx::ResourceBinding& binding = bindings_by_set[set][binding_idx];
             // If these don't match, the binding isn't set
-            if (binding.Set == set)
+            if (binding.set == set)
             {
                 VkDescriptorSetLayoutBinding* binding_ref = &bindings[binding_count];
-                binding_ref->binding = binding.Binding;
+                binding_ref->binding = binding.binding;
                 binding_ref->descriptorCount = 1;
-                binding_ref->descriptorType = ToVulkanResourceType(binding.Type);
+                binding_ref->descriptorType = ToVulkanResourceType(binding.type);
                 binding_ref->pImmutableSamplers = 0;
-                binding_ref->stageFlags = ToVulkanShaderStageFlags(binding.Stage);
+                binding_ref->stageFlags = ToVulkanShaderStageFlags(binding.stage);
                 binding_count++;
             }
         }
@@ -852,7 +855,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
     KRAFT_VK_CHECK(vkCreatePipelineLayout(s_Context.LogicalDevice.Handle, &LayoutCreateInfo, s_Context.AllocationCallbacks, &PipelineLayout));
     KASSERT(PipelineLayout);
 
-    String8 shader_effect_name = String8FromPtrAndLength((u8*)shader->ShaderEffect.Name.Data(), shader->ShaderEffect.Name.Length);
+    String8 shader_effect_name = shader->ShaderEffect.name;
     String8 debug_pipeline_layout_name = StringCat(scratch.arena, shader_effect_name, String8Raw("PipelineLayout"));
     s_Context.SetObjectName((u64)PipelineLayout, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (const char*)debug_pipeline_layout_name.ptr);
 
@@ -882,7 +885,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader, int PassIndex, 
     // Release shader modules
     for (int j = 0; j < shader_stage_count; j++)
     {
-        VulkanDestroyShaderModule(&s_Context, &shader_modules[j]);
+        vkDestroyShaderModule(s_Context.LogicalDevice.Handle, shader_modules[j], s_Context.AllocationCallbacks);
     }
 
     ScratchEnd(scratch);

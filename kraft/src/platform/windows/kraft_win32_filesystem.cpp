@@ -7,14 +7,12 @@
 #include <core/kraft_asserts.h>
 #include <core/kraft_string.h>
 #include <core/kraft_log.h>
-#include <platform/kraft_filesystem_types.h>
 
 namespace kraft::filesystem {
 
 FileMMapHandle MMap(const String& Path)
 {
-    HANDLE File =
-        CreateFileA(*Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    HANDLE File = CreateFileA(*Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
     if (File == INVALID_HANDLE_VALUE)
     {
@@ -34,53 +32,85 @@ FileMMapHandle MMap(const String& Path)
     return Out;
 }
 
-bool ReadDir(const String& Path, Array<FileInfo>& OutFiles)
+KRAFT_API bool FileExists(String8 path)
 {
-    String Dir = Path;
-    if (!Dir.EndsWith("/*") && !Dir.EndsWith("\\*"))
+    DWORD attributes = GetFileAttributes((char*)path.ptr);
+
+    return (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0);
+}
+
+KRAFT_API u32 GetFileCount(String8 path)
+{
+    u32       result = 0;
+    TempArena scratch = ScratchBegin(0, 0);
+    String8   dir = path;
+    if (!StringEndsWith(dir, String8Raw("/*")) && !StringEndsWith(dir, String8Raw("\\*")))
     {
-        Dir += "/*";
+        dir = StringCat(scratch.arena, dir, String8Raw("/*"));
     }
 
-    WIN32_FIND_DATA FindData;
-    HANDLE          hFind = FindFirstFile(*Dir, &FindData);
-    LARGE_INTEGER   FileSize;
-
-    if (INVALID_HANDLE_VALUE == hFind)
-    {
-        kraft::String ErrorMessage(1024, 0);
-        FormatMessage(
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-            NULL,
-            GetLastError(),
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            *ErrorMessage,
-            ErrorMessage.Length,
-            NULL
-        );
-
-        KERROR("[Win32]: FindFirstFile failed with error %s", *ErrorMessage);
-        return false;
-    }
+    WIN32_FIND_DATA find_data;
+    HANDLE          find_handle = FindFirstFile((char*)dir.ptr, &find_data);
 
     do
     {
-        if (FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
         {
-            // KDEBUG("[Dir]: %s", FindData.cFileName);
+            result++;
         }
-        else
-        {
-            FileSize.LowPart = FindData.nFileSizeLow;
-            FileSize.HighPart = FindData.nFileSizeHigh;
-            // KDEBUG("  %s   %ld bytes", FindData.cFileName, FileSize.QuadPart);
+    } while (FindNextFile(find_handle, &find_data) != 0);
 
-            OutFiles.Push({ .Name = String8FromCString(FindData.cFileName), .FileSize = (uint64)FileSize.QuadPart });
-        }
-    } while (FindNextFile(hFind, &FindData) != 0);
+    FindClose(find_handle);
+    ScratchEnd(scratch);
 
-    FindClose(hFind);
-    return true;
+    return result;
 }
 
+KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path)
+{
+    TempArena scratch = ScratchBegin(0, 0);
+    Directory result = {};
+    String8   dir = path;
+    if (!StringEndsWith(dir, String8Raw("/*")) && !StringEndsWith(dir, String8Raw("\\*")))
+    {
+        dir = StringCat(scratch.arena, dir, String8Raw("/*"));
+    }
+
+    WIN32_FIND_DATA find_data;
+    HANDLE          find_handle = FindFirstFile((char*)dir.ptr, &find_data);
+    LARGE_INTEGER   file_size;
+
+    if (INVALID_HANDLE_VALUE == find_handle)
+    {
+        String8 error_message = ArenaPushString8Empty(scratch.arena, u64(1024));
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char*)error_message.ptr, error_message.count, NULL);
+
+        KERROR("[Win32]: FindFirstFile failed with error %S", error_message);
+
+        ScratchEnd(scratch);
+        return result;
+    }
+
+    result.entry_count = GetFileCount(path);
+    result.entries = ArenaPushArray(arena, FileSystemEntry, result.entry_count);
+    u32 i = 0;
+
+    do
+    {
+        if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            file_size.LowPart = find_data.nFileSizeLow;
+            file_size.HighPart = find_data.nFileSizeHigh;
+            // KDEBUG("  %s   %ld bytes", find_data.cFileName, file_size.QuadPart);
+
+            result.entries[i++] = FileSystemEntry{ .name = ArenaPushString8Copy(arena, String8FromCString(find_data.cFileName)), .file_size = (u64)file_size.QuadPart };
+        }
+    } while ((FindNextFile(find_handle, &find_data) != 0) && i < result.entry_count);
+
+    FindClose(find_handle);
+    ScratchEnd(scratch);
+
+    return result;
 }
+
+} // namespace kraft::filesystem

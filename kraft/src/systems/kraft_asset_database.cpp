@@ -15,6 +15,10 @@
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <platform/kraft_filesystem.h>
+
+// TODO: REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <renderer/kraft_renderer_types.h>
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_texture_system.h>

@@ -33,7 +33,7 @@ struct VulkanRendererBackend
     static bool EndFrame();
     static void OnResize(int width, int height);
 
-    static void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
+    static void CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle);
     static void DestroyRenderPipeline(Shader* Shader);
 
     static void SetGlobalShaderData(GlobalShaderData* Data);

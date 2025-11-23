@@ -9,8 +9,6 @@
 #include <core/kraft_memory.h>
 #include <core/kraft_string.h>
 
-#include <platform/kraft_filesystem_types.h>
-
 namespace kraft {
 
 namespace filesystem {
@@ -59,12 +57,12 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
     return true;
 }
 
-uint64 GetFileSize(FileHandle* handle)
+u64 GetFileSize(FileHandle* handle)
 {
     KASSERT(handle->Handle);
 
     fseek(handle->Handle, 0, SEEK_END);
-    uint64 size = ftell(handle->Handle);
+    u64 size = ftell(handle->Handle);
     rewind(handle->Handle);
 
     return size;
@@ -79,27 +77,15 @@ void CloseFile(FileHandle* handle)
     }
 }
 
-bool FileExists(String8 path)
-{
-    FileHandle temp;
-    if (OpenFile(path, FILE_OPEN_MODE_READ, true, &temp))
-    {
-        CloseFile(&temp);
-        return true;
-    }
-
-    return false;
-}
-
 // outBuffer, if null is allocated
 // outBuffer must be freed by the caller
-bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, uint64* bytesRead)
+bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, u64* bytesRead)
 {
     if (!handle->Handle)
         return false;
 
     fseek(handle->Handle, 0, SEEK_END);
-    uint64 size = ftell(handle->Handle);
+    u64 size = ftell(handle->Handle);
     rewind(handle->Handle);
 
     if (!*outBuffer)
@@ -152,7 +138,7 @@ KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-bool WriteFile(FileHandle* Handle, const uint8* Buffer, uint64 Size)
+bool WriteFile(FileHandle* Handle, const uint8* Buffer, u64 Size)
 {
     if (!Handle->Handle)
         return false;
@@ -174,7 +160,7 @@ bool WriteFile(FileHandle* Handle, const Buffer& DataBuffer)
 
 void CleanPath(const char* path, char* out)
 {
-    uint64 Length = StringLength(path);
+    u64 Length = StringLength(path);
     for (int i = 0; i < Length; i++)
     {
         if (path[i] == '\\')
@@ -211,11 +197,11 @@ String8 CleanPath(ArenaAllocator* arena, String8 path)
 
 void Dirname(const char* Path, char* Out)
 {
-    uint64 Length = StringLength(Path);
+    u64 Length = StringLength(Path);
     Dirname(Path, Length, Out);
 }
 
-void Dirname(const char* Path, uint64 PathLength, char* Out)
+void Dirname(const char* Path, u64 PathLength, char* Out)
 {
     for (int i = (int)PathLength - 1; i >= 0; i--)
     {
@@ -261,7 +247,7 @@ char* Dirname(ArenaAllocator* Arena, const char* Path)
     return Dirname(Arena, Path, StringLength(Path));
 }
 
-KRAFT_API char* Dirname(ArenaAllocator* arena, const char* path, uint64 path_length)
+KRAFT_API char* Dirname(ArenaAllocator* arena, const char* path, u64 path_length)
 {
     char* out = ArenaPushArray(arena, char, path_length + 1);
     Dirname(path, path_length, out);
@@ -271,7 +257,7 @@ KRAFT_API char* Dirname(ArenaAllocator* arena, const char* path, uint64 path_len
 
 void Basename(const char* path, char* out)
 {
-    uint64 Length = StringLength(path);
+    u64 Length = StringLength(path);
     for (int i = (int)Length - 1; i >= 0; i--)
     {
         if (path[i] == '/' || path[i] == '\\')
@@ -302,28 +288,29 @@ String8 Basename(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-char* PathJoin(ArenaAllocator* arena, const char* A, const char* B)
+String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
 {
-    uint64 StringALength = StringLength(A);
-    uint64 StringBLength = StringLength(B);
-    uint64 final_path_size = StringALength + StringBLength + sizeof(KRAFT_PATH_SEPARATOR) + 1;
-    char*  OutBuffer = ArenaPushArray(arena, char, final_path_size);
-    char*  Ptr = OutBuffer;
+    String8 result = {};
+    u64     final_path_size = path1.count + path2.count + sizeof(KRAFT_PATH_SEPARATOR) + 1;
+    result.ptr = ArenaPushArray(arena, u8, final_path_size);
+    u8* ptr = result.ptr;
 
-    StringNCopy(Ptr, A, StringALength);
-    Ptr += StringALength;
+    MemCpy(ptr, path1.ptr, path1.count);
+    ptr += path1.count;
 
-    *Ptr = KRAFT_PATH_SEPARATOR;
-    Ptr += 1;
+    // TODO (amn): Dont add separators if path1 ends with a separator
+    *ptr = KRAFT_PATH_SEPARATOR;
+    ptr += 1;
 
-    StringNCopy(Ptr, B, StringBLength);
-    Ptr += StringBLength;
+    MemCpy(ptr, path2.ptr, path2.count);
+    ptr += path2.count;
 
-    *Ptr = 0;
+    *ptr = 0;
 
-    KASSERT((Ptr - OutBuffer + 1) == final_path_size);
+    KASSERT((ptr - result.ptr + 1) == final_path_size);
+    result.count = final_path_size - 1;
 
-    return OutBuffer;
+    return result;
 }
 } // namespace filesystem
 

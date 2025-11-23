@@ -16,7 +16,6 @@ endif()
 
 set(SRC_FILES 
     src/main.cpp
-    src/imgui/imgui_renderer.cpp
 )
 
 if (WIN32 AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -39,9 +38,9 @@ endif()
 
 add_custom_target(sample_app_copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/res
+        ${CMAKE_CURRENT_SOURCE_DIR}/res
         ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res
-    COMMENT "Copying resources..."
+    COMMENT "Copying resources from '${CMAKE_CURRENT_SOURCE_DIR}/res' to '${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res'..."
 )
 
 add_dependencies(${PROJECT_NAME} sample_app_copy_resources)

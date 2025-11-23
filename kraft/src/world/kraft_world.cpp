@@ -1,5 +1,8 @@
 #include "kraft_world.h"
 
+// TODO: REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <containers/kraft_array.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_renderer_types.h>
@@ -101,7 +104,7 @@ void World::Render()
     {
         auto [Transform, Mesh] = Group.get<TransformComponent, MeshComponent>(EntityHandle);
         g_Renderer->AddRenderable(kraft::renderer::Renderable{
-            .ModelMatrix = Transform.ModelMatrix,// GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
+            .ModelMatrix = Transform.ModelMatrix, // GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
             .MaterialInstance = Mesh.MaterialInstance,
             .GeometryId = Mesh.GeometryID,
             .EntityId = (uint32)EntityHandle,
@@ -125,4 +128,4 @@ Mat4f World::GetWorldSpaceTransformMatrix(Entity E)
     // return ParentTransformMatrix * Transform.ModelMatrix;
 }
 
-}
+} // namespace kraft

@@ -1,7 +1,6 @@
 #include "kraft_material_system.h"
 
 #include <platform/kraft_filesystem.h>
-#include <platform/kraft_filesystem_types.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
@@ -9,8 +8,11 @@
 #include <core/kraft_string.h>
 #include <containers/kraft_hashmap.h>
 #include <containers/kraft_array.h>
-#include <core/kraft_lexer_types.h>
 #include <kraft_types.h>
+
+// TODO: REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_material_system_types.h>
@@ -153,20 +155,20 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
             continue;
         }
 
-        const String& UniformName = It->first;
+        u64 uniform_key = It->first;
 
         // Look to see if this property is present in the material
-        auto MaterialIt = Data.Properties.find(UniformName);
-        if (MaterialIt == Data.Properties.end())
+        auto MaterialIt = Data.properties.find(uniform_key);
+        if (MaterialIt == Data.properties.end())
         {
-            KWARN("[CreateMaterialWithData]: Material %S does not contain shader uniform %s", Data.name, *UniformName);
+            KWARN("[CreateMaterialWithData]: Material '%S' does not contain shader uniform %lld", Data.name, uniform_key);
             continue;
         }
 
         const MaterialProperty* Property = &MaterialIt->second;
         if (Property->Size != Uniform->Stride)
         {
-            KERROR("[CreateMaterialWithData]: Material %S data type mismatch for uniform %s. Expected size: %d, got %d.", Data.name, *UniformName, Uniform->Stride, Property->Size);
+            KERROR("[CreateMaterialWithData]: Material %S data type mismatch for uniform %lld. Expected size: %d, got %d.", Data.name, uniform_key, Uniform->Stride, Property->Size);
             return nullptr;
         }
 
@@ -183,7 +185,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
     }
 
-    Instance->Properties = Data.Properties;
+    Instance->Properties = Data.properties;
     return Instance;
 }
 
@@ -230,7 +232,7 @@ void MaterialSystem::DestroyMaterial(Material* instance)
     MemZero(instance, sizeof(Material));
 }
 
-bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const String& TexturePath)
+bool MaterialSystem::SetTexture(Material* Instance, String8 key, const String& TexturePath)
 {
     Handle<Texture> NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
     if (NewTexture.IsInvalid())
@@ -238,30 +240,31 @@ bool MaterialSystem::SetTexture(Material* Instance, const String& Key, const Str
         return false;
     }
 
-    return SetTexture(Instance, Key, NewTexture);
+    return SetTexture(Instance, key, NewTexture);
 }
 
-bool MaterialSystem::SetTexture(Material* Instance, const String& Key, Handle<Texture> NewTexture)
+bool MaterialSystem::SetTexture(Material* Instance, String8 key, Handle<Texture> NewTexture)
 {
-    auto It = Instance->Shader->UniformCacheMapping.find(Key);
+    u64  key_hash = FNV1AHashBytes(key.ptr, key.count);
+    auto It = Instance->Shader->UniformCacheMapping.find(key_hash);
     if (It == Instance->Shader->UniformCacheMapping.iend())
     {
-        KERROR("[SetTexture]: Unknown key %s", *Key);
+        KERROR("[SetTexture]: Unknown key %S", key);
         return false;
     }
 
     uint8*        MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
     Shader*       Shader = Instance->Shader;
     ShaderUniform Uniform;
-    if (!ShaderSystem::GetUniform(Shader, Key, &Uniform))
+    if (!ShaderSystem::GetUniform(Shader, key, &Uniform))
     {
-        KERROR("GetUniform() failed for '%s'", *Key);
+        KERROR("GetUniform() failed for '%S'", key);
         return false;
     }
 
     uint32 Index = NewTexture.GetIndex();
     MemCpy(MaterialBuffer + Uniform.Offset, &Index, Uniform.Stride);
-    Instance->Properties[Key].TextureValue = NewTexture;
+    Instance->Properties[key_hash].TextureValue = NewTexture;
 
     return true;
 }
@@ -305,40 +308,37 @@ static void ReleaseMaterialInternal(uint32 Index)
 
 static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_path, MaterialDataIntermediateFormat* Data)
 {
-    filesystem::FileHandle File;
-    bool                   Result = filesystem::OpenFile(file_path, filesystem::FILE_OPEN_MODE_READ, true, &File);
-    if (!Result)
+    TempArena scratch = ScratchBegin(&arena, 1);
+    buffer    file_buf = filesystem::ReadAllBytes(scratch.arena, file_path);
+
+    if (!file_buf.count)
     {
         return false;
     }
 
-    uint64 BufferSize = filesystem::GetFileSize(&File) + 1;
-    uint8* FileDataBuffer = (uint8*)Malloc(BufferSize, MEMORY_TAG_FILE_BUF, true);
-    filesystem::ReadAllBytes(&File, &FileDataBuffer);
-    filesystem::CloseFile(&File);
-
     Lexer lexer;
-    lexer.Create((char*)FileDataBuffer, BufferSize);
+    lexer.Create(file_buf);
 
-    while (true)
+    while (lexer.BytesLeft())
     {
         LexerToken token;
-        if (LexerError ErrorCode = lexer.NextToken(&token))
+        if (LexerError err = lexer.NextToken(&token))
         {
-            KERROR("Encountered an error while trying to get the next token from the material file! ErrorCode = %d", ErrorCode);
+
+            KERROR("Encountered an error while trying to get the next token from the material file! ErrorCode = %d", err);
             return false;
         }
 
-        if (token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type == TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            if (token.MatchesKeyword("Material"))
+            if (token.MatchesKeyword(String8Raw("Material")))
             {
                 if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 {
                     return false;
                 }
 
-                Data->name = ArenaPushString8Copy(arena, String8FromPtrAndLength((u8*)token.Text, token.Length));
+                Data->name = ArenaPushString8Copy(arena, token.text);
                 if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
                 {
                     return false;
@@ -347,14 +347,14 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                 // Parse material block
                 while (!lexer.EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
-                    if (token.MatchesKeyword("DiffuseTexture"))
+                    if (token.MatchesKeyword(String8Raw("DiffuseTexture")))
                     {
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        const String&   TexturePath = token.ToString();
+                        const String&   TexturePath = String((char*)token.text.ptr, token.text.count);
                         Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
@@ -362,42 +362,45 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                             Resource = TextureSystem::GetDefaultDiffuseTexture();
                         }
 
-                        Data->Properties["DiffuseTexture"] = Resource;
-                        Data->Properties["DiffuseTexture"].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
+                        String8 key = String8Raw("DiffuseTexture");
+                        u64     key_hash = FNV1AHashBytes(key.ptr, key.count);
+                        Data->properties[key_hash] = Resource;
+                        Data->properties[key_hash].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
                     }
-                    else if (token.MatchesKeyword("Shader"))
+                    else if (token.MatchesKeyword(String8Raw("Shader")))
                     {
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
                         {
                             return false;
                         }
 
-                        Data->shader_asset = ArenaPushString8Copy(arena, String8FromPtrAndLength((u8*)token.Text, token.Length));
+                        Data->shader_asset = ArenaPushString8Copy(arena, token.text);
                     }
                     else
                     {
-                        String Key = token.ToString();
+                        String8 key = token.text;
+                        u64     key_hash = FNV1AHashBytes(key.ptr, key.count);
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
                             return false;
                         }
 
                         bool IsVector = false;
-                        int  ExpectedComponentCount = 0;
-                        if (token.MatchesKeyword("vec4"))
+                        int  expected_component_count = 0;
+                        if (token.MatchesKeyword(String8Raw("vec4")))
                         {
                             IsVector = true;
-                            ExpectedComponentCount = 4;
+                            expected_component_count = 4;
                         }
-                        else if (token.MatchesKeyword("vec3"))
+                        else if (token.MatchesKeyword(String8Raw("vec3")))
                         {
                             IsVector = true;
-                            ExpectedComponentCount = 3;
+                            expected_component_count = 3;
                         }
-                        else if (token.MatchesKeyword("vec2"))
+                        else if (token.MatchesKeyword(String8Raw("vec2")))
                         {
                             IsVector = true;
-                            ExpectedComponentCount = 2;
+                            expected_component_count = 2;
                         }
 
                         if (IsVector)
@@ -408,16 +411,16 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                             }
 
                             float32 Components[4];
-                            int     ComponentCount = 0;
+                            int     component_count = 0;
                             while (!lexer.EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
-                                if (token.Type == TokenType::TOKEN_TYPE_COMMA)
+                                if (token.type == TokenType::TOKEN_TYPE_COMMA)
                                 {
                                     continue;
                                 }
-                                else if (token.Type == TokenType::TOKEN_TYPE_NUMBER)
+                                else if (token.type == TokenType::TOKEN_TYPE_NUMBER)
                                 {
-                                    Components[ComponentCount++] = (float32)token.FloatValue;
+                                    Components[component_count++] = (float32)token.float_value;
                                 }
                                 else
                                 {
@@ -425,30 +428,30 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                                 }
                             }
 
-                            if (ExpectedComponentCount != ComponentCount)
+                            if (expected_component_count != component_count)
                             {
                                 KERROR(
-                                    "Failed to parse %S. Expected %d components for field '%s' but got only %d. Make sure your vec%d() has %d components.",
+                                    "Failed to parse %S. Expected %d components for field '%S' but got only %d. Make sure your vec%d() has %d components.",
                                     file_path,
-                                    ExpectedComponentCount,
-                                    *Key,
-                                    ComponentCount,
-                                    ComponentCount,
-                                    ExpectedComponentCount
+                                    expected_component_count,
+                                    key,
+                                    component_count,
+                                    component_count,
+                                    expected_component_count
                                 );
                                 return false;
                             }
 
-                            if (ComponentCount == 4)
-                                Data->Properties[Key] = Vec4f(Components[0], Components[1], Components[2], Components[3]);
-                            if (ComponentCount == 3)
-                                Data->Properties[Key] = Vec3f(Components[0], Components[1], Components[2]);
-                            if (ComponentCount == 2)
-                                Data->Properties[Key] = Vec2f(Components[0], Components[1]);
+                            if (component_count == 4)
+                                Data->properties[key_hash] = Vec4f(Components[0], Components[1], Components[2], Components[3]);
+                            if (component_count == 3)
+                                Data->properties[key_hash] = Vec3f(Components[0], Components[1], Components[2]);
+                            if (component_count == 2)
+                                Data->properties[key_hash] = Vec2f(Components[0], Components[1]);
 
-                            Data->Properties[Key].Size = sizeof(float32) * ComponentCount;
+                            Data->properties[key_hash].Size = sizeof(float32) * component_count;
                         }
-                        else if (token.MatchesKeyword("float32"))
+                        else if (token.MatchesKeyword(String8Raw("float32")))
                         {
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
@@ -460,15 +463,15 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                                 return false;
                             }
 
-                            Data->Properties[Key] = float32(token.FloatValue);
-                            Data->Properties[Key].Size = sizeof(float32);
+                            Data->properties[key_hash] = float32(token.float_value);
+                            Data->properties[key_hash].Size = sizeof(float32);
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
                                 return false;
                             }
                         }
-                        else if (token.MatchesKeyword("float64"))
+                        else if (token.MatchesKeyword(String8Raw("float64")))
                         {
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
@@ -480,8 +483,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                                 return false;
                             }
 
-                            Data->Properties[Key] = float64(token.FloatValue);
-                            Data->Properties[Key].Size = sizeof(float64);
+                            Data->properties[key_hash] = float64(token.float_value);
+                            Data->properties[key_hash].Size = sizeof(float64);
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
@@ -490,32 +493,33 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         }
                         else
                         {
-                            KERROR("Material has an invalid field %s", *token.ToString());
+                            KERROR("Material has an invalid field %S", token.text);
                             return false;
                         }
                     }
                 }
             }
         }
-        else if (token.Type == TokenType::TOKEN_TYPE_END_OF_STREAM)
+        else if (token.type == TokenType::TOKEN_TYPE_END_OF_STREAM)
         {
             break;
         }
     }
 
-    kraft::Free(FileDataBuffer, BufferSize, MEMORY_TAG_FILE_BUF);
+    ScratchEnd(scratch);
 
     return true;
 }
 
 #define MATERIAL_SYSTEM_SET_PROPERTY(Type)                                                                                                                                                             \
     template<>                                                                                                                                                                                         \
-    bool MaterialSystem::SetProperty(Material* instance, const String& key, Type value)                                                                                                                \
+    bool MaterialSystem::SetProperty(Material* instance, String8 key, Type value)                                                                                                                      \
     {                                                                                                                                                                                                  \
-        auto it = instance->Shader->UniformCacheMapping.find(key);                                                                                                                                     \
+        u64  key_hash = FNV1AHashBytes(key.ptr, key.count);                                                                                                                                            \
+        auto it = instance->Shader->UniformCacheMapping.find(key_hash);                                                                                                                                \
         if (it == instance->Shader->UniformCacheMapping.iend())                                                                                                                                        \
         {                                                                                                                                                                                              \
-            KERROR("[SetTexture]: Unknown key %s", *key);                                                                                                                                              \
+            KERROR("[SetTexture]: Unknown key %S", key);                                                                                                                                               \
             return false;                                                                                                                                                                              \
         }                                                                                                                                                                                              \
                                                                                                                                                                                                        \
@@ -524,7 +528,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
         ShaderUniform uniform;                                                                                                                                                                         \
         if (!ShaderSystem::GetUniform(shader, key, &uniform))                                                                                                                                          \
         {                                                                                                                                                                                              \
-            KERROR("GetUniform() failed for '%s'", *key);                                                                                                                                              \
+            KERROR("GetUniform() failed for '%S'", key);                                                                                                                                               \
             return false;                                                                                                                                                                              \
         }                                                                                                                                                                                              \
                                                                                                                                                                                                        \

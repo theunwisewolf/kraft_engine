@@ -3,14 +3,16 @@
 #define KRAFT_SIZE_KB(Size) Size * 1024
 #define KRAFT_SIZE_MB(Size) KRAFT_SIZE_KB(Size) * 1024
 
+#define KRAFT_MEMORY_DEBUG 1
+
 namespace kraft {
 
 enum MemoryTag : int;
 
 struct ArenaCreateOptions
 {
-    uint64    ChunkSize = 64;
-    uint64    Alignment = 64;
+    u64       ChunkSize = 64;
+    u64       Alignment = 64;
     MemoryTag Tag = (MemoryTag)0;
 };
 
@@ -31,6 +33,22 @@ struct TempArena
 {
     ArenaAllocator* arena;
     u64             position;
+
+#if KRAFT_MEMORY_DEBUG
+    ~TempArena()
+    {
+        KASSERTM(arena->position == position, "ScratchEnd not called!");
+
+        // Set the original region to some garbage so we never read legit values from it
+        for (u64 i = 0; i < arena->position; i += 4)
+        {
+            arena->base_ptr[position + i + 0] = 0xfc;
+            arena->base_ptr[position + i + 1] = 0xfc;
+            arena->base_ptr[position + i + 2] = 0xfc;
+            arena->base_ptr[position + i + 3] = 0xfc;
+        }
+    }
+#endif
 };
 
 ArenaAllocator* CreateArena(ArenaCreateOptions options);
@@ -40,6 +58,7 @@ u64             ArenaPosition(ArenaAllocator* arena);
 void    ArenaPop(ArenaAllocator* arena, u64 size);
 void    ArenaPopToPosition(ArenaAllocator* arena, u64 position);
 char*   ArenaPushString(ArenaAllocator* arena, const char* src, uint64 length);
+String8 ArenaPushString8Empty(ArenaAllocator* arena, u64 size);
 String8 ArenaPushString8Copy(ArenaAllocator* arena, String8 str);
 void    ArenaPopString8(ArenaAllocator* arena, String8 str);
 

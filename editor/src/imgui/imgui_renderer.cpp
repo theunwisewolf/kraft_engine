@@ -12,8 +12,6 @@
 #include <renderer/kraft_renderer_types.h>
 #include <renderer/vulkan/kraft_vulkan_imgui.h>
 
-#include <platform/kraft_filesystem_types.h>
-
 #include <imgui/backends/imgui_impl_vulkan.h>
 #include <imgui/extensions/imguizmo/ImGuizmo.h>
 #include <imgui/imgui.h>

@@ -62,6 +62,7 @@ bool Engine::Init(const EngineConfig* config)
     internal_state = ArenaPush(arena, EngineState);
     internal_state->arena = arena;
     internal_state->cli_args.ptr = ArenaPushArray(arena, String8, config->argc);
+    internal_state->cli_args.count = config->argc;
 
     for (int i = 0; i < config->argc; i++)
     {

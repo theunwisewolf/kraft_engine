@@ -3,9 +3,11 @@
 #include "kraft_resource_pool.inl"
 
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_log.h>
 #include <core/kraft_string.h>
 #include <math/kraft_math.h>
+
+// TODO (amn): REMOVE
+#include <core/kraft_base_includes.h>
 
 #include <renderer/kraft_renderer_types.h>
 #include <renderer/vulkan/kraft_vulkan_types.h>

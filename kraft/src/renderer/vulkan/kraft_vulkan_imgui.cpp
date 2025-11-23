@@ -13,7 +13,7 @@
 #include <platform/kraft_filesystem.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
-#include <renderer/kraft_renderer_types.h>
+// #include <renderer/kraft_renderer_types.h>
 #include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_backend.h>
 #include <renderer/vulkan/kraft_vulkan_command_buffer.h>

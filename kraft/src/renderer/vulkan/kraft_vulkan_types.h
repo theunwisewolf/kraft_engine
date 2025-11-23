@@ -5,7 +5,7 @@
 #endif
 
 #include <containers/kraft_array.h>
-#include <core/kraft_core.h>
+#include <core/kraft_base_includes.h>
 #include <math/kraft_math.h>
 #include <renderer/kraft_renderer_types.h>
 #include <shaders/includes/kraft_shader_includes.h>

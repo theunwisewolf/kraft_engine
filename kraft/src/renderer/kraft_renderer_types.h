@@ -120,7 +120,7 @@ struct RendererBackend
     void (*UseShader)(const Shader* Shader);
     void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
-    void (*CreateRenderPipeline)(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
+    void (*CreateRenderPipeline)(Shader* Shader, Handle<RenderPass> RenderPassHandle);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
@@ -153,7 +153,7 @@ struct Vertex3D
 
 struct ShaderDataType
 {
-    enum Enum : uint8
+    enum Enum : u8
     {
         Float,
         Float2,
@@ -175,7 +175,7 @@ struct ShaderDataType
         Count
     } UnderlyingType;
 
-    uint16             ArraySize = 1;
+    u16                ArraySize = 1;
     static const char* String(Enum Value)
     {
         static const char* Strings[] = { "Float",  "Float2",  "Float3", "Float4",  "Mat4", "Byte",  "Byte4N", "UByte",     "UByte4N",
@@ -183,7 +183,7 @@ struct ShaderDataType
         return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
     }
 
-    static uint64 SizeOf(ShaderDataType Value)
+    static u64 SizeOf(ShaderDataType Value)
     {
         switch (Value.UnderlyingType)
         {
@@ -210,7 +210,7 @@ struct ShaderDataType
         return 0;
     }
 
-    static uint64 GetAlignment(ShaderDataType Value)
+    static u64 GetAlignment(ShaderDataType Value)
     {
         switch (Value.UnderlyingType)
         {
@@ -307,11 +307,15 @@ enum Enum
     Count
 };
 
-static const char* Strings[] = { "Fill", "Line", "Point" };
+static String8 strings[] = {
+    String8Raw("Fill"),
+    String8Raw("Line"),
+    String8Raw("Point"),
+};
 
-static const char* String(Enum Value)
+static String8 String(Enum value)
 {
-    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace PolygonMode
 
@@ -329,13 +333,14 @@ enum Enum
     Count,
 };
 
-static const char* Strings[] = {
-    "Never", "Less", "Equal", "LessOrEqual", "Greater", "NotEqual", "GreaterOrEqual", "Always", "Count",
+static String8 strings[] = {
+    String8Raw("Never"),    String8Raw("Less"),           String8Raw("Equal"),  String8Raw("LessOrEqual"), String8Raw("Greater"),
+    String8Raw("NotEqual"), String8Raw("GreaterOrEqual"), String8Raw("Always"), String8Raw("Count"),
 };
 
-static const char* String(Enum Value)
+static String8 String(Enum value)
 {
-    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace CompareOp
 
@@ -355,13 +360,18 @@ enum Enum : int
     Count
 };
 
-static const char* Strings[] = {
-    "Zero", "One", "SrcColor", "OneMinusSrcColor", "DstColor", "OneMinusDstColor", "SrcAlpha", "OneMinusSrcAlpha", "DstAlpha", "OneMinusDstAlpha", "Count",
+static String8 strings[] = {
+    String8Raw("Zero"),     String8Raw("One"),
+    String8Raw("SrcColor"), String8Raw("OneMinusSrcColor"),
+    String8Raw("DstColor"), String8Raw("OneMinusDstColor"),
+    String8Raw("SrcAlpha"), String8Raw("OneMinusSrcAlpha"),
+    String8Raw("DstAlpha"), String8Raw("OneMinusDstAlpha"),
+    String8Raw("Count"),
 };
 
-static const char* String(Enum Value)
+static String8 String(Enum value)
 {
-    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace BlendFactor
 
@@ -376,23 +386,25 @@ enum Enum : int
     Count
 };
 
-static const char* Strings[] = { "Add", "Subtract", "ReverseSubtract", "Min", "Max", "Count" };
+static String8 strings[] = {
+    String8Raw("Add"), String8Raw("Subtract"), String8Raw("ReverseSubtract"), String8Raw("Min"), String8Raw("Max"), String8Raw("Count"),
+};
 
-static const char* String(Enum Value)
+static String8 String(Enum value)
 {
-    return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
+    return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace BlendOp
 
 struct BlendState
 {
-    BlendFactor::Enum SrcColorBlendFactor;
-    BlendFactor::Enum DstColorBlendFactor;
-    BlendOp::Enum     ColorBlendOperation;
+    BlendFactor::Enum src_color_blend_factor;
+    BlendFactor::Enum dst_color_blend_factor;
+    BlendOp::Enum     color_blend_op;
 
-    BlendFactor::Enum SrcAlphaBlendFactor;
-    BlendFactor::Enum DstAlphaBlendFactor;
-    BlendOp::Enum     AlphaBlendOperation;
+    BlendFactor::Enum src_alpha_blend_factor;
+    BlendFactor::Enum dst_alpha_blend_factor;
+    BlendOp::Enum     alpha_blend_op;
 };
 
 namespace ShaderUniformScope {

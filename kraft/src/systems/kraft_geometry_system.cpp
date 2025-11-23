@@ -2,11 +2,12 @@
 
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
 #include <core/kraft_string.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <systems/kraft_material_system.h>
+
+// TODO: REMOVE
+#include <core/kraft_base_includes.h>
 
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>

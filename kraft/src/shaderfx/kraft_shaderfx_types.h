@@ -9,71 +9,37 @@ namespace kraft::shaderfx {
 
 struct VertexAttribute
 {
-    uint16                   Location = 0;
-    uint16                   Binding = 0;
-    uint16                   Offset = 0;
-    renderer::ShaderDataType Format = renderer::ShaderDataType::Invalid();
+    u16                      location = 0;
+    u16                      binding = 0;
+    u16                      offset = 0;
+    renderer::ShaderDataType format = renderer::ShaderDataType::Invalid();
 };
 
 struct VertexInputBinding
 {
-    uint16                          Binding = 0;
-    uint16                          Stride = 0;
-    renderer::VertexInputRate::Enum InputRate = renderer::VertexInputRate::Count;
+    u16                             binding = 0;
+    u16                             stride = 0;
+    renderer::VertexInputRate::Enum input_rate = renderer::VertexInputRate::Count;
 };
 
 struct VertexLayoutDefinition
 {
-    String                    Name;
-    Array<VertexAttribute>    Attributes;
-    Array<VertexInputBinding> InputBindings;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Attributes);
-        Out->Write(InputBindings);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Attributes);
-        In->Read(&InputBindings);
-    }
+    String8             name;
+    VertexAttribute*    attributes;
+    u32                 attribute_count;
+    VertexInputBinding* input_bindings;
+    u32                 input_binding_count;
 };
 
 struct ResourceBinding
 {
-    String                       Name;
-    uint16                       Set = 0;
-    uint16                       Binding = 0;
-    uint16                       Size = 0;
-    int16                        ParentIndex = -1; // If this is a uniform buffer, index into the actual buffer
-    renderer::ResourceType::Enum Type;
-    renderer::ShaderStageFlags   Stage;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Set);
-        Out->Write(Binding);
-        Out->Write(Size);
-        Out->Write(ParentIndex);
-        Out->Write(Type);
-        Out->Write(Stage);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Set);
-        In->Read(&Binding);
-        In->Read(&Size);
-        In->Read(&ParentIndex);
-        In->Read(&Type);
-        In->Read(&Stage);
-    }
+    String8                      name;
+    u16                          set = 0;
+    u16                          binding = 0;
+    u16                          size = 0;
+    i16                          parent_index = -1; // If this is a uniform buffer, index into the actual buffer
+    renderer::ResourceType::Enum type;
+    renderer::ShaderStageFlags   stage;
 };
 
 namespace ResourceBindingType {
@@ -86,177 +52,71 @@ enum Enum
 
 struct ResourceBindingsDefinition
 {
-    String                 Name;
-    Array<ResourceBinding> ResourceBindings;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(ResourceBindings);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&ResourceBindings);
-    }
+    String8          name;
+    u32              binding_count;
+    ResourceBinding* bindings;
 };
 
 struct ShaderCodeFragment
 {
-    String Name;
-    String Code;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Code);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Code);
-    }
+    String8 name;
+    String8 code;
 };
 
 struct RenderStateDefinition
 {
-    String                        Name;
-    renderer::CullModeFlags::Enum CullMode;
-    renderer::CompareOp::Enum     ZTestOperation;
-    bool                          ZWriteEnable;
-    bool                          BlendEnable;
-    renderer::BlendState          BlendMode;
-    renderer::PolygonMode::Enum   PolygonMode;
-    float32                       LineWidth;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(CullMode);
-        Out->Write(ZTestOperation);
-        Out->Write(ZWriteEnable);
-        Out->Write(BlendEnable);
-        Out->Write(BlendMode);
-        Out->Write(PolygonMode);
-        Out->Write(LineWidth);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&CullMode);
-        In->Read(&ZTestOperation);
-        In->Read(&ZWriteEnable);
-        In->Read(&BlendEnable);
-        In->Read(&BlendMode);
-        In->Read(&PolygonMode);
-        In->Read(&LineWidth);
-    }
+    String8                       name;
+    renderer::CullModeFlags::Enum cull_mode;
+    renderer::CompareOp::Enum     z_test_op;
+    bool                          z_write_enable;
+    bool                          blend_enable;
+    renderer::BlendState          blend_mode;
+    renderer::PolygonMode::Enum   polygon_mode;
+    f32                           line_width;
 };
 
 struct ConstantBufferEntry
 {
-    String                     Name;
-    renderer::ShaderStageFlags Stage;
-    renderer::ShaderDataType   Type;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Stage);
-        Out->Write(Type);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Stage);
-        In->Read(&Type);
-    }
+    String8                    name;
+    renderer::ShaderStageFlags stage;
+    renderer::ShaderDataType   type;
 };
 
 struct ConstantBufferDefinition
 {
-    String                     Name;
-    Array<ConstantBufferEntry> Fields;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Fields);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Fields);
-    }
+    String8              name;
+    u32                  field_count;
+    ConstantBufferEntry* fields;
 };
 
 struct UniformBufferEntry
 {
-    renderer::ShaderDataType Type;
-    String                   Name;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Type);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Type);
-    }
+    String8                  name;
+    renderer::ShaderDataType type;
 };
 
 struct UniformBufferDefinition
 {
-    String                    Name;
-    Array<UniformBufferEntry> Fields;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Fields);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Fields);
-    }
+    String8             name;
+    u32                 field_count;
+    UniformBufferEntry* fields;
 };
 
 struct RenderPassDefinition
 {
     struct ShaderDefinition
     {
-        renderer::ShaderStageFlags Stage;
-        ShaderCodeFragment         CodeFragment;
-
-        void WriteTo(kraft::Buffer* Out)
-        {
-            Out->Write(Stage);
-            Out->Write(CodeFragment);
-        }
-
-        void ReadFrom(kraft::Buffer* In)
-        {
-            In->Read(&Stage);
-            In->Read(&CodeFragment);
-        }
+        renderer::ShaderStageFlags stage;
+        ShaderCodeFragment         code_fragment;
     };
 
-    String                            Name;
-    const RenderStateDefinition*      RenderState;
-    const VertexLayoutDefinition*     VertexLayout;
-    const ResourceBindingsDefinition* Resources;
-    const ConstantBufferDefinition*   ConstantBuffers;
-    Array<ShaderDefinition>           ShaderStages;
+    String8                           name;
+    const RenderStateDefinition*      render_state;
+    const VertexLayoutDefinition*     vertex_layout;
+    const ResourceBindingsDefinition* resources;
+    const ConstantBufferDefinition*   contant_buffers;
+    u32                               shader_stage_count;
+    ShaderDefinition*                 shader_stages;
 };
 
 struct ShaderResource
@@ -282,53 +142,80 @@ struct ShaderResource
 
 struct ShaderEffect
 {
-    String                            Name;
-    String                            ResourcePath;
-    Array<VertexLayoutDefinition>     VertexLayouts;
-    Array<ResourceBindingsDefinition> LocalResources;
-    Array<ResourceBindingsDefinition> GlobalResources;
-    Array<ConstantBufferDefinition>   ConstantBuffers;
-    Array<UniformBufferDefinition>    UniformBuffers;
-    Array<UniformBufferDefinition>    StorageBuffers;
-    Array<RenderStateDefinition>      RenderStates;
-    Array<ShaderCodeFragment>         CodeFragments;
-    Array<RenderPassDefinition>       RenderPasses;
-    Array<ShaderResource>             Resources;
+    String8 name;
+    String8 resource_path;
 
-    ShaderEffect() {};
-    ShaderEffect(ShaderEffect& Other)
-    {
-        *this = Other;
-    }
+    u32                     vertex_layout_count;
+    VertexLayoutDefinition* vertex_layouts;
 
-    ShaderEffect& operator=(const ShaderEffect& Other)
-    {
-        Name = Other.Name;
-        ResourcePath = Other.ResourcePath;
-        VertexLayouts = Other.VertexLayouts;
-        LocalResources = Other.LocalResources;
-        ConstantBuffers = Other.ConstantBuffers;
-        UniformBuffers = Other.UniformBuffers;
-        StorageBuffers = Other.StorageBuffers;
-        RenderStates = Other.RenderStates;
-        CodeFragments = Other.CodeFragments;
-        Resources = Other.Resources;
-        RenderPasses = Array<RenderPassDefinition>(Other.RenderPasses.Length);
+    u32                         local_resource_count;
+    ResourceBindingsDefinition* local_resources;
 
-        for (int i = 0; i < Other.RenderPasses.Length; i++)
-        {
-            RenderPasses[i].Name = Other.RenderPasses[i].Name;
-            RenderPasses[i].ShaderStages = Other.RenderPasses[i].ShaderStages;
+    u32                         global_resource_count;
+    ResourceBindingsDefinition* global_resources;
 
-            // Correctly assign the offsets
-            RenderPasses[i].VertexLayout = &VertexLayouts[(Other.RenderPasses[i].VertexLayout - &Other.VertexLayouts[0])];
-            RenderPasses[i].Resources = &LocalResources[(Other.RenderPasses[i].Resources - &Other.LocalResources[0])];
-            RenderPasses[i].ConstantBuffers = &ConstantBuffers[(Other.RenderPasses[i].ConstantBuffers - &Other.ConstantBuffers[0])];
-            RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
-        }
+    u32                       constant_buffer_count;
+    ConstantBufferDefinition* constant_buffers;
 
-        return *this;
-    }
+    u32                      uniform_buffer_count;
+    UniformBufferDefinition* uniform_buffers;
+
+    u32                      storage_buffer_count;
+    UniformBufferDefinition* storage_buffers;
+
+    RenderStateDefinition render_state;
+    ShaderCodeFragment    code_fragment;
+    RenderPassDefinition  render_pass_def;
+    Array<ShaderResource> Resources;
+
+    // ShaderEffect() {};
+    // ShaderEffect(ShaderEffect& Other)
+    // {
+    //     *this = Other;
+    // }
+
+    // ShaderEffect& operator=(const ShaderEffect& Other)
+    // {
+    //     Name = Other.Name;
+    //     ResourcePath = Other.ResourcePath;
+
+    //     vertex_layout_count = Other.vertex_layout_count;
+    //     vertex_layouts = Other.vertex_layouts;
+
+    //     local_resource_count = Other.local_resource_count;
+    //     local_resources = Other.local_resources;
+
+    //     global_resource_count = Other.global_resource_count;
+    //     global_resources = Other.global_resources;
+
+    //     constant_buffer_count = Other.constant_buffer_count;
+    //     constant_buffers = Other.constant_buffers;
+
+    //     uniform_buffer_count = Other.uniform_buffer_count;
+    //     uniform_buffers = Other.uniform_buffers;
+
+    //     storage_buffer_count = Other.storage_buffer_count;
+    //     storage_buffers = Other.storage_buffers;
+
+    //     code_fragment = Other.code_fragment;
+    //     render_state = Other.render_state;
+    //     Resources = Other.Resources;
+    //     render_pass_def = Other.render_pass_def;
+
+    //     // for (int i = 0; i < Other.RenderPasses.Length; i++)
+    //     // {
+    //         render_pass_def[i].Name = Other.RenderPasses[i].Name;
+    //         RenderPasses[i].ShaderStages = Other.RenderPasses[i].ShaderStages;
+
+    //         // Correctly assign the offsets
+    //         RenderPasses[i].VertexLayout = &vertex_layouts[(Other.RenderPasses[i].VertexLayout - &Other.vertex_layouts[0])];
+    //         RenderPasses[i].Resources = &LocalResources[(Other.RenderPasses[i].Resources - &Other.LocalResources[0])];
+    //         RenderPasses[i].ConstantBuffers = &ConstantBuffers[(Other.RenderPasses[i].ConstantBuffers - &Other.ConstantBuffers[0])];
+    //         RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
+    //     // }
+
+    //     return *this;
+    // }
 };
 
 } // namespace kraft::shaderfx

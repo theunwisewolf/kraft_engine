@@ -1,6 +1,9 @@
 #include "kraft_filesystem.cpp"
 #include "kraft_platform_common.cpp"
+
+#if KRAFT_GUI_APP
 #include "kraft_window.cpp"
+#endif
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include "windows/kraft_win32.cpp"

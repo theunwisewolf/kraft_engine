@@ -10,3 +10,4 @@
 #include "kraft_engine.cpp"
 #include "kraft_memory.cpp"
 #include "kraft_hash.cpp"
+#include "kraft_lexer.cpp"

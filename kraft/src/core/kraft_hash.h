@@ -5,27 +5,32 @@
 namespace kraft {
 
 // https://learn.microsoft.com/en-us/cpp/porting/fix-your-dependencies-on-library-internals?view=msvc-170
-KRAFT_INLINE static size_t FNV1AHashBytes(const unsigned char* buffer, size_t count)
+KRAFT_INLINE static u64 FNV1AHashBytes(const unsigned char* buffer, u64 count)
 {
-#if defined(KRAFT_64BIT)
-    static_assert(sizeof(size_t) == 8, "This code is for 64-bit size_t.");
-    const size_t fnv_offset_basis = 14695981039346656037ULL;
-    const size_t fnv_prime = 1099511628211ULL;
-#else  /* defined(_WIN64) */
-    static_assert(sizeof(size_t) == 4, "This code is for 32-bit size_t.");
-    const size_t fnv_offset_basis = 2166136261U;
-    const size_t fnv_prime = 16777619U;
-#endif /* defined(_WIN64) */
+    // #if defined(KRAFT_64BIT)
+    static_assert(sizeof(u64) == 8, "This code is for 64-bit size_t.");
+    const u64 fnv_offset_basis = 14695981039346656037ULL;
+    const u64 fnv_prime = 1099511628211ULL;
+    // #else  /* defined(_WIN64) */
+    //     static_assert(sizeof(size_t) == 4, "This code is for 32-bit size_t.");
+    //     const size_t fnv_offset_basis = 2166136261U;
+    //     const size_t fnv_prime = 16777619U;
+    // #endif /* defined(_WIN64) */
 
-    size_t result = fnv_offset_basis;
-    for (size_t next = 0; next < count; ++next)
+    u64 result = fnv_offset_basis;
+    for (u64 next = 0; next < count; ++next)
     {
         // fold in another byte
-        result ^= (size_t)buffer[next];
+        result ^= (u64)buffer[next];
         result *= fnv_prime;
     }
 
     return result;
+}
+
+KRAFT_INLINE static u64 FNV1AHashBytes(String8 key)
+{
+    return FNV1AHashBytes(key.ptr, key.count);
 }
 
 // Credit:
@@ -35,4 +40,4 @@ u32 MurmurHashInverse(u32 h, u32 seed);
 u64 MurmurHash64(const void* key, int len, u64 seed);
 u64 MurmurHash64Inverse(u64 h, u64 seed);
 
-}
+} // namespace kraft

@@ -11,33 +11,31 @@
 #include <core/kraft_string_view.h>
 #include <platform/kraft_filesystem.h>
 
-#include <core/kraft_lexer_types.h>
-#include <platform/kraft_filesystem_types.h>
 #include <renderer/kraft_renderer_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
 
 #define PARSER_ERROR_NEXT_TOKEN_READ_FAILED "Error while reading the next token %d"
-#define PARSER_ERROR_TOKEN_MISMATCH         "Token mismatch\nExpected '%s' got '%s'"
-#define PARSER_ERROR_TOKEN_KEYWORD_MISMATCH "Keyword mismatch\nExpected '%s' got '%s'"
-#define PARSER_ERROR_INVALID_SHADER_STAGE   "Invalid shader stage '%s'"
+#define PARSER_ERROR_TOKEN_MISMATCH         "Token mismatch\nExpected '%S' got '%S'"
+#define PARSER_ERROR_TOKEN_KEYWORD_MISMATCH "Keyword mismatch\nExpected '%S' got '%S'"
+#define PARSER_ERROR_INVALID_SHADER_STAGE   "Invalid shader stage '%S'"
 
 namespace kraft::shaderfx {
 
-int GetShaderStageFromString(StringView Value)
+int GetShaderStageFromString(String8 value)
 {
-    if (Value == "Vertex")
+    if (StringEqual(value, String8Raw("Vertex")))
     {
         return renderer::SHADER_STAGE_FLAGS_VERTEX;
     }
-    else if (Value == "Fragment")
+    else if (StringEqual(value, String8Raw("Fragment")))
     {
         return renderer::SHADER_STAGE_FLAGS_FRAGMENT;
     }
-    else if (Value == "Compute")
+    else if (StringEqual(value, String8Raw("Compute")))
     {
         return renderer::SHADER_STAGE_FLAGS_COMPUTE;
     }
-    else if (Value == "Geometry")
+    else if (StringEqual(value, String8Raw("Geometry")))
     {
         return renderer::SHADER_STAGE_FLAGS_GEOMETRY;
     }
@@ -45,7 +43,7 @@ int GetShaderStageFromString(StringView Value)
     return 0;
 }
 
-void ShaderFXParser::SetError(const char* format, ...)
+void ShaderFXParser::SetError(ArenaAllocator* arena, const char* format, ...)
 {
 #ifdef KRAFT_COMPILER_MSVC
     va_list args;
@@ -53,42 +51,47 @@ void ShaderFXParser::SetError(const char* format, ...)
     __builtin_va_list args;
 #endif
     va_start(args, format);
-    StringFormatV(this->ErrorString, KRAFT_C_ARRAY_SIZE(this->ErrorString), format, args);
+    this->error_str = StringFormatV(arena, format, args);
     va_end(args);
 
-    this->ErrorLine = this->Lexer->Line;
-    this->ErrorColumn = this->Lexer->Column;
+    this->ErrorLine = this->Lexer->line;
+    this->ErrorColumn = this->Lexer->column;
     this->ErroredOut = true;
 }
 
-bool ShaderFXParser::Parse(const String& SourceFilePath, kraft::Lexer* Lexer, ShaderEffect* Out)
+bool ShaderFXParser::Parse(ArenaAllocator* arena, String8 file_path, kraft::Lexer* lexer, ShaderEffect* out)
 {
-    KASSERT(Lexer);
-    this->Lexer = Lexer;
-    Out->ResourcePath = SourceFilePath;
+    KASSERT(lexer);
+    this->Lexer = lexer;
+    out->resource_path = ArenaPushString8Copy(arena, file_path);
 
-    return this->GenerateAST(Out);
+    return this->GenerateAST(arena, out);
 }
 
-bool ShaderFXParser::GenerateAST(ShaderEffect* Effect)
+bool ShaderFXParser::GenerateAST(ArenaAllocator* arena, ShaderEffect* effect)
 {
     while (true)
     {
-        LexerToken Token;
-        if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+        LexerToken token;
+        if (LexerError err = this->Lexer->NextToken(&token))
         {
-            this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+            if (err == LEXER_ERROR_UNEXPECTED_EOF)
+            {
+                return true;
+            }
+
+            this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
             return false;
         }
 
-        if (Token.Type == TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type == TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            if (!this->ParseIdentifier(Effect, &Token))
+            if (!this->ParseIdentifier(arena, effect, &token))
             {
                 return false;
             }
         }
-        else if (Token.Type == TokenType::TOKEN_TYPE_END_OF_STREAM)
+        else if (token.type == TokenType::TOKEN_TYPE_END_OF_STREAM)
         {
             break;
         }
@@ -97,48 +100,48 @@ bool ShaderFXParser::GenerateAST(ShaderEffect* Effect)
     return true;
 }
 
-bool ShaderFXParser::ParseIdentifier(ShaderEffect* Effect, const LexerToken* Token)
+bool ShaderFXParser::ParseIdentifier(ArenaAllocator* arena, ShaderEffect* effect, const LexerToken* token)
 {
-    char Char = Token->Text[0];
-    switch (Char)
+    u8 character = token->text.ptr[0];
+    switch (character)
     {
         case 'S':
         {
-            if (Token->MatchesKeyword("Shader"))
+            if (token->MatchesKeyword(String8Raw("Shader")))
             {
-                return this->ParseShaderDeclaration(Effect);
+                return this->ParseShaderDeclaration(arena, effect);
             }
         }
         break;
         case 'L':
         {
-            if (Token->MatchesKeyword("Layout"))
+            if (token->MatchesKeyword(String8Raw("Layout")))
             {
-                return this->ParseLayoutBlock(Effect);
+                return this->ParseLayoutBlock(arena, effect);
             }
         }
         break;
         case 'G':
         {
-            if (Token->MatchesKeyword("GLSL"))
+            if (token->MatchesKeyword(String8Raw("GLSL")))
             {
-                return this->ParseGLSLBlock(Effect);
+                return this->ParseGLSLBlock(arena, effect);
             }
         }
         break;
         case 'R':
         {
-            if (Token->MatchesKeyword("RenderState"))
+            if (token->MatchesKeyword(String8Raw("RenderState")))
             {
-                return this->ParseRenderStateBlock(Effect);
+                return this->ParseRenderStateBlock(arena, effect);
             }
         }
         break;
         case 'P':
         {
-            if (Token->MatchesKeyword("Pass"))
+            if (token->MatchesKeyword(String8Raw("Pass")))
             {
-                return this->ParseRenderPassBlock(Effect);
+                return this->ParseRenderPassBlock(arena, effect);
             }
         }
         break;
@@ -147,291 +150,349 @@ bool ShaderFXParser::ParseIdentifier(ShaderEffect* Effect, const LexerToken* Tok
     return true;
 }
 
-bool ShaderFXParser::ParseShaderDeclaration(ShaderEffect* Effect)
+bool ShaderFXParser::ParseShaderDeclaration(ArenaAllocator* arena, ShaderEffect* effect)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
         return false;
     }
 
-    Effect->Name = String(Token.Text, Token.Length);
+    effect->name = ArenaPushString8Copy(arena, token.text);
     return true;
 }
 
-bool ShaderFXParser::ParseLayoutBlock(ShaderEffect* Effect)
+bool ShaderFXParser::ParseLayoutBlock(ArenaAllocator* arena, ShaderEffect* effect)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena scratch = ScratchBegin(&arena, 1);
+
+    u32                     vertex_layout_count = 0;
+    VertexLayoutDefinition* vertex_layouts = ArenaPushArray(scratch.arena, VertexLayoutDefinition, 16);
+
+    u32                         local_resource_count = 0;
+    ResourceBindingsDefinition* local_resources = ArenaPushArray(scratch.arena, ResourceBindingsDefinition, 16);
+
+    u32                         global_resource_count = 0;
+    ResourceBindingsDefinition* global_resources = ArenaPushArray(scratch.arena, ResourceBindingsDefinition, 16);
+
+    u32                       constant_buffer_count = 0;
+    ConstantBufferDefinition* constant_buffers = ArenaPushArray(scratch.arena, ConstantBufferDefinition, 16);
+
+    u32                      uniform_buffer_count = 0;
+    UniformBufferDefinition* uniform_buffers = ArenaPushArray(scratch.arena, UniformBufferDefinition, 16);
+
+    u32                      storage_buffer_count = 0;
+    UniformBufferDefinition* storage_buffers = ArenaPushArray(scratch.arena, UniformBufferDefinition, 16);
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        if (Token.MatchesKeyword("Vertex"))
+        if (token.MatchesKeyword(String8Raw("Vertex")))
         {
             // Consume "Vertex"
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError err = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
                 return false;
             }
 
-            VertexLayoutDefinition Layout;
-            Layout.Name = String(Token.Text, Token.Length);
-
-            if (!this->ParseVertexLayout(&Layout))
+            vertex_layouts[vertex_layout_count].name = ArenaPushString8Copy(arena, token.text);
+            if (!this->ParseVertexLayout(arena, &vertex_layouts[vertex_layout_count]))
             {
                 return false;
             }
 
-            Effect->VertexLayouts.Push(Layout);
+            vertex_layout_count++;
         }
         // Local/Global resources
-        else if (Token.MatchesKeyword("local") || Token.MatchesKeyword("global"))
+        else if (token.MatchesKeyword(String8Raw("local")) || token.MatchesKeyword(String8Raw("global")))
         {
-            ResourceBindingType::Enum Type = Token.MatchesKeyword("global") ? ResourceBindingType::Global : ResourceBindingType::Local;
+            ResourceBindingType::Enum type = token.MatchesKeyword(String8Raw("global")) ? ResourceBindingType::Global : ResourceBindingType::Local;
 
             // Consume 'local'/'global' and move to the next token
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (!Token.MatchesKeyword("Resource"))
+            if (!token.MatchesKeyword(String8Raw("Resource")))
             {
-                this->SetError(PARSER_ERROR_TOKEN_KEYWORD_MISMATCH, "Resource", *Token.ToString());
+                this->SetError(arena, PARSER_ERROR_TOKEN_KEYWORD_MISMATCH, String8Raw("Resource"), token.text);
                 return false;
             }
 
             // Consume "Resource" and move to the next token
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError err = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
                 return false;
             }
 
-            ResourceBindingsDefinition Bindings;
-            Bindings.Name = String(Token.Text, Token.Length);
-            if (!this->ParseResourceBindings(&Bindings))
+            ResourceBindingsDefinition* bindings_def = (type == ResourceBindingType::Local) ? &local_resources[local_resource_count] : &global_resources[global_resource_count];
+            bindings_def->name = ArenaPushString8Copy(arena, token.text);
+            if (!this->ParseResourceBindings(arena, bindings_def))
             {
                 return false;
             }
 
-            if (Type == ResourceBindingType::Local)
+            if (type == ResourceBindingType::Local)
             {
-                Effect->LocalResources.Push(Bindings);
+                local_resource_count++;
             }
             else
             {
-                Effect->GlobalResources.Push(Bindings);
+                global_resource_count++;
             }
         }
-        else if (Token.MatchesKeyword("ConstantBuffer"))
+        else if (token.MatchesKeyword(String8Raw("ConstantBuffer")))
         {
             // Consume "ConstantBuffer"
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError err = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
                 return false;
             }
 
-            ConstantBufferDefinition CBufferDefinition;
-            CBufferDefinition.Name = String(Token.Text, Token.Length);
+            ConstantBufferDefinition* buffer_def = &constant_buffers[constant_buffer_count];
+            buffer_def->name = ArenaPushString8Copy(arena, token.text);
 
-            if (!this->ParseConstantBuffer(&CBufferDefinition))
+            if (!this->ParseConstantBuffer(arena, buffer_def))
             {
                 return false;
             }
 
-            Effect->ConstantBuffers.Push(CBufferDefinition);
+            constant_buffer_count++;
         }
-        else if (Token.MatchesKeyword("UniformBuffer"))
+        else if (token.MatchesKeyword(String8Raw("UniformBuffer")))
         {
             // Consume "UniformBuffer"
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError ErrorCode = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
                 return false;
             }
 
-            UniformBufferDefinition UBufferDefinition;
-            UBufferDefinition.Name = String(Token.Text, Token.Length);
+            UniformBufferDefinition* buffer_def = &uniform_buffers[uniform_buffer_count];
+            buffer_def->name = ArenaPushString8Copy(arena, token.text);
 
-            if (!this->ParseUniformBuffer(&UBufferDefinition))
+            if (!this->ParseUniformBuffer(arena, buffer_def))
             {
                 return false;
             }
 
-            Effect->UniformBuffers.Push(UBufferDefinition);
+            uniform_buffer_count++;
         }
-        else if (Token.MatchesKeyword("StorageBuffer"))
+        else if (token.MatchesKeyword(String8Raw("StorageBuffer")))
         {
             // Consume "StorageBuffer"
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError ErrorCode = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
                 return false;
             }
 
-            UniformBufferDefinition UBufferDefinition;
-            UBufferDefinition.Name = String(Token.Text, Token.Length);
+            UniformBufferDefinition* buffer_def = &storage_buffers[storage_buffer_count];
+            buffer_def->name = ArenaPushString8Copy(arena, token.text);
 
-            if (!this->ParseUniformBuffer(&UBufferDefinition))
+            if (!this->ParseUniformBuffer(arena, buffer_def))
             {
                 return false;
             }
 
-            Effect->StorageBuffers.Push(UBufferDefinition);
+            storage_buffer_count++;
         }
     }
+
+    effect->vertex_layout_count = vertex_layout_count;
+    effect->vertex_layouts = ArenaPushArray(arena, VertexLayoutDefinition, vertex_layout_count);
+    MemCpy(effect->vertex_layouts, vertex_layouts, sizeof(VertexLayoutDefinition) * vertex_layout_count);
+
+    effect->local_resource_count = local_resource_count;
+    effect->local_resources = ArenaPushArray(arena, ResourceBindingsDefinition, local_resource_count);
+    MemCpy(effect->local_resources, local_resources, sizeof(ResourceBindingsDefinition) * local_resource_count);
+
+    effect->global_resource_count = global_resource_count;
+    effect->global_resources = ArenaPushArray(arena, ResourceBindingsDefinition, global_resource_count);
+    MemCpy(effect->global_resources, global_resources, sizeof(ResourceBindingsDefinition) * global_resource_count);
+
+    effect->constant_buffer_count = constant_buffer_count;
+    effect->constant_buffers = ArenaPushArray(arena, ConstantBufferDefinition, constant_buffer_count);
+    MemCpy(effect->constant_buffers, constant_buffers, sizeof(ConstantBufferDefinition) * constant_buffer_count);
+
+    effect->uniform_buffer_count = uniform_buffer_count;
+    effect->uniform_buffers = ArenaPushArray(arena, UniformBufferDefinition, uniform_buffer_count);
+    MemCpy(effect->uniform_buffers, uniform_buffers, sizeof(UniformBufferDefinition) * uniform_buffer_count);
+
+    effect->storage_buffer_count = storage_buffer_count;
+    effect->storage_buffers = ArenaPushArray(arena, UniformBufferDefinition, storage_buffer_count);
+    MemCpy(effect->storage_buffers, storage_buffers, sizeof(UniformBufferDefinition) * storage_buffer_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
-bool ShaderFXParser::ParseResourceBindings(ResourceBindingsDefinition* ResourceBindings)
+bool ShaderFXParser::ParseResourceBindings(ArenaAllocator* arena, ResourceBindingsDefinition* bindings_def)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena        scratch = ScratchBegin(&arena, 1);
+    u32              binding_count = 0;
+    ResourceBinding* bindings = ArenaPushArray(scratch.arena, ResourceBinding, 16);
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        ResourceBinding Binding;
-        if (Token.MatchesKeyword("UniformBuffer"))
+        ResourceBinding* binding = &bindings[binding_count];
+        if (token.MatchesKeyword(String8Raw("UniformBuffer")))
         {
-            Binding.Type = renderer::ResourceType::UniformBuffer;
+            binding->type = renderer::ResourceType::UniformBuffer;
         }
-        else if (Token.MatchesKeyword("StorageBuffer"))
+        else if (token.MatchesKeyword(String8Raw("StorageBuffer")))
         {
-            Binding.Type = renderer::ResourceType::StorageBuffer;
+            binding->type = renderer::ResourceType::StorageBuffer;
         }
-        else if (Token.MatchesKeyword("Sampler"))
+        else if (token.MatchesKeyword(String8Raw("Sampler")))
         {
-            Binding.Type = renderer::ResourceType::Sampler;
+            binding->type = renderer::ResourceType::Sampler;
         }
         else
         {
-            this->SetError("Invalid binding type '%s'", *Token.ToString());
+            this->SetError(arena, "Invalid binding type '%S'", token.text);
             return false;
         }
 
         // Parse the name of the binding
-        if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+        if (LexerError ErrorCode = this->Lexer->NextToken(&token))
         {
-            this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+            this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
             return false;
         }
 
-        Binding.Name = String(Token.Text, Token.Length);
-
-        while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_SEMICOLON))
+        binding->name = ArenaPushString8Copy(arena, token.text);
+        while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_SEMICOLON))
         {
-            LexerNamedToken Pair;
-            if (!this->ParseNamedToken(&Token, &Pair))
+            LexerNamedToken pair;
+            if (!this->ParseNamedToken(arena, &token, &pair))
             {
                 return false;
             }
 
-            if (Pair.Key == "Stage")
+            if (StringEqual(pair.key, String8Raw("Stage")))
             {
-                Binding.Stage = (renderer::ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
-                if (Binding.Stage == 0)
+                binding->stage = (renderer::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
+                if (binding->stage == 0)
                 {
-                    this->SetError(PARSER_ERROR_INVALID_SHADER_STAGE, *Pair.Value.ToString());
+                    this->SetError(arena, PARSER_ERROR_INVALID_SHADER_STAGE, pair.value.text);
                     return false;
                 }
             }
-            else if (Pair.Key == "Binding")
+            else if (StringEqual(pair.key, String8Raw("Binding")))
             {
-                Binding.Binding = (uint16)Pair.Value.FloatValue;
+                binding->binding = (u16)pair.value.float_value;
             }
-            else if (Pair.Key == "Size")
+            else if (StringEqual(pair.key, String8Raw("Size")))
             {
-                Binding.Size = (uint16)Pair.Value.FloatValue;
+                binding->size = (u16)pair.value.float_value;
             }
-            else if (Pair.Key == "Set")
+            else if (StringEqual(pair.key, String8Raw("Set")))
             {
-                Binding.Set = (uint16)Pair.Value.FloatValue;
+                binding->set = (u16)pair.value.float_value;
             }
             else
             {
-                KWARN("Found unknown named key: '%s'", *String(Pair.Key.Buffer, Pair.Key.Length));
+                KWARN("Found unknown named key: '%S'", pair.key);
             }
         }
 
-        ResourceBindings->ResourceBindings.Push(Binding);
+        binding_count++;
     }
+
+    bindings_def->binding_count = binding_count;
+    bindings_def->bindings = ArenaPushArray(arena, ResourceBinding, binding_count);
+    MemCpy(bindings_def->bindings, bindings, sizeof(ResourceBinding) * binding_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
-bool ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition* CBufferDefinition)
+bool ShaderFXParser::ParseConstantBuffer(ArenaAllocator* arena, ConstantBufferDefinition* buffer_def)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena scratch = ScratchBegin(&arena, 1);
+
+    u32                  entry_count = 0;
+    ConstantBufferEntry* entries = ArenaPushArray(scratch.arena, ConstantBufferEntry, 16);
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        ConstantBufferEntry Entry;
+        ConstantBufferEntry* entry = &entries[entry_count];
 
         // Parse the data type
-        if (!ParseDataType(&Token, &Entry.Type))
+        if (!ParseDataType(arena, &token, &entry->type))
         {
-            this->SetError("Invalid data type for constant buffer entry '%s'", *Token.ToString());
+            this->SetError(arena, "Invalid data type for constant buffer entry '%S'", token.text);
             return false;
         }
 
         // Parse the name
-        if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+        if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        Entry.Name = Token.ToString();
+        entry->name = ArenaPushString8Copy(arena, token.text);
 
         // Parse properties
-        while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_SEMICOLON))
+        while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_SEMICOLON))
         {
-            LexerNamedToken Pair;
-            if (this->ParseNamedToken(&Token, &Pair))
+            LexerNamedToken pair;
+            if (this->ParseNamedToken(arena, &token, &pair))
             {
-                if (Pair.Key == "Stage")
+                if (StringEqual(pair.key, String8Raw("Stage")))
                 {
-                    Entry.Stage = (renderer::ShaderStageFlags)GetShaderStageFromString(Pair.Value.ToStringView());
-                    if (Entry.Stage == 0)
+                    entry->stage = (renderer::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
+                    if (entry->stage == 0)
                     {
-                        this->SetError(PARSER_ERROR_INVALID_SHADER_STAGE, *Pair.Value.ToString());
+                        this->SetError(arena, PARSER_ERROR_INVALID_SHADER_STAGE, pair.value.text);
                         return false;
                     }
                 }
@@ -442,69 +503,87 @@ bool ShaderFXParser::ParseConstantBuffer(ConstantBufferDefinition* CBufferDefini
             }
         }
 
-        CBufferDefinition->Fields.Push(Entry);
+        entry_count++;
     }
+
+    buffer_def->field_count = entry_count;
+    buffer_def->fields = ArenaPushArray(arena, ConstantBufferEntry, entry_count);
+    MemCpy(buffer_def->fields, entries, sizeof(ConstantBufferEntry) * entry_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
-bool ShaderFXParser::ParseUniformBuffer(UniformBufferDefinition* UBufferDefinition)
+bool ShaderFXParser::ParseUniformBuffer(ArenaAllocator* arena, UniformBufferDefinition* buffer_def)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena scratch = ScratchBegin(&arena, 1);
+
+    u32                 entry_count = 0;
+    UniformBufferEntry* entries = ArenaPushArray(scratch.arena, UniformBufferEntry, 16);
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        UniformBufferEntry Entry;
+        UniformBufferEntry* entry = &entries[entry_count];
 
         // Parse the data type
-        if (!ParseDataType(&Token, &Entry.Type))
+        if (!ParseDataType(arena, &token, &entry->type))
         {
-            this->SetError("Invalid data type for constant buffer entry '%s'", *Token.ToString());
+            this->SetError(arena, "Invalid data type for constant buffer entry '%S'", token.text);
             return false;
         }
 
         // Parse the name
-        if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+        if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        Entry.Name = Token.ToString();
-        UBufferDefinition->Fields.Push(Entry);
+        entry->name = ArenaPushString8Copy(arena, token.text);
 
-        if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_SEMICOLON))
+        if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_SEMICOLON))
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_SEMICOLON), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_SEMICOLON), TokenType::String(token.type));
             return false;
         }
+
+        entry_count++;
     }
+
+    buffer_def->field_count = entry_count;
+    buffer_def->fields = ArenaPushArray(arena, UniformBufferEntry, entry_count);
+    MemCpy(buffer_def->fields, entries, sizeof(UniformBufferEntry) * entry_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
 #define MATCH_FORMAT(type, value)                                                                                                                                                                      \
-    if (CurrentToken->MatchesKeyword(type))                                                                                                                                                            \
+    if (current_token->MatchesKeyword(String8Raw(type)))                                                                                                                                               \
     {                                                                                                                                                                                                  \
-        OutType->UnderlyingType = value;                                                                                                                                                               \
+        out_type->UnderlyingType = value;                                                                                                                                                              \
     }
 
-bool ShaderFXParser::ParseDataType(const LexerToken* CurrentToken, renderer::ShaderDataType* OutType)
+bool ShaderFXParser::ParseDataType(ArenaAllocator* arena, const LexerToken* current_token, renderer::ShaderDataType* out_type)
 {
-    char Char = CurrentToken->Text[0];
-    OutType->UnderlyingType = renderer::ShaderDataType::Count;
-    switch (Char)
+    char character = current_token->text.ptr[0];
+    out_type->UnderlyingType = renderer::ShaderDataType::Count;
+    switch (character)
     {
         case 'f': // "Float", "Float2", "Float3", "Float4"
         case 'F':
@@ -572,58 +651,61 @@ bool ShaderFXParser::ParseDataType(const LexerToken* CurrentToken, renderer::Sha
     }
 
     // Invalid type
-    if (OutType->UnderlyingType == renderer::ShaderDataType::Count)
+    if (out_type->UnderlyingType == renderer::ShaderDataType::Count)
     {
-        this->SetError("Invalid data type '%s'", *CurrentToken->ToString());
+        this->SetError(arena, "Invalid data type '%S'", current_token->text);
         return false;
     }
 
     // Is this an array type?
-    uint64     CurrentCursorPosition = Lexer->Position;
-    LexerToken NextToken;
-    if (LexerError ErrorCode = Lexer->NextToken(&NextToken))
+    u64        current_cursor_position = Lexer->position;
+    LexerToken next_token;
+    if (LexerError ErrorCode = Lexer->NextToken(&next_token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
         return false;
     }
 
     // Array type?
-    if (NextToken.Type == TokenType::TOKEN_TYPE_OPEN_BRACKET)
+    if (next_token.type == TokenType::TOKEN_TYPE_OPEN_BRACKET)
     {
-        if (LexerError ErrorCode = Lexer->NextToken(&NextToken))
+        if (LexerError ErrorCode = Lexer->NextToken(&next_token))
         {
-            this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+            this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
             return false;
         }
 
-        if (NextToken.Type == TokenType::TOKEN_TYPE_NUMBER)
+        if (next_token.type == TokenType::TOKEN_TYPE_NUMBER)
         {
-            if (NextToken.FloatValue < 0.0f)
+            if (next_token.float_value < 0.0f)
             {
-                this->SetError("Array size cannot be negative");
+                this->SetError(arena, "Array size cannot be negative");
                 return false;
             }
 
-            OutType->ArraySize = (uint16)NextToken.FloatValue;
+            out_type->ArraySize = (uint16)next_token.float_value;
 
             // Move forward
-            if (LexerError ErrorCode = Lexer->NextToken(&NextToken))
+            if (LexerError ErrorCode = Lexer->NextToken(&next_token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
                 return false;
             }
         }
 
-        if (NextToken.Type != TokenType::TOKEN_TYPE_CLOSE_BRACKET)
+        if (next_token.type != TokenType::TOKEN_TYPE_CLOSE_BRACKET)
         {
-            this->SetError("Array not terminated");
+            this->SetError(arena, "Array not terminated");
             return false;
         }
     }
     else
     {
+        // Non-Array type values have an array size of 1
+        out_type->ArraySize = 1;
+
         // Go back to the original position
-        Lexer->MoveCursorTo(CurrentCursorPosition);
+        Lexer->MoveCursorTo(current_cursor_position);
     }
 
     return true;
@@ -631,96 +713,116 @@ bool ShaderFXParser::ParseDataType(const LexerToken* CurrentToken, renderer::Sha
 
 #undef MATCH_FORMAT
 
-bool ShaderFXParser::ParseNamedToken(const LexerToken* CurrentToken, LexerNamedToken* OutToken)
+bool ShaderFXParser::ParseNamedToken(ArenaAllocator* arena, const LexerToken* current_token, LexerNamedToken* out_token)
 {
-    if (CurrentToken->Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+    if (current_token->type != TokenType::TOKEN_TYPE_IDENTIFIER)
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(CurrentToken->Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(current_token->type));
         return false;
     }
 
-    OutToken->Key = StringView(CurrentToken->Text, CurrentToken->Length);
-    LexerToken NextToken;
-    if (!this->Lexer->ExpectToken(&NextToken, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+    out_token->key = current_token->text;
+    LexerToken next_token;
+    if (!this->Lexer->ExpectToken(&next_token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_PARENTHESIS), TokenType::String(CurrentToken->Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_PARENTHESIS), TokenType::String(current_token->type));
         return false;
     }
 
     // Skip past the parenthesis
-    if (LexerError ErrorCode = this->Lexer->NextToken(&NextToken))
+    if (LexerError error_code = this->Lexer->NextToken(&next_token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, error_code);
         return false;
     }
 
-    OutToken->Value = NextToken;
-    if (!this->Lexer->ExpectToken(&NextToken, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+    out_token->value = next_token;
+    if (!this->Lexer->ExpectToken(&next_token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_PARENTHESIS), TokenType::String(CurrentToken->Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_PARENTHESIS), TokenType::String(current_token->type));
         return false;
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseVertexLayout(VertexLayoutDefinition* Layout)
+bool ShaderFXParser::ParseVertexLayout(ArenaAllocator* arena, VertexLayoutDefinition* layout)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    const int  MAX_ATTRIBUTES = 16;
+    const int  MAX_BINDINGS = 16;
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena           scratch = ScratchBegin(&arena, 1);
+    VertexAttribute*    attributes = ArenaPushArray(scratch.arena, VertexAttribute, MAX_ATTRIBUTES);
+    u32                 attribute_count = 0;
+    VertexInputBinding* bindings = ArenaPushArray(scratch.arena, VertexInputBinding, MAX_BINDINGS);
+    u32                 binding_count = 0;
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        if (Token.MatchesKeyword("Attribute"))
+        if (token.MatchesKeyword(String8Raw("Attribute")))
         {
-            if (!this->ParseVertexAttribute(Layout))
+            if (!this->ParseVertexAttribute(arena, &attributes[attribute_count]))
             {
                 return false;
             }
+
+            attribute_count++;
         }
-        else if (Token.MatchesKeyword("Binding"))
+        else if (token.MatchesKeyword(String8Raw("Binding")))
         {
-            if (!this->ParseVertexInputBinding(Layout))
+            if (!this->ParseVertexInputBinding(arena, &bindings[binding_count]))
             {
                 return false;
             }
+
+            binding_count++;
         }
     }
+
+    layout->attribute_count = attribute_count;
+    layout->input_binding_count = binding_count;
+    layout->attributes = ArenaPushArray(arena, VertexAttribute, attribute_count);
+    layout->input_bindings = ArenaPushArray(arena, VertexInputBinding, binding_count);
+    MemCpy(layout->attributes, attributes, sizeof(VertexAttribute) * attribute_count);
+    MemCpy(layout->input_bindings, bindings, sizeof(VertexInputBinding) * binding_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
-bool ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition* Layout)
+bool ShaderFXParser::ParseVertexAttribute(ArenaAllocator* arena, VertexAttribute* attribute)
 {
-    LexerToken      CurrentToken;
-    VertexAttribute Attribute;
-    Attribute.Format = renderer::ShaderDataType::Invalid();
+    LexerToken current_token;
+    attribute->format = renderer::ShaderDataType::Invalid();
 
-    if (!this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_IDENTIFIER))
+    if (!this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_IDENTIFIER))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(CurrentToken.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(current_token.type));
         return false;
     }
 
     // Format identifier
-    if (!ParseDataType(&CurrentToken, &Attribute.Format))
+    if (!ParseDataType(arena, &current_token, &attribute->format))
     {
         return false;
     }
 
-    if (!this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_IDENTIFIER))
+    if (!this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_IDENTIFIER))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(CurrentToken.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(current_token.type));
         return false;
     }
 
@@ -729,259 +831,251 @@ bool ShaderFXParser::ParseVertexAttribute(VertexLayoutDefinition* Layout)
     // Attribute.Name = String(Token, Token.Length);
 
     // Binding
-    if (this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_NUMBER))
+    if (this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Binding = (uint16)CurrentToken.FloatValue;
+        attribute->binding = (u16)current_token.float_value;
     }
     else
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(CurrentToken.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(current_token.type));
         return false;
     }
 
     // Location
-    if (this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_NUMBER))
+    if (this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Location = (uint16)CurrentToken.FloatValue;
+        attribute->location = (u16)current_token.float_value;
     }
     else
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(CurrentToken.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(current_token.type));
         return false;
     }
 
     // Offset
-    if (this->Lexer->ExpectToken(&CurrentToken, TokenType::TOKEN_TYPE_NUMBER))
+    if (this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        Attribute.Offset = (uint16)CurrentToken.FloatValue;
+        attribute->offset = (u16)current_token.float_value;
     }
     else
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(CurrentToken.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(current_token.type));
         return false;
     }
 
-    Layout->Attributes.Push(Attribute);
     return true;
 }
 
-bool ShaderFXParser::ParseVertexInputBinding(VertexLayoutDefinition* Layout)
+bool ShaderFXParser::ParseVertexInputBinding(ArenaAllocator* arena, VertexInputBinding* input_binding)
 {
-    LexerToken         Token;
-    VertexInputBinding InputBinding;
+    LexerToken token;
 
     // Binding
-    if (this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+    if (this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        InputBinding.Binding = (uint16)Token.FloatValue;
+        input_binding->binding = (u16)token.float_value;
     }
     else
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(token.type));
         return false;
     }
 
     // Stride
-    if (this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+    if (this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
     {
-        InputBinding.Stride = (uint16)Token.FloatValue;
+        input_binding->stride = (u16)token.float_value;
     }
     else
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(token.type));
         return false;
     }
 
     // Input Rate
-    if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+    if (LexerError err = this->Lexer->NextToken(&token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
         return false;
     }
 
-    if (Token.MatchesKeyword("vertex"))
+    if (token.MatchesKeyword(String8Raw("vertex")))
     {
-        InputBinding.InputRate = renderer::VertexInputRate::PerVertex;
+        input_binding->input_rate = renderer::VertexInputRate::PerVertex;
     }
-    else if (Token.MatchesKeyword("instance"))
+    else if (token.MatchesKeyword(String8Raw("instance")))
     {
-        InputBinding.InputRate = renderer::VertexInputRate::PerInstance;
+        input_binding->input_rate = renderer::VertexInputRate::PerInstance;
     }
     else
     {
-        this->SetError("Invalid value for VertexInputRate: '%s'", *Token.ToString());
+        this->SetError(arena, "Invalid value for VertexInputRate: '%S'", token.text);
         return false;
     }
 
-    Layout->InputBindings.Push(InputBinding);
     return true;
 }
 
-bool ShaderFXParser::ParseGLSLBlock(ShaderEffect* Effect)
+bool ShaderFXParser::ParseGLSLBlock(ArenaAllocator* arena, ShaderEffect* effect)
 {
-    LexerToken Token;
-    if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+    LexerToken token;
+    if (LexerError err = this->Lexer->NextToken(&token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
         return false;
     }
 
-    ShaderCodeFragment CodeFragment;
-    CodeFragment.Name = String(Token.Text, Token.Length);
+    effect->code_fragment.name = ArenaPushString8Copy(arena, token.text);
 
     // Consume the first brace of the GLSL Block
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+    if (LexerError err = this->Lexer->NextToken(&token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
         return false;
     }
 
-    char* ShaderCodeStart = Token.Text;
-
-    int OpenBraceCount = 1;
-    while (OpenBraceCount)
+    u8* shader_code_start = token.text.ptr;
+    int open_brace_count = 1;
+    while (open_brace_count)
     {
-        if (Token.Type == TokenType::TOKEN_TYPE_OPEN_BRACE)
+        if (token.type == TokenType::TOKEN_TYPE_OPEN_BRACE)
         {
-            OpenBraceCount++;
+            open_brace_count++;
         }
-        else if (Token.Type == TokenType::TOKEN_TYPE_CLOSE_BRACE)
+        else if (token.type == TokenType::TOKEN_TYPE_CLOSE_BRACE)
         {
-            OpenBraceCount--;
+            open_brace_count--;
         }
 
-        if (OpenBraceCount)
+        if (open_brace_count)
         {
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError ErrorCode = this->Lexer->NextToken(&token))
             {
-                if (ErrorCode == LEXER_ERROR_UNEXPECTED_CHARACTER && Token.Type == TokenType::TOKEN_TYPE_UNKNOWN)
+                if (ErrorCode == LEXER_ERROR_UNEXPECTED_CHARACTER && token.type == TokenType::TOKEN_TYPE_UNKNOWN)
                 {
                     continue;
                 }
 
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
                 return false;
             }
         }
     }
 
-    uint64 ShaderCodeLength = Token.Text - ShaderCodeStart;
-    CodeFragment.Code = String(ShaderCodeStart, ShaderCodeLength);
-    Effect->CodeFragments.Push(CodeFragment);
+    u64 shader_code_length = token.text.ptr - shader_code_start;
+    effect->code_fragment.code = ArenaPushString8Copy(arena, String8FromPtrAndLength(shader_code_start, shader_code_length));
+
     if (this->Verbose)
     {
-        KDEBUG("%s", *CodeFragment.Code);
+        KDEBUG("%S", effect->code_fragment.code);
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseRenderStateBlock(ShaderEffect* Effect)
+bool ShaderFXParser::ParseRenderStateBlock(ArenaAllocator* arena, ShaderEffect* effect)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
     // Parse all the render states
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
         // Expect "State"
-        if (Token.MatchesKeyword("State"))
+        if (token.MatchesKeyword(String8Raw("State")))
         {
             // Move past "State"
-            if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+            if (LexerError err = this->Lexer->NextToken(&token))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
                 return false;
             }
 
-            RenderStateDefinition State;
-            State.Name = String(Token.Text, Token.Length);
-
-            this->ParseRenderState(&State);
-            Effect->RenderStates.Push(State);
+            effect->render_state.name = ArenaPushString8Copy(arena, token.text);
+            this->ParseRenderState(arena, &effect->render_state);
         }
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
+bool ShaderFXParser::ParseRenderState(ArenaAllocator* arena, RenderStateDefinition* state)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    LexerToken token;
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        if (Token.MatchesKeyword("Cull"))
+        if (token.MatchesKeyword(String8Raw("Cull")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+                this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
                 return false;
             }
 
-            if (Token.MatchesKeyword("Back"))
+            if (token.MatchesKeyword(String8Raw("Back")))
             {
-                State->CullMode = renderer::CullModeFlags::Back;
+                state->cull_mode = renderer::CullModeFlags::Back;
             }
-            else if (Token.MatchesKeyword("Front"))
+            else if (token.MatchesKeyword(String8Raw("Front")))
             {
-                State->CullMode = renderer::CullModeFlags::Front;
+                state->cull_mode = renderer::CullModeFlags::Front;
             }
-            else if (Token.MatchesKeyword("FrontAndBack"))
+            else if (token.MatchesKeyword(String8Raw("FrontAndBack")))
             {
-                State->CullMode = renderer::CullModeFlags::FrontAndBack;
+                state->cull_mode = renderer::CullModeFlags::FrontAndBack;
             }
-            else if (Token.MatchesKeyword("Off") || Token.MatchesKeyword("None"))
+            else if (token.MatchesKeyword(String8Raw("Off")) || token.MatchesKeyword(String8Raw("None")))
             {
-                State->CullMode = renderer::CullModeFlags::None;
+                state->cull_mode = renderer::CullModeFlags::None;
             }
             else
             {
-                this->SetError("Invalid value for CullMode: '%s'", *Token.ToString());
+                this->SetError(arena, "Invalid value for CullMode: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("ZTest"))
+        else if (token.MatchesKeyword(String8Raw("ZTest")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
             bool Valid = false;
             for (int i = 0; i < renderer::CompareOp::Count; i++)
             {
-                if (Token.MatchesKeyword(renderer::CompareOp::Strings[i]))
+                if (token.MatchesKeyword(renderer::CompareOp::String((renderer::CompareOp::Enum)i)))
                 {
-                    State->ZTestOperation = (renderer::CompareOp::Enum)i;
+                    state->z_test_op = (renderer::CompareOp::Enum)i;
                     Valid = true;
                     break;
                 }
@@ -989,393 +1083,358 @@ bool ShaderFXParser::ParseRenderState(RenderStateDefinition* State)
 
             if (!Valid)
             {
-                this->SetError("Invalid value for ZTest: '%s'", *Token.ToString());
+                this->SetError(arena, "Invalid value for ZTest: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("ZWrite"))
+        else if (token.MatchesKeyword(String8Raw("ZWrite")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (Token.MatchesKeyword("On"))
+            if (token.MatchesKeyword(String8Raw("On")))
             {
-                State->ZWriteEnable = true;
+                state->z_write_enable = true;
             }
-            else if (Token.MatchesKeyword("Off"))
+            else if (token.MatchesKeyword(String8Raw("Off")))
             {
-                State->ZWriteEnable = false;
+                state->z_write_enable = false;
             }
             else
             {
-                this->SetError("Invalid value for ZWrite: '%s'", *Token.ToString());
+                this->SetError(arena, "Invalid value for ZWrite: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("Blend"))
+        else if (token.MatchesKeyword(String8Raw("Blend")))
         {
             // Lot of tokens to parse here
 
             // SrcColor
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
             // Blending turned off
-            if (Token.MatchesKeyword("Off") || Token.MatchesKeyword("None"))
+            if (token.MatchesKeyword(String8Raw("Off")) || token.MatchesKeyword(String8Raw("None")))
             {
-                State->BlendEnable = false;
+                state->blend_enable = false;
                 continue;
             }
 
-            State->BlendEnable = true;
-            if (!this->ParseBlendFactor(&Token, State->BlendMode.SrcColorBlendFactor))
+            state->blend_enable = true;
+            if (!this->ParseBlendFactor(arena, &token, &state->blend_mode.src_color_blend_factor))
             {
                 return false;
             }
 
             // DstColor
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (!this->ParseBlendFactor(&Token, State->BlendMode.DstColorBlendFactor))
+            if (!this->ParseBlendFactor(arena, &token, &state->blend_mode.dst_color_blend_factor))
             {
                 return false;
             }
 
             // Comma
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_COMMA))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_COMMA))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_COMMA), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_COMMA), TokenType::String(token.type));
                 return false;
             }
 
             // SrcAlpha
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (!this->ParseBlendFactor(&Token, State->BlendMode.SrcAlphaBlendFactor))
+            if (!this->ParseBlendFactor(arena, &token, &state->blend_mode.src_alpha_blend_factor))
             {
                 return false;
             }
 
             // DstAlpha
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (!this->ParseBlendFactor(&Token, State->BlendMode.DstAlphaBlendFactor))
+            if (!this->ParseBlendFactor(arena, &token, &state->blend_mode.dst_alpha_blend_factor))
             {
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("BlendOp"))
+        else if (token.MatchesKeyword(String8Raw("BlendOp")))
         {
             // ColorBlendOp
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            if (!this->ParseBlendOp(&Token, State->BlendMode.ColorBlendOperation))
+            if (!this->ParseBlendOp(arena, &token, &state->blend_mode.color_blend_op))
             {
                 return false;
             }
 
             // Comma
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_COMMA))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_COMMA))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_COMMA), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_COMMA), TokenType::String(token.type));
                 return false;
             }
 
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
             // AlphaBlendOp
-            if (!this->ParseBlendOp(&Token, State->BlendMode.AlphaBlendOperation))
+            if (!this->ParseBlendOp(arena, &token, &state->blend_mode.alpha_blend_op))
             {
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("PolygonMode"))
+        else if (token.MatchesKeyword(String8Raw("PolygonMode")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
             for (int i = 0; i < renderer::PolygonMode::Count; i++)
             {
-                if (Token.ToString() == renderer::PolygonMode::Strings[i])
+                if (StringEqual(token.text, renderer::PolygonMode::strings[i]))
                 {
-                    State->PolygonMode = (renderer::PolygonMode::Enum)i;
+                    state->polygon_mode = (renderer::PolygonMode::Enum)i;
                     break;
                 }
             }
         }
-        else if (Token.MatchesKeyword("LineWidth"))
+        else if (token.MatchesKeyword(String8Raw("LineWidth")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_NUMBER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_NUMBER), TokenType::String(token.type));
                 return false;
             }
 
-            State->LineWidth = (float32)Token.FloatValue;
+            state->line_width = (f32)token.float_value;
         }
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseBlendFactor(const LexerToken* Token, renderer::BlendFactor::Enum& Factor)
+bool ShaderFXParser::ParseBlendFactor(ArenaAllocator* arena, const LexerToken* token, renderer::BlendFactor::Enum* factor)
 {
-    bool Valid = false;
+    bool valid = false;
     for (int i = 0; i < renderer::BlendFactor::Count; i++)
     {
-        if (Token->MatchesKeyword(renderer::BlendFactor::Strings[i]))
+        if (token->MatchesKeyword(renderer::BlendFactor::strings[i]))
         {
-            Factor = (renderer::BlendFactor::Enum)i;
-            Valid = true;
+            *factor = (renderer::BlendFactor::Enum)i;
+            valid = true;
             break;
         }
     }
 
-    if (!Valid)
+    if (!valid)
     {
-        this->SetError("Invalid value for BlendFactor: '%s'", *Token->ToString());
+        this->SetError(arena, "Invalid value for BlendFactor: '%S'", token->text);
         return false;
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseBlendOp(const LexerToken* Token, renderer::BlendOp::Enum& Op)
+bool ShaderFXParser::ParseBlendOp(ArenaAllocator* arena, const LexerToken* token, renderer::BlendOp::Enum* op)
 {
-    bool Valid = false;
+    bool valid = false;
     for (int i = 0; i < renderer::BlendOp::Count; i++)
     {
-        if (Token->MatchesKeyword(renderer::BlendOp::Strings[i]))
+        if (token->MatchesKeyword(renderer::BlendOp::strings[i]))
         {
-            Op = (renderer::BlendOp::Enum)i;
-            Valid = true;
+            *op = (renderer::BlendOp::Enum)i;
+            valid = true;
             break;
         }
     }
 
-    if (!Valid)
+    if (!valid)
     {
-        this->SetError("Invalid value for BlendOp: '%s'", *Token->ToString());
+        this->SetError(arena, "Invalid value for BlendOp: '%S'", token->text);
         return false;
     }
 
     return true;
 }
 
-bool ShaderFXParser::ParseRenderPassBlock(ShaderEffect* Effect)
+bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* effect)
 {
     // Consume the name of the pass
-    LexerToken Token;
-    if (LexerError ErrorCode = this->Lexer->NextToken(&Token))
+    LexerToken token;
+    if (LexerError err = this->Lexer->NextToken(&token))
     {
-        this->SetError(PARSER_ERROR_NEXT_TOKEN_READ_FAILED, ErrorCode);
+        this->SetError(arena, PARSER_ERROR_NEXT_TOKEN_READ_FAILED, err);
         return false;
     }
 
-    RenderPassDefinition Pass;
-    Pass.Name = String(Token.Text, Token.Length);
+    effect->render_pass_def.name = ArenaPushString8Copy(arena, token.text);
 
     // Consume the first brace of the GLSL Block
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_OPEN_BRACE))
+    if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(Token.Type));
+        this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
         return false;
     }
 
-    while (!this->Lexer->EqualsToken(&Token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
+    TempArena scratch = ScratchBegin(&arena, 1);
+
+    u32                                     shader_def_count = 0;
+    RenderPassDefinition::ShaderDefinition* shader_defs = ArenaPushArray(scratch.arena, RenderPassDefinition::ShaderDefinition, 6);
+
+    while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
-        if (Token.Type != TokenType::TOKEN_TYPE_IDENTIFIER)
+        if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
-            this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+            this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
             return false;
         }
 
-        if (Token.MatchesKeyword("RenderState"))
+        if (token.MatchesKeyword(String8Raw("RenderState")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            StringView Name = Token.ToStringView();
-            bool       Valid = false;
-            for (int i = 0; i < Effect->RenderStates.Length; i++)
+            StringView name = StringView((char*)token.text.ptr, token.text.count);
+            effect->render_pass_def.render_state = &effect->render_state;
+        }
+        else if (token.MatchesKeyword(String8Raw("VertexLayout")))
+        {
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                if (Effect->RenderStates[i].Name == Name)
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                return false;
+            }
+
+            bool valid = false;
+            for (i32 i = 0; i < effect->vertex_layout_count; i++)
+            {
+                if (StringEqual(effect->vertex_layouts[i].name, token.text))
                 {
-                    Pass.RenderState = &Effect->RenderStates[i];
-                    Valid = true;
+                    effect->render_pass_def.vertex_layout = &effect->vertex_layouts[i];
+                    valid = true;
                     break;
                 }
             }
 
-            if (!Valid)
+            if (!valid)
             {
-                this->SetError("Unknown RenderState: '%s'", *Token.ToString());
+                this->SetError(arena, "Unknown VertexLayout: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("VertexLayout"))
+        else if (token.MatchesKeyword(String8Raw("Resources")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
-                return false;
-            }
-
-            StringView Name = Token.ToStringView();
-            bool       Valid = false;
-            for (int i = 0; i < Effect->VertexLayouts.Length; i++)
-            {
-                if (Effect->VertexLayouts[i].Name == Name)
-                {
-                    Pass.VertexLayout = &Effect->VertexLayouts[i];
-                    Valid = true;
-                    break;
-                }
-            }
-
-            if (!Valid)
-            {
-                this->SetError("Unknown VertexLayout: '%s'", *Token.ToString());
-                return false;
-            }
-        }
-        else if (Token.MatchesKeyword("Resources"))
-        {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
-            {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
             // It is possible for shaders to have no local resources
-            if (Effect->LocalResources.Length == 0)
+            if (effect->local_resource_count == 0)
                 continue;
 
-            StringView Name = Token.ToStringView();
-            bool       Valid = false;
-            for (int i = 0; i < Effect->LocalResources.Length; i++)
+            bool valid = false;
+            for (int i = 0; i < effect->local_resource_count; i++)
             {
-                if (Effect->LocalResources[i].Name == Name)
+                if (StringEqual(effect->local_resources[i].name, token.text))
                 {
-                    Pass.Resources = &Effect->LocalResources[i];
-                    Valid = true;
+                    effect->render_pass_def.resources = &effect->local_resources[i];
+                    valid = true;
                     break;
                 }
             }
 
-            if (!Valid)
+            if (!valid)
             {
-                this->SetError("Unknown Resource: '%s'", *Token.ToString());
+                this->SetError(arena, "Unknown Resource: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("ConstantBuffer"))
+        else if (token.MatchesKeyword(String8Raw("ConstantBuffer")))
         {
-            if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
-                this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
                 return false;
             }
 
-            StringView Name = Token.ToStringView();
-            bool       Valid = false;
-            for (int i = 0; i < Effect->ConstantBuffers.Length; i++)
+            bool valid = false;
+            for (int i = 0; i < effect->constant_buffer_count; i++)
             {
-                if (Effect->ConstantBuffers[i].Name == Name)
+                if (StringEqual(effect->constant_buffers[i].name, token.text))
                 {
-                    Pass.ConstantBuffers = &Effect->ConstantBuffers[i];
-                    Valid = true;
+                    effect->render_pass_def.contant_buffers = &effect->constant_buffers[i];
+                    valid = true;
                     break;
                 }
             }
 
-            if (!Valid)
+            if (!valid)
             {
-                this->SetError("Unknown ConstantBuffer: '%s'", *Token.ToString());
+                this->SetError(arena, "Unknown ConstantBuffer: '%S'", token.text);
                 return false;
             }
         }
-        else if (Token.MatchesKeyword("VertexShader"))
+        else if (token.MatchesKeyword(String8Raw("VertexShader")))
         {
-            if (!this->ParseRenderPassShaderStage(Effect, &Pass, renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX))
-            {
-                return false;
-            }
+            shader_defs[shader_def_count].stage = renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX;
+            shader_defs[shader_def_count].code_fragment = effect->code_fragment;
+
+            shader_def_count++;
         }
-        else if (Token.MatchesKeyword("FragmentShader"))
+        else if (token.MatchesKeyword(String8Raw("FragmentShader")))
         {
-            if (!this->ParseRenderPassShaderStage(Effect, &Pass, renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT))
-            {
-                return false;
-            }
+            shader_defs[shader_def_count].stage = renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT;
+            shader_defs[shader_def_count].code_fragment = effect->code_fragment;
+
+            shader_def_count++;
         }
     }
 
-    Effect->RenderPasses.Push(Pass);
+    effect->render_pass_def.shader_stage_count = shader_def_count;
+    effect->render_pass_def.shader_stages = ArenaPushArray(arena, RenderPassDefinition::ShaderDefinition, shader_def_count);
+    MemCpy(effect->render_pass_def.shader_stages, shader_defs, sizeof(RenderPassDefinition::ShaderDefinition) * shader_def_count);
+
+    ScratchEnd(scratch);
 
     return true;
 }
 
-bool ShaderFXParser::ParseRenderPassShaderStage(ShaderEffect* Effect, RenderPassDefinition* Pass, renderer::ShaderStageFlags ShaderStage)
+bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
 {
-    LexerToken Token;
-    if (!this->Lexer->ExpectToken(&Token, TokenType::TOKEN_TYPE_IDENTIFIER))
-    {
-        this->SetError(PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(Token.Type));
-        return false;
-    }
-
-    for (int i = 0; i < Effect->CodeFragments.Length; i++)
-    {
-        if (Token.MatchesKeyword(Effect->CodeFragments[i].Name))
-        {
-            RenderPassDefinition::ShaderDefinition Stage;
-            Stage.Stage = ShaderStage;
-            Stage.CodeFragment = Effect->CodeFragments[i];
-            Pass->ShaderStages.Push(Stage);
-
-            return true;
-        }
-    }
-
-    this->SetError("Unknown Shader: '%s'", *Token.ToString());
-    return false;
-}
-
-bool LoadShaderFX(String8 path, ShaderEffect* Shader)
-{
+    KASSERT(arena);
     filesystem::FileHandle File;
 
     // Read test
@@ -1385,56 +1444,156 @@ bool LoadShaderFX(String8 path, ShaderEffect* Shader)
         return false;
     }
 
-    uint64 BinaryBufferSize = kraft::filesystem::GetFileSize(&File) + 1;
-    uint8* BinaryBuffer = (uint8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
+    u64 BinaryBufferSize = kraft::filesystem::GetFileSize(&File) + 1;
+    u8* BinaryBuffer = (uint8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
     filesystem::ReadAllBytes(&File, &BinaryBuffer);
     filesystem::CloseFile(&File);
 
     kraft::Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
-    Reader.Read(&Shader->Name);
-    Reader.Read(&Shader->ResourcePath);
-    Reader.Read(&Shader->VertexLayouts);
-    Reader.Read(&Shader->LocalResources);
-    Reader.Read(&Shader->GlobalResources);
-    Reader.Read(&Shader->ConstantBuffers);
-    Reader.Read(&Shader->UniformBuffers);
-    Reader.Read(&Shader->StorageBuffers);
-    Reader.Read(&Shader->RenderStates);
+    effect->name = Reader.ReadString(arena);
+    effect->resource_path = Reader.ReadString(arena);
 
-    uint64 RenderPassesCount;
-    Reader.Read(&RenderPassesCount);
-
-    Shader->RenderPasses = Array<RenderPassDefinition>(RenderPassesCount);
-    for (int i = 0; i < RenderPassesCount; i++)
+    effect->vertex_layout_count = Reader.Readu32();
+    effect->vertex_layouts = ArenaPushArray(arena, VertexLayoutDefinition, effect->vertex_layout_count);
+    for (u32 i = 0; i < effect->vertex_layout_count; i++)
     {
-        RenderPassDefinition& Pass = Shader->RenderPasses[i];
-        Reader.Read(&Pass.Name);
+        effect->vertex_layouts[i].name = Reader.ReadString(arena);
 
-        int64 VertexLayoutOffset;
-        Reader.Read(&VertexLayoutOffset);
-        Pass.VertexLayout = &Shader->VertexLayouts[VertexLayoutOffset];
-
-        int64 ResourcesOffset;
-        Reader.Read(&ResourcesOffset);
-        Pass.Resources = ResourcesOffset > -1 ? &Shader->LocalResources[ResourcesOffset] : nullptr;
-
-        int64 ConstantBuffersOffset;
-        Reader.Read(&ConstantBuffersOffset);
-        Pass.ConstantBuffers = &Shader->ConstantBuffers[ConstantBuffersOffset];
-
-        int64 RenderStateOffset;
-        Reader.Read(&RenderStateOffset);
-        Pass.RenderState = &Shader->RenderStates[RenderStateOffset];
-
-        uint64 ShaderStagesCount;
-        Reader.Read(&ShaderStagesCount);
-        Pass.ShaderStages = Array<RenderPassDefinition::ShaderDefinition>(ShaderStagesCount);
-        for (int j = 0; j < ShaderStagesCount; j++)
+        effect->vertex_layouts[i].attribute_count = Reader.Readu32();
+        effect->vertex_layouts[i].attributes = ArenaPushArray(arena, VertexAttribute, effect->vertex_layouts[i].attribute_count);
+        for (u32 j = 0; j < effect->vertex_layouts[i].attribute_count; j++)
         {
-            RenderPassDefinition::ShaderDefinition& Stage = Pass.ShaderStages[j];
-            Reader.Read(&Stage.Stage);
-            Reader.Read(&Stage.CodeFragment);
+            effect->vertex_layouts[i].attributes[j].location = Reader.Readu16();
+            effect->vertex_layouts[i].attributes[j].binding = Reader.Readu16();
+            effect->vertex_layouts[i].attributes[j].offset = Reader.Readu16();
+            // Reader.ReadRaw(&effect->vertex_layouts[i].attributes[j].format, sizeof(renderer::ShaderDataType));
+            effect->vertex_layouts[i].attributes[j].format.UnderlyingType = (renderer::ShaderDataType::Enum)Reader.Readu8();
+            effect->vertex_layouts[i].attributes[j].format.ArraySize = Reader.Readu16();
         }
+
+        effect->vertex_layouts[i].input_binding_count = Reader.Readu32();
+        effect->vertex_layouts[i].input_bindings = ArenaPushArray(arena, VertexInputBinding, effect->vertex_layouts[i].input_binding_count);
+        for (u32 j = 0; j < effect->vertex_layouts[i].input_binding_count; j++)
+        {
+            effect->vertex_layouts[i].input_bindings[j].binding = Reader.Readu16();
+            effect->vertex_layouts[i].input_bindings[j].stride = Reader.Readu16();
+            effect->vertex_layouts[i].input_bindings[j].input_rate = (renderer::VertexInputRate::Enum)Reader.Readi32();
+        }
+    }
+
+    effect->local_resource_count = Reader.Readu32();
+    effect->local_resources = ArenaPushArray(arena, ResourceBindingsDefinition, effect->local_resource_count);
+    for (u32 i = 0; i < effect->local_resource_count; i++)
+    {
+        effect->local_resources[i].name = Reader.ReadString(arena);
+        effect->local_resources[i].binding_count = Reader.Readu32();
+        effect->local_resources[i].bindings = ArenaPushArray(arena, ResourceBinding, effect->local_resources[i].binding_count);
+        for (u32 j = 0; j < effect->local_resources[i].binding_count; j++)
+        {
+            effect->local_resources[i].bindings[j].name = Reader.ReadString(arena);
+            effect->local_resources[i].bindings[j].set = Reader.Readu16();
+            effect->local_resources[i].bindings[j].binding = Reader.Readu16();
+            effect->local_resources[i].bindings[j].size = Reader.Readu16();
+            effect->local_resources[i].bindings[j].parent_index = Reader.Readi16();
+            effect->local_resources[i].bindings[j].type = (renderer::ResourceType::Enum)Reader.Readi32();
+            effect->local_resources[i].bindings[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+        }
+    }
+
+    effect->global_resource_count = Reader.Readu32();
+    effect->global_resources = ArenaPushArray(arena, ResourceBindingsDefinition, effect->global_resource_count);
+    for (u32 i = 0; i < effect->global_resource_count; i++)
+    {
+        effect->global_resources[i].name = Reader.ReadString(arena);
+        effect->global_resources[i].binding_count = Reader.Readu32();
+        effect->global_resources[i].bindings = ArenaPushArray(arena, ResourceBinding, effect->global_resources[i].binding_count);
+        for (u32 j = 0; j < effect->global_resources[i].binding_count; j++)
+        {
+            effect->global_resources[i].bindings[j].name = Reader.ReadString(arena);
+            effect->global_resources[i].bindings[j].set = Reader.Readu16();
+            effect->global_resources[i].bindings[j].binding = Reader.Readu16();
+            effect->global_resources[i].bindings[j].size = Reader.Readu16();
+            effect->global_resources[i].bindings[j].parent_index = Reader.Readi16();
+            effect->global_resources[i].bindings[j].type = (renderer::ResourceType::Enum)Reader.Readi32();
+            effect->global_resources[i].bindings[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+        }
+    }
+
+    effect->constant_buffer_count = Reader.Readu32();
+    effect->constant_buffers = ArenaPushArray(arena, ConstantBufferDefinition, effect->constant_buffer_count);
+    for (u32 i = 0; i < effect->constant_buffer_count; i++)
+    {
+        effect->constant_buffers[i].name = Reader.ReadString(arena);
+        effect->constant_buffers[i].field_count = Reader.Readu32();
+        effect->constant_buffers[i].fields = ArenaPushArray(arena, ConstantBufferEntry, effect->constant_buffers[i].field_count);
+        for (u32 j = 0; j < effect->constant_buffers[i].field_count; j++)
+        {
+            effect->constant_buffers[i].fields[j].name = Reader.ReadString(arena);
+            effect->constant_buffers[i].fields[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+            Reader.ReadRaw(&effect->constant_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+        }
+    }
+
+    effect->uniform_buffer_count = Reader.Readu32();
+    effect->uniform_buffers = ArenaPushArray(arena, UniformBufferDefinition, effect->uniform_buffer_count);
+    for (u32 i = 0; i < effect->uniform_buffer_count; i++)
+    {
+        effect->uniform_buffers[i].name = Reader.ReadString(arena);
+        effect->uniform_buffers[i].field_count = Reader.Readu32();
+        effect->uniform_buffers[i].fields = ArenaPushArray(arena, UniformBufferEntry, effect->uniform_buffers[i].field_count);
+        for (u32 j = 0; j < effect->uniform_buffers[i].field_count; j++)
+        {
+            effect->uniform_buffers[i].fields[j].name = Reader.ReadString(arena);
+            Reader.ReadRaw(&effect->uniform_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+        }
+    }
+
+    effect->storage_buffer_count = Reader.Readu32();
+    effect->storage_buffers = ArenaPushArray(arena, UniformBufferDefinition, effect->storage_buffer_count);
+    for (u32 i = 0; i < effect->storage_buffer_count; i++)
+    {
+        effect->storage_buffers[i].name = Reader.ReadString(arena);
+        effect->storage_buffers[i].field_count = Reader.Readu32();
+        effect->storage_buffers[i].fields = ArenaPushArray(arena, UniformBufferEntry, effect->storage_buffers[i].field_count);
+        for (u32 j = 0; j < effect->storage_buffers[i].field_count; j++)
+        {
+            effect->storage_buffers[i].fields[j].name = Reader.ReadString(arena);
+            Reader.ReadRaw(&effect->storage_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+        }
+    }
+
+    // RenderState
+    effect->render_state.name = Reader.ReadString(arena);
+    effect->render_state.cull_mode = (renderer::CullModeFlags::Enum)Reader.Readi32();
+    effect->render_state.z_test_op = (renderer::CompareOp::Enum)Reader.Readi32();
+    effect->render_state.z_write_enable = Reader.Readbool();
+    effect->render_state.blend_enable = Reader.Readbool();
+    Reader.ReadRaw(&effect->render_state.blend_mode, sizeof(renderer::BlendState));
+    effect->render_state.polygon_mode = (renderer::PolygonMode::Enum)Reader.Readi32();
+    effect->render_state.line_width = Reader.Readf32();
+
+    effect->render_pass_def.name = Reader.ReadString(arena);
+
+    i64 vertex_layout_offset = Reader.Readi64();
+    effect->render_pass_def.vertex_layout = &effect->vertex_layouts[vertex_layout_offset];
+
+    i64 resources_offset = Reader.Readi64();
+    effect->render_pass_def.resources = resources_offset > -1 ? &effect->local_resources[resources_offset] : 0;
+
+    i64 constant_buffers_offset = Reader.Readi64();
+    effect->render_pass_def.contant_buffers = &effect->constant_buffers[constant_buffers_offset];
+
+    // TODO: is this required?
+    i64 _render_state_offset = Reader.Readi64();
+    effect->render_pass_def.render_state = &effect->render_state;
+
+    effect->render_pass_def.shader_stage_count = Reader.Readu32();
+    effect->render_pass_def.shader_stages = ArenaPushArray(arena, RenderPassDefinition::ShaderDefinition, effect->render_pass_def.shader_stage_count);
+    for (u32 i = 0; i < effect->render_pass_def.shader_stage_count; i++)
+    {
+        effect->render_pass_def.shader_stages[i].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+        effect->render_pass_def.shader_stages[i].code_fragment.name = Reader.ReadString(arena);
+        effect->render_pass_def.shader_stages[i].code_fragment.code = Reader.ReadString(arena);
     }
 
     kraft::Free(BinaryBuffer, BinaryBufferSize, MEMORY_TAG_FILE_BUF);
@@ -1442,84 +1601,76 @@ bool LoadShaderFX(String8 path, ShaderEffect* Shader)
     return true;
 }
 
-bool ValidateShaderFX(const ShaderEffect& ShaderA, ShaderEffect& ShaderB)
+bool ValidateShaderFX(const ShaderEffect* shader1, const ShaderEffect* shader2)
 {
-    KASSERT(ShaderA.Name == ShaderB.Name);
-    KASSERT(ShaderA.ResourcePath == ShaderB.ResourcePath);
-    KASSERT(ShaderA.VertexLayouts.Length == ShaderB.VertexLayouts.Length);
+    KASSERT(StringEqual(shader1->name, shader2->name));
+    KASSERT(StringEqual(shader1->resource_path, shader2->resource_path));
 
     // Buffers
-    KASSERT(ShaderA.UniformBuffers.Length == ShaderB.UniformBuffers.Length);
-    for (int i = 0; i < ShaderA.UniformBuffers.Length; i++)
+    KASSERT(shader1->uniform_buffer_count == shader2->uniform_buffer_count);
+    for (int i = 0; i < shader1->uniform_buffer_count; i++)
     {
-        KASSERT(ShaderA.UniformBuffers[i].Name == ShaderB.UniformBuffers[i].Name);
-        KASSERT(ShaderA.UniformBuffers[i].Fields.Length == ShaderB.UniformBuffers[i].Fields.Length);
-        for (int j = 0; j < ShaderA.UniformBuffers[i].Fields.Length; j++)
+        KASSERT(StringEqual(shader1->uniform_buffers[i].name, shader2->uniform_buffers[i].name));
+        KASSERT(shader1->uniform_buffers[i].field_count == shader2->uniform_buffers[i].field_count);
+        for (int j = 0; j < shader1->uniform_buffers[i].field_count; j++)
         {
-            KASSERT(ShaderA.UniformBuffers[i].Fields[j].Name == ShaderB.UniformBuffers[i].Fields[j].Name);
-            KASSERT(ShaderA.UniformBuffers[i].Fields[j].Type == ShaderB.UniformBuffers[i].Fields[j].Type);
+            KASSERT(StringEqual(shader1->uniform_buffers[i].fields[j].name, shader2->uniform_buffers[i].fields[j].name));
+            KASSERT(shader1->uniform_buffers[i].fields[j].type == shader2->uniform_buffers[i].fields[j].type);
         }
     }
 
-    KASSERT(ShaderA.StorageBuffers.Length == ShaderB.StorageBuffers.Length);
-    for (int i = 0; i < ShaderA.StorageBuffers.Length; i++)
+    KASSERT(shader1->storage_buffer_count == shader2->storage_buffer_count);
+    for (int i = 0; i < shader1->storage_buffer_count; i++)
     {
-        KASSERT(ShaderA.StorageBuffers[i].Name == ShaderB.StorageBuffers[i].Name);
-        KASSERT(ShaderA.StorageBuffers[i].Fields.Length == ShaderB.StorageBuffers[i].Fields.Length);
-        for (int j = 0; j < ShaderA.StorageBuffers[i].Fields.Length; j++)
+        KASSERT(StringEqual(shader1->storage_buffers[i].name, shader2->storage_buffers[i].name));
+        KASSERT(shader1->storage_buffers[i].field_count == shader2->storage_buffers[i].field_count);
+        for (int j = 0; j < shader1->storage_buffers[i].field_count; j++)
         {
-            KASSERT(ShaderA.StorageBuffers[i].Fields[j].Name == ShaderB.StorageBuffers[i].Fields[j].Name);
-            KASSERT(ShaderA.StorageBuffers[i].Fields[j].Type == ShaderB.StorageBuffers[i].Fields[j].Type);
+            KASSERT(StringEqual(shader1->storage_buffers[i].fields[j].name, shader2->storage_buffers[i].fields[j].name));
+            KASSERT(shader1->storage_buffers[i].fields[j].type == shader2->storage_buffers[i].fields[j].type);
         }
     }
 
-    for (int i = 0; i < ShaderA.VertexLayouts.Length; i++)
+    KASSERT(shader1->vertex_layout_count == shader2->vertex_layout_count);
+    for (int i = 0; i < shader1->vertex_layout_count; i++)
     {
-        KASSERT(ShaderA.VertexLayouts[i].Name == ShaderB.VertexLayouts[i].Name);
-        KASSERT(ShaderA.VertexLayouts[i].Attributes.Length == ShaderB.VertexLayouts[i].Attributes.Length);
-        KASSERT(ShaderA.VertexLayouts[i].InputBindings.Length == ShaderB.VertexLayouts[i].InputBindings.Length);
+        KASSERT(StringEqual(shader1->vertex_layouts[i].name, shader2->vertex_layouts[i].name));
+        KASSERT(shader1->vertex_layouts[i].attribute_count == shader2->vertex_layouts[i].attribute_count);
+        KASSERT(shader1->vertex_layouts[i].input_binding_count == shader2->vertex_layouts[i].input_binding_count);
 
-        for (int j = 0; j < ShaderA.VertexLayouts[i].Attributes.Length; j++)
+        for (int j = 0; j < shader1->vertex_layouts[i].attribute_count; j++)
         {
-            KASSERT(ShaderA.VertexLayouts[i].Attributes[j].Location == ShaderB.VertexLayouts[i].Attributes[j].Location);
-            KASSERT(ShaderA.VertexLayouts[i].Attributes[j].Binding == ShaderB.VertexLayouts[i].Attributes[j].Binding);
-            KASSERT(ShaderA.VertexLayouts[i].Attributes[j].Offset == ShaderB.VertexLayouts[i].Attributes[j].Offset);
-            KASSERT(ShaderA.VertexLayouts[i].Attributes[j].Format == ShaderB.VertexLayouts[i].Attributes[j].Format);
+            KASSERT(shader1->vertex_layouts[i].attributes[j].location == shader2->vertex_layouts[i].attributes[j].location);
+            KASSERT(shader1->vertex_layouts[i].attributes[j].binding == shader2->vertex_layouts[i].attributes[j].binding);
+            KASSERT(shader1->vertex_layouts[i].attributes[j].offset == shader2->vertex_layouts[i].attributes[j].offset);
+            KASSERT(shader1->vertex_layouts[i].attributes[j].format == shader2->vertex_layouts[i].attributes[j].format);
         }
 
-        for (int j = 0; j < ShaderA.VertexLayouts[i].InputBindings.Length; j++)
+        for (int j = 0; j < shader1->vertex_layouts[i].input_binding_count; j++)
         {
-            KASSERT(ShaderA.VertexLayouts[i].InputBindings[j].Binding == ShaderB.VertexLayouts[i].InputBindings[j].Binding);
-            KASSERT(ShaderA.VertexLayouts[i].InputBindings[j].Stride == ShaderB.VertexLayouts[i].InputBindings[j].Stride);
-            KASSERT(ShaderA.VertexLayouts[i].InputBindings[j].InputRate == ShaderB.VertexLayouts[i].InputBindings[j].InputRate);
+            KASSERT(shader1->vertex_layouts[i].input_bindings[j].binding == shader2->vertex_layouts[i].input_bindings[j].binding);
+            KASSERT(shader1->vertex_layouts[i].input_bindings[j].stride == shader2->vertex_layouts[i].input_bindings[j].stride);
+            KASSERT(shader1->vertex_layouts[i].input_bindings[j].input_rate == shader2->vertex_layouts[i].input_bindings[j].input_rate);
         }
     }
 
-    KASSERT(ShaderA.RenderStates.Length == ShaderB.RenderStates.Length);
-    for (int i = 0; i < ShaderA.RenderStates.Length; i++)
-    {
-        KASSERT(ShaderA.RenderStates[i].Name == ShaderB.RenderStates[i].Name);
-        KASSERT(ShaderA.RenderStates[i].CullMode == ShaderB.RenderStates[i].CullMode);
-        KASSERT(ShaderA.RenderStates[i].ZTestOperation == ShaderB.RenderStates[i].ZTestOperation);
-        KASSERT(ShaderA.RenderStates[i].ZWriteEnable == ShaderB.RenderStates[i].ZWriteEnable);
-        KASSERT(ShaderA.RenderStates[i].BlendEnable == ShaderB.RenderStates[i].BlendEnable);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.SrcColorBlendFactor == ShaderB.RenderStates[i].BlendMode.SrcColorBlendFactor);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.DstColorBlendFactor == ShaderB.RenderStates[i].BlendMode.DstColorBlendFactor);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.ColorBlendOperation == ShaderB.RenderStates[i].BlendMode.ColorBlendOperation);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.SrcAlphaBlendFactor == ShaderB.RenderStates[i].BlendMode.SrcAlphaBlendFactor);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.DstAlphaBlendFactor == ShaderB.RenderStates[i].BlendMode.DstAlphaBlendFactor);
-        KASSERT(ShaderA.RenderStates[i].BlendMode.AlphaBlendOperation == ShaderB.RenderStates[i].BlendMode.AlphaBlendOperation);
-    }
+    KASSERT(StringEqual(shader1->render_state.name, shader2->render_state.name));
+    KASSERT(shader1->render_state.cull_mode == shader2->render_state.cull_mode);
+    KASSERT(shader1->render_state.z_test_op == shader2->render_state.z_test_op);
+    KASSERT(shader1->render_state.z_write_enable == shader2->render_state.z_write_enable);
+    KASSERT(shader1->render_state.blend_enable == shader2->render_state.blend_enable);
+    KASSERT(shader1->render_state.blend_mode.src_color_blend_factor == shader2->render_state.blend_mode.src_color_blend_factor);
+    KASSERT(shader1->render_state.blend_mode.dst_color_blend_factor == shader2->render_state.blend_mode.dst_color_blend_factor);
+    KASSERT(shader1->render_state.blend_mode.color_blend_op == shader2->render_state.blend_mode.color_blend_op);
+    KASSERT(shader1->render_state.blend_mode.src_alpha_blend_factor == shader2->render_state.blend_mode.src_alpha_blend_factor);
+    KASSERT(shader1->render_state.blend_mode.dst_alpha_blend_factor == shader2->render_state.blend_mode.dst_alpha_blend_factor);
+    KASSERT(shader1->render_state.blend_mode.alpha_blend_op == shader2->render_state.blend_mode.alpha_blend_op);
 
-    KASSERT(ShaderA.RenderPasses.Length == ShaderB.RenderPasses.Length);
-    for (int i = 0; i < ShaderA.RenderPasses.Length; i++)
+    KASSERT(shader1->render_pass_def.shader_stage_count == shader2->render_pass_def.shader_stage_count);
+    for (int j = 0; j < shader1->render_pass_def.shader_stage_count; j++)
     {
-        KASSERT(ShaderA.RenderPasses[i].ShaderStages.Length == ShaderB.RenderPasses[i].ShaderStages.Length);
-        for (int j = 0; j < ShaderA.RenderPasses[i].ShaderStages.Length; j++)
-        {
-            KASSERT(ShaderA.RenderPasses[i].ShaderStages[j].Stage == ShaderB.RenderPasses[i].ShaderStages[j].Stage);
-            KASSERT(ShaderA.RenderPasses[i].ShaderStages[j].CodeFragment.Name == ShaderB.RenderPasses[i].ShaderStages[j].CodeFragment.Name);
-        }
+        KASSERT(shader1->render_pass_def.shader_stages[j].stage == shader2->render_pass_def.shader_stages[j].stage);
+        KASSERT(StringEqual(shader1->render_pass_def.shader_stages[j].code_fragment.name, shader2->render_pass_def.shader_stages[j].code_fragment.name));
     }
 
     return true;

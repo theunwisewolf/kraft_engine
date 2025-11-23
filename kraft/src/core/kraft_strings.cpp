@@ -74,7 +74,7 @@ String8 StringCat(ArenaAllocator* arena, String8 a, String8 b)
 u64 CString8Length(u8* c_str)
 {
     u8* ptr = c_str;
-    for (; *ptr != '0'; ptr++)
+    for (; *ptr != 0; ptr++)
         ;
 
     return ptr - c_str;

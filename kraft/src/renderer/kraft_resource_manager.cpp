@@ -1,9 +1,11 @@
 #include "kraft_resource_manager.h"
 
 #include <containers/kraft_array.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_log.h>
 #include <math/kraft_math.h>
+
+// TODO (amn): REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <renderer/kraft_renderer_types.h>
 
 namespace kraft::renderer {

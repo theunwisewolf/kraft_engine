@@ -3,12 +3,13 @@
 #include <containers/kraft_array.h>
 #include <containers/kraft_buffer.h>
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
 #include <core/kraft_string.h>
 #include <renderer/kraft_renderer_frontend.h>
 #include <renderer/kraft_resource_manager.h>
+
+// TODO (amn): REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <resources/kraft_resource_types.h>
 
 #define STBI_FAILURE_USERMSG

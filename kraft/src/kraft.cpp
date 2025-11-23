@@ -3,9 +3,11 @@
 // HACK: for now
 #include <core/kraft_base_includes.h>
 #include <platform/kraft_platform_includes.h>
+#include <shaderfx/kraft_shaderfx_includes.h>
 
 #include <core/kraft_base_includes.cpp>
 #include <platform/kraft_platform_includes.cpp>
+#include <shaderfx/kraft_shaderfx_includes.cpp>
 
 #include <containers/kraft_array.h>
 #include <core/kraft_asserts.h>

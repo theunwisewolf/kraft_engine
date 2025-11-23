@@ -40,12 +40,23 @@ void ArenaPopToPosition(ArenaAllocator* arena, u64 position)
     KASSERT(arena->position >= sizeof(ArenaAllocator));
 }
 
+String8 ArenaPushString8Empty(ArenaAllocator* arena, u64 size)
+{
+    String8 result = {};
+    result.ptr = ArenaPushArray(arena, u8, size + 1);
+    result.count = size;
+    result.ptr[result.count] = 0;
+
+    return result;
+}
+
 String8 ArenaPushString8Copy(ArenaAllocator* arena, String8 str)
 {
     String8 result = {};
-    result.ptr = ArenaPushArrayNoZero(arena, u8, str.count);
+    result.ptr = ArenaPushArrayNoZero(arena, u8, str.count + 1);
     result.count = str.count;
     MemCpy(result.ptr, str.ptr, str.count);
+    result.ptr[result.count] = 0;
 
     return result;
 }
@@ -73,7 +84,7 @@ void* ArenaAllocator::Push(u64 size, u64 alignment, bool zero)
     KASSERT(end_position <= this->capacity);
     this->position = end_position;
 
-    uint8* address_into_the_arena = this->base_ptr + start_position;
+    u8* address_into_the_arena = this->base_ptr + start_position;
     if (zero)
     {
         MemZero(address_into_the_arena, size);

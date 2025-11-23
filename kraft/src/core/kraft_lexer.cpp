@@ -1,11 +1,5 @@
-#include "kraft_lexer.h"
-
 #include <core/kraft_string.h>
 #include <core/kraft_string_view.h>
-
-#include <core/kraft_lexer_types.h>
-
-#include <core/kraft_base_includes.h>
 
 #define CHECK_EOF_ERROR()                                                                                                                                                                              \
     if (this->ReachedEOF())                                                                                                                                                                            \
@@ -13,129 +7,116 @@
 
 namespace kraft {
 
-bool LexerToken::MatchesKeyword(const String& ExpectedKeyword) const
+bool LexerToken::MatchesKeyword(String8 expected_keyword) const
 {
-    if (this->Length != ExpectedKeyword.Length)
-        return false;
-    return MemCmp(this->Text, *ExpectedKeyword, this->Length) == 0;
-}
-
-kraft::String LexerToken::ToString() const
-{
-    return kraft::String(Text, Length);
+    return StringEqual(this->text, expected_keyword);
 }
 
 String8 LexerToken::ToString8()
 {
-    return String8FromPtrAndLength((u8*)Text, Length);
+    return text;
 }
 
-kraft::StringView LexerToken::ToStringView() const
+void Lexer::Create(String8 text)
 {
-    return kraft::StringView(Text, Length);
+    this->text = text;
+    this->position = 0;
+    this->line = 0;
+    this->column = 0;
+    this->error = LEXER_ERROR_NONE;
 }
 
-void Lexer::Create(char* Text, uint64 Length)
-{
-    this->Text = Text;
-    this->Position = 0;
-    this->Line = 0;
-    this->Column = 0;
-    this->Error = LEXER_ERROR_NONE;
-    this->Length = Length;
-}
-
-LexerError Lexer::NextToken(LexerToken* OutToken)
+LexerError Lexer::NextToken(LexerToken* out_token)
 {
     CHECK_EOF_ERROR();
 
     // Skip through whitespaces
     this->ConsumeWhitespaces();
-    OutToken->Type = TokenType::TOKEN_TYPE_UNKNOWN;
+    out_token->type = TokenType::TOKEN_TYPE_UNKNOWN;
 
-    char Char = this->Text[this->Position];
-    OutToken->Text = this->Text + this->Position;
-    OutToken->Length = 1;
-    OutToken->FloatValue = 0.0;
-    this->Position++;
+    u8 character = this->text.ptr[this->position];
+    out_token->text.ptr = this->text.ptr + this->position;
+    out_token->text.count = 1;
+    out_token->float_value = 0.0;
+    this->position++;
 
-    switch (Char)
+    switch (character)
     {
         case 0:
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_END_OF_STREAM;
+            out_token->type = TokenType::TOKEN_TYPE_END_OF_STREAM;
         }
         break;
 
         // Symbols
         case '(':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_OPEN_PARENTHESIS;
+            out_token->type = TokenType::TOKEN_TYPE_OPEN_PARENTHESIS;
         }
         break;
         case ')':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS;
+            out_token->type = TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS;
         }
         break;
         case '{':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_OPEN_BRACE;
+            out_token->type = TokenType::TOKEN_TYPE_OPEN_BRACE;
         }
         break;
         case '}':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_CLOSE_BRACE;
+            out_token->type = TokenType::TOKEN_TYPE_CLOSE_BRACE;
         }
         break;
         case '[':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_OPEN_BRACKET;
+            out_token->type = TokenType::TOKEN_TYPE_OPEN_BRACKET;
         }
         break;
         case ']':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_CLOSE_BRACKET;
+            out_token->type = TokenType::TOKEN_TYPE_CLOSE_BRACKET;
         }
         break;
         case '<':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_OPEN_ANGLE_BRACKET;
+            out_token->type = TokenType::TOKEN_TYPE_OPEN_ANGLE_BRACKET;
         }
         break;
         case '>':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_CLOSE_ANGLE_BRACKET;
+            out_token->type = TokenType::TOKEN_TYPE_CLOSE_ANGLE_BRACKET;
         }
         break;
         case '=':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_EQUALS;
+            out_token->type = TokenType::TOKEN_TYPE_EQUALS;
         }
         break;
         case '#':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_HASH;
+            out_token->type = TokenType::TOKEN_TYPE_HASH;
         }
         break;
         case ',':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_COMMA;
+            out_token->type = TokenType::TOKEN_TYPE_COMMA;
         }
         break;
         case ':':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_COLON;
+            out_token->type = TokenType::TOKEN_TYPE_COLON;
         }
         break;
         case ';':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_SEMICOLON;
+            out_token->type = TokenType::TOKEN_TYPE_SEMICOLON;
         }
         break;
         case '*':
         {
-            OutToken->Type = TokenType::TOKEN_TYPE_ASTERISK;
+            out_token->type = TokenType::TOKEN_TYPE_ASTERISK;
         }
         break;
 
@@ -143,52 +124,52 @@ LexerError Lexer::NextToken(LexerToken* OutToken)
         {
             CHECK_EOF_ERROR();
 
-            OutToken->Type = TokenType::TOKEN_TYPE_STRING;
-            OutToken->Text = this->Text + this->Position; // Skip the starting quote
-            while (this->Text[this->Position] != '"')
+            out_token->type = TokenType::TOKEN_TYPE_STRING;
+            out_token->text.ptr = this->text.ptr + this->position; // Skip the starting quote
+            while (this->text.ptr[this->position] != '"')
             {
                 // Handle escape character
-                if (this->Text[this->Position] == '\\')
+                if (this->text.ptr[this->position] == '\\')
                 {
-                    this->Position++; // Skip the escape backslash '\'
+                    this->position++; // Skip the escape backslash '\'
                     CHECK_EOF_ERROR();
                 }
 
                 // Newlines aren't allowed inside string literals
-                if (this->IsNewLine(this->Text[this->Position]))
+                if (this->IsNewLine(this->text.ptr[this->position]))
                 {
                     return LEXER_ERROR_UNTERMINATED_STRING;
                 }
 
-                this->Position++;
+                this->position++;
                 CHECK_EOF_ERROR();
             }
 
-            OutToken->Length = this->Text + this->Position - OutToken->Text;
-            this->Position++; // Skip the end quote
+            out_token->text.count = this->text.ptr + this->position - out_token->text.ptr;
+            this->position++; // Skip the end quote
         }
         break;
 
         default:
         {
-            if (IsAlpha(Char) || Char == '_')
+            if (IsAlpha(character) || character == '_')
             {
-                OutToken->Type = TokenType::TOKEN_TYPE_IDENTIFIER;
-                while (IsAlpha(this->Text[this->Position]) || IsNumber(this->Text[this->Position]) || this->Text[this->Position] == '_')
+                out_token->type = TokenType::TOKEN_TYPE_IDENTIFIER;
+                while (IsAlpha(this->text.ptr[this->position]) || IsNumber(this->text.ptr[this->position]) || this->text.ptr[this->position] == '_')
                 {
-                    Position++;
+                    this->position++;
                     CHECK_EOF_ERROR();
                 }
 
-                OutToken->Length = this->Text + this->Position - OutToken->Text;
+                out_token->text.count = this->text.ptr + this->position - out_token->text.ptr;
             }
-            else if (IsNumber(Char) || Char == '-')
+            else if (IsNumber(character) || character == '-')
             {
-                OutToken->Type = TokenType::TOKEN_TYPE_NUMBER;
-                this->Position--;
+                out_token->type = TokenType::TOKEN_TYPE_NUMBER;
+                this->position--;
 
-                ParseNumber(OutToken, &OutToken->FloatValue);
-                OutToken->Length = this->Text + this->Position - OutToken->Text;
+                ParseNumber(out_token, &out_token->float_value);
+                out_token->text.count = this->text.ptr + this->position - out_token->text.ptr;
             }
             else
             {
@@ -209,32 +190,32 @@ LexerError Lexer::ParseNumber(const LexerToken* Token, double* OutNumber)
 
     // Consume the sign
     int32 Sign = 1;
-    if (this->Text[this->Position] == '-')
+    if (this->text.ptr[this->position] == '-')
     {
         Sign = -1;
-        this->Position++;
+        this->position++;
         CHECK_EOF_ERROR();
     }
 
     // Consume starting zeroes
-    while (this->Text[this->Position] == '0')
+    while (this->text.ptr[this->position] == '0')
     {
-        this->Position++;
+        this->position++;
         CHECK_EOF_ERROR();
     }
 
     // Consume decimal part
     int32 Decimal = 0;
-    if (IsNumber(this->Text[this->Position]))
+    if (IsNumber(this->text.ptr[this->position]))
     {
-        Decimal = this->Text[this->Position] - '0';
-        this->Position++;
+        Decimal = this->text.ptr[this->position] - '0';
+        this->position++;
         CHECK_EOF_ERROR();
 
-        while (IsNumber(this->Text[this->Position]))
+        while (IsNumber(this->text.ptr[this->position]))
         {
-            Decimal = Decimal * 10 + this->Text[this->Position] - '0';
-            this->Position++;
+            Decimal = Decimal * 10 + this->text.ptr[this->position] - '0';
+            this->position++;
             CHECK_EOF_ERROR();
         }
     }
@@ -242,17 +223,17 @@ LexerError Lexer::ParseNumber(const LexerToken* Token, double* OutNumber)
     // Consume fractional part
     int32 Fraction = 0;
     int32 FractionalDivisor = 1;
-    if (this->Text[this->Position] == '.')
+    if (this->text.ptr[this->position] == '.')
     {
-        this->Position++;
+        this->position++;
         CHECK_EOF_ERROR();
 
-        while (IsNumber(this->Text[this->Position]))
+        while (IsNumber(this->text.ptr[this->position]))
         {
-            Fraction = Fraction * 10 + this->Text[this->Position] - '0';
+            Fraction = Fraction * 10 + this->text.ptr[this->position] - '0';
             FractionalDivisor *= 10;
 
-            this->Position++;
+            this->position++;
             CHECK_EOF_ERROR();
         }
     }
@@ -268,43 +249,43 @@ LexerError Lexer::ConsumeWhitespaces()
     {
         CHECK_EOF_ERROR();
 
-        if (IsSpace(this->Text[this->Position]))
+        if (IsSpace(this->text.ptr[this->position]))
         {
-            if (IsNewLine(this->Text[this->Position]))
-                Line++;
+            if (IsNewLine(this->text.ptr[this->position]))
+                line++;
 
-            this->Position++;
+            this->position++;
         }
         // Comments - Single-line
-        else if (this->BytesLeft() >= 2 && this->Text[this->Position] == '/' && this->Text[this->Position + 1] == '/')
+        else if (this->BytesLeft() >= 2 && this->text.ptr[this->position] == '/' && this->text.ptr[this->position + 1] == '/')
         {
-            this->Position += 2;
+            this->position += 2;
 
             CHECK_EOF_ERROR();
-            while (this->Text[this->Position] && !IsNewLine(this->Text[this->Position]))
+            while (this->text.ptr[this->position] && !IsNewLine(this->text.ptr[this->position]))
             {
-                this->Position++;
+                this->position++;
                 CHECK_EOF_ERROR();
             }
         }
         // Comments - Multi-line
-        else if (this->BytesLeft() >= 2 && this->Text[this->Position] == '/' && this->Text[this->Position + 1] == '*')
+        else if (this->BytesLeft() >= 2 && this->text.ptr[this->position] == '/' && this->text.ptr[this->position + 1] == '*')
         {
-            this->Position += 2;
+            this->position += 2;
 
             CHECK_EOF_ERROR();
-            while (this->BytesLeft() >= 2 && this->Text[this->Position] != '*' && this->Text[this->Position + 1] != '/')
+            while (this->BytesLeft() >= 2 && this->text.ptr[this->position] != '*' && this->text.ptr[this->position + 1] != '/')
             {
-                if (IsNewLine(this->Text[this->Position]))
-                    Line++;
+                if (IsNewLine(this->text.ptr[this->position]))
+                    line++;
 
-                this->Position++;
+                this->position++;
                 CHECK_EOF_ERROR();
             }
 
-            if (this->BytesLeft() >= 2 && this->Text[this->Position] == '*' && this->Text[this->Position + 1] == '/')
+            if (this->BytesLeft() >= 2 && this->text.ptr[this->position] == '*' && this->text.ptr[this->position + 1] == '/')
             {
-                this->Position += 2;
+                this->position += 2;
             }
             else
             {
@@ -322,14 +303,14 @@ LexerError Lexer::ConsumeWhitespaces()
 
 // Expect the token to be of the given type
 // Sets an error if types do not match
-bool Lexer::ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType)
+bool Lexer::ExpectToken(LexerToken* token, TokenType::Enum expected_type)
 {
-    if (this->NextToken(Token) != LEXER_ERROR_NONE)
+    if (this->NextToken(token) != LEXER_ERROR_NONE)
     {
         return false;
     }
 
-    if (Token->Type != ExpectedType)
+    if (token->type != expected_type)
     {
         return false;
     }
@@ -337,20 +318,20 @@ bool Lexer::ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType)
     return true;
 }
 
-bool Lexer::ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword)
+bool Lexer::ExpectToken(LexerToken* token, TokenType::Enum expected_type, String8 expected_keyword)
 {
-    return ExpectToken(Token, ExpectedType) && Token->MatchesKeyword(ExpectedKeyword);
+    return ExpectToken(token, expected_type) && token->MatchesKeyword(expected_keyword);
 }
 
 // Check if the token is of the given type
-bool Lexer::EqualsToken(LexerToken* Token, TokenType::Enum ExpectedType)
+bool Lexer::EqualsToken(LexerToken* token, TokenType::Enum expected_type)
 {
-    if (this->NextToken(Token) != LEXER_ERROR_NONE)
+    if (this->NextToken(token) != LEXER_ERROR_NONE)
     {
         return false;
     }
 
-    if (Token->Type != ExpectedType)
+    if (token->type != expected_type)
     {
         return false;
     }
@@ -359,18 +340,15 @@ bool Lexer::EqualsToken(LexerToken* Token, TokenType::Enum ExpectedType)
 }
 
 // Check the current token for errors
-bool Lexer::CheckToken(const LexerToken* Token, TokenType::Enum ExpectedType)
+bool Lexer::CheckToken(const LexerToken* token, TokenType::Enum expected_type)
 {
     // TODO:
     return true;
 }
 
-bool Lexer::ExpectKeyword(const LexerToken* Token, String ExpectedKeyword)
+bool Lexer::ExpectKeyword(const LexerToken* token, String8 expected_keyword)
 {
-    if (Token->Length != ExpectedKeyword.Length)
-        return false;
-
-    return MemCmp(Token->Text, *ExpectedKeyword, Token->Length) == 0;
+    return StringEqual(token->text, expected_keyword);
 }
 
 } // namespace kraft

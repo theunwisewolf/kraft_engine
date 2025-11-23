@@ -30,11 +30,11 @@ struct ShaderUniform
 
 struct Shader
 {
-    ResourceID              ID;
-    String8                 Path;
-    shaderfx::ShaderEffect  ShaderEffect;
-    Array<ShaderUniform>    UniformCache;
-    HashMap<String, uint32> UniformCacheMapping;
+    ResourceID             ID;
+    String8                Path;
+    shaderfx::ShaderEffect ShaderEffect;
+    Array<ShaderUniform>   UniformCache;
+    HashMap<u64, u32>      UniformCacheMapping;
 
     Handle<RenderPass> RenderPassHandle = Handle<RenderPass>::Invalid(); // The renderpass of the shader's pipeline
     void*              RendererData;
@@ -140,10 +140,10 @@ struct MaterialProperty
 
 struct Material
 {
-    ResourceID                            ID;
-    String8                               Name;
-    String8                               AssetPath;
-    FlatHashMap<String, MaterialProperty> Properties;
+    ResourceID                         ID;
+    String8                            Name;
+    String8                            AssetPath;
+    FlatHashMap<u64, MaterialProperty> Properties;
 
     // Reference to the underlying shader
     Shader* Shader;

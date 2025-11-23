@@ -1,18 +1,96 @@
 #pragma once
 
-#include <core/kraft_core.h>
-
 // Much of this code and inspiration has been taken from the excellent article
 // by Gabriel Sassone at https://jorenjoestar.github.io/
 // The code generator article is used as a ref for this -
 // https://jorenjoestar.github.io/post/writing_a_simple_code_generator/
 
+#pragma once
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-function"
+
 namespace kraft {
+
+namespace TokenType {
+enum Enum : u32
+{
+    TOKEN_TYPE_UNKNOWN,
+
+    // Symbols
+    TOKEN_TYPE_OPEN_PARENTHESIS,    // (
+    TOKEN_TYPE_CLOSE_PARENTHESIS,   // )
+    TOKEN_TYPE_OPEN_BRACE,          // {
+    TOKEN_TYPE_CLOSE_BRACE,         // }
+    TOKEN_TYPE_OPEN_BRACKET,        // [
+    TOKEN_TYPE_CLOSE_BRACKET,       // ]
+    TOKEN_TYPE_OPEN_ANGLE_BRACKET,  // <
+    TOKEN_TYPE_CLOSE_ANGLE_BRACKET, // >
+    TOKEN_TYPE_EQUALS,              // =
+    TOKEN_TYPE_HASH,                // #
+    TOKEN_TYPE_COMMA,               // ,
+    TOKEN_TYPE_COLON,               // :
+    TOKEN_TYPE_SEMICOLON,           // ;
+    TOKEN_TYPE_ASTERISK,            // *
+
+    TOKEN_TYPE_STRING,
+    TOKEN_TYPE_IDENTIFIER,
+    TOKEN_TYPE_NUMBER,
+    TOKEN_TYPE_END_OF_STREAM,
+
+    TOKEN_TYPE_COUNT
+};
+
+static String8 strings[] = {
+    String8Raw("TOKEN_TYPE_UNKNOWN"),
+    String8Raw("TOKEN_TYPE_OPEN_PARENTHESIS"),
+    String8Raw("TOKEN_TYPE_CLOSE_PARENTHESIS"),
+    String8Raw("TOKEN_TYPE_OPEN_BRACE"),
+    String8Raw("TOKEN_TYPE_CLOSE_BRACE"),
+    String8Raw("TOKEN_TYPE_OPEN_BRACKET"),
+    String8Raw("TOKEN_TYPE_CLOSE_BRACKET"),
+    String8Raw("TOKEN_TYPE_OPEN_ANGLE_BRACKET"),
+    String8Raw("TOKEN_TYPE_CLOSE_ANGLE_BRACKET"),
+    String8Raw("TOKEN_TYPE_EQUALS"),
+    String8Raw("TOKEN_TYPE_HASH"),
+    String8Raw("TOKEN_TYPE_COMMA"),
+    String8Raw("TOKEN_TYPE_COLON"),
+    String8Raw("TOKEN_TYPE_SEMICOLON"),
+    String8Raw("TOKEN_TYPE_ASTERISK"),
+    String8Raw("TOKEN_TYPE_STRING"),
+    String8Raw("TOKEN_TYPE_IDENTIFIER"),
+    String8Raw("TOKEN_TYPE_NUMBER"),
+    String8Raw("TOKEN_TYPE_END_OF_STREAM"),
+};
+
+static String8 String(Enum value)
+{
+    return (value < Enum::TOKEN_TYPE_COUNT ? strings[(int)value] : String8Raw("Unknown"));
+}
+} // namespace TokenType
+
+struct LexerToken
+{
+    TokenType::Enum type;
+    String8         text;
+    float64         float_value;
+
+    bool    MatchesKeyword(String8 expected_keyword) const;
+    String8 ToString8();
+};
+
+struct LexerNamedToken
+{
+    String8    key;
+    LexerToken value;
+};
+
+#pragma clang diagnostic pop
 
 struct LexerToken;
 
 namespace TokenType {
-enum Enum : uint32;
+enum Enum : u32;
 }
 
 enum LexerError
@@ -27,70 +105,67 @@ enum LexerError
 struct Lexer
 {
     // Input text
-    char* Text;
-
-    // Length of the input text
-    uint64 Length;
+    String8 text;
 
     // Current cursor position
-    uint64 Position;
+    u64 position;
 
     // Current cursor line
-    uint32 Line;
+    u32 line;
 
     // Current cursor column on the line
-    uint32 Column;
+    u32 column;
 
     // If an error occurs, this is set to something other than LEXER_ERROR_NONE
-    LexerError Error = LEXER_ERROR_NONE;
+    LexerError error = LEXER_ERROR_NONE;
 
-    void Create(char* Text, uint64 Length);
+    void Create(String8 text);
     void Destroy();
 
-    LexerError NextToken(LexerToken* OutToken);
-    LexerError ParseNumber(const LexerToken* Token, double* OutNumber);
+    LexerError NextToken(LexerToken* out_token);
+    LexerError ParseNumber(const LexerToken* token, f64* out_number);
     LexerError ConsumeWhitespaces();
 
     KRAFT_INLINE bool ReachedEOF()
     {
-        return (this->Position == this->Length);
+        return (position == text.count);
     }
 
-    KRAFT_INLINE uint64 BytesLeft()
+    KRAFT_INLINE u64 BytesLeft()
     {
-        return (this->Length - this->Position);
+        return (text.count - position);
     }
 
     KRAFT_INLINE void Advance()
     {
-        this->Position++;
+        this->position++;
     }
 
     // Moves the cursor to this position
-    KRAFT_INLINE LexerError MoveCursorTo(uint64 Position)
+    KRAFT_INLINE LexerError MoveCursorTo(u64 position)
     {
-        if (this->Position >= this->Length)
+        if (this->position >= text.count)
         {
             return LexerError::LEXER_ERROR_UNEXPECTED_EOF;
         }
 
-        this->Position = Position;
+        this->position = position;
         return LexerError::LEXER_ERROR_NONE;
     }
 
     // Expect the token to be of the given type
     // Sets an error if types do not match
-    bool ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType);
-    bool ExpectToken(LexerToken* Token, TokenType::Enum ExpectedType, const String& ExpectedKeyword);
+    bool ExpectToken(LexerToken* token, TokenType::Enum expected_type);
+    bool ExpectToken(LexerToken* token, TokenType::Enum expected_type, String8 expected_keyword);
 
     // Check if the token is of the given type
-    bool EqualsToken(LexerToken* Token, TokenType::Enum ExpectedType);
+    bool EqualsToken(LexerToken* token, TokenType::Enum expected_type);
 
     // Check the current token for errors
-    bool CheckToken(const LexerToken* Token, TokenType::Enum ExpectedType);
+    bool CheckToken(const LexerToken* token, TokenType::Enum expected_type);
 
     // Checks if the provided token matches the expected keyword
-    bool ExpectKeyword(const LexerToken* Token, String ExpectedKeyword);
+    bool ExpectKeyword(const LexerToken* token, String8 expected_keyword);
 
     KRAFT_INLINE bool IsNewLine(char c)
     {

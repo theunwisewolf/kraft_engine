@@ -153,7 +153,11 @@ typedef uint64_t u64;
 
 struct String8
 {
-    u8* ptr;
+    union
+    {
+        u8*   ptr;
+        char* str;
+    };
     u64 count;
 };
 

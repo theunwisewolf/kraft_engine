@@ -1,8 +1,8 @@
 #include "kraft_renderer_frontend.h"
 
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_log.h>
 #include <core/kraft_memory.h>
 #include <core/kraft_time.h>
@@ -17,6 +17,10 @@
 #include <world/kraft_world.h>
 
 #include <kraft_types.h>
+
+// TODO (amn): REMOVE
+#include <core/kraft_base_includes.h>
+
 #include <resources/kraft_resource_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
 
@@ -251,9 +255,9 @@ void RendererFrontend::EndMainRenderpass()
 // API
 //
 
-void RendererFrontend::CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle)
+void RendererFrontend::CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle)
 {
-    renderer_data_internal.backend->CreateRenderPipeline(Shader, PassIndex, RenderPassHandle);
+    renderer_data_internal.backend->CreateRenderPipeline(Shader, RenderPassHandle);
 }
 
 void RendererFrontend::DestroyRenderPipeline(Shader* Shader)

@@ -41,7 +41,23 @@
         "variant": "cpp",
         "xlocmes": "cpp",
         "xlocnum": "cpp",
-        "xloctime": "cpp"
+        "xloctime": "cpp",
+        "cerrno": "cpp",
+        "compare": "cpp",
+        "ratio": "cpp",
+        "xmemory": "cpp",
+        "ios": "cpp",
+        "charconv": "cpp",
+        "*.mm": "cpp",
+        "typeindex": "cpp",
+        "thread": "cpp",
+        "any": "cpp",
+        "initializer_list": "cpp",
+        "valarray": "cpp",
+        "iosfwd": "cpp",
+        "xlocbuf": "cpp",
+        "parentbad": "cpp",
+        "sstream": "cpp"
     },
     "cmake.configureArgs": [
         // "-DCMAKE_BUILD_TYPE=RelWithDebInfo"

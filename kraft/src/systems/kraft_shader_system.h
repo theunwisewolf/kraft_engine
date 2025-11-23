@@ -19,7 +19,7 @@ struct ShaderUniform;
 
 struct ShaderSystem
 {
-    static void Init(uint32 MaxShadersCount);
+    static void Init(u32 MaxShadersCount);
     static void Shutdown();
 
     static Shader* AcquireShader(String8 shader_path, renderer::Handle<renderer::RenderPass> render_pass_handle, bool auto_release = true);
@@ -28,28 +28,28 @@ struct ShaderSystem
     static Shader* GetActiveShader();
 
     static Shader* Bind(Shader* Shader);
-    static Shader* BindByID(uint32 ID);
+    static Shader* BindByID(u32 ID);
     static void    Unbind();
 
     // Finds a uniform by name in the given shader
-    static bool GetUniform(const Shader* Shader, const String& Name, ShaderUniform* Uniform);
-    static bool GetUniformByIndex(const Shader* Shader, uint32 Index, ShaderUniform* Uniform);
+    static bool GetUniform(const Shader* shader, String8 name, ShaderUniform* uniform);
+    static bool GetUniformByIndex(const Shader* shader, u32 Index, ShaderUniform* uniform);
 
     template<typename T>
-    static bool SetUniformByIndex(uint32 Index, T Value, bool Invalidate = false)
+    static bool SetUniformByIndex(u32 Index, T Value, bool Invalidate = false)
     {
         return ShaderSystem::SetUniformByIndex(Index, (void*)Value, Invalidate);
     }
 
-    static bool SetUniformByIndex(uint32 Index, void* Value, bool Invalidate = false);
+    static bool SetUniformByIndex(u32 Index, void* Value, bool Invalidate = false);
 
     template<typename T>
-    static bool SetUniform(const String& Name, T Value, bool Invalidate = false)
+    static bool SetUniform(String8 name, T Value, bool Invalidate = false)
     {
-        return ShaderSystem::SetUniform(Name, (void*)Value, Invalidate);
+        return ShaderSystem::SetUniform(name, (void*)Value, Invalidate);
     }
 
-    static bool SetUniform(const String& Name, void* Value, bool Invalidate = false);
+    static bool SetUniform(String8 name, void* Value, bool Invalidate = false);
 };
 
 } // namespace kraft

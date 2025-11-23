@@ -600,9 +600,6 @@ KRAFT_INLINE static uint64 StringEqual(const char* a, const char* b)
     return strcmp(a, b) == 0;
 }
 
-int32 StringFormat(char* buffer, int n, const char* format, ...);
-int32 StringFormatV(char* buffer, int n, const char* format, va_list args);
-
 #define KRAFT_STRINGIFY(A)      #A
 #define KRAFT_STATIC_STR_CONCAT (strA, strB) strA strB
 

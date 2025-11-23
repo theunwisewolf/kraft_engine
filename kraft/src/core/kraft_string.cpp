@@ -64,27 +64,4 @@ KString<wchar_t>& KString<wchar_t>::Trim()
 // }
 // #endif
 
-int32 StringFormat(char* buffer, int n, const char* format, ...)
-{
-    KASSERT(buffer);
-
-#ifdef KRAFT_COMPILER_MSVC
-    va_list args;
-#else
-    __builtin_va_list args;
-#endif
-    va_start(args, format);
-    int32 written = StringFormatV(buffer, n, format, args);
-    va_end(args);
-    return written;
-
-    return -1;
-}
-
-int32 StringFormatV(char* buffer, int n, const char* format, va_list args)
-{
-    KASSERT(buffer);
-    return vsnprintf(buffer, n, format, args);
-}
-
 } // namespace kraft

@@ -27,11 +27,11 @@ struct MaterialSystem
     static void      DestroyMaterial(String8 name);
     static void      DestroyMaterial(Material* material);
 
-    static bool SetTexture(Material* Instance, const String& Key, const String& TexturePath);
-    static bool SetTexture(Material* Instance, const String& Key, renderer::Handle<Texture> Texture);
+    static bool SetTexture(Material* Instance, String8 Key, const String& TexturePath);
+    static bool SetTexture(Material* Instance, String8 Key, renderer::Handle<Texture> Texture);
 
     template<typename T>
-    static bool SetProperty(Material* Instance, const String& Name, T Value);
+    static bool SetProperty(Material* Instance, String8 Name, T Value);
 
     static uint8* GetMaterialsBuffer();
 };

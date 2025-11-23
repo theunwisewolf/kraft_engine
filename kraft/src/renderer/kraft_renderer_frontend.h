@@ -45,7 +45,7 @@ struct RendererFrontend
     void EndMainRenderpass();
 
     // API
-    void CreateRenderPipeline(Shader* Shader, int PassIndex, Handle<RenderPass> RenderPassHandle);
+    void CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle);
     void DestroyRenderPipeline(Shader* Shader);
     void UseShader(const Shader* Shader);
     void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);

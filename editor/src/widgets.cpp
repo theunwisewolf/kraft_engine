@@ -495,14 +495,14 @@ void PipelineDebugger()
         auto& RenderState = Effect.RenderStates[i];
 
         ImGui::Text("Blending");
-        if (ImGui::BeginCombo("SrcColorBlendFactor", BlendFactor::Strings[RenderState.BlendMode.SrcColorBlendFactor]))
+        if (ImGui::BeginCombo("src_color_blend_factor", BlendFactor::Strings[RenderState.BlendMode.src_color_blend_factor]))
         {
             for (int n = 0; n < BlendFactor::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.SrcColorBlendFactor == n);
+                const bool IsSelected = (RenderState.BlendMode.src_color_blend_factor == n);
                 if (ImGui::Selectable(BlendFactor::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.SrcColorBlendFactor = (BlendFactor::Enum)n;
+                    RenderState.BlendMode.src_color_blend_factor = (BlendFactor::Enum)n;
                     Recreate = true;
                 }
 
@@ -513,14 +513,14 @@ void PipelineDebugger()
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("DstColorBlendFactor", BlendFactor::Strings[RenderState.BlendMode.DstColorBlendFactor]))
+        if (ImGui::BeginCombo("dst_color_blend_factor", BlendFactor::Strings[RenderState.BlendMode.dst_color_blend_factor]))
         {
             for (int n = 0; n < BlendFactor::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.DstColorBlendFactor == n);
+                const bool IsSelected = (RenderState.BlendMode.dst_color_blend_factor == n);
                 if (ImGui::Selectable(BlendFactor::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.DstColorBlendFactor = (BlendFactor::Enum)n;
+                    RenderState.BlendMode.dst_color_blend_factor = (BlendFactor::Enum)n;
                     Recreate = true;
                 }
 
@@ -531,14 +531,14 @@ void PipelineDebugger()
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("ColorBlendOperation", BlendFactor::Strings[RenderState.BlendMode.ColorBlendOperation]))
+        if (ImGui::BeginCombo("color_blend_op", BlendFactor::Strings[RenderState.BlendMode.color_blend_op]))
         {
             for (int n = 0; n < BlendOp::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.ColorBlendOperation == n);
+                const bool IsSelected = (RenderState.BlendMode.color_blend_op == n);
                 if (ImGui::Selectable(BlendOp::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.ColorBlendOperation = (BlendOp::Enum)n;
+                    RenderState.BlendMode.color_blend_op = (BlendOp::Enum)n;
                     Recreate = true;
                 }
 
@@ -549,14 +549,14 @@ void PipelineDebugger()
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("SrcAlphaBlendFactor", BlendFactor::Strings[RenderState.BlendMode.SrcAlphaBlendFactor]))
+        if (ImGui::BeginCombo("src_alpha_blend_factor", BlendFactor::Strings[RenderState.BlendMode.src_alpha_blend_factor]))
         {
             for (int n = 0; n < BlendFactor::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.SrcAlphaBlendFactor == n);
+                const bool IsSelected = (RenderState.BlendMode.src_alpha_blend_factor == n);
                 if (ImGui::Selectable(BlendFactor::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.SrcAlphaBlendFactor = (BlendFactor::Enum)n;
+                    RenderState.BlendMode.src_alpha_blend_factor = (BlendFactor::Enum)n;
                     Recreate = true;
                 }
 
@@ -567,14 +567,14 @@ void PipelineDebugger()
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("DstAlphaBlendFactor", BlendFactor::Strings[RenderState.BlendMode.DstAlphaBlendFactor]))
+        if (ImGui::BeginCombo("dst_alpha_blend_factor", BlendFactor::Strings[RenderState.BlendMode.dst_alpha_blend_factor]))
         {
             for (int n = 0; n < BlendFactor::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.DstAlphaBlendFactor == n);
+                const bool IsSelected = (RenderState.BlendMode.dst_alpha_blend_factor == n);
                 if (ImGui::Selectable(BlendFactor::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.DstAlphaBlendFactor = (BlendFactor::Enum)n;
+                    RenderState.BlendMode.dst_alpha_blend_factor = (BlendFactor::Enum)n;
                     Recreate = true;
                 }
 
@@ -585,14 +585,14 @@ void PipelineDebugger()
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo("AlphaBlendOperation", BlendFactor::Strings[RenderState.BlendMode.AlphaBlendOperation]))
+        if (ImGui::BeginCombo("alpha_blend_op", BlendFactor::Strings[RenderState.BlendMode.alpha_blend_op]))
         {
             for (int n = 0; n < BlendOp::Count; n++)
             {
-                const bool IsSelected = (RenderState.BlendMode.AlphaBlendOperation == n);
+                const bool IsSelected = (RenderState.BlendMode.alpha_blend_op == n);
                 if (ImGui::Selectable(BlendOp::Strings[n], IsSelected))
                 {
-                    RenderState.BlendMode.AlphaBlendOperation = (BlendOp::Enum)n;
+                    RenderState.BlendMode.alpha_blend_op = (BlendOp::Enum)n;
                     Recreate = true;
                 }
 
@@ -672,8 +672,8 @@ void PipelineDebugger()
     {
         // Can't destroy the pipeline in this frame
         // Renderer->DestroyRenderPipeline(ShaderInstance);
-        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->RenderSurface.RenderPass);
-        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, 0, EditorState::Ptr->ObjectPickingRenderSurface.RenderPass);
+        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, EditorState::Ptr->RenderSurface.RenderPass);
+        kraft::g_Renderer->CreateRenderPipeline(ShaderInstance, EditorState::Ptr->ObjectPickingRenderSurface.RenderPass);
     }
 
     ImGui::End();

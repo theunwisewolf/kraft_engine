@@ -1,6 +1,5 @@
 #pragma once
 
-#include "kraft_filesystem_types.h"
 #include "kraft_filesystem.h"
 #include "kraft_platform.h"
 #include "kraft_window_types.h"
