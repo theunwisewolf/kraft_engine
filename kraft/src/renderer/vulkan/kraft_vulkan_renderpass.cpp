@@ -2,7 +2,6 @@
 
 #include "kraft_vulkan_renderpass.h"
 
-#include <math/kraft_math.h>
 #include <renderer/kraft_resource_pool.inl>
 #include <renderer/vulkan/kraft_vulkan_resource_manager.h>
 

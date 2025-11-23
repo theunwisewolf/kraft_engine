@@ -1,7 +1,6 @@
 #include "kraft_resource_manager.h"
 
 #include <containers/kraft_array.h>
-#include <math/kraft_math.h>
 
 // TODO (amn): REMOVE
 #include <core/kraft_base_includes.h>

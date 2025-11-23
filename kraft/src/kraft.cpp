@@ -1,11 +1,15 @@
 #include "kraft.h"
 
-// HACK: for now
 #include <core/kraft_base_includes.h>
 #include <platform/kraft_platform_includes.h>
-#include <shaderfx/kraft_shaderfx_includes.h>
 
 #include <core/kraft_base_includes.cpp>
+
+#include <renderer/kraft_renderer_types.h>
+
+// HACK: for now
+#include <shaderfx/kraft_shaderfx_includes.h>
+
 #include <platform/kraft_platform_includes.cpp>
 #include <shaderfx/kraft_shaderfx_includes.cpp>
 

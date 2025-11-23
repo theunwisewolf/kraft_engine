@@ -24,7 +24,6 @@
 #include <resources/kraft_resource_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
 
-#include <math/kraft_math.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
 

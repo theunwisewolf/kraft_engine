@@ -3,7 +3,7 @@
 #include "containers/kraft_array.h"
 #include "core/kraft_string.h"
 #include "core/kraft_string_view.h"
-#include "math/kraft_math.h"
+#include "core/kraft_math.h"
 #include "world/kraft_entity_types.h"
 
 namespace kraft {

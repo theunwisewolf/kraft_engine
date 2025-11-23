@@ -3,7 +3,7 @@
 #include "core/kraft_core.h"
 #include "core/kraft_memory.h"
 #include "core/kraft_string_utils.h"
-#include "math/kraft_math.h"
+#include "core/kraft_math.h"
 
 namespace kraft {
 

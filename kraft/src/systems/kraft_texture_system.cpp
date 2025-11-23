@@ -1,7 +1,6 @@
 #include "kraft_texture_system.h"
 
 #include <containers/kraft_array.h>
-#include <containers/kraft_buffer.h>
 #include <containers/kraft_hashmap.h>
 #include <core/kraft_string.h>
 #include <renderer/kraft_renderer_frontend.h>

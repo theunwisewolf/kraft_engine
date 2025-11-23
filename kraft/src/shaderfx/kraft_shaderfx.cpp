@@ -2,7 +2,6 @@
 
 #include <stdarg.h>
 
-#include <containers/kraft_buffer.h>
 #include <core/kraft_allocators.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_lexer.h>

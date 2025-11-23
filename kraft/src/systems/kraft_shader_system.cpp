@@ -8,6 +8,7 @@
 
 // TODO: REMOVE
 #include <core/kraft_base_includes.h>
+#include <renderer/kraft_renderer_types.h>
 #include <shaderfx/kraft_shaderfx_includes.h>
 
 #include <resources/kraft_resource_types.h>

@@ -13,10 +13,8 @@ set(SRC_FILES
     src/kraft.cpp
     src/containers/kraft_carray.cpp
     src/containers/kraft_array.cpp
-    src/containers/kraft_buffer.cpp
     src/core/kraft_string.cpp
     src/core/kraft_string_view.cpp
-    src/math/kraft_math.cpp
 )
 
 if (WIN32)
@@ -24,7 +22,6 @@ endif()
 
 set(HEADER_FILES
     src/util.h
-    src/math/kraft_math.h
 )
 
 

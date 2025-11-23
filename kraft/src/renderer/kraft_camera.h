@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/kraft_core.h"
-#include "math/kraft_math.h"
+#include "core/kraft_math.h"
 
 namespace kraft {
 

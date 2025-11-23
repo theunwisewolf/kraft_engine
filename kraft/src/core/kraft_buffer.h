@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/kraft_base_includes.h"
-
 namespace kraft {
 
 #define READ_TYPE_RETURN(Type)                                                                                                                                                                         \
