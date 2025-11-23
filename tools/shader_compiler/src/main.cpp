@@ -1,5 +1,4 @@
 #include "containers/kraft_array.h"
-#include "math/kraft_math.h"
 #include "platform/kraft_filesystem.h"
 #include "platform/kraft_platform.h"
 #include <kraft.h>
