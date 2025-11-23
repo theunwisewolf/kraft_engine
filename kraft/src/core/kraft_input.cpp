@@ -1,5 +1,3 @@
-#include "kraft_input.h"
-
 namespace kraft {
 
 bool             InputSystem::Initialized = false;
@@ -98,11 +96,11 @@ void InputSystem::ProcessMouseMove(int x, int y)
     }
 }
 
-void InputSystem::ProcessScroll(float64 x, float64 y)
+void InputSystem::ProcessScroll(f64 x, f64 y)
 {
     EventData data;
-    data.Float64Value[0] = x;
-    data.Float64Value[1] = y;
+    data.f64Value[0] = x;
+    data.f64Value[1] = y;
     EventSystem::Dispatch(EventType::EVENT_TYPE_SCROLL, data, 0);
 }
 

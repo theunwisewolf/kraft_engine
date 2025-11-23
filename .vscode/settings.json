@@ -57,7 +57,8 @@
         "iosfwd": "cpp",
         "xlocbuf": "cpp",
         "parentbad": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "cstdarg": "cpp"
     },
     "cmake.configureArgs": [
         // "-DCMAKE_BUILD_TYPE=RelWithDebInfo"

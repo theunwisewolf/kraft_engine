@@ -1,10 +1,3 @@
-#include "kraft_log.h"
-
-#include <cstdarg>
-
-#include <platform/kraft_filesystem.h>
-#include <platform/kraft_platform.h>
-
 namespace kraft {
 
 struct Logger LoggerInstance = kraft::Logger();

@@ -61,31 +61,31 @@ KRAFT_INLINE static T Clamp(T Value, T Min, T Max)
 // Useful functions
 //
 
-KRAFT_API float32 Sin(float32 x);
-KRAFT_API float32 Cos(float32 x);
-KRAFT_API float32 Tan(float32 x);
-KRAFT_API float32 Acos(float32 x);
-KRAFT_API float32 Sqrt(float32 x);
-KRAFT_API float32 Abs(float32 x);
+KRAFT_API f32 Sin(f32 x);
+KRAFT_API f32 Cos(f32 x);
+KRAFT_API f32 Tan(f32 x);
+KRAFT_API f32 Acos(f32 x);
+KRAFT_API f32 Sqrt(f32 x);
+KRAFT_API f32 Abs(f32 x);
 
-KRAFT_INLINE static float32 DegToRadians(float32 degrees)
+KRAFT_INLINE static f32 DegToRadians(f32 degrees)
 {
     return degrees * (KRAFT_PI / 180.0f);
 }
 
-KRAFT_INLINE static float32 RadiansToDegrees(float32 radians)
+KRAFT_INLINE static f32 RadiansToDegrees(f32 radians)
 {
     return (radians * 180.0f) / KRAFT_PI;
 }
 
 // Converts the given angle in degrees to radians
-KRAFT_INLINE static float32 Radians(float32 Degrees)
+KRAFT_INLINE static f32 Radians(f32 Degrees)
 {
     return DegToRadians(Degrees);
 }
 
 // Converts the given angle in radians to degrees
-KRAFT_INLINE static float32 Degrees(float32 Radians)
+KRAFT_INLINE static f32 Degrees(f32 Radians)
 {
     return RadiansToDegrees(Radians);
 }
@@ -535,7 +535,7 @@ static T Distance(Vector<T, n> a, Vector<T, n> b)
     return Length(vec);
 }
 
-KRAFT_INLINE static const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3> b, float32 tolerance)
+KRAFT_INLINE static const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3> b, f32 tolerance)
 {
     if (Abs(a.x - b.x) > tolerance)
     {
@@ -555,9 +555,9 @@ KRAFT_INLINE static const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3>
     return true;
 }
 
-typedef Vector<float32, 2> Vec2f;
-typedef Vector<float32, 3> Vec3f;
-typedef Vector<float32, 4> Vec4f;
+typedef Vector<f32, 2> Vec2f;
+typedef Vector<f32, 3> Vec3f;
+typedef Vector<f32, 4> Vec4f;
 
 extern const Vec2f Vec2fZero;
 extern const Vec3f Vec3fZero;
@@ -760,7 +760,7 @@ private:
     operator bool();
 };
 
-typedef Matrix<float32, 4, 4> Mat4f;
+typedef Matrix<f32, 4, 4> Mat4f;
 
 // Matrix multiplication
 template<typename T, int rows, int cols>
@@ -961,42 +961,42 @@ Matrix<T, 4, 4> Inverse(const Matrix<T, 4, 4>& Input)
 
 // No idea where this came from:
 #if 0
-    const float32* m = in._data;
+    const f32* m = in._data;
 
-    float32 t0 = m[10] * m[15];
-    float32 t1 = m[14] * m[11];
-    float32 t2 = m[6] * m[15];
-    float32 t3 = m[14] * m[7];
-    float32 t4 = m[6] * m[11];
-    float32 t5 = m[10] * m[7];
-    float32 t6 = m[2] * m[15];
-    float32 t7 = m[14] * m[3];
-    float32 t8 = m[2] * m[11];
-    float32 t9 = m[10] * m[3];
-    float32 t10 = m[2] * m[7];
-    float32 t11 = m[6] * m[3];
-    float32 t12 = m[8] * m[13];
-    float32 t13 = m[12] * m[9];
-    float32 t14 = m[4] * m[13];
-    float32 t15 = m[12] * m[5];
-    float32 t16 = m[4] * m[9];
-    float32 t17 = m[8] * m[5];
-    float32 t18 = m[0] * m[13];
-    float32 t19 = m[12] * m[1];
-    float32 t20 = m[0] * m[9];
-    float32 t21 = m[8] * m[1];
-    float32 t22 = m[0] * m[5];
-    float32 t23 = m[4] * m[1];
+    f32 t0 = m[10] * m[15];
+    f32 t1 = m[14] * m[11];
+    f32 t2 = m[6] * m[15];
+    f32 t3 = m[14] * m[7];
+    f32 t4 = m[6] * m[11];
+    f32 t5 = m[10] * m[7];
+    f32 t6 = m[2] * m[15];
+    f32 t7 = m[14] * m[3];
+    f32 t8 = m[2] * m[11];
+    f32 t9 = m[10] * m[3];
+    f32 t10 = m[2] * m[7];
+    f32 t11 = m[6] * m[3];
+    f32 t12 = m[8] * m[13];
+    f32 t13 = m[12] * m[9];
+    f32 t14 = m[4] * m[13];
+    f32 t15 = m[12] * m[5];
+    f32 t16 = m[4] * m[9];
+    f32 t17 = m[8] * m[5];
+    f32 t18 = m[0] * m[13];
+    f32 t19 = m[12] * m[1];
+    f32 t20 = m[0] * m[9];
+    f32 t21 = m[8] * m[1];
+    f32 t22 = m[0] * m[5];
+    f32 t23 = m[4] * m[1];
 
     Matrix<T, 4, 4>    out;
-    float32* o = out._data;
+    f32* o = out._data;
 
     o[0] = (t0 * m[5] + t3 * m[9] + t4 * m[13]) - (t1 * m[5] + t2 * m[9] + t5 * m[13]);
     o[1] = (t1 * m[1] + t6 * m[9] + t9 * m[13]) - (t0 * m[1] + t7 * m[9] + t8 * m[13]);
     o[2] = (t2 * m[1] + t7 * m[5] + t10 * m[13]) - (t3 * m[1] + t6 * m[5] + t11 * m[13]);
     o[3] = (t5 * m[1] + t8 * m[5] + t11 * m[9]) - (t4 * m[1] + t9 * m[5] + t10 * m[9]);
 
-    float32 d = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
+    f32 d = 1.0f / (m[0] * o[0] + m[4] * o[1] + m[8] * o[2] + m[12] * o[3]);
 
     o[0] = d * o[0];
     o[1] = d * o[1];
@@ -1075,8 +1075,8 @@ BINARY_INPLACE_SCALAR_OPERATOR(/=);
 #undef BINARY_INPLACE_SCALAR_OPERATOR
 
 // Projection
-KRAFT_API Mat4f OrthographicMatrix(float32 left, float32 right, float32 top, float32 bottom, float32 nearClip, float32 farClip);
-KRAFT_API Mat4f PerspectiveMatrix(float32 fieldOfViewRadians, float32 aspectRatio, float32 nearClip, float32 farClip);
+KRAFT_API Mat4f OrthographicMatrix(f32 left, f32 right, f32 top, f32 bottom, f32 nearClip, f32 farClip);
+KRAFT_API Mat4f PerspectiveMatrix(f32 fieldOfViewRadians, f32 aspectRatio, f32 nearClip, f32 farClip);
 
 // Directional
 KRAFT_INLINE static Vec3f ForwardVector(const Mat4f& in)
@@ -1176,11 +1176,11 @@ KRAFT_INLINE static Vec3f RightVector(const Mat4f& in)
 }
 
 // Rotation
-KRAFT_API Mat4f RotationMatrixX(float32 angleRadians);
-KRAFT_API Mat4f RotationMatrixY(float32 angleRadians);
-KRAFT_API Mat4f RotationMatrixZ(float32 angleRadians);
+KRAFT_API Mat4f RotationMatrixX(f32 angleRadians);
+KRAFT_API Mat4f RotationMatrixY(f32 angleRadians);
+KRAFT_API Mat4f RotationMatrixZ(f32 angleRadians);
 KRAFT_API Mat4f RotationMatrixFromEulerAngles(Vec3f euler);
-KRAFT_API Mat4f RotationMatrixFromEulerAngles(float32 rotationXRadians, float32 rotationYRadians, float32 rotationZRadians);
+KRAFT_API Mat4f RotationMatrixFromEulerAngles(f32 rotationXRadians, f32 rotationYRadians, f32 rotationZRadians);
 
 KRAFT_API Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f Up);
 

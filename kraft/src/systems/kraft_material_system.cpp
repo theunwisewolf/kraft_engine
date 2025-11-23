@@ -245,7 +245,7 @@ bool MaterialSystem::SetTexture(Material* Instance, String8 key, const String& T
 
 bool MaterialSystem::SetTexture(Material* Instance, String8 key, Handle<Texture> NewTexture)
 {
-    u64  key_hash = FNV1AHashBytes(key.ptr, key.count);
+    u64  key_hash = FNV1AHashBytes(key);
     auto It = Instance->Shader->UniformCacheMapping.find(key_hash);
     if (It == Instance->Shader->UniformCacheMapping.iend())
     {
@@ -363,7 +363,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         }
 
                         String8 key = String8Raw("DiffuseTexture");
-                        u64     key_hash = FNV1AHashBytes(key.ptr, key.count);
+                        u64     key_hash = FNV1AHashBytes(key);
                         Data->properties[key_hash] = Resource;
                         Data->properties[key_hash].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
                     }
@@ -379,7 +379,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                     else
                     {
                         String8 key = token.text;
-                        u64     key_hash = FNV1AHashBytes(key.ptr, key.count);
+                        u64     key_hash = FNV1AHashBytes(key);
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
                             return false;
@@ -515,7 +515,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
     template<>                                                                                                                                                                                         \
     bool MaterialSystem::SetProperty(Material* instance, String8 key, Type value)                                                                                                                      \
     {                                                                                                                                                                                                  \
-        u64  key_hash = FNV1AHashBytes(key.ptr, key.count);                                                                                                                                            \
+        u64  key_hash = FNV1AHashBytes(key);                                                                                                                                                           \
         auto it = instance->Shader->UniformCacheMapping.find(key_hash);                                                                                                                                \
         if (it == instance->Shader->UniformCacheMapping.iend())                                                                                                                                        \
         {                                                                                                                                                                                              \

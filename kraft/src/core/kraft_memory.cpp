@@ -1,7 +1,3 @@
-#include "kraft_memory.h"
-
-#include <platform/kraft_platform.h>
-
 namespace kraft {
 
 struct MemoryStats g_MemoryStats;

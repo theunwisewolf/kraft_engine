@@ -1,6 +1,3 @@
-#include <core/kraft_string.h>
-#include <core/kraft_string_view.h>
-
 #define CHECK_EOF_ERROR()                                                                                                                                                                              \
     if (this->ReachedEOF())                                                                                                                                                                            \
         return LEXER_ERROR_UNEXPECTED_EOF;

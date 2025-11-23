@@ -119,27 +119,6 @@ struct RenderPassDefinition
     ShaderDefinition*                 shader_stages;
 };
 
-struct ShaderResource
-{
-    String                 Name;
-    uint16                 Set;
-    Array<ResourceBinding> ResourceBindings;
-
-    void WriteTo(kraft::Buffer* Out)
-    {
-        Out->Write(Name);
-        Out->Write(Set);
-        Out->Write(ResourceBindings);
-    }
-
-    void ReadFrom(kraft::Buffer* In)
-    {
-        In->Read(&Name);
-        In->Read(&Set);
-        In->Read(&ResourceBindings);
-    }
-};
-
 struct ShaderEffect
 {
     String8 name;
@@ -166,7 +145,6 @@ struct ShaderEffect
     RenderStateDefinition render_state;
     ShaderCodeFragment    code_fragment;
     RenderPassDefinition  render_pass_def;
-    Array<ShaderResource> Resources;
 
     // ShaderEffect() {};
     // ShaderEffect(ShaderEffect& Other)

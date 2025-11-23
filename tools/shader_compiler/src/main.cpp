@@ -42,6 +42,7 @@ struct ShaderFxCompilerOpts
 {
     bool verbose = false;
     bool write_spirv_for_shaders = false;
+    bool validate = true;
 };
 
 bool CompileShaderFX(ArenaAllocator* arena, String8 InputPath, String8 OutputPath, ShaderFxCompilerOpts compiler_opts);
@@ -77,6 +78,19 @@ bool CompileShaderFX(ArenaAllocator* arena, String8 input_path, String8 output_p
     }
 
     bool result = CompileShaderFX(arena, &effect, output_path, compiler_opts);
+
+    // Validate the effect
+    if (compiler_opts.validate)
+    {
+        KINFO("Validating shaderfx %S", input_path);
+        shaderfx::ShaderEffect written_effect;
+        shaderfx::LoadShaderFX(scratch.arena, output_path, &written_effect);
+        if (!shaderfx::ValidateShaderFX(&written_effect, &effect))
+        {
+            KERROR("Validation failed!");
+        }
+    }
+
     ScratchEnd(scratch);
 
     return result;

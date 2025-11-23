@@ -233,7 +233,7 @@ static u32 AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u3
     Uniform.DataType = data_type;
 
     u32 index = (u32)shader->UniformCache.Size();
-    shader->UniformCacheMapping[FNV1AHashBytes(name.ptr, name.count)] = index;
+    shader->UniformCacheMapping[FNV1AHashBytes(name)] = index;
     shader->UniformCache.Push(Uniform);
 
     return index;
@@ -320,7 +320,7 @@ void ShaderSystem::Unbind()
 
 bool ShaderSystem::GetUniform(const Shader* shader, String8 name, ShaderUniform* uniform)
 {
-    auto It = shader->UniformCacheMapping.find(FNV1AHashBytes(name.ptr, name.count));
+    auto It = shader->UniformCacheMapping.find(FNV1AHashBytes(name));
     if (It == shader->UniformCacheMapping.iend())
         return false;
 
@@ -354,7 +354,7 @@ bool ShaderSystem::SetUniform(String8 name, void* Value, bool Invalidate)
     if (State->CurrentShaderID == KRAFT_INVALID_ID)
         return false;
 
-    auto It = State->CurrentShader->UniformCacheMapping.find(FNV1AHashBytes(name.ptr, name.count));
+    auto It = State->CurrentShader->UniformCacheMapping.find(FNV1AHashBytes(name));
     if (It == State->CurrentShader->UniformCacheMapping.iend())
         return false;
 
