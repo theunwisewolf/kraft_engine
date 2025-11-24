@@ -33,7 +33,7 @@
 #include <core/kraft_thread_context.h>
 #include <core/kraft_strings.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 #ifdef KRAFT_RENDERER_DEBUG
 // PFN_vkDebugMarkerSetObjectTagEXT vkDebugMarkerSetObjectTag;
@@ -1312,10 +1312,4 @@ void destroyFramebuffers(VulkanSwapchain* swapchain)
 
     arrfree(swapchain->Framebuffers);
 }
-} // namespace kraft::renderer
-
-namespace kraft {
-
-using namespace renderer;
-
-}
+} // namespace kraft::r

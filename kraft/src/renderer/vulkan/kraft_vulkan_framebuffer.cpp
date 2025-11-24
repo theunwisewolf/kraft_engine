@@ -9,7 +9,7 @@
 
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 void VulkanCreateFramebuffer(VulkanContext* Context, uint32 Width, uint32 Height, VulkanRenderPass* RenderPass, VkImageView* Attachments, uint32 AttachmentCount, VulkanFramebuffer* Out)
 {

@@ -11,7 +11,7 @@ struct RendererOptions;
 struct Geometry;
 struct ArenaAllocator;
 
-namespace renderer {
+namespace r {
 
 struct ShaderEffect;
 struct VulkanContext;

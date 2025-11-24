@@ -7,7 +7,7 @@ struct Texture;
 struct ArenaAllocator;
 } // namespace kraft
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 template<typename T>
 struct Handle;

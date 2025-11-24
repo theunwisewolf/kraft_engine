@@ -10,7 +10,7 @@
 
 namespace kraft {
 
-namespace filesystem {
+namespace fs {
 
 bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
 {

@@ -14,18 +14,16 @@
 
 namespace kraft {
 
-using namespace renderer;
-
 struct GeometryReference
 {
-    uint32   ReferenceCount;
+    u32      ReferenceCount;
     bool     AutoRelease;
     Geometry Geometry;
 };
 
 struct GeometrySystemState
 {
-    uint32             MaxGeometriesCount;
+    u32                MaxGeometriesCount;
     GeometryReference* Geometries;
 };
 
@@ -35,9 +33,9 @@ static void _createDefaultGeometries();
 
 void GeometrySystem::Init(GeometrySystemConfig Config)
 {
-    uint32 TotalSize = sizeof(GeometrySystemState) + sizeof(GeometryReference) * Config.MaxGeometriesCount;
+    u32 TotalSize = sizeof(GeometrySystemState) + sizeof(GeometryReference) * Config.MaxGeometriesCount;
 
-    uint8* Memory = (uint8*)kraft::Malloc(TotalSize, MEMORY_TAG_GEOMETRY_SYSTEM, true);
+    u8* Memory = (u8*)Malloc(TotalSize, MEMORY_TAG_GEOMETRY_SYSTEM, true);
     State = (GeometrySystemState*)Memory;
     State->MaxGeometriesCount = Config.MaxGeometriesCount;
     State->Geometries = (GeometryReference*)(Memory + sizeof(GeometrySystemState));
@@ -47,7 +45,7 @@ void GeometrySystem::Init(GeometrySystemConfig Config)
 
 void GeometrySystem::Shutdown()
 {
-    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
+    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
         if (Reference->ReferenceCount > 0)
@@ -70,45 +68,45 @@ Geometry* GeometrySystem::GetDefault2DGeometry()
     return &State->Geometries[1].Geometry;
 }
 
-Geometry* GeometrySystem::AcquireGeometry(uint32 ID)
+Geometry* GeometrySystem::AcquireGeometry(u32 id)
 {
-    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
+    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
-        if (Reference->Geometry.ID == ID)
+        if (Reference->Geometry.ID == id)
         {
             return &Reference->Geometry;
         }
     }
 
-    KERROR("[GeometrySystem::AcquireGeometry]: Geometry with id %d not found", ID);
+    KERROR("[GeometrySystem::AcquireGeometry]: Geometry with id %d not found", id);
 
     return nullptr;
 }
 
 Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRelease)
 {
-    int Index = -1;
-    for (uint32 i = 0; i < State->MaxGeometriesCount; ++i)
+    int index = -1;
+    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
     {
         GeometryReference* Reference = &State->Geometries[i];
         if (Reference->ReferenceCount == 0)
         {
-            Index = (int)i;
+            index = (int)i;
             break;
         }
     }
 
-    if (Index == -1)
+    if (index == -1)
     {
         KERROR("[GeometrySystem::AcquireGeometryWithData]: No free slots available; Out of memory!");
         return nullptr;
     }
 
-    GeometryReference* Reference = &State->Geometries[Index];
+    GeometryReference* Reference = &State->Geometries[index];
     Reference->ReferenceCount = 1;
     Reference->AutoRelease = AutoRelease;
-    Reference->Geometry.ID = Index;
+    Reference->Geometry.ID = index;
 
 #ifdef KRAFT_GUI_APP
     if (!g_Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
@@ -164,21 +162,21 @@ void GeometrySystem::DestroyGeometry(Geometry* Geometry)
 void _createDefaultGeometries()
 {
     GeometryReference* Ref = &State->Geometries[0];
-    Vertex3D           Vertices[] = {
+    r::Vertex3D        Vertices[] = {
         { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 } },
         { Vec3f(+0.5f, -0.5f, +0.0f), { 1.f, 0.f }, { 0, 0, 0 } },
         { Vec3f(-0.5f, -0.5f, +0.0f), { 0.f, 0.f }, { 0, 0, 0 } },
         { Vec3f(-0.5f, +0.5f, +0.0f), { 0.f, 1.f }, { 0, 0, 0 } },
     };
 
-    uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
+    u32 Indices[] = { 0, 1, 2, 2, 3, 0 };
 
     Ref->Geometry.ID = 0;
     Ref->AutoRelease = false;
     Ref->ReferenceCount = 1;
 
 #ifdef KRAFT_GUI_APP
-    if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex3D), 6, Indices, sizeof(Indices[0])))
+    if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(r::Vertex3D), 6, Indices, sizeof(Indices[0])))
     {
         KFATAL("[GeometrySystem]: Failed to create default geometries");
         return;
@@ -188,7 +186,7 @@ void _createDefaultGeometries()
     // 2D Geometry
     {
         GeometryReference* Ref = &State->Geometries[1];
-        Vertex2D           Vertices[] = {
+        r::Vertex2D        Vertices[] = {
             {
                 Vec3f(+0.5f, +0.5f, +0.0f),
                 { 1.f, 1.f },
@@ -214,7 +212,7 @@ void _createDefaultGeometries()
         Ref->ReferenceCount = 1;
 
 #ifdef KRAFT_GUI_APP
-        if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(Vertex2D), 6, Indices, sizeof(Indices[0])))
+        if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(r::Vertex2D), 6, Indices, sizeof(Indices[0])))
         {
             KFATAL("[GeometrySystem]: Failed to create default geometries");
             return;
@@ -223,4 +221,4 @@ void _createDefaultGeometries()
     }
 }
 
-}
+} // namespace kraft

@@ -13,7 +13,7 @@
 #include <kraft_types.h>
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 #define KRAFT_CLAMP(value, min, max) (value < min) ? value = min : (value > max ? max : value);
 

@@ -6,7 +6,7 @@ struct Texture;
 struct TextureSampler;
 } // namespace kraft
 
-namespace kraft::renderer {
+namespace kraft::r {
 template<typename T>
 struct Handle;
 }
@@ -16,7 +16,7 @@ template<typename T>
 struct Array;
 }
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 template<typename ConcreteType, typename Type>
 struct Pool
@@ -124,7 +124,7 @@ namespace kraft {
 struct Texture;
 }
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 struct VulkanTexture;
 struct VulkanTextureSampler;

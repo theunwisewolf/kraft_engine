@@ -7,7 +7,7 @@
 
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, float32 depth, uint32 stencil, VulkanRenderPass* out, bool SwapchainTarget, const char* DebugName)
 {

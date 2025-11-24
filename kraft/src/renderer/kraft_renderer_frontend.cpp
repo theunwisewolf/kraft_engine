@@ -28,11 +28,11 @@
 #include <platform/kraft_window.h>
 
 namespace kraft {
-renderer::RendererFrontend* g_Renderer = nullptr;
-renderer::GPUDevice*        g_Device = nullptr;
+r::RendererFrontend* g_Renderer = nullptr;
+r::GPUDevice*        g_Device = nullptr;
 } // namespace kraft
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 using Renderables = FlatHashMap<ResourceID, Array<Renderable>>;
 
@@ -60,7 +60,7 @@ struct RendererFrontendPrivate
 
 void RendererFrontend::Init()
 {
-    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+    u64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
     renderer_data_internal.materials_gpu_buffer = ResourceManager->CreateBuffer({
         .Size = MaterialsBufferSize,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
@@ -97,20 +97,55 @@ struct __DrawData
     uint32 MaterialIdx;
 } DummyDrawData;
 
-void RendererFrontend::Draw(Shader* Shader, GlobalShaderData* GlobalUBO, uint32 GeometryId)
+void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geometry_id)
 {
     KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
 
-    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)GlobalUBO, sizeof(GlobalShaderData));
+    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)ubo, sizeof(GlobalShaderData));
 
-    renderer_data_internal.backend->UseShader(Shader);
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(Shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
+    renderer_data_internal.backend->UseShader(shader);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
 
     DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
     DummyDrawData.MaterialIdx = 0;
-    renderer_data_internal.backend->ApplyLocalShaderProperties(Shader, &DummyDrawData);
+    renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
 
-    renderer_data_internal.backend->DrawGeometryData(GeometryId);
+    renderer_data_internal.backend->DrawGeometryData(geometry_id);
+}
+
+void RendererFrontend::Draw(GlobalShaderData* global_ubo)
+{
+    KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
+
+    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)global_ubo, sizeof(GlobalShaderData));
+
+    for (auto It = renderer_data_internal.renderables.begin(); It != renderer_data_internal.renderables.end(); It++)
+    {
+        Shader* shader = ShaderSystem::BindByID(It->first);
+        renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
+
+        auto& objects = It->second;
+        u64   count = objects.Size();
+        if (!count)
+            continue;
+
+        for (int i = 0; i < count; i++)
+        {
+            Renderable Object = objects[i];
+
+            DummyDrawData.Model = Object.ModelMatrix;
+            DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
+            // DummyDrawData.MousePosition = Surface.RelativeMousePosition;
+            DummyDrawData.EntityId = Object.EntityId;
+            renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
+
+            renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
+        }
+
+        objects.Clear();
+
+        ShaderSystem::Unbind();
+    }
 }
 
 void RendererFrontend::OnResize(int width, int height)
@@ -121,13 +156,13 @@ void RendererFrontend::OnResize(int width, int height)
 
 void RendererFrontend::PrepareFrame()
 {
-    renderer::ResourceManager->EndFrame(0);
+    r::ResourceManager->EndFrame(0);
     renderer_data_internal.current_frame_index = renderer_data_internal.backend->PrepareFrame();
 
     // Upload all the materials
-    uint8* BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
-    auto   Materials = MaterialSystem::GetMaterialsBuffer();
-    uint64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+    u8*  BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
+    auto Materials = MaterialSystem::GetMaterialsBuffer();
+    u64  MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
 
     MemCpy(BufferData, Materials, MaterialsBufferSize);
 
@@ -157,7 +192,7 @@ bool RendererFrontend::DrawSurfaces()
     GlobalShaderData.View = this->Camera->GetViewMatrix();
     GlobalShaderData.CameraPosition = this->Camera->Position;
 
-    uint64 Start = kraft::Platform::TimeNowNS();
+    u64 Start = Platform::TimeNowNS();
     for (int i = 0; i < renderer_data_internal.surfaces.Length; i++)
     {
         RenderDataT&    SurfaceRenderData = renderer_data_internal.surfaces[i];
@@ -178,8 +213,8 @@ bool RendererFrontend::DrawSurfaces()
             Shader* CurrentShader = ShaderSystem::BindByID(It->first);
             renderer_data_internal.backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
 
-            auto&  Objects = It->second;
-            uint64 Count = Objects.Size();
+            auto& Objects = It->second;
+            u64   Count = Objects.Size();
             if (!Count)
                 continue;
 
@@ -202,7 +237,7 @@ bool RendererFrontend::DrawSurfaces()
         }
         Surface.End();
     }
-    uint64 End = kraft::Platform::TimeNowNS();
+    u64 End = kraft::Platform::TimeNowNS();
 
     // KDEBUG("Render complete in: %f ms", f64(End - Start) / 1000000.0f);
 
@@ -503,4 +538,4 @@ void DestroyRendererFrontend(RendererFrontend* Instance)
     DestroyArena(renderer_data_internal.arena);
 }
 
-} // namespace kraft::renderer
+} // namespace kraft::r

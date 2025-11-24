@@ -64,9 +64,9 @@ kraft::Window* CreateWindow(String Title, uint32 Width, uint32 Height)
 void DestroyWindow(Window* Window)
 {}
 
-renderer::RendererFrontend* CreateRenderer(const RendererOptions& Opts)
+r::RendererFrontend* CreateRenderer(const RendererOptions& Opts)
 {
-    auto RendererInstance = renderer::CreateRendererFrontend(&Opts);
+    auto RendererInstance = r::CreateRendererFrontend(&Opts);
     KASSERT(RendererInstance);
 
     AssetDatabase::Init();
@@ -78,7 +78,7 @@ renderer::RendererFrontend* CreateRenderer(const RendererOptions& Opts)
     return RendererInstance;
 }
 
-void DestroyRenderer(renderer::RendererFrontend* Instance)
+void DestroyRenderer(r::RendererFrontend* Instance)
 {
     ShaderSystem::Shutdown();
     GeometrySystem::Shutdown();
@@ -86,7 +86,7 @@ void DestroyRenderer(renderer::RendererFrontend* Instance)
     TextureSystem::Shutdown();
     AssetDatabase::Shutdown();
 
-    renderer::DestroyRendererFrontend(Instance);
+    r::DestroyRendererFrontend(Instance);
 }
 } // namespace kraft
 #endif

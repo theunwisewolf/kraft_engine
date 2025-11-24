@@ -42,7 +42,7 @@ struct MaterialSystemState
 
 static MaterialSystemState* State = 0;
 
-static void ReleaseMaterialInternal(uint32 Index);
+static void ReleaseMaterialInternal(u32 Index);
 // static void CreateDefaultMaterialsInternal();
 static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_path, MaterialDataIntermediateFormat* data);
 
@@ -79,7 +79,7 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->material_references[0].material;
 }
 
-Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, Handle<RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, r::Handle<r::RenderPass> RenderPassHandle)
 {
     TempArena scratch = ScratchBegin(0, 0);
     String8   _file_path = file_path;
@@ -106,10 +106,10 @@ Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, Handle<Rende
     return CreateMaterialWithData(data, RenderPassHandle);
 }
 
-Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, Handle<RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, r::Handle<r::RenderPass> RenderPassHandle)
 {
-    uint32 FreeIndex = uint32(-1);
-    for (uint32 i = 0; i < State->MaxMaterialsCount; ++i)
+    u32 FreeIndex = u32(-1);
+    for (u32 i = 0; i < State->MaxMaterialsCount; ++i)
     {
         if (State->material_references[i].ref_count == 0)
         {
@@ -118,7 +118,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
     }
 
-    if (FreeIndex == uint32(-1))
+    if (FreeIndex == u32(-1))
     {
         KERROR("[CreateMaterialWithData]: Max number of materials reached!");
         return nullptr;
@@ -150,7 +150,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     for (auto It = Shader->UniformCacheMapping.ibegin(); It != Shader->UniformCacheMapping.iend(); It++)
     {
         ShaderUniform* Uniform = &Shader->UniformCache[It->second];
-        if (Uniform->Scope != ShaderUniformScope::Instance)
+        if (Uniform->Scope != r::ShaderUniformScope::Instance)
         {
             continue;
         }
@@ -174,9 +174,9 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
 
         // KDEBUG("Setting uniform '%s' to '%d' (Stride = %d, Offset = %d)", *UniformName, MaterialIt->second.UInt32Value, Uniform->Stride, Uniform->Offset);
 
-        if (Uniform->DataType.UnderlyingType == ShaderDataType::TextureID)
+        if (Uniform->DataType.UnderlyingType == r::ShaderDataType::TextureID)
         {
-            uint32 Index = (uint32)MaterialIt->second.TextureValue.GetIndex();
+            u32 Index = (u32)MaterialIt->second.TextureValue.GetIndex();
             MemCpy(MaterialBuffer + Uniform->Offset, &Index, Uniform->Stride);
         }
         else
@@ -234,16 +234,16 @@ void MaterialSystem::DestroyMaterial(Material* instance)
 
 bool MaterialSystem::SetTexture(Material* Instance, String8 key, const String& TexturePath)
 {
-    Handle<Texture> NewTexture = TextureSystem::AcquireTexture(TexturePath, true);
-    if (NewTexture.IsInvalid())
+    r::Handle<Texture> texture = TextureSystem::AcquireTexture(TexturePath, true);
+    if (texture.IsInvalid())
     {
         return false;
     }
 
-    return SetTexture(Instance, key, NewTexture);
+    return SetTexture(Instance, key, texture);
 }
 
-bool MaterialSystem::SetTexture(Material* Instance, String8 key, Handle<Texture> NewTexture)
+bool MaterialSystem::SetTexture(Material* Instance, String8 key, r::Handle<Texture> texture)
 {
     u64  key_hash = FNV1AHashBytes(key);
     auto It = Instance->Shader->UniformCacheMapping.find(key_hash);
@@ -253,7 +253,7 @@ bool MaterialSystem::SetTexture(Material* Instance, String8 key, Handle<Texture>
         return false;
     }
 
-    uint8*        MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
+    u8*           MaterialBuffer = State->MaterialsBuffer + Instance->ID * State->MaterialBufferSize;
     Shader*       Shader = Instance->Shader;
     ShaderUniform Uniform;
     if (!ShaderSystem::GetUniform(Shader, key, &Uniform))
@@ -262,14 +262,14 @@ bool MaterialSystem::SetTexture(Material* Instance, String8 key, Handle<Texture>
         return false;
     }
 
-    uint32 Index = NewTexture.GetIndex();
+    u32 Index = texture.GetIndex();
     MemCpy(MaterialBuffer + Uniform.Offset, &Index, Uniform.Stride);
-    Instance->Properties[key_hash].TextureValue = NewTexture;
+    Instance->Properties[key_hash].TextureValue = texture;
 
     return true;
 }
 
-uint8* MaterialSystem::GetMaterialsBuffer()
+u8* MaterialSystem::GetMaterialsBuffer()
 {
     return State->MaterialsBuffer;
 }
@@ -278,9 +278,9 @@ uint8* MaterialSystem::GetMaterialsBuffer()
 // Internal private methods
 //
 
-static void ReleaseMaterialInternal(uint32 Index)
+static void ReleaseMaterialInternal(u32 index)
 {
-    MaterialReference ref = State->material_references[Index];
+    MaterialReference ref = State->material_references[index];
     if (ref.ref_count == 0)
     {
         KWARN("[MaterialSystem::ReleaseMaterial]: Material %S already released!", ref.material.Name);
@@ -309,7 +309,7 @@ static void ReleaseMaterialInternal(uint32 Index)
 static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_path, MaterialDataIntermediateFormat* Data)
 {
     TempArena scratch = ScratchBegin(&arena, 1);
-    buffer    file_buf = filesystem::ReadAllBytes(scratch.arena, file_path);
+    buffer    file_buf = fs::ReadAllBytes(scratch.arena, file_path);
 
     if (!file_buf.count)
     {
@@ -354,8 +354,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                             return false;
                         }
 
-                        const String&   TexturePath = String((char*)token.text.ptr, token.text.count);
-                        Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
+                        const String&      TexturePath = String((char*)token.text.ptr, token.text.count);
+                        r::Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
                         if (Resource.IsInvalid())
                         {
                             KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %S. Using default texture.", *TexturePath, file_path);
@@ -365,7 +365,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         String8 key = String8Raw("DiffuseTexture");
                         u64     key_hash = FNV1AHashBytes(key);
                         Data->properties[key_hash] = Resource;
-                        Data->properties[key_hash].Size = ShaderDataType::SizeOf(ShaderDataType{ .UnderlyingType = ShaderDataType::TextureID });
+                        Data->properties[key_hash].Size = r::ShaderDataType::SizeOf(r::ShaderDataType{ .UnderlyingType = r::ShaderDataType::TextureID });
                     }
                     else if (token.MatchesKeyword(String8Raw("Shader")))
                     {

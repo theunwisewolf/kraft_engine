@@ -24,19 +24,19 @@ int GetShaderStageFromString(String8 value)
 {
     if (StringEqual(value, String8Raw("Vertex")))
     {
-        return renderer::SHADER_STAGE_FLAGS_VERTEX;
+        return r::SHADER_STAGE_FLAGS_VERTEX;
     }
     else if (StringEqual(value, String8Raw("Fragment")))
     {
-        return renderer::SHADER_STAGE_FLAGS_FRAGMENT;
+        return r::SHADER_STAGE_FLAGS_FRAGMENT;
     }
     else if (StringEqual(value, String8Raw("Compute")))
     {
-        return renderer::SHADER_STAGE_FLAGS_COMPUTE;
+        return r::SHADER_STAGE_FLAGS_COMPUTE;
     }
     else if (StringEqual(value, String8Raw("Geometry")))
     {
-        return renderer::SHADER_STAGE_FLAGS_GEOMETRY;
+        return r::SHADER_STAGE_FLAGS_GEOMETRY;
     }
 
     return 0;
@@ -369,15 +369,15 @@ bool ShaderFXParser::ParseResourceBindings(ArenaAllocator* arena, ResourceBindin
         ResourceBinding* binding = &bindings[binding_count];
         if (token.MatchesKeyword(String8Raw("UniformBuffer")))
         {
-            binding->type = renderer::ResourceType::UniformBuffer;
+            binding->type = r::ResourceType::UniformBuffer;
         }
         else if (token.MatchesKeyword(String8Raw("StorageBuffer")))
         {
-            binding->type = renderer::ResourceType::StorageBuffer;
+            binding->type = r::ResourceType::StorageBuffer;
         }
         else if (token.MatchesKeyword(String8Raw("Sampler")))
         {
-            binding->type = renderer::ResourceType::Sampler;
+            binding->type = r::ResourceType::Sampler;
         }
         else
         {
@@ -403,7 +403,7 @@ bool ShaderFXParser::ParseResourceBindings(ArenaAllocator* arena, ResourceBindin
 
             if (StringEqual(pair.key, String8Raw("Stage")))
             {
-                binding->stage = (renderer::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
+                binding->stage = (r::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
                 if (binding->stage == 0)
                 {
                     this->SetError(arena, PARSER_ERROR_INVALID_SHADER_STAGE, pair.value.text);
@@ -488,7 +488,7 @@ bool ShaderFXParser::ParseConstantBuffer(ArenaAllocator* arena, ConstantBufferDe
             {
                 if (StringEqual(pair.key, String8Raw("Stage")))
                 {
-                    entry->stage = (renderer::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
+                    entry->stage = (r::ShaderStageFlags)GetShaderStageFromString(pair.value.text);
                     if (entry->stage == 0)
                     {
                         this->SetError(arena, PARSER_ERROR_INVALID_SHADER_STAGE, pair.value.text);
@@ -578,79 +578,79 @@ bool ShaderFXParser::ParseUniformBuffer(ArenaAllocator* arena, UniformBufferDefi
         out_type->UnderlyingType = value;                                                                                                                                                              \
     }
 
-bool ShaderFXParser::ParseDataType(ArenaAllocator* arena, const LexerToken* current_token, renderer::ShaderDataType* out_type)
+bool ShaderFXParser::ParseDataType(ArenaAllocator* arena, const LexerToken* current_token, r::ShaderDataType* out_type)
 {
     char character = current_token->text.ptr[0];
-    out_type->UnderlyingType = renderer::ShaderDataType::Count;
+    out_type->UnderlyingType = r::ShaderDataType::Count;
     switch (character)
     {
         case 'f': // "Float", "Float2", "Float3", "Float4"
         case 'F':
         {
-            MATCH_FORMAT("float", renderer::ShaderDataType::Float);
-            MATCH_FORMAT("Float", renderer::ShaderDataType::Float);
-            MATCH_FORMAT("float2", renderer::ShaderDataType::Float2);
-            MATCH_FORMAT("Float2", renderer::ShaderDataType::Float2);
-            MATCH_FORMAT("float3", renderer::ShaderDataType::Float3);
-            MATCH_FORMAT("Float3", renderer::ShaderDataType::Float3);
-            MATCH_FORMAT("float4", renderer::ShaderDataType::Float4);
-            MATCH_FORMAT("Float4", renderer::ShaderDataType::Float4);
+            MATCH_FORMAT("float", r::ShaderDataType::Float);
+            MATCH_FORMAT("Float", r::ShaderDataType::Float);
+            MATCH_FORMAT("float2", r::ShaderDataType::Float2);
+            MATCH_FORMAT("Float2", r::ShaderDataType::Float2);
+            MATCH_FORMAT("float3", r::ShaderDataType::Float3);
+            MATCH_FORMAT("Float3", r::ShaderDataType::Float3);
+            MATCH_FORMAT("float4", r::ShaderDataType::Float4);
+            MATCH_FORMAT("Float4", r::ShaderDataType::Float4);
         }
         break;
         case 'm': // "Mat4"
         case 'M': // "Mat4"
         {
-            MATCH_FORMAT("mat4", renderer::ShaderDataType::Mat4);
-            MATCH_FORMAT("Mat4", renderer::ShaderDataType::Mat4);
+            MATCH_FORMAT("mat4", r::ShaderDataType::Mat4);
+            MATCH_FORMAT("Mat4", r::ShaderDataType::Mat4);
         }
         break;
         case 'b': // "Byte", "Byte4N"
         case 'B': // "Byte", "Byte4N"
         {
-            MATCH_FORMAT("byte", renderer::ShaderDataType::Byte);
-            MATCH_FORMAT("Byte", renderer::ShaderDataType::Byte);
-            MATCH_FORMAT("byte4n", renderer::ShaderDataType::Byte4N);
-            MATCH_FORMAT("Byte4N", renderer::ShaderDataType::Byte4N);
+            MATCH_FORMAT("byte", r::ShaderDataType::Byte);
+            MATCH_FORMAT("Byte", r::ShaderDataType::Byte);
+            MATCH_FORMAT("byte4n", r::ShaderDataType::Byte4N);
+            MATCH_FORMAT("Byte4N", r::ShaderDataType::Byte4N);
         }
         break;
         case 'u': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         case 'U': // "UByte", "UByte4N", "UInt", "UInt2", "UInt4"
         {
-            MATCH_FORMAT("ubyte", renderer::ShaderDataType::UByte);
-            MATCH_FORMAT("UByte", renderer::ShaderDataType::UByte);
-            MATCH_FORMAT("ubyte4n", renderer::ShaderDataType::UByte4N);
-            MATCH_FORMAT("UByte4N", renderer::ShaderDataType::UByte4N);
-            MATCH_FORMAT("uint", renderer::ShaderDataType::UInt);
-            MATCH_FORMAT("UInt", renderer::ShaderDataType::UInt);
-            MATCH_FORMAT("uint2", renderer::ShaderDataType::UInt2);
-            MATCH_FORMAT("UInt2", renderer::ShaderDataType::UInt2);
-            MATCH_FORMAT("uint4", renderer::ShaderDataType::UInt4);
-            MATCH_FORMAT("UInt4", renderer::ShaderDataType::UInt4);
+            MATCH_FORMAT("ubyte", r::ShaderDataType::UByte);
+            MATCH_FORMAT("UByte", r::ShaderDataType::UByte);
+            MATCH_FORMAT("ubyte4n", r::ShaderDataType::UByte4N);
+            MATCH_FORMAT("UByte4N", r::ShaderDataType::UByte4N);
+            MATCH_FORMAT("uint", r::ShaderDataType::UInt);
+            MATCH_FORMAT("UInt", r::ShaderDataType::UInt);
+            MATCH_FORMAT("uint2", r::ShaderDataType::UInt2);
+            MATCH_FORMAT("UInt2", r::ShaderDataType::UInt2);
+            MATCH_FORMAT("uint4", r::ShaderDataType::UInt4);
+            MATCH_FORMAT("UInt4", r::ShaderDataType::UInt4);
         }
         break;
         case 's': // "Short2", "Short2N", "Short4", "Short4N"
         case 'S': // "Short2", "Short2N", "Short4", "Short4N"
         {
-            MATCH_FORMAT("short2", renderer::ShaderDataType::Short2);
-            MATCH_FORMAT("Short2", renderer::ShaderDataType::Short2);
-            MATCH_FORMAT("short2n", renderer::ShaderDataType::Short2N);
-            MATCH_FORMAT("Short2N", renderer::ShaderDataType::Short2N);
-            MATCH_FORMAT("short4", renderer::ShaderDataType::Short4);
-            MATCH_FORMAT("Short4", renderer::ShaderDataType::Short4);
-            MATCH_FORMAT("short4n", renderer::ShaderDataType::Short4N);
-            MATCH_FORMAT("Short4N", renderer::ShaderDataType::Short4N);
+            MATCH_FORMAT("short2", r::ShaderDataType::Short2);
+            MATCH_FORMAT("Short2", r::ShaderDataType::Short2);
+            MATCH_FORMAT("short2n", r::ShaderDataType::Short2N);
+            MATCH_FORMAT("Short2N", r::ShaderDataType::Short2N);
+            MATCH_FORMAT("short4", r::ShaderDataType::Short4);
+            MATCH_FORMAT("Short4", r::ShaderDataType::Short4);
+            MATCH_FORMAT("short4n", r::ShaderDataType::Short4N);
+            MATCH_FORMAT("Short4N", r::ShaderDataType::Short4N);
         }
         break;
         case 't':
         {
-            MATCH_FORMAT("texID", renderer::ShaderDataType::TextureID);
+            MATCH_FORMAT("texID", r::ShaderDataType::TextureID);
         }
         break;
         default: return false;
     }
 
     // Invalid type
-    if (out_type->UnderlyingType == renderer::ShaderDataType::Count)
+    if (out_type->UnderlyingType == r::ShaderDataType::Count)
     {
         this->SetError(arena, "Invalid data type '%S'", current_token->text);
         return false;
@@ -805,7 +805,7 @@ bool ShaderFXParser::ParseVertexLayout(ArenaAllocator* arena, VertexLayoutDefini
 bool ShaderFXParser::ParseVertexAttribute(ArenaAllocator* arena, VertexAttribute* attribute)
 {
     LexerToken current_token;
-    attribute->format = renderer::ShaderDataType::Invalid();
+    attribute->format = r::ShaderDataType::Invalid();
 
     if (!this->Lexer->ExpectToken(&current_token, TokenType::TOKEN_TYPE_IDENTIFIER))
     {
@@ -900,11 +900,11 @@ bool ShaderFXParser::ParseVertexInputBinding(ArenaAllocator* arena, VertexInputB
 
     if (token.MatchesKeyword(String8Raw("vertex")))
     {
-        input_binding->input_rate = renderer::VertexInputRate::PerVertex;
+        input_binding->input_rate = r::VertexInputRate::PerVertex;
     }
     else if (token.MatchesKeyword(String8Raw("instance")))
     {
-        input_binding->input_rate = renderer::VertexInputRate::PerInstance;
+        input_binding->input_rate = r::VertexInputRate::PerInstance;
     }
     else
     {
@@ -1041,19 +1041,19 @@ bool ShaderFXParser::ParseRenderState(ArenaAllocator* arena, RenderStateDefiniti
 
             if (token.MatchesKeyword(String8Raw("Back")))
             {
-                state->cull_mode = renderer::CullModeFlags::Back;
+                state->cull_mode = r::CullModeFlags::Back;
             }
             else if (token.MatchesKeyword(String8Raw("Front")))
             {
-                state->cull_mode = renderer::CullModeFlags::Front;
+                state->cull_mode = r::CullModeFlags::Front;
             }
             else if (token.MatchesKeyword(String8Raw("FrontAndBack")))
             {
-                state->cull_mode = renderer::CullModeFlags::FrontAndBack;
+                state->cull_mode = r::CullModeFlags::FrontAndBack;
             }
             else if (token.MatchesKeyword(String8Raw("Off")) || token.MatchesKeyword(String8Raw("None")))
             {
-                state->cull_mode = renderer::CullModeFlags::None;
+                state->cull_mode = r::CullModeFlags::None;
             }
             else
             {
@@ -1070,11 +1070,11 @@ bool ShaderFXParser::ParseRenderState(ArenaAllocator* arena, RenderStateDefiniti
             }
 
             bool Valid = false;
-            for (int i = 0; i < renderer::CompareOp::Count; i++)
+            for (int i = 0; i < r::CompareOp::Count; i++)
             {
-                if (token.MatchesKeyword(renderer::CompareOp::String((renderer::CompareOp::Enum)i)))
+                if (token.MatchesKeyword(r::CompareOp::String((r::CompareOp::Enum)i)))
                 {
-                    state->z_test_op = (renderer::CompareOp::Enum)i;
+                    state->z_test_op = (r::CompareOp::Enum)i;
                     Valid = true;
                     break;
                 }
@@ -1216,11 +1216,11 @@ bool ShaderFXParser::ParseRenderState(ArenaAllocator* arena, RenderStateDefiniti
                 return false;
             }
 
-            for (int i = 0; i < renderer::PolygonMode::Count; i++)
+            for (int i = 0; i < r::PolygonMode::Count; i++)
             {
-                if (StringEqual(token.text, renderer::PolygonMode::strings[i]))
+                if (StringEqual(token.text, r::PolygonMode::strings[i]))
                 {
-                    state->polygon_mode = (renderer::PolygonMode::Enum)i;
+                    state->polygon_mode = (r::PolygonMode::Enum)i;
                     break;
                 }
             }
@@ -1240,14 +1240,14 @@ bool ShaderFXParser::ParseRenderState(ArenaAllocator* arena, RenderStateDefiniti
     return true;
 }
 
-bool ShaderFXParser::ParseBlendFactor(ArenaAllocator* arena, const LexerToken* token, renderer::BlendFactor::Enum* factor)
+bool ShaderFXParser::ParseBlendFactor(ArenaAllocator* arena, const LexerToken* token, r::BlendFactor::Enum* factor)
 {
     bool valid = false;
-    for (int i = 0; i < renderer::BlendFactor::Count; i++)
+    for (int i = 0; i < r::BlendFactor::Count; i++)
     {
-        if (token->MatchesKeyword(renderer::BlendFactor::strings[i]))
+        if (token->MatchesKeyword(r::BlendFactor::strings[i]))
         {
-            *factor = (renderer::BlendFactor::Enum)i;
+            *factor = (r::BlendFactor::Enum)i;
             valid = true;
             break;
         }
@@ -1262,14 +1262,14 @@ bool ShaderFXParser::ParseBlendFactor(ArenaAllocator* arena, const LexerToken* t
     return true;
 }
 
-bool ShaderFXParser::ParseBlendOp(ArenaAllocator* arena, const LexerToken* token, renderer::BlendOp::Enum* op)
+bool ShaderFXParser::ParseBlendOp(ArenaAllocator* arena, const LexerToken* token, r::BlendOp::Enum* op)
 {
     bool valid = false;
-    for (int i = 0; i < renderer::BlendOp::Count; i++)
+    for (int i = 0; i < r::BlendOp::Count; i++)
     {
-        if (token->MatchesKeyword(renderer::BlendOp::strings[i]))
+        if (token->MatchesKeyword(r::BlendOp::strings[i]))
         {
-            *op = (renderer::BlendOp::Enum)i;
+            *op = (r::BlendOp::Enum)i;
             valid = true;
             break;
         }
@@ -1408,14 +1408,14 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
         }
         else if (token.MatchesKeyword(String8Raw("VertexShader")))
         {
-            shader_defs[shader_def_count].stage = renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX;
+            shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX;
             shader_defs[shader_def_count].code_fragment = effect->code_fragment;
 
             shader_def_count++;
         }
         else if (token.MatchesKeyword(String8Raw("FragmentShader")))
         {
-            shader_defs[shader_def_count].stage = renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT;
+            shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT;
             shader_defs[shader_def_count].code_fragment = effect->code_fragment;
 
             shader_def_count++;
@@ -1434,21 +1434,21 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
 bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
 {
     KASSERT(arena);
-    filesystem::FileHandle File;
+    fs::FileHandle File;
 
     // Read test
-    if (!filesystem::OpenFile(path, filesystem::FILE_OPEN_MODE_READ, true, &File))
+    if (!fs::OpenFile(path, fs::FILE_OPEN_MODE_READ, true, &File))
     {
         KERROR("Failed to read file %S", path);
         return false;
     }
 
-    u64 BinaryBufferSize = kraft::filesystem::GetFileSize(&File) + 1;
-    u8* BinaryBuffer = (uint8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
-    filesystem::ReadAllBytes(&File, &BinaryBuffer);
-    filesystem::CloseFile(&File);
+    u64 BinaryBufferSize = fs::GetFileSize(&File) + 1;
+    u8* BinaryBuffer = (u8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
+    fs::ReadAllBytes(&File, &BinaryBuffer);
+    fs::CloseFile(&File);
 
-    kraft::Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
+    Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
     effect->name = Reader.ReadString(arena);
     effect->resource_path = Reader.ReadString(arena);
 
@@ -1465,8 +1465,8 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
             effect->vertex_layouts[i].attributes[j].location = Reader.Readu16();
             effect->vertex_layouts[i].attributes[j].binding = Reader.Readu16();
             effect->vertex_layouts[i].attributes[j].offset = Reader.Readu16();
-            // Reader.ReadRaw(&effect->vertex_layouts[i].attributes[j].format, sizeof(renderer::ShaderDataType));
-            effect->vertex_layouts[i].attributes[j].format.UnderlyingType = (renderer::ShaderDataType::Enum)Reader.Readu8();
+            // Reader.ReadRaw(&effect->vertex_layouts[i].attributes[j].format, sizeof(r::ShaderDataType));
+            effect->vertex_layouts[i].attributes[j].format.UnderlyingType = (r::ShaderDataType::Enum)Reader.Readu8();
             effect->vertex_layouts[i].attributes[j].format.ArraySize = Reader.Readu16();
         }
 
@@ -1476,7 +1476,7 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         {
             effect->vertex_layouts[i].input_bindings[j].binding = Reader.Readu16();
             effect->vertex_layouts[i].input_bindings[j].stride = Reader.Readu16();
-            effect->vertex_layouts[i].input_bindings[j].input_rate = (renderer::VertexInputRate::Enum)Reader.Readi32();
+            effect->vertex_layouts[i].input_bindings[j].input_rate = (r::VertexInputRate::Enum)Reader.Readi32();
         }
     }
 
@@ -1494,8 +1494,8 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
             effect->local_resources[i].bindings[j].binding = Reader.Readu16();
             effect->local_resources[i].bindings[j].size = Reader.Readu16();
             effect->local_resources[i].bindings[j].parent_index = Reader.Readi16();
-            effect->local_resources[i].bindings[j].type = (renderer::ResourceType::Enum)Reader.Readi32();
-            effect->local_resources[i].bindings[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+            effect->local_resources[i].bindings[j].type = (r::ResourceType::Enum)Reader.Readi32();
+            effect->local_resources[i].bindings[j].stage = (r::ShaderStageFlags)Reader.Readi32();
         }
     }
 
@@ -1513,8 +1513,8 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
             effect->global_resources[i].bindings[j].binding = Reader.Readu16();
             effect->global_resources[i].bindings[j].size = Reader.Readu16();
             effect->global_resources[i].bindings[j].parent_index = Reader.Readi16();
-            effect->global_resources[i].bindings[j].type = (renderer::ResourceType::Enum)Reader.Readi32();
-            effect->global_resources[i].bindings[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+            effect->global_resources[i].bindings[j].type = (r::ResourceType::Enum)Reader.Readi32();
+            effect->global_resources[i].bindings[j].stage = (r::ShaderStageFlags)Reader.Readi32();
         }
     }
 
@@ -1528,8 +1528,8 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         for (u32 j = 0; j < effect->constant_buffers[i].field_count; j++)
         {
             effect->constant_buffers[i].fields[j].name = Reader.ReadString(arena);
-            effect->constant_buffers[i].fields[j].stage = (renderer::ShaderStageFlags)Reader.Readi32();
-            Reader.ReadRaw(&effect->constant_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            effect->constant_buffers[i].fields[j].stage = (r::ShaderStageFlags)Reader.Readi32();
+            Reader.ReadRaw(&effect->constant_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
@@ -1543,7 +1543,7 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         for (u32 j = 0; j < effect->uniform_buffers[i].field_count; j++)
         {
             effect->uniform_buffers[i].fields[j].name = Reader.ReadString(arena);
-            Reader.ReadRaw(&effect->uniform_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            Reader.ReadRaw(&effect->uniform_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
@@ -1557,18 +1557,18 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         for (u32 j = 0; j < effect->storage_buffers[i].field_count; j++)
         {
             effect->storage_buffers[i].fields[j].name = Reader.ReadString(arena);
-            Reader.ReadRaw(&effect->storage_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            Reader.ReadRaw(&effect->storage_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
     // RenderState
     effect->render_state.name = Reader.ReadString(arena);
-    effect->render_state.cull_mode = (renderer::CullModeFlags::Enum)Reader.Readi32();
-    effect->render_state.z_test_op = (renderer::CompareOp::Enum)Reader.Readi32();
+    effect->render_state.cull_mode = (r::CullModeFlags::Enum)Reader.Readi32();
+    effect->render_state.z_test_op = (r::CompareOp::Enum)Reader.Readi32();
     effect->render_state.z_write_enable = Reader.Readbool();
     effect->render_state.blend_enable = Reader.Readbool();
-    Reader.ReadRaw(&effect->render_state.blend_mode, sizeof(renderer::BlendState));
-    effect->render_state.polygon_mode = (renderer::PolygonMode::Enum)Reader.Readi32();
+    Reader.ReadRaw(&effect->render_state.blend_mode, sizeof(r::BlendState));
+    effect->render_state.polygon_mode = (r::PolygonMode::Enum)Reader.Readi32();
     effect->render_state.line_width = Reader.Readf32();
 
     effect->render_pass_def.name = Reader.ReadString(arena);
@@ -1590,7 +1590,7 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
     effect->render_pass_def.shader_stages = ArenaPushArray(arena, RenderPassDefinition::ShaderDefinition, effect->render_pass_def.shader_stage_count);
     for (u32 i = 0; i < effect->render_pass_def.shader_stage_count; i++)
     {
-        effect->render_pass_def.shader_stages[i].stage = (renderer::ShaderStageFlags)Reader.Readi32();
+        effect->render_pass_def.shader_stages[i].stage = (r::ShaderStageFlags)Reader.Readi32();
         effect->render_pass_def.shader_stages[i].code_fragment.name = Reader.ReadString(arena);
         effect->render_pass_def.shader_stages[i].code_fragment.code = Reader.ReadString(arena);
     }

@@ -28,7 +28,7 @@ namespace kraft {
 struct ArenaAllocator;
 }
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 class VulkanResourceManager;
 

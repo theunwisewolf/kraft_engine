@@ -44,7 +44,7 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
     va_end(args);
 
     char filename_buffer[256] = { 0 };
-    filesystem::Basename(filename, filename_buffer);
+    fs::Basename(filename, filename_buffer);
 
     // Pad filename
     // int FilenameLength = StringLengthClamped(FilenameBuffer, 255);

@@ -18,7 +18,7 @@ struct MeshT
 {
     kraft::Geometry*                 Geometry;
     kraft::Material*                 MaterialInstance;
-    Array<renderer::Handle<Texture>> Textures;
+    Array<r::Handle<Texture>> Textures;
     kraft::Mat4f                     Transform;
     int32                            NodeIdx;
 };

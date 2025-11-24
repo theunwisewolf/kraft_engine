@@ -12,7 +12,7 @@ namespace kraft {
 struct Buffer;
 struct ArenaAllocator;
 
-namespace filesystem {
+namespace fs {
 
 struct FileSystemEntry
 {

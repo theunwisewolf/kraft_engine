@@ -1,6 +1,6 @@
 #pragma once
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 struct VulkanContext;
 struct VulkanCommandBuffer;

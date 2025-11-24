@@ -9,23 +9,21 @@
 
 namespace kraft {
 
-typedef uint32 ResourceID;
-
-using namespace renderer;
+typedef u32 ResourceID;
 
 struct Material;
 
-namespace renderer {
+namespace r {
 struct RenderPass;
 }
 
 struct ShaderUniform
 {
-    uint32                   Location;
-    uint32                   Offset;
-    uint32                   Stride;
-    ShaderDataType           DataType;
-    ShaderUniformScope::Enum Scope;
+    u32                         Location;
+    u32                         Offset;
+    u32                         Stride;
+    r::ShaderDataType           DataType;
+    r::ShaderUniformScope::Enum Scope;
 };
 
 struct Shader
@@ -36,8 +34,8 @@ struct Shader
     Array<ShaderUniform>   UniformCache;
     HashMap<u64, u32>      UniformCacheMapping;
 
-    Handle<RenderPass> RenderPassHandle = Handle<RenderPass>::Invalid(); // The renderpass of the shader's pipeline
-    void*              RendererData;
+    r::Handle<r::RenderPass> RenderPassHandle = r::Handle<r::RenderPass>::Invalid(); // The renderpass of the shader's pipeline
+    void*                    RendererData;
 };
 
 enum TextureMapType : uint8
@@ -50,13 +48,13 @@ enum TextureMapType : uint8
 
 struct Texture
 {
-    uint32                  ID;
-    float32                 Width;
-    float32                 Height;
-    uint8                   Channels;
-    Format::Enum            TextureFormat;
-    TextureSampleCountFlags SampleCount;
-    TextureMapType          Type;
+    u32                        ID;
+    f32                        Width;
+    f32                        Height;
+    u8                         Channels;
+    r::Format::Enum            TextureFormat;
+    r::TextureSampleCountFlags SampleCount;
+    TextureMapType             Type;
 
     char DebugName[255];
 };
@@ -70,7 +68,7 @@ struct TextureSampler
         MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
     }
 #define MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                                                                            \
-    KRAFT_INLINE MaterialProperty(uint32 Index, Type Val)                                                                                                                                              \
+    KRAFT_INLINE MaterialProperty(u32 Index, Type Val)                                                                                                                                                 \
     {                                                                                                                                                                                                  \
         this->UniformIndex = Index;                                                                                                                                                                    \
         MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
@@ -90,24 +88,24 @@ struct MaterialProperty
 {
     union
     {
-        Mat4f           Mat4fValue;
-        Vec4f           Vec4fValue;
-        Vec3f           Vec3fValue;
-        Vec2f           Vec2fValue;
-        float32         Float32Value;
-        float64         Float64Value;
-        uint8           UInt8Value;
-        uint16          UInt16Value;
-        uint32          UInt32Value;
-        uint64          UInt64Value;
-        Handle<Texture> TextureValue;
+        Mat4f              Mat4fValue;
+        Vec4f              Vec4fValue;
+        Vec3f              Vec3fValue;
+        Vec2f              Vec2fValue;
+        f32                f32Value;
+        f64                Float64Value;
+        uint8              UInt8Value;
+        u16                UInt16Value;
+        u32                u32Value;
+        u64                UInt64Value;
+        r::Handle<Texture> TextureValue;
 
         char Memory[128];
     };
 
     // Index of the uniform in the shader uniform cache
-    uint16 UniformIndex;
-    uint16 Size = 0;
+    u16 UniformIndex;
+    u16 Size = 0;
 
     MaterialProperty()
     {
@@ -118,13 +116,13 @@ struct MaterialProperty
     MATERIAL_PROPERTY_SETTERS(Vec4f);
     MATERIAL_PROPERTY_SETTERS(Vec3f);
     MATERIAL_PROPERTY_SETTERS(Vec2f);
-    MATERIAL_PROPERTY_SETTERS(float32);
-    MATERIAL_PROPERTY_SETTERS(float64);
-    MATERIAL_PROPERTY_SETTERS(uint8);
-    MATERIAL_PROPERTY_SETTERS(uint16);
-    MATERIAL_PROPERTY_SETTERS(uint32);
-    MATERIAL_PROPERTY_SETTERS(uint64);
-    MATERIAL_PROPERTY_SETTERS(Handle<Texture>);
+    MATERIAL_PROPERTY_SETTERS(f32);
+    MATERIAL_PROPERTY_SETTERS(f64);
+    MATERIAL_PROPERTY_SETTERS(u8);
+    MATERIAL_PROPERTY_SETTERS(u16);
+    MATERIAL_PROPERTY_SETTERS(u32);
+    MATERIAL_PROPERTY_SETTERS(u64);
+    MATERIAL_PROPERTY_SETTERS(r::Handle<Texture>);
 
     template<typename T>
     T Get() const

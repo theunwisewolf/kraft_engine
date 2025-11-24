@@ -223,8 +223,8 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
 
     // The scene may contain more meshes, but we want to return the first one
     MeshAsset& Mesh = this->Meshes[this->MeshCount];
-    Mesh.Directory = filesystem::Dirname(Path);
-    Mesh.Filename = filesystem::Basename(Path);
+    Mesh.Directory = fs::Dirname(Path);
+    Mesh.Filename = fs::Basename(Path);
     Mesh.SubMeshes.Reserve(Scene->mNumMeshes);
 
     this->ProcessAINode(Mesh, Scene->mRootNode, Scene, kraft::Mat4f(Identity));
@@ -246,14 +246,14 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
     }
 
     MeshAsset& Mesh = AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount];
-    Mesh.Directory = filesystem::Dirname(arena, path);
-    Mesh.Filename = filesystem::Basename(arena, path);
+    Mesh.Directory = fs::Dirname(arena, path);
+    Mesh.Filename = fs::Basename(arena, path);
     Mesh.SubMeshes.Reserve(Scene->meshes.count);
 
-    Array<int32>    NodeToMeshInstanceMapping(Scene->nodes.count, -1);
-    Array<Vertex3D> Vertices;
-    Array<uint32>   Indices;
-    Array<uint32>   TriangleIndices;
+    Array<int32>       NodeToMeshInstanceMapping(Scene->nodes.count, -1);
+    Array<r::Vertex3D> Vertices;
+    Array<uint32>      Indices;
+    Array<uint32>      TriangleIndices;
     for (int i = 0; i < Scene->meshes.count; i++)
     {
         ufbx_mesh* UfbxMesh = Scene->meshes[i];
@@ -286,9 +286,9 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
                 uint32    NumTriangles = ufbx_triangulate_face(TriangleIndices.Data(), MaxIndices, UfbxMesh, UfbxFace);
                 for (uint32 TriangleIdx = 0; TriangleIdx < NumTriangles * 3; TriangleIdx++)
                 {
-                    uint32    Index = TriangleIndices[TriangleIdx];
-                    ufbx_vec3 Position = ufbx_get_vertex_vec3(&UfbxMesh->vertex_position, Index);
-                    Vertex3D& Vertex = Vertices[NumIndices];
+                    uint32       Index = TriangleIndices[TriangleIdx];
+                    ufbx_vec3    Position = ufbx_get_vertex_vec3(&UfbxMesh->vertex_position, Index);
+                    r::Vertex3D& Vertex = Vertices[NumIndices];
                     Vertex.Position.x = Position.x;
                     Vertex.Position.y = Position.y;
                     Vertex.Position.z = Position.z;
@@ -321,7 +321,7 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
 
             Streams[0].data = Vertices.Data();
             Streams[0].vertex_count = NumIndices;
-            Streams[0].vertex_size = sizeof(Vertex3D);
+            Streams[0].vertex_size = sizeof(r::Vertex3D);
             ufbx_error Error;
             uint32     NumVertices = ufbx_generate_indices(Streams, NumStreams, Indices.Data(), NumIndices, NULL, &Error);
             if (Error.type != UFBX_ERROR_NONE)
@@ -336,10 +336,10 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
 
             GeometryData Geometry = {};
             Geometry.IndexCount = NumIndices;
-            Geometry.IndexSize = sizeof(uint32);
+            Geometry.IndexSize = sizeof(u32);
             Geometry.Indices = Indices.Data();
             Geometry.VertexCount = NumVertices;
-            Geometry.VertexSize = sizeof(Vertex3D);
+            Geometry.VertexSize = sizeof(r::Vertex3D);
             Geometry.Vertices = Vertices.Data();
 
             for (int j = 0; j < UfbxMesh->instances.count; j++)
@@ -355,14 +355,14 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
                 ufbx_texture*  UfbxTexture = UfbxMaterial->pbr.base_color.texture;
                 if (UfbxTexture)
                 {
-                    Handle<Texture> LoadedTexture = TextureSystem::AcquireTexture(String(UfbxTexture->filename.data, UfbxTexture->filename.length));
-                    if (LoadedTexture.IsInvalid())
+                    r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(UfbxTexture->filename.data, UfbxTexture->filename.length));
+                    if (texture.IsInvalid())
                     {
                         KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", UfbxTexture->filename.data);
                         continue;
                     }
 
-                    SubMesh.Textures.Push(LoadedTexture);
+                    SubMesh.Textures.Push(texture);
                 }
             }
         }

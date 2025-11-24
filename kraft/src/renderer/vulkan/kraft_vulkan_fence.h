@@ -2,7 +2,7 @@
 
 #include <core/kraft_core.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 struct VulkanContext;
 struct VulkanFence;

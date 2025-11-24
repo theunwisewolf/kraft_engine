@@ -8,7 +8,7 @@
 #include <core/kraft_string.h>
 #include <core/kraft_log.h>
 
-namespace kraft::filesystem {
+namespace kraft::fs {
 
 FileMMapHandle MMap(const String& Path)
 {
@@ -113,4 +113,4 @@ KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-} // namespace kraft::filesystem
+} // namespace kraft::fs

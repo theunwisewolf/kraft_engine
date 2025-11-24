@@ -69,8 +69,8 @@ bool Engine::Init(const EngineConfig* config)
         internal_state->cli_args.ptr[i] = ArenaPushString8Copy(arena, String8FromCString(config->argv[i]));
     }
 
-    base_path = filesystem::Dirname(arena, internal_state->cli_args.ptr[0]);
-    base_path = filesystem::CleanPath(arena, base_path);
+    base_path = fs::Dirname(arena, internal_state->cli_args.ptr[0]);
+    base_path = fs::CleanPath(arena, base_path);
 
     Platform::Init(&Engine::config);
     EventSystem::Init();
@@ -105,7 +105,7 @@ bool Engine::Present()
 #if defined(KRAFT_GUI_APP)
     // TODO (amn): This should happen at the end of the frame
     // Clear out the resources
-    // renderer::ResourceManager->EndFrame(0);
+    // r::ResourceManager->EndFrame(0);
 
     // return Engine::Renderer.DrawFrame();
 #endif

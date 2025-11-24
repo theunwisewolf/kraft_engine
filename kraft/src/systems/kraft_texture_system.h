@@ -7,25 +7,26 @@ namespace kraft {
 struct Texture;
 struct BufferView;
 
-namespace renderer {
+namespace r {
 struct TextureDescription;
 
 template<typename>
 struct Handle;
-} // namespace renderer
+} // namespace r
 
 namespace TextureSystem {
 void Init(uint32 maxTextureCount);
 void Shutdown();
 
-renderer::Handle<Texture>        AcquireTexture(const String& name, bool autoRelease = true);
-void                             ReleaseTexture(const String& name);
-void                             ReleaseTexture(renderer::Handle<Texture> Resource);
-renderer::Handle<Texture>        CreateTextureWithData(renderer::TextureDescription&& Description, const uint8* Data);
-kraft::BufferView                CreateEmptyTexture(uint32 width, uint32 height, uint8 channels);
-renderer::Handle<Texture>        GetDefaultDiffuseTexture();
-Array<renderer::Handle<Texture>> GetDirtyTextures();
-void                             ClearDirtyTextures();
+r::Handle<Texture>        AcquireTexture(const String& name, bool autoRelease = true);
+r::Handle<Texture>        AcquireTextureWithData(String8 name, u8* data, u32 width, u32 height, u32 channels);
+void                      ReleaseTexture(const String& name);
+void                      ReleaseTexture(r::Handle<Texture> Resource);
+r::Handle<Texture>        CreateTextureWithData(r::TextureDescription&& Description, const uint8* Data);
+kraft::BufferView         CreateEmptyTexture(uint32 width, uint32 height, uint8 channels);
+r::Handle<Texture>        GetDefaultDiffuseTexture();
+Array<r::Handle<Texture>> GetDirtyTextures();
+void                      ClearDirtyTextures();
 }; // namespace TextureSystem
 
 } // namespace kraft

@@ -4,7 +4,7 @@
 
 namespace kraft {
 
-namespace renderer {
+namespace r {
 template<typename>
 struct Handle;
 
@@ -22,7 +22,7 @@ struct ShaderSystem
     static void Init(u32 MaxShadersCount);
     static void Shutdown();
 
-    static Shader* AcquireShader(String8 shader_path, renderer::Handle<renderer::RenderPass> render_pass_handle, bool auto_release = true);
+    static Shader* AcquireShader(String8 shader_path, r::Handle<r::RenderPass> render_pass_handle, bool auto_release = true);
     static bool    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
     static Shader* GetActiveShader();

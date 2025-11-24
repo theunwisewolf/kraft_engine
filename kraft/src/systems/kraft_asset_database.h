@@ -25,7 +25,7 @@ struct MeshAsset;
 struct TextureAsset;
 struct ArenaAllocator;
 
-namespace renderer {
+namespace r {
 template<typename T>
 struct Handle;
 }

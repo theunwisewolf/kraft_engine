@@ -97,13 +97,13 @@ bool World::IsValidEntity(EntityHandleT Handle) const
 void World::Render()
 {
     g_Renderer->Camera = &this->Camera;
-    // kraft::renderer::Renderer->CurrentWorld = this;
+    // kraft::r::Renderer->CurrentWorld = this;
 
     auto Group = Registry.group<MeshComponent, TransformComponent>();
     for (auto EntityHandle : Group)
     {
         auto [Transform, Mesh] = Group.get<TransformComponent, MeshComponent>(EntityHandle);
-        g_Renderer->AddRenderable(kraft::renderer::Renderable{
+        g_Renderer->AddRenderable(kraft::r::Renderable{
             .ModelMatrix = Transform.ModelMatrix, // GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
             .MaterialInstance = Mesh.MaterialInstance,
             .GeometryId = Mesh.GeometryID,

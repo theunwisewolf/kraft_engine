@@ -12,7 +12,7 @@
 #include <renderer/vulkan/kraft_vulkan_types.h>
 #include <resources/kraft_resource_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 template<typename ConcreteType, typename Type>
 void Pool<ConcreteType, Type>::Destroy()

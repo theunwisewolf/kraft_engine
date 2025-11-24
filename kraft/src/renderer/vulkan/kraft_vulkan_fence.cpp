@@ -8,7 +8,7 @@
 
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 void VulkanCreateFence(VulkanContext* context, bool signalled, VulkanFence* out)
 {

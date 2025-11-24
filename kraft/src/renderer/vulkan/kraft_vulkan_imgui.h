@@ -7,7 +7,7 @@ struct Texture;
 struct TextureSampler;
 } // namespace kraft
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 template<typename>
 struct Handle;

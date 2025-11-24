@@ -15,7 +15,7 @@ struct World;
 struct ArenaAllocator;
 struct RendererOptions;
 
-namespace renderer {
+namespace r {
 
 struct RenderPass;
 struct CommandBuffer;

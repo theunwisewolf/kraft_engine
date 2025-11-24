@@ -8,7 +8,7 @@
 
 #include <renderer/vulkan/kraft_vulkan_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 void VulkanBeginCommandBuffer(VulkanCommandBuffer* buffer, bool singleUse, bool renderPassContinue, bool simultaneousUse)
 {

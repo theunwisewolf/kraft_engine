@@ -7,7 +7,7 @@
 
 #include <renderer/kraft_renderer_types.h>
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 struct ResourceManagerState
 {

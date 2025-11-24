@@ -6,7 +6,7 @@ namespace kraft {
 struct ArenaAllocator;
 }
 
-namespace kraft::renderer {
+namespace kraft::r {
 
 struct VulkanContext;
 struct VulkanSwapchainSupportInfo;

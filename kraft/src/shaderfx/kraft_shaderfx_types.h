@@ -7,14 +7,14 @@ struct VertexAttribute
     u16                      location = 0;
     u16                      binding = 0;
     u16                      offset = 0;
-    renderer::ShaderDataType format = renderer::ShaderDataType::Invalid();
+    r::ShaderDataType format = r::ShaderDataType::Invalid();
 };
 
 struct VertexInputBinding
 {
     u16                             binding = 0;
     u16                             stride = 0;
-    renderer::VertexInputRate::Enum input_rate = renderer::VertexInputRate::Count;
+    r::VertexInputRate::Enum input_rate = r::VertexInputRate::Count;
 };
 
 struct VertexLayoutDefinition
@@ -33,8 +33,8 @@ struct ResourceBinding
     u16                          binding = 0;
     u16                          size = 0;
     i16                          parent_index = -1; // If this is a uniform buffer, index into the actual buffer
-    renderer::ResourceType::Enum type;
-    renderer::ShaderStageFlags   stage;
+    r::ResourceType::Enum type;
+    r::ShaderStageFlags   stage;
 };
 
 namespace ResourceBindingType {
@@ -61,20 +61,20 @@ struct ShaderCodeFragment
 struct RenderStateDefinition
 {
     String8                       name;
-    renderer::CullModeFlags::Enum cull_mode;
-    renderer::CompareOp::Enum     z_test_op;
+    r::CullModeFlags::Enum cull_mode;
+    r::CompareOp::Enum     z_test_op;
     bool                          z_write_enable;
     bool                          blend_enable;
-    renderer::BlendState          blend_mode;
-    renderer::PolygonMode::Enum   polygon_mode;
+    r::BlendState          blend_mode;
+    r::PolygonMode::Enum   polygon_mode;
     f32                           line_width;
 };
 
 struct ConstantBufferEntry
 {
     String8                    name;
-    renderer::ShaderStageFlags stage;
-    renderer::ShaderDataType   type;
+    r::ShaderStageFlags stage;
+    r::ShaderDataType   type;
 };
 
 struct ConstantBufferDefinition
@@ -87,7 +87,7 @@ struct ConstantBufferDefinition
 struct UniformBufferEntry
 {
     String8                  name;
-    renderer::ShaderDataType type;
+    r::ShaderDataType type;
 };
 
 struct UniformBufferDefinition
@@ -101,7 +101,7 @@ struct RenderPassDefinition
 {
     struct ShaderDefinition
     {
-        renderer::ShaderStageFlags stage;
+        r::ShaderStageFlags stage;
         ShaderCodeFragment         code_fragment;
     };
 

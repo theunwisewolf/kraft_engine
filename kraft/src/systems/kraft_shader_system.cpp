@@ -15,10 +15,8 @@
 
 namespace kraft {
 
-using namespace renderer;
-
 static void ReleaseShaderInternal(u32 Index);
-static u32  AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, ShaderDataType data_type, ShaderUniformScope::Enum scope);
+static u32  AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, r::ShaderDataType data_type, r::ShaderUniformScope::Enum scope);
 
 struct ShaderReference
 {
@@ -70,7 +68,7 @@ void ShaderSystem::Shutdown()
     KINFO("[ShaderSystem::Shutdown]: Shutting down shader system");
 }
 
-Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> render_pass_handle, bool auto_release)
+Shader* ShaderSystem::AcquireShader(String8 shader_path, r::Handle<r::RenderPass> render_pass_handle, bool auto_release)
 {
     for (i32 i = 0; i < State->MaxShaderCount; i++)
     {
@@ -129,33 +127,33 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> rend
         for (int j = 0; j < Effect.global_resources[i].binding_count; j++)
         {
             const auto& binding = resource_bindings[j];
-            if (binding.type == ResourceType::UniformBuffer)
+            if (binding.type == r::ResourceType::UniformBuffer)
             {
                 u32         cursor = 0;
                 const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
                 for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, ShaderDataType::SizeOf(field.type), field.type, ShaderUniformScope::Global);
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
 
-                    cursor += ShaderDataType::SizeOf(field.type);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
                 }
             }
-            else if (binding.type == ResourceType::StorageBuffer)
+            else if (binding.type == r::ResourceType::StorageBuffer)
             {
                 u32         cursor = 0;
                 const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
                 for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, ShaderDataType::SizeOf(field.type), field.type, ShaderUniformScope::Global);
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
 
-                    cursor += ShaderDataType::SizeOf(field.type);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
                 }
             }
-            else if (binding.type == ResourceType::Sampler)
+            else if (binding.type == r::ResourceType::Sampler)
             {
                 // todo (amn)
             }
@@ -169,33 +167,33 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> rend
         for (int j = 0; j < Effect.local_resources[i].binding_count; j++)
         {
             const auto& binding = resource_bindings[j];
-            if (binding.type == ResourceType::UniformBuffer)
+            if (binding.type == r::ResourceType::UniformBuffer)
             {
                 u32         cursor = 0;
                 const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
                 for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, ShaderDataType::SizeOf(field.type), field.type, ShaderUniformScope::Instance);
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
 
-                    cursor += ShaderDataType::SizeOf(field.type);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
                 }
             }
-            else if (binding.type == ResourceType::StorageBuffer)
+            else if (binding.type == r::ResourceType::StorageBuffer)
             {
                 u32         cursor = 0;
                 const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
                 for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, ShaderDataType::SizeOf(field.type), field.type, ShaderUniformScope::Instance);
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
 
-                    cursor += ShaderDataType::SizeOf(field.type);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
                 }
             }
-            else if (binding.type == ResourceType::Sampler)
+            else if (binding.type == r::ResourceType::Sampler)
             {
                 // todo (amn)
             }
@@ -205,7 +203,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> rend
     for (auto it = Reference->Shader.UniformCacheMapping.ibegin(); it != Reference->Shader.UniformCacheMapping.iend(); it++)
     {
         const auto& uniform = Reference->Shader.UniformCache[it.value()];
-        KDEBUG("%lld = %s Binding %d Offset %d", it.key(), ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
+        KDEBUG("%lld = %s Binding %d Offset %d", it.key(), r::ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
     }
 
     // Cache constant buffers as local uniforms
@@ -215,8 +213,8 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> rend
         auto& buffer_def = Pass.contant_buffers->fields[i];
 
         // Push constants must be aligned to 4 bytes
-        u32 aligned_size = (u32)math::AlignUp(ShaderDataType::SizeOf(buffer_def.type), 4);
-        AddUniform(&Reference->Shader, buffer_def.name, 0, offset, aligned_size, ShaderDataType::Invalid(), ShaderUniformScope::Local);
+        u32 aligned_size = (u32)math::AlignUp(r::ShaderDataType::SizeOf(buffer_def.type), 4);
+        AddUniform(&Reference->Shader, buffer_def.name, 0, offset, aligned_size, r::ShaderDataType::Invalid(), r::ShaderUniformScope::Local);
 
         offset += aligned_size;
     }
@@ -224,7 +222,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, Handle<RenderPass> rend
     return &State->Shaders[FreeIndex].Shader;
 }
 
-static u32 AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, ShaderDataType data_type, ShaderUniformScope::Enum scope)
+static u32 AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, r::ShaderDataType data_type, r::ShaderUniformScope::Enum scope)
 {
     ShaderUniform Uniform = {};
     Uniform.Location = location;
