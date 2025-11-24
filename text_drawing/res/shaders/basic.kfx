@@ -1,0 +1,170 @@
+Shader Basic
+{
+    Layout
+    {
+        // Vertex layouts
+        Vertex Main
+        {
+            Binding     0 32 vertex
+            Attribute   float3 Position 0 0 0
+            Attribute   float2 UV 0 1 12
+            Attribute   float3 Normal 0 2 20
+        }
+
+        UniformBuffer GlobalUniformBuffer
+        {
+            mat4   Projection;
+            mat4   View;
+            float3 LightPosition;
+            float4 LightColor;
+            float3 CameraPosition;
+        }
+
+        // Our Material Data
+        StorageBuffer MaterialData
+        {
+            float4  Ambient;
+            float4  Diffuse;
+            float4  Specular;
+            float   Shininess;
+            texID   DiffuseTexture;
+        }
+
+        // List of local Resources: Uniform buffers, samplers, etc
+        local Resource LocalResources
+        {
+            StorageBuffer MaterialData           Stage(Fragment) Set(0) Binding(1);
+        }
+
+        global Resource GlobalResources
+        {
+            UniformBuffer GlobalUniformBuffer    Stage(Fragment) Set(0) Binding(0);
+        }
+
+        // Constant buffers/Push constants
+        ConstantBuffer Main
+        {
+            mat4    Model           Stage(Vertex);
+            float2  MousePosition   Stage(Vertex);
+            uint    EntityId        Stage(Vertex);
+        }
+    }
+
+    GLSL ToScreen
+    {
+        #version 450
+
+        #extension GL_GOOGLE_include_directive: require
+        #extension GL_EXT_nonuniform_qualifier: require
+
+        #include "includes/kraft_shader_includes.h"
+        #include "includes/common.glsl"
+
+        struct MeshMaterial
+        {
+            vec4  Ambient;
+            vec4  Diffuse;
+            vec4  Specular;
+            float Shininess;
+            uint  DiffuseTexture;
+        };
+
+        layout (set = 0, binding = 2) readonly buffer GlobalMaterialData
+        {
+            MeshMaterial Materials[];
+        };
+
+        #if defined VERTEX
+
+        // Inputs
+        layout (location = 0) in vec3 inPosition;
+        layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec3 inNormal;
+
+        // Output from the vertex shader to the fragment shader
+        layout(location = 0) out struct DataTransferObject 
+        {
+            vec2 UV;
+            vec3 Normal;
+            vec3 FragPosition;
+        } outDTO;
+
+        void main()
+        {
+            outDTO.UV = inUV;
+            // outDTO.Normal = inNormal;
+            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * inNormal; // For non-uniform scale
+            outDTO.FragPosition = vec3(variableState.Model * vec4(inPosition, 1.0));
+            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+            // gl_Position = vec4(inPosition, 1.0);
+        }
+
+        #endif // VERTEX
+
+        #if defined FRAGMENT
+
+        layout (location = 0) in struct DataTransferObject 
+        {
+            vec2 UV;
+            vec3 Normal;
+            vec3 FragPosition;
+        } inDTO;
+
+        // Outputs
+        layout (location = 0) out vec4 outColor;
+
+        void main() 
+        {
+            MeshMaterial Material = Materials[variableState.MaterialIdx];
+            // vec2 normalizedMousePosition = normalize(variableState.MousePosition);
+            // outColor = vec4(normalizedMousePosition.x, normalizedMousePosition.y, 0.0, 1.0);
+            // return;
+
+            // Ambient
+            vec3 ambient = (Material.Ambient.xyz * globalState.LightColor.xyz);
+
+            // Diffuse
+            vec3 normal = normalize(inDTO.Normal);
+            vec3 lightDir = normalize(globalState.LightPosition - inDTO.FragPosition);
+            float diff = max(dot(normal, lightDir), 0.0);
+            vec3 diffuse = globalState.LightColor.xyz * (diff * Material.Diffuse.xyz);
+
+            // Specular
+            vec3 viewDir = normalize(globalState.CameraPosition - inDTO.FragPosition);
+            vec3 reflectDir = reflect(-lightDir, normal);
+
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), Material.Shininess);
+            vec3 specular = globalState.LightColor.xyz * (spec * Material.Specular.xyz);
+
+            outColor = vec4(ambient + diffuse + specular, 1.0) * vec4(texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).rgb, 1.0);
+            // outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
+            // outColor = vec4(Material.Diffuse.x, 0.0, 0.0, 1.0);
+        }
+
+        #endif // FRAGMENT
+    }
+
+    RenderState
+    {
+        State Default
+        {       
+            Cull            Off
+            ZTest           Less
+            ZWrite          On
+            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+            BlendOp         Add, Add
+            PolygonMode     Fill
+            LineWidth       1.0   
+        }
+    }
+
+    Pass ToScreen
+    {
+        RenderState     Default
+        VertexLayout    Main
+        Resources       LocalResources
+        ConstantBuffer  Main
+        VertexShader    ToScreen
+        FragmentShader  ToScreen
+    }
+}
