@@ -49,7 +49,7 @@ bool OnDragDrop(kraft::EventType type, void* sender, void* listener, kraft::Even
 
     // // Try loading the texture from the command line args
     // const char* TexturePath = paths[count - 1];
-    // if (kraft::filesystem::FileExists(TexturePath))
+    // if (kraft::fs::FileExists(TexturePath))
     // {
     //     KINFO("Loading texture from path %s", TexturePath);
     //     kraft::MaterialSystem::SetTexture(TestSceneState->GetSelectedEntity().MaterialInstance, "DiffuseSampler", TexturePath);
@@ -278,7 +278,7 @@ bool Init()
     {
         // Try loading the texture from the command line args
         String FilePath = CliArgs[1];
-        if (kraft::filesystem::FileExists(FilePath))
+        if (kraft::fs::FileExists(FilePath))
         {
             KINFO("Loading texture from cli path %s", FilePath.Data());
             TexturePath = FilePath;
@@ -648,7 +648,7 @@ void Render()
     // for (auto EntityHandle : Group)
     // {
     //     auto [Transform, Mesh] = Group.get<kraft::TransformComponent, kraft::MeshComponent>(EntityHandle);
-    //     kraft::g_Renderer->AddRenderable(kraft::renderer::Renderable{
+    //     kraft::g_Renderer->AddRenderable(kraft::r::Renderable{
     //         .ModelMatrix = GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
     //         .MaterialInstance = Mesh.MaterialInstance,
     //         .GeometryId = Mesh.GeometryID,
@@ -687,7 +687,7 @@ void Run()
 
         Update(kraft::Time::DeltaTime);
 
-        if (!kraft::Engine::Suspended)
+        if (!kraft::Engine::suspended)
         {
             Render();
             // kraft::Engine::Present();
@@ -696,17 +696,15 @@ void Run()
 
             EditorState::Ptr->ObjectPickingRenderSurface.Begin();
             {
-                kraft::renderer::GlobalShaderData GlobalShaderData = {};
+                kraft::r::GlobalShaderData GlobalShaderData = {};
                 GlobalShaderData.Projection = EditorState::Ptr->CurrentWorld->Camera.ProjectionMatrix;
                 GlobalShaderData.View = EditorState::Ptr->CurrentWorld->Camera.GetViewMatrix();
                 GlobalShaderData.CameraPosition = EditorState::Ptr->CurrentWorld->Camera.Position;
 
-                kraft::MemCpy((void*)kraft::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+                kraft::MemCpy((void*)r::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
 
                 kraft::g_Renderer->UseShader(ObjectPickingShader);
-                kraft::g_Renderer->ApplyGlobalShaderProperties(
-                    ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid()
-                );
+                kraft::g_Renderer->ApplyGlobalShaderProperties(ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::r::Handle<kraft::r::Buffer>::Invalid());
 
                 kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
 

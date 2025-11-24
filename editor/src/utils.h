@@ -59,8 +59,8 @@ static void UpdateObjectScale(uint32 EntityID)
     // const kraft::Camera&   Camera = TestSceneState->SceneCamera;
     // const kraft::Material* Material = Entity.MaterialInstance;
 
-    // kraft::renderer::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
-    // kraft::Texture*                         Texture = kraft::renderer::ResourceManager->GetTextureMetadata(Resource);
+    // kraft::r::Handle<kraft::Texture> Resource = Material->GetUniform<kraft::r::Handle<kraft::Texture>>("DiffuseSampler");
+    // kraft::Texture*                         Texture = kraft::r::ResourceManager->GetTextureMetadata(Resource);
 
     // float WindowWidth = kraft::Platform::GetWindow()->Width;
     // float WindowHeight = kraft::Platform::GetWindow()->Height;

@@ -34,7 +34,7 @@ bool RendererImGui::Init()
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
     io.IniFilename = *IniFilename;
 
-    kraft::renderer::VulkanImgui::Init();
+    kraft::r::VulkanImgui::Init();
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -138,14 +138,14 @@ void RendererImGui::AddWidget(const kraft::String& Name, ImGuiRenderCallback Cal
     KINFO("Added imgui widget %s", *Name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> Resource, kraft::renderer::Handle<kraft::TextureSampler> Sampler)
+ImTextureID RendererImGui::AddTexture(kraft::r::Handle<kraft::Texture> Resource, kraft::r::Handle<kraft::TextureSampler> Sampler)
 {
-    return kraft::renderer::VulkanImgui::AddTexture(Resource, Sampler);
+    return kraft::r::VulkanImgui::AddTexture(Resource, Sampler);
 }
 
 void RendererImGui::RemoveTexture(ImTextureID TextureID)
 {
-    return kraft::renderer::VulkanImgui::RemoveTexture(TextureID);
+    return kraft::r::VulkanImgui::RemoveTexture(TextureID);
 }
 
 void RendererImGui::RenderWidgets()
@@ -166,7 +166,7 @@ void RendererImGui::OnResize(int width, int height)
 
 void RendererImGui::Destroy()
 {
-    kraft::renderer::VulkanImgui::Destroy();
+    kraft::r::VulkanImgui::Destroy();
 }
 
 // Only valid if multi-viewports is enabled
@@ -180,12 +180,12 @@ void RendererImGui::EndFrameUpdatePlatformWindows()
         ImGui::RenderPlatformWindowsDefault();
     }
 
-    kraft::renderer::VulkanImgui::PostFrameCleanup();
+    kraft::r::VulkanImgui::PostFrameCleanup();
 }
 
 void RendererImGui::BeginFrame()
 {
-    kraft::renderer::VulkanImgui::BeginFrame();
+    kraft::r::VulkanImgui::BeginFrame();
     ImGui::NewFrame();
 }
 
@@ -194,23 +194,23 @@ void RendererImGui::EndFrame()
     ImGui::Render();
     ImDrawData* DrawData = ImGui::GetDrawData();
 
-    kraft::renderer::VulkanImgui::EndFrame(DrawData);
+    kraft::r::VulkanImgui::EndFrame(DrawData);
 }
 
 ImFont* RendererImGui::AddImGuiFont(const kraft::String path)
 {
-    const float                   DPI = kraft::Platform::GetWindow()->DPI;
-    ImGuiIO&                      IO = ImGui::GetIO();
-    kraft::filesystem::FileHandle handle = {};
-    if (!kraft::filesystem::OpenFile(path, kraft::filesystem::FILE_OPEN_MODE_READ, true, &handle))
+    const float           DPI = kraft::Platform::GetWindow()->DPI;
+    ImGuiIO&              IO = ImGui::GetIO();
+    kraft::fs::FileHandle handle = {};
+    if (!kraft::fs::OpenFile(path, kraft::fs::FILE_OPEN_MODE_READ, true, &handle))
     {
         KERROR("AddImGuiFont: Failed to open file '%s'", *path);
         return false;
     }
 
-    uint64 size = kraft::filesystem::GetFileSize(&handle);
+    uint64 size = kraft::fs::GetFileSize(&handle);
     uint8* buffer = (uint8*)kraft::Malloc(size);
-    bool   result = kraft::filesystem::ReadAllBytes(&handle, &buffer, &size);
+    bool   result = kraft::fs::ReadAllBytes(&handle, &buffer, &size);
     if (!result)
     {
         KERROR("AddImGuiFont: Failed to read data from file '%s'", *path);

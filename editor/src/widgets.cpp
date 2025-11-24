@@ -31,7 +31,7 @@ static struct GizmoStateT
 } GizmoState = {};
 
 static ImTextureID                             ImSceneTexture;
-static kraft::renderer::Handle<kraft::Texture> active_viewport_texture;
+static kraft::r::Handle<kraft::Texture> active_viewport_texture;
 
 enum ActiveViewportTextureEnum
 {
@@ -152,9 +152,9 @@ void DrawImGuiWidgets(bool refresh)
     static float farClipP = 1000.f;
 
     // To preserve the aspect ratio of the texture
-    // kraft::renderer::Handle<kraft::Texture> Resource =
-    //     EditorState::Ptr->GetSelectedEntity().MaterialInstance->GetUniform<kraft::renderer::Handle<kraft::Texture>>("DiffuseSampler");
-    // kraft::Texture* Texture = kraft::renderer::ResourceManager->GetTextureMetadata(Resource);
+    // kraft::r::Handle<kraft::Texture> Resource =
+    //     EditorState::Ptr->GetSelectedEntity().MaterialInstance->GetUniform<kraft::r::Handle<kraft::Texture>>("DiffuseSampler");
+    // kraft::Texture* Texture = kraft::r::ResourceManager->GetTextureMetadata(Resource);
 
     // kraft::Vec2f ratio = { (float)Texture->Width / kraft::Platform::GetWindow()->Width,
     //                        (float)Texture->Height / kraft::Platform::GetWindow()->Height };
@@ -840,7 +840,7 @@ void MaterialEditor()
     kraft::Material*                       Material = Mesh.MaterialInstance;
     kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
     kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
-    static auto                            last_texture = kraft::renderer::Handle<kraft::Texture>::Invalid();
+    static auto                            last_texture = kraft::r::Handle<kraft::Texture>::Invalid();
     static ImTextureID                     last_texture_id = nullptr;
 
     for (auto It = Material->Properties.begin(); It != Material->Properties.end(); It++)
@@ -848,28 +848,28 @@ void MaterialEditor()
         kraft::MaterialProperty& Property = It->second;
         kraft::ShaderUniform&    Uniform = ShaderUniforms[ShaderUniformMapping[It->first]];
 
-        if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float3)
+        if (Uniform.DataType.UnderlyingType == kraft::r::ShaderDataType::Float3)
         {
             if (ImGui::DragFloat3(*It->first, Property.Vec3fValue._data, 0.01f, 0.0f, 1.0f))
             {
                 kraft::MaterialSystem::SetProperty(Material, It->first, Property.Vec3fValue);
             }
         }
-        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float4)
+        else if (Uniform.DataType.UnderlyingType == kraft::r::ShaderDataType::Float4)
         {
             if (ImGui::DragFloat4(*It->first, Property.Vec4fValue._data, 0.01f, 0.0f, 1.0f))
             {
                 kraft::MaterialSystem::SetProperty(Material, It->first, Property.Vec4fValue);
             }
         }
-        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::Float)
+        else if (Uniform.DataType.UnderlyingType == kraft::r::ShaderDataType::Float)
         {
             if (ImGui::DragFloat(*It->first, &Property.Float32Value))
             {
                 kraft::MaterialSystem::SetProperty(Material, It->first, Property.Float32Value);
             }
         }
-        else if (Uniform.DataType.UnderlyingType == kraft::renderer::ShaderDataType::TextureID)
+        else if (Uniform.DataType.UnderlyingType == kraft::r::ShaderDataType::TextureID)
         {
             if (last_texture != Property.TextureValue)
             {

@@ -42,10 +42,10 @@ struct EditorState
 
     kraft::EntityHandleT                             SelectedEntity = kraft::EntityHandleInvalid;
     kraft::World*                                    CurrentWorld;
-    kraft::renderer::RenderSurfaceT                  RenderSurface;
-    kraft::renderer::RenderSurfaceT                  ObjectPickingRenderSurface;
+    kraft::r::RenderSurfaceT                  RenderSurface;
+    kraft::r::RenderSurfaceT                  ObjectPickingRenderSurface;
     EditorCameraSettings                             ViewportCameraSettings = {};
-    kraft::renderer::Handle<kraft::renderer::Buffer> picking_buffer = kraft::renderer::Handle<kraft::renderer::Buffer>::Invalid();
+    kraft::r::Handle<kraft::r::Buffer> picking_buffer = kraft::r::Handle<kraft::r::Buffer>::Invalid();
     void*                                            picking_buffer_memory = 0;
 
     EditorState();
