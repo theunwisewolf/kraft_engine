@@ -8,8 +8,10 @@
 #include <shaderc/shaderc.h>
 #include <vendor/spirv-reflect/spirv_reflect.h>
 
+
 #include <core/kraft_base_includes.h>
 #include <platform/kraft_platform_includes.h>
+#include <renderer/kraft_renderer_types.h>
 #include <shaderfx/kraft_shaderfx_includes.h>
 
 // #include <core/kraft_base_includes.cpp>
@@ -55,13 +57,13 @@ void SpirvErrorCallback(void* userdata, const char* error)
 bool CompileShaderFX(ArenaAllocator* arena, String8 input_path, String8 output_path, ShaderFxCompilerOpts compiler_opts)
 {
     KINFO("Compiling shaderfx %S", input_path);
-    if (!filesystem::FileExists(input_path))
+    if (!fs::FileExists(input_path))
     {
         return false;
     }
 
     TempArena scratch = ScratchBegin(&arena, 1);
-    String8   file_buf = filesystem::ReadAllBytes(scratch.arena, input_path);
+    String8   file_buf = fs::ReadAllBytes(scratch.arena, input_path);
 
     Lexer lexer;
     lexer.Create(file_buf);
@@ -100,7 +102,7 @@ u64 GetUniformBufferSize(shaderfx::UniformBufferDefinition* uniform_buffer)
     u64 size_in_bytes = 0;
     for (i32 i = 0; i < uniform_buffer->field_count; i++)
     {
-        size_in_bytes += renderer::ShaderDataType::SizeOf(uniform_buffer->fields[i].type);
+        size_in_bytes += r::ShaderDataType::SizeOf(uniform_buffer->fields[i].type);
     }
 
     return size_in_bytes;
@@ -140,14 +142,14 @@ static shaderc_include_result* ShaderIncludeResolverFunction(void* userdata, con
     ArenaAllocator*         arena = include_data->Arena;
     shaderfx::ShaderEffect* shader = include_data->Shader;
 
-    String8 shader_dir = filesystem::Dirname(arena, shader->resource_path);
-    String8 included_filepath = filesystem::PathJoin(arena, shader_dir, String8FromCString((char*)requested_src));
+    String8 shader_dir = fs::Dirname(arena, shader->resource_path);
+    String8 included_filepath = fs::PathJoin(arena, shader_dir, String8FromCString((char*)requested_src));
 
-    filesystem::FileHandle file;
-    KASSERT(filesystem::OpenFile(included_filepath, kraft::filesystem::FILE_OPEN_MODE_READ, true, &file));
-    u64 filesize = filesystem::GetFileSize(&file);
+    fs::FileHandle file;
+    KASSERT(fs::OpenFile(included_filepath, fs::FILE_OPEN_MODE_READ, true, &file));
+    u64 filesize = fs::GetFileSize(&file);
     u8* file_buf = ArenaPushArray(arena, u8, filesize);
-    filesystem::ReadAllBytes(&file, &file_buf);
+    fs::ReadAllBytes(&file, &file_buf);
 
     shaderc_include_result* result = ArenaPush(arena, shaderc_include_result);
     result->content = (const char*)file_buf;
@@ -170,14 +172,14 @@ bool VerifyResources(shaderfx::ShaderEffect* shader, shaderfx::ResourceBindingsD
         shaderfx::ResourceBindingsDefinition* resource = &resources[i];
         for (int j = 0; j < resource->binding_count; j++)
         {
-            if (resource->bindings[j].type == renderer::ResourceType::UniformBuffer)
+            if (resource->bindings[j].type == r::ResourceType::UniformBuffer)
             {
                 if (false == CheckBufferDefinition(shader, shader->uniform_buffers, shader->uniform_buffer_count, &resource->bindings[j]))
                 {
                     return false;
                 }
             }
-            else if (resource->bindings[j].type == renderer::ResourceType::StorageBuffer)
+            else if (resource->bindings[j].type == r::ResourceType::StorageBuffer)
             {
                 if (false == CheckBufferDefinition(shader, shader->storage_buffers, shader->storage_buffer_count, &resource->bindings[j]))
                 {
@@ -218,7 +220,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             binary_output.Writeu16(shader->vertex_layouts[i].attributes[j].location);
             binary_output.Writeu16(shader->vertex_layouts[i].attributes[j].binding);
             binary_output.Writeu16(shader->vertex_layouts[i].attributes[j].offset);
-            // binary_output.WriteRaw(&shader->vertex_layouts[i].attributes[j].format, sizeof(renderer::ShaderDataType));
+            // binary_output.WriteRaw(&shader->vertex_layouts[i].attributes[j].format, sizeof(r::ShaderDataType));
             binary_output.Writeu8(shader->vertex_layouts[i].attributes[j].format.UnderlyingType);
             binary_output.Writeu16(shader->vertex_layouts[i].attributes[j].format.ArraySize);
         }
@@ -275,31 +277,31 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
         {
             binary_output.WriteString(shader->constant_buffers[i].fields[j].name);
             binary_output.Writei32(shader->constant_buffers[i].fields[j].stage);
-            binary_output.WriteRaw(&shader->constant_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            binary_output.WriteRaw(&shader->constant_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
-    binary_output.Write(shader->uniform_buffer_count);
+    binary_output.Writeu32(shader->uniform_buffer_count);
     for (u32 i = 0; i < shader->uniform_buffer_count; i++)
     {
         binary_output.WriteString(shader->uniform_buffers[i].name);
-        binary_output.Write(shader->uniform_buffers[i].field_count);
+        binary_output.Writeu32(shader->uniform_buffers[i].field_count);
         for (u32 j = 0; j < shader->uniform_buffers[i].field_count; j++)
         {
             binary_output.WriteString(shader->uniform_buffers[i].fields[j].name);
-            binary_output.WriteRaw(&shader->uniform_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            binary_output.WriteRaw(&shader->uniform_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
-    binary_output.Write(shader->storage_buffer_count);
+    binary_output.Writeu32(shader->storage_buffer_count);
     for (u32 i = 0; i < shader->storage_buffer_count; i++)
     {
         binary_output.WriteString(shader->storage_buffers[i].name);
-        binary_output.Write(shader->storage_buffers[i].field_count);
+        binary_output.Writeu32(shader->storage_buffers[i].field_count);
         for (u32 j = 0; j < shader->storage_buffers[i].field_count; j++)
         {
             binary_output.WriteString(shader->storage_buffers[i].fields[j].name);
-            binary_output.WriteRaw(&shader->storage_buffers[i].fields[j].type, sizeof(renderer::ShaderDataType));
+            binary_output.WriteRaw(&shader->storage_buffers[i].fields[j].type, sizeof(r::ShaderDataType));
         }
     }
 
@@ -309,7 +311,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
     binary_output.Writei32(shader->render_state.z_test_op);
     binary_output.Writebool(shader->render_state.z_write_enable);
     binary_output.Writebool(shader->render_state.blend_enable);
-    binary_output.WriteRaw(&shader->render_state.blend_mode, sizeof(renderer::BlendState));
+    binary_output.WriteRaw(&shader->render_state.blend_mode, sizeof(r::BlendState));
     binary_output.Writei32(shader->render_state.polygon_mode);
     binary_output.Writef32(shader->render_state.line_width);
 
@@ -346,7 +348,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
         shaderc_shader_kind shader_kind;
         switch (shader_def.stage)
         {
-            case renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
+            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
             {
                 shader_kind = shaderc_vertex_shader;
                 shaderc_compile_options_add_macro_definition(
@@ -355,7 +357,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             }
             break;
 
-            case renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
+            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
             {
                 shader_kind = shaderc_geometry_shader;
                 shaderc_compile_options_add_macro_definition(
@@ -364,7 +366,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             }
             break;
 
-            case renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
+            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
             {
                 shader_kind = shaderc_fragment_shader;
                 shaderc_compile_options_add_macro_definition(
@@ -373,7 +375,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             }
             break;
 
-            case renderer::ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
+            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
             {
                 shader_kind = shaderc_compute_shader;
                 shaderc_compile_options_add_macro_definition(
@@ -408,7 +410,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             SpvReflectDescriptorSet** descriptor_sets = ArenaPushArray(arena, SpvReflectDescriptorSet*, descriptor_set_count);
             SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, descriptor_sets));
 
-            shader->Resources.Reserve(descriptor_set_count);
+            // shader->Resources.Reserve(descriptor_set_count);
             for (uint32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
             {
                 SpvReflectDescriptorSet* descriptor_set = descriptor_sets[set_idx];
@@ -461,18 +463,18 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
             // Also write spirv file
             if (compiler_opts.write_spirv_for_shaders)
             {
-                filesystem::FileHandle file_handle;
-                String8                base_dir = filesystem::Dirname(arena, output_path);
-                String8                extension = (shader_kind == shaderc_vertex_shader ? String8Raw(".vert.spv") : String8Raw(".frag.spv"));
+                fs::FileHandle file_handle;
+                String8        base_dir = fs::Dirname(arena, output_path);
+                String8        extension = (shader_kind == shaderc_vertex_shader ? String8Raw(".vert.spv") : String8Raw(".frag.spv"));
 
-                String8 spirv_output_path = filesystem::PathJoin(arena, base_dir, shader->name);
-                spirv_output_path = filesystem::PathJoin(arena, spirv_output_path, extension);
+                String8 spirv_output_path = fs::PathJoin(arena, base_dir, shader->name);
+                spirv_output_path = fs::PathJoin(arena, spirv_output_path, extension);
 
                 // BaseDir + "/" + shader.Name + (shader_kind == shaderc_vertex_shader ? ".vert" : ".frag") + ".spv";
-                if (filesystem::OpenFile(spirv_output_path, filesystem::FILE_OPEN_MODE_WRITE, true, &file_handle))
+                if (fs::OpenFile(spirv_output_path, fs::FILE_OPEN_MODE_WRITE, true, &file_handle))
                 {
-                    filesystem::WriteFile(&file_handle, spirv_binary.ptr, spirv_binary.count);
-                    filesystem::CloseFile(&file_handle);
+                    fs::WriteFile(&file_handle, spirv_binary.ptr, spirv_binary.count);
+                    fs::CloseFile(&file_handle);
 
                     KDEBUG("Wrote %S", spirv_output_path);
                 }
@@ -498,11 +500,11 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
 
     shaderc_compiler_release(compiler);
 
-    filesystem::FileHandle file;
-    if (filesystem::OpenFile(output_path, filesystem::FILE_OPEN_MODE_WRITE, true, &file))
+    fs::FileHandle file;
+    if (fs::OpenFile(output_path, fs::FILE_OPEN_MODE_WRITE, true, &file))
     {
-        filesystem::WriteFile(&file, binary_output);
-        filesystem::CloseFile(&file);
+        fs::WriteFile(&file, binary_output);
+        fs::CloseFile(&file);
     }
     else
     {
@@ -541,7 +543,7 @@ int Init()
     int             failed_tasks = 0;
     ArenaAllocator* arena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(16), .Alignment = 64 });
 
-    if (filesystem::FileExists(base_path))
+    if (fs::FileExists(base_path))
     {
         String8 output_filepath = StringCat(arena, base_path, String8Raw(".bkfx"));
         bool    result = CompileShaderFX(arena, base_path, output_filepath, compiler_opts);
@@ -557,12 +559,12 @@ int Init()
     }
     else
     {
-        filesystem::Directory directory = filesystem::ReadDir(arena, base_path);
+        fs::Directory directory = fs::ReadDir(arena, base_path);
         for (int i = 0; i < directory.entry_count; i++)
         {
             if (StringEndsWith(directory.entries[i].name, String8Raw(".kfx")))
             {
-                String8 shaderfx_filepath = filesystem::PathJoin(arena, base_path, directory.entries[i].name);
+                String8 shaderfx_filepath = fs::PathJoin(arena, base_path, directory.entries[i].name);
                 String8 output_filepath = StringCat(arena, shaderfx_filepath, String8Raw(".bkfx"));
                 bool    result = CompileShaderFX(arena, shaderfx_filepath, output_filepath, compiler_opts);
                 if (true == result)
