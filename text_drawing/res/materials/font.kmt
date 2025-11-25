@@ -1,4 +1,4 @@
-Material Simple2D
+Material Font
 {
     Shader          "res/shaders/font.kfx.bkfx"
     DiffuseColor    vec4(1.0, 1.0, 0.0, 1.0)

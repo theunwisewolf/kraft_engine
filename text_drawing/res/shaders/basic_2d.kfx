@@ -58,6 +58,9 @@ Shader Basic2D
         {
             vec4  DiffuseColor;
             uint  DiffuseTexture;
+            uint  _unused0;
+            uint  _unused1;
+            uint  _unused2;
         };
 
         layout (set = 0, binding = 2) readonly buffer GlobalMaterialData
