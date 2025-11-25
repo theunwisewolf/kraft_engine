@@ -46,25 +46,26 @@ struct RendererFrontend
     void EndMainRenderpass();
 
     // API
-    void CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle);
-    void DestroyRenderPipeline(Shader* Shader);
-    void UseShader(const Shader* Shader);
+    void CreateRenderPipeline(Shader* shader, Handle<RenderPass> RenderPassHandle);
+    void DestroyRenderPipeline(Shader* shader);
+    void UseShader(const Shader* shader);
     void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void ApplyLocalShaderProperties(Shader* ActiveShader, void* Data);
-    void DrawGeometry(u32 GeometryID);
-    bool CreateGeometry(Geometry* Geometry, u32 VertexCount, const void* Vertices, u32 VertexSize, u32 IndexCount, const void* Indices, const u32 IndexSize);
-    void DestroyGeometry(Geometry* Geometry);
+    void DrawGeometry(u32 id);
+    bool CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
+    bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
+    void DestroyGeometry(Geometry* geometry);
 
-    RenderSurfaceT CreateRenderSurface(const char* Name, u32 Width, u32 Height, bool HasDepth = false);
-    void           BeginRenderSurface(const RenderSurfaceT& Surface);
-    RenderSurfaceT ResizeRenderSurface(RenderSurfaceT& Surface, u32 Width, u32 Height);
-    void           EndRenderSurface(const RenderSurfaceT& Surface);
+    RenderSurfaceT CreateRenderSurface(const char* name, u32 width, u32 height, bool has_depth = false);
+    void           BeginRenderSurface(const RenderSurfaceT& surface);
+    RenderSurfaceT ResizeRenderSurface(RenderSurfaceT& surface, u32 width, u32 height);
+    void           EndRenderSurface(const RenderSurfaceT& surface);
 
     void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 };
 
-RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts);
-void              DestroyRendererFrontend(RendererFrontend* Instance);
+RendererFrontend* CreateRendererFrontend(const RendererOptions* options);
+void              DestroyRendererFrontend(RendererFrontend* instance);
 
 } // namespace r
 

@@ -123,6 +123,18 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     return &Reference->Geometry;
 }
 
+bool GeometrySystem::UpdateGeometry(Geometry* geometry, GeometryData data)
+{
+#ifdef KRAFT_GUI_APP
+    if (!g_Renderer->UpdateGeometry(geometry, data.VertexCount, data.Vertices, data.VertexSize, data.IndexCount, data.Indices, data.IndexSize))
+    {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 void GeometrySystem::ReleaseGeometry(Geometry* Geometry)
 {
     uint32 ID = Geometry->ID;

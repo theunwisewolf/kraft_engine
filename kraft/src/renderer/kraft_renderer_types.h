@@ -77,13 +77,13 @@ struct alignas(16) GlobalShaderData
     {
         struct alignas(16)
         {
-            Mat4f  Projection;
-            Mat4f  View;
-            Vec3f  GlobalLightPosition;
-            uint32 Pad0;
-            Vec4f  GlobalLightColor;
-            Vec3f  CameraPosition;
-            uint32 Pad1;
+            Mat4f Projection;
+            Mat4f View;
+            Vec3f GlobalLightPosition;
+            u32   Pad0;
+            Vec4f GlobalLightColor;
+            Vec3f CameraPosition;
+            u32   Pad1;
         };
 
         char _[256];
@@ -94,8 +94,8 @@ struct Renderable
 {
     kraft::Mat4f ModelMatrix;
     Material*    MaterialInstance;
-    uint32       GeometryId;
-    uint32       EntityId;
+    u32          GeometryId;
+    u32          EntityId;
 };
 
 struct RenderPacket
@@ -125,15 +125,16 @@ struct RendererBackend
     void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    void (*DrawGeometryData)(uint32 GeometryID);
-    bool (*CreateGeometry)(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
+    void (*DrawGeometryData)(u32 GeometryID);
+    bool (*CreateGeometry)(Geometry* Geometry, u32 VertexCount, const void* Vertices, u32 VertexSize, u32 IndexCount, const void* Indices, const u32 IndexSize);
+    bool (*UpdateGeometry)(Geometry* Geometry, u32 VertexCount, const void* Vertices, u32 VertexSize, u32 IndexCount, const void* Indices, const u32 IndexSize);
     void (*DestroyGeometry)(Geometry* Geometry);
 
     // Render Passes
     void (*BeginRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
     void (*EndRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
 
-    void (*CmdSetCustomBuffer)(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx);
+    void (*CmdSetCustomBuffer)(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 
     DeviceInfoT DeviceInfo;
 };
@@ -200,10 +201,10 @@ struct ShaderDataType
             case Short2N:   return 2 * sizeof(int16) * Value.ArraySize;
             case Short4:    return 4 * sizeof(int16) * Value.ArraySize;
             case Short4N:   return 4 * sizeof(int16) * Value.ArraySize;
-            case UInt:      return 1 * sizeof(uint32) * Value.ArraySize;
-            case UInt2:     return 2 * sizeof(uint32) * Value.ArraySize;
-            case UInt4:     return 4 * sizeof(uint32) * Value.ArraySize;
-            case TextureID: return sizeof(uint32);
+            case UInt:      return 1 * sizeof(u32) * Value.ArraySize;
+            case UInt2:     return 2 * sizeof(u32) * Value.ArraySize;
+            case UInt4:     return 4 * sizeof(u32) * Value.ArraySize;
+            case TextureID: return sizeof(u32);
             case Count:     return 0;
         }
 
@@ -677,7 +678,7 @@ struct DepthTarget
     StoreOp::Enum       StencilStoreOperation = StoreOp::Store;
     TextureLayout::Enum NextUsage = TextureLayout::DepthStencil;
     float32             Depth = 1.0f;
-    uint32              Stencil = 0;
+    u32                 Stencil = 0;
 };
 
 struct ColorTarget
@@ -713,7 +714,7 @@ struct TextureDescription
     TextureTiling::Enum     Tiling = TextureTiling::Optimal;
     TextureType::Enum       Type = TextureType::Type2D;
     TextureSampleCountFlags SampleCount = TEXTURE_SAMPLE_COUNT_FLAGS_1;
-    uint32                  MipLevels = 1;
+    u32                     MipLevels = 1;
     SharingMode::Enum       SharingMode = SharingMode::Exclusive;
 };
 
@@ -786,7 +787,7 @@ struct CommandPoolDescription
 {
     const char* DebugName;
 
-    uint32                 QueueFamilyIndex;
+    u32                    QueueFamilyIndex;
     CommandPoolCreateFlags Flags;
 };
 
@@ -833,12 +834,12 @@ struct ReadTextureDataDescription
 {
     Handle<Texture>       SrcTexture = Handle<Texture>::Invalid();
     void*                 OutBuffer = nullptr;
-    uint32                OutBufferSize = 0;
+    u32                   OutBufferSize = 0;
     Handle<CommandBuffer> CmdBuffer = Handle<CommandBuffer>::Invalid();
     int32                 OffsetX = 0;
     int32                 OffsetY = 0;
-    uint32                Width = 0;  // if 0, the entire image will be copied to the buffer
-    uint32                Height = 0; // if 0, the entire image will be copied to the buffer
+    u32                   Width = 0;  // if 0, the entire image will be copied to the buffer
+    u32                   Height = 0; // if 0, the entire image will be copied to the buffer
 };
 
 struct PhysicalDeviceFormatSpecs
@@ -858,8 +859,8 @@ struct RenderSurfaceT
 {
     const char* DebugName;
 
-    uint32                Width;
-    uint32                Height;
+    u32                   Width;
+    u32                   Height;
     Handle<CommandBuffer> CmdBuffers[3];
     Handle<RenderPass>    RenderPass;
     Handle<Texture>       ColorPassTexture;
@@ -877,7 +878,7 @@ struct RenderSurfaceT
     void End();
 };
 
-} // namespace renderer
+} // namespace r
 
 } // namespace kraft
 

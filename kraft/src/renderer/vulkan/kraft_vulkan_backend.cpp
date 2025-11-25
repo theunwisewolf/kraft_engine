@@ -1033,44 +1033,66 @@ static bool UploadDataToGPU(VulkanContext* Context, Handle<Buffer> DstBuffer, ui
     return true;
 }
 
-bool VulkanRendererBackend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
+bool VulkanRendererBackend::CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
 {
-    VulkanGeometryData* GeometryData = &s_Context.Geometries[Geometry->ID];
-    Geometry->InternalID = Geometry->ID;
+    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->ID];
+    geometry->InternalID = geometry->ID;
 
-    uint32 Size = VertexSize * VertexCount;
-    GeometryData->VertexSize = VertexSize;
-    GeometryData->VertexCount = VertexCount;
-    GeometryData->VertexBufferOffset = s_Context.CurrentVertexBufferOffset;
-    s_Context.CurrentVertexBufferOffset += Size;
+    u32 size = vertex_size * vertex_count;
+    backend_geometry_data->VertexSize = vertex_size;
+    backend_geometry_data->VertexCount = vertex_count;
+    backend_geometry_data->VertexBufferOffset = s_Context.CurrentVertexBufferOffset;
+    s_Context.CurrentVertexBufferOffset += size;
 
-    UploadDataToGPU(&s_Context, s_Context.VertexBuffer, GeometryData->VertexBufferOffset, Vertices, Size);
+    UploadDataToGPU(&s_Context, s_Context.VertexBuffer, backend_geometry_data->VertexBufferOffset, vertices, size);
 
-    if (Indices && IndexCount > 0)
+    if (indices && index_count > 0)
     {
-        Size = IndexSize * IndexCount;
-        GeometryData->IndexSize = IndexSize;
-        GeometryData->IndexCount = IndexCount;
-        GeometryData->IndexBufferOffset = s_Context.CurrentIndexBufferOffset;
-        s_Context.CurrentIndexBufferOffset += Size;
+        size = index_size * index_count;
+        backend_geometry_data->IndexSize = index_size;
+        backend_geometry_data->IndexCount = index_count;
+        backend_geometry_data->IndexBufferOffset = s_Context.CurrentIndexBufferOffset;
+        s_Context.CurrentIndexBufferOffset += size;
 
-        UploadDataToGPU(&s_Context, s_Context.IndexBuffer, GeometryData->IndexBufferOffset, Indices, Size);
+        UploadDataToGPU(&s_Context, s_Context.IndexBuffer, backend_geometry_data->IndexBufferOffset, indices, size);
     }
 
     return true;
 }
 
-void VulkanRendererBackend::DestroyGeometry(Geometry* Geometry)
+bool VulkanRendererBackend::UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
 {
-    if (!Geometry || Geometry->InternalID == KRAFT_INVALID_ID)
+    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->ID];
+    KASSERT(geometry);
+
+    u32 size = vertex_size * vertex_count;
+    backend_geometry_data->VertexSize = vertex_size;
+    backend_geometry_data->VertexCount = vertex_count;
+
+    UploadDataToGPU(&s_Context, s_Context.VertexBuffer, backend_geometry_data->VertexBufferOffset, vertices, size);
+    if (indices && index_count > 0)
+    {
+        size = index_size * index_count;
+        backend_geometry_data->IndexSize = index_size;
+        backend_geometry_data->IndexCount = index_count;
+
+        UploadDataToGPU(&s_Context, s_Context.IndexBuffer, backend_geometry_data->IndexBufferOffset, indices, size);
+    }
+
+    return true;
+}
+
+void VulkanRendererBackend::DestroyGeometry(Geometry* geometry)
+{
+    if (!geometry || geometry->InternalID == KRAFT_INVALID_ID)
         return;
 
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
 
-    VulkanGeometryData* GeometryData = &s_Context.Geometries[Geometry->InternalID];
+    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->InternalID];
 
-    MemZero(GeometryData, sizeof(VulkanGeometryData));
-    GeometryData->ID = KRAFT_INVALID_ID;
+    MemZero(backend_geometry_data, sizeof(VulkanGeometryData));
+    backend_geometry_data->ID = KRAFT_INVALID_ID;
 }
 
 void VulkanRendererBackend::BeginRenderPass(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle)

@@ -172,7 +172,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
             return nullptr;
         }
 
-        // KDEBUG("Setting uniform '%s' to '%d' (Stride = %d, Offset = %d)", *UniformName, MaterialIt->second.UInt32Value, Uniform->Stride, Uniform->Offset);
+        KDEBUG("Setting uniform '%lld' to '%d' (Stride = %d, Offset = %d)", uniform_key, MaterialIt->second.u32Value, Uniform->Stride, Uniform->Offset);
 
         if (Uniform->DataType.UnderlyingType == r::ShaderDataType::TextureID)
         {

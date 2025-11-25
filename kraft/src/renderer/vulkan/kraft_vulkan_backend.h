@@ -26,33 +26,34 @@ struct Handle;
 
 struct VulkanRendererBackend
 {
-    static bool Init(ArenaAllocator* Arena, RendererOptions* Opts);
+    static bool Init(ArenaAllocator* arena, RendererOptions* options);
     static bool Shutdown();
     static int  PrepareFrame();
     static bool BeginFrame();
     static bool EndFrame();
     static void OnResize(int width, int height);
 
-    static void CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle);
-    static void DestroyRenderPipeline(Shader* Shader);
+    static void CreateRenderPipeline(Shader* shader, Handle<RenderPass> render_pass);
+    static void DestroyRenderPipeline(Shader* shader);
 
     static void SetGlobalShaderData(GlobalShaderData* Data);
     static void UseShader(const Shader* Shader);
-    static void ApplyGlobalShaderProperties(Shader* Shader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
-    static void ApplyLocalShaderProperties(Shader* Shader, void* Data);
+    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> global_ubo, Handle<Buffer> global_materials_buffer);
+    static void ApplyLocalShaderProperties(Shader* shader, void* data);
     static void UpdateTextures(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    static void DrawGeometryData(uint32 GeometryID);
-    static bool CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize);
-    static void DestroyGeometry(Geometry* Geometry);
+    static void DrawGeometryData(u32 id);
+    static bool CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
+    static bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
+    static void DestroyGeometry(Geometry* geometry);
 
     // Render Passes
-    static void BeginRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
-    static void EndRenderPass(Handle<CommandBuffer> CmdBuffer, Handle<RenderPass> PassHandle);
+    static void BeginRenderPass(Handle<CommandBuffer> cmd_buffer, Handle<RenderPass> pass);
+    static void EndRenderPass(Handle<CommandBuffer> cmd_buffer, Handle<RenderPass> pass);
 
     // Commands
-    static void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx);
+    static void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 
     // Misc
     static VulkanContext* Context();
@@ -60,6 +61,6 @@ struct VulkanRendererBackend
     static void SetDeviceData(GPUDevice* device);
 };
 
-} // namespace renderer
+} // namespace r
 
 } // namespace kraft

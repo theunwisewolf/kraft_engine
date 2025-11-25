@@ -8,31 +8,32 @@ struct Geometry;
 
 struct GeometrySystemConfig
 {
-    uint32 MaxGeometriesCount;
+    u32 MaxGeometriesCount;
 };
 
 struct GeometryData
 {
-    uint32 VertexCount;
-    uint32 IndexCount;
-    uint32 VertexSize; // Size of a single vertex
-    uint32 IndexSize;  // Size of a single index
-    void*  Vertices;
-    void*  Indices;
+    u32   VertexCount;
+    u32   IndexCount;
+    u32   VertexSize; // Size of a single vertex
+    u32   IndexSize;  // Size of a single index
+    void* Vertices;
+    void* Indices;
 };
 
 struct GeometrySystem
 {
-    static void Init(GeometrySystemConfig Config);
+    static void Init(GeometrySystemConfig config);
     static void Shutdown();
 
     static Geometry* GetDefaultGeometry();
     static Geometry* GetDefault2DGeometry();
-    static Geometry* AcquireGeometry(uint32 ID);
-    static Geometry* AcquireGeometryWithData(GeometryData Data, bool AutoRelease = true);
-    static void      ReleaseGeometry(Geometry* Geometry);
-    static void      ReleaseGeometry(uint32 ID);
-    static void      DestroyGeometry(Geometry* Geometry);
+    static Geometry* AcquireGeometry(u32 ID);
+    static Geometry* AcquireGeometryWithData(GeometryData data, bool auto_release = true);
+    static bool      UpdateGeometry(Geometry* geometry, GeometryData data);
+    static void      ReleaseGeometry(Geometry* geometry);
+    static void      ReleaseGeometry(u32 id);
+    static void      DestroyGeometry(Geometry* geometry);
 };
 
-}
+} // namespace kraft

@@ -1185,3 +1185,7 @@ KRAFT_API Mat4f RotationMatrixFromEulerAngles(f32 rotationXRadians, f32 rotation
 KRAFT_API Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f Up);
 
 } // namespace kraft
+
+#define KRAFT_RGBA(r, g, b, a) kraft::Vec4f(f32(r) / 255.0f, f32(g) / 255.0f, f32(b) / 255.0f, f32(a) / 255.0f)
+#define KRAFT_RGB(r, g, b)     KRAFT_RGBA(r, g, b, 255.0f)
+#define KRAFT_HEX(hex)         KRAFT_RGBA((hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff, 255.0f)

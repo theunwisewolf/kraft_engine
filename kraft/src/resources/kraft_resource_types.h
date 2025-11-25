@@ -145,9 +145,6 @@ struct Material
 
     // Reference to the underlying shader
     Shader* Shader;
-
-    // Holds the backend renderer data such as descriptor sets
-    ResourceID RendererDataIdx;
 };
 
 struct Geometry

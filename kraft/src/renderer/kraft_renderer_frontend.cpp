@@ -319,9 +319,14 @@ void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Da
     renderer_data_internal.backend->ApplyLocalShaderProperties(ActiveShader, Data);
 }
 
-bool RendererFrontend::CreateGeometry(Geometry* Geometry, uint32 VertexCount, const void* Vertices, uint32 VertexSize, uint32 IndexCount, const void* Indices, const uint32 IndexSize)
+bool RendererFrontend::CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
 {
-    return renderer_data_internal.backend->CreateGeometry(Geometry, VertexCount, Vertices, VertexSize, IndexCount, Indices, IndexSize);
+    return renderer_data_internal.backend->CreateGeometry(geometry, vertex_count, vertices, vertex_size, index_count, indices, index_size);
+}
+
+bool RendererFrontend::UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
+{
+    return renderer_data_internal.backend->UpdateGeometry(geometry, vertex_count, vertices, vertex_size, index_count, indices, index_size);
 }
 
 void RendererFrontend::DestroyGeometry(Geometry* Geometry)
@@ -497,6 +502,7 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         renderer_data_internal.backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
         renderer_data_internal.backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
         renderer_data_internal.backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
+        renderer_data_internal.backend->UpdateGeometry = VulkanRendererBackend::UpdateGeometry;
         renderer_data_internal.backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
         renderer_data_internal.backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
