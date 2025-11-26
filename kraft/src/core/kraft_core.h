@@ -168,7 +168,7 @@ typedef String8 buffer;
 #define KRAFT_INVALID_ID       4294967295U
 #define KRAFT_INVALID_ID_UINT8 255U
 
-#define KRAFT_C_ARRAY_SIZE(arr) sizeof(arr) / sizeof(arr[0])
+#define KRAFT_C_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 // Architecture
 #if _WIN32 || _WIN64

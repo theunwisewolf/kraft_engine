@@ -5,9 +5,10 @@ Shader Basic2D
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 20 vertex
+            Binding     0 36 vertex
             Attribute   float3 Position 0 0 0
             Attribute   float2 UV 0 1 12
+            Attribute   float4 Color 0 2 20
         }
 
         UniformBuffer GlobalUniformBuffer
@@ -70,16 +71,19 @@ Shader Basic2D
         // Inputs
         layout (location = 0) in vec3 inPosition;
         layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec4 inColor;
 
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
         {
             vec2 UV;
+            vec4 Color;
         } outDTO;
 
         void main()
         {
             outDTO.UV = inUV;
+            outDTO.Color = inColor;
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
         }
 
@@ -90,6 +94,7 @@ Shader Basic2D
         layout (location = 0) in struct DataTransferObject 
         {
             vec2 UV;
+            vec4 Color;
         } inDTO;
 
         // Outputs
@@ -100,7 +105,7 @@ Shader Basic2D
             MeshMaterial Material = Materials[variableState.MaterialIdx];
 
             float texture_sample = texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).r;
-            outColor = Material.DiffuseColor * texture_sample;
+            outColor = Material.DiffuseColor * vec4(texture_sample);
             // outColor = Material.DiffuseColor;
         }
 
@@ -112,9 +117,9 @@ Shader Basic2D
         State Default
         {       
             Cull            Off
-            ZTest           Less
-            ZWrite          On
-            Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+            ZTest           Never
+            ZWrite          Off
+            Blend           SrcAlpha OneMinusSrcAlpha, OneMinusSrcAlpha Zero
             BlendOp         Add, Add
             PolygonMode     Fill
             LineWidth       1.0   

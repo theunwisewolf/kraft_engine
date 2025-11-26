@@ -143,6 +143,7 @@ struct Vertex2D
 {
     Vec3f Position;
     Vec2f UV;
+    Vec4f Color;
 };
 
 struct Vertex3D

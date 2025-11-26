@@ -22,5 +22,6 @@ String8 String8FromPtrAndLength(u8* ptr, u64 length);
 String8 String8FromCString(char* c_str);
 
 #define String8Raw(str) kraft::String8FromPtrAndLength((u8*)(str), sizeof(str) - 1)
+#define S(str)          kraft::String8FromPtrAndLength((u8*)(str), sizeof(str) - 1)
 
 } // namespace kraft

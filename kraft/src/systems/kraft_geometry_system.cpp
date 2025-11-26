@@ -135,13 +135,33 @@ bool GeometrySystem::UpdateGeometry(Geometry* geometry, GeometryData data)
     return true;
 }
 
+bool GeometrySystem::UpdateGeometry(u32 id, GeometryData data)
+{
+#ifdef KRAFT_GUI_APP
+    if (id >= 0 && id < State->MaxGeometriesCount)
+    {
+        GeometryReference* reference = &State->Geometries[id];
+        if (!g_Renderer->UpdateGeometry(&reference->Geometry, data.VertexCount, data.Vertices, data.VertexSize, data.IndexCount, data.Indices, data.IndexSize))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 void GeometrySystem::ReleaseGeometry(Geometry* Geometry)
 {
-    uint32 ID = Geometry->ID;
+    u32 ID = Geometry->ID;
     ReleaseGeometry(ID);
 }
 
-void GeometrySystem::ReleaseGeometry(uint32 ID)
+void GeometrySystem::ReleaseGeometry(u32 ID)
 {
     if (ID >= 0 && ID < State->MaxGeometriesCount)
     {

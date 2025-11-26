@@ -31,6 +31,7 @@ struct GeometrySystem
     static Geometry* AcquireGeometry(u32 ID);
     static Geometry* AcquireGeometryWithData(GeometryData data, bool auto_release = true);
     static bool      UpdateGeometry(Geometry* geometry, GeometryData data);
+    static bool      UpdateGeometry(u32 id, GeometryData data);
     static void      ReleaseGeometry(Geometry* geometry);
     static void      ReleaseGeometry(u32 id);
     static void      DestroyGeometry(Geometry* geometry);
