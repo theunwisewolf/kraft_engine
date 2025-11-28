@@ -17,8 +17,8 @@ FontAtlas LoadFontAtlas(ArenaAllocator* arena, u8* font_data, u64 font_data_size
     const u32 num_chars = '~' - start_character;
 
     FontAtlas atlas = FontAtlas{
-        .width = 512,
-        .height = 512,
+        .width = 2048,
+        .height = 2048,
         .start_character = start_character,
         .num_chars = num_chars,
     };

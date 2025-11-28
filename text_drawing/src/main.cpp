@@ -87,6 +87,17 @@ f32 lerp(f32 a, f32 b, f32 amount)
     return a + (b - a) * amount;
 };
 
+struct Transform
+{
+    Vec2f position;
+    Vec2f scale;
+};
+
+Mat4f MatrixFromTransform(Transform transform)
+{
+    return ScaleMatrix(Vec3f{ transform.scale.x, transform.scale.y, 1.0f }) * TranslationMatrix(Vec3f{ transform.position.x, transform.position.y, 0.0f });
+}
+
 int main(int argc, char** argv)
 {
     ThreadContext* thread_context = CreateThreadContext();
@@ -126,10 +137,15 @@ int main(int argc, char** argv)
 
     // Load the font
     const int size = 32;
-    auto      hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Hack-Regular.ttf"));
+    // auto      hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Hack-Regular.ttf"));
+    auto      hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Bangers-Regular.ttf"));
     KASSERT(hack_regular.ptr);
 
+    auto iga_ninja = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Bangers-Regular.ttf"));
+    KASSERT(iga_ninja.ptr);
+
     r::FontAtlas font_atlas = r::LoadFontAtlas(arena, hack_regular.ptr, hack_regular.count, 32.0f);
+    r::FontAtlas logo_font_atlas = r::LoadFontAtlas(arena, iga_ninja.ptr, iga_ninja.count, 64.0f);
 
     auto          bg_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
     auto          bg_geometry = GeometrySystem::GetDefault2DGeometry();
@@ -140,10 +156,17 @@ int main(int argc, char** argv)
         .GeometryId = bg_geometry->InternalID,
     };
 
-    auto font_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
-    auto selected_text_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
-    auto unselected_text_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto font_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
     KASSERT(font_material);
+
+    auto selected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    KASSERT(selected_text_material);
+
+    auto unselected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    KASSERT(unselected_text_material);
+
+    auto logo_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    KASSERT(logo_text_material);
 
     MaterialSystem::SetTexture(font_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
     MaterialSystem::SetProperty(font_material, String8Raw("DiffuseColor"), KRAFT_HEX(0xe74c3c));
@@ -153,6 +176,9 @@ int main(int argc, char** argv)
 
     MaterialSystem::SetTexture(unselected_text_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
     MaterialSystem::SetProperty(unselected_text_material, String8Raw("DiffuseColor"), KRAFT_HEX(0x95a5a6));
+
+    MaterialSystem::SetTexture(logo_text_material, String8Raw("DiffuseTexture"), logo_font_atlas.bitmap);
+    MaterialSystem::SetProperty(logo_text_material, String8Raw("DiffuseColor"), KRAFT_HEX(0x9b59b6));
 
     auto bitmap_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
     MaterialSystem::SetTexture(bitmap_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
@@ -172,7 +198,8 @@ int main(int argc, char** argv)
     Mat4f transformA = ScaleMatrix(Vec3f{ size, -size, 1.f }) * TranslationMatrix(Vec3f{ -size / 2.f, 0.f, 0.f });
     Mat4f transformB = ScaleMatrix(Vec3f{ 1, 1, 1.f }) * TranslationMatrix(Vec3f{ 0.0f, 0.0f, 0.f });
 
-    String8 text = String8Raw("SIDEKICKS    ");
+    // String8 text = String8Raw("/-/");
+    String8 text = String8Raw("KICK  ");
 
     // Play Button
     Vec2f play_icon_path[] = {
@@ -387,6 +414,10 @@ int main(int argc, char** argv)
         KRAFT_HEX(0x95a5a6)
     );
 
+    Vec4f     logo_color = KRAFT_HEX(0xf1c40f);
+    Transform logo_transform = Transform{ .scale = { 1.0f, 1.0f }, .position = { -100.0f, 0.0, 0.0f } };
+    auto      logo_text = r::RenderText(logo_text_material, &logo_font_atlas, S("sidekicks"), MatrixFromTransform(logo_transform), logo_color);
+
     bool play_selected = true;
 
     srand(time(NULL));
@@ -513,7 +544,7 @@ int main(int argc, char** argv)
 
             // g_Renderer->AddRenderable({ .EntityId = 1, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformA });
             // g_Renderer->AddRenderable({ .EntityId = 2, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformB });
-            g_Renderer->AddRenderable(background);
+            // g_Renderer->AddRenderable(background);
             g_Renderer->AddRenderable({
                 .ModelMatrix = transformB,
                 .MaterialInstance = font_material,
@@ -523,6 +554,7 @@ int main(int argc, char** argv)
 
             g_Renderer->AddRenderable(play_button_text);
             g_Renderer->AddRenderable(settings_button_text);
+            g_Renderer->AddRenderable(logo_text);
 
             // g_Renderer->AddRenderable(font_bitmap);
             // g_Renderer->Draw(bg_material->Shader, &global_data, geometry->InternalID);
@@ -566,6 +598,21 @@ int main(int argc, char** argv)
                     // character_states[i].current_point_index = i;
                     character_states[i].progress = 0.1f;
                 }
+            }
+
+            if (ImGui::ColorEdit4("Logo Color", logo_color._data))
+            {
+                MaterialSystem::SetProperty(logo_text_material, S("DiffuseColor"), logo_color);
+            }
+
+            if (ImGui::DragFloat2("Logo Position", logo_transform.position._data))
+            {
+                logo_text.ModelMatrix = MatrixFromTransform(logo_transform);
+            }
+
+            if (ImGui::DragFloat2("Logo Scale", logo_transform.scale._data))
+            {
+                logo_text.ModelMatrix = MatrixFromTransform(logo_transform);
             }
 
             ImGui::End();
