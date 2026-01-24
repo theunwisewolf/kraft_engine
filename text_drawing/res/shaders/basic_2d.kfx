@@ -5,9 +5,10 @@ Shader Basic2D
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 20 vertex
+            Binding     0 36 vertex
             Attribute   float3 Position 0 0 0
             Attribute   float2 UV 0 1 12
+            Attribute   float4 Color 0 2 20
         }
 
         UniformBuffer GlobalUniformBuffer
@@ -73,6 +74,7 @@ Shader Basic2D
         // Inputs
         layout (location = 0) in vec3 inPosition;
         layout (location = 1) in vec2 inUV;
+        layout (location = 2) in vec4 inColor;
 
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
@@ -90,6 +92,8 @@ Shader Basic2D
 
         #if defined FRAGMENT
 
+        precision highp float;
+
         layout (location = 0) in struct DataTransferObject 
         {
             vec2 UV;
@@ -100,6 +104,10 @@ Shader Basic2D
 
         void main() 
         {
+            // vec3 iResolution = vec3(2560.0, 1080.0, 1.0);
+            // vec2 uv = gl_FragCoord.xy/iResolution.xy;
+            // outColor = effect(iResolution.xyz, gl_FragCoord.xy);
+            // outColor = vec4(inDTO.UV.x, inDTO.UV.y, 1.0, 1.0);
             MeshMaterial Material = Materials[variableState.MaterialIdx];
             outColor = Material.DiffuseColor * texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV);
             // outColor = Material.DiffuseColor;
@@ -113,8 +121,8 @@ Shader Basic2D
         State Default
         {       
             Cull            Off
-            ZTest           Less
-            ZWrite          On
+            ZTest           Never
+            ZWrite          Off
             Blend           SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
             BlendOp         Add, Add
             PolygonMode     Fill

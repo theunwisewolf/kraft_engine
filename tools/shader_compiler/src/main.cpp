@@ -8,7 +8,6 @@
 #include <shaderc/shaderc.h>
 #include <vendor/spirv-reflect/spirv_reflect.h>
 
-
 #include <core/kraft_base_includes.h>
 #include <platform/kraft_platform_includes.h>
 #include <renderer/kraft_renderer_types.h>
@@ -132,15 +131,15 @@ static bool CheckBufferDefinition(shaderfx::ShaderEffect* shader, shaderfx::Unif
 
 struct ShaderIncludeUserData
 {
-    ArenaAllocator*         Arena;
-    shaderfx::ShaderEffect* Shader;
+    ArenaAllocator*         arena;
+    shaderfx::ShaderEffect* shader;
 };
 
 static shaderc_include_result* ShaderIncludeResolverFunction(void* userdata, const char* requested_src, int Type, const char* requesting_src, size_t include_depth)
 {
     ShaderIncludeUserData*  include_data = (ShaderIncludeUserData*)userdata;
-    ArenaAllocator*         arena = include_data->Arena;
-    shaderfx::ShaderEffect* shader = include_data->Shader;
+    ArenaAllocator*         arena = include_data->arena;
+    shaderfx::ShaderEffect* shader = include_data->shader;
 
     String8 shader_dir = fs::Dirname(arena, shader->resource_path);
     String8 included_filepath = fs::PathJoin(arena, shader_dir, String8FromCString((char*)requested_src));
@@ -340,8 +339,8 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
 
         shaderc_compile_opts = shaderc_compile_options_initialize();
         ShaderIncludeUserData user_data = {
-            .Arena = arena,
-            .Shader = shader,
+            .arena = arena,
+            .shader = shader,
         };
         shaderc_compile_options_set_include_callbacks(shaderc_compile_opts, ShaderIncludeResolverFunction, ShaderIncludeResultReleaseFunction, &user_data);
 
@@ -419,7 +418,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
                 for (uint32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
                 {
                     SpvReflectDescriptorBinding* binding = descriptor_set->bindings[binding_idx];
-                    printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name);
+                    printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name, binding->descriptor_type);
 
                     // shaderfx::ShaderResource Resource = {
                     //     .Name = String(binding->name),
@@ -592,7 +591,7 @@ int main(int argc, char** argv)
     kraft::EngineConfig config = {
         .argc = argc,
         .argv = argv,
-        .application_name = String8Raw("KraftShaderCompiler"),
+        .application_name = S("KraftShaderCompiler"),
         .console_app = true,
     };
 
