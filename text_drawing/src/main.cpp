@@ -544,7 +544,7 @@ int main(int argc, char** argv)
 
             // g_Renderer->AddRenderable({ .EntityId = 1, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformA });
             // g_Renderer->AddRenderable({ .EntityId = 2, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformB });
-            // g_Renderer->AddRenderable(background);
+            g_Renderer->AddRenderable(background);
             g_Renderer->AddRenderable({
                 .ModelMatrix = transformB,
                 .MaterialInstance = font_material,

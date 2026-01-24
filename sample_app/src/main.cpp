@@ -1,111 +1,171 @@
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
-#include <core/kraft_core.h>
-#include <core/kraft_engine.h>
-#include <core/kraft_log.h>
-#include <core/kraft_time.h>
+
 #include <kraft.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
 #include <renderer/kraft_renderer_frontend.h>
+#include <renderer/vulkan/kraft_vulkan_imgui.h>
 #include <systems/kraft_asset_database.h>
 #include <systems/kraft_geometry_system.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
+
+#include <core/kraft_base_includes.h>
+#include <platform/kraft_platform_includes.h>
+#include <misc/kraft_misc_includes.h>
 
 #include <kraft_types.h>
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_asset_types.h>
 
+#include <time.h>
+
+using namespace kraft;
+
 #include "imgui/imgui_renderer.h"
+
+#include "imgui/imgui_renderer.cpp"
 
 struct ApplicationState
 {
-    char          TitleBuffer[1024];
-    float64       LastTime;
-    float64       TimeSinceLastFrame;
-    RendererImGui ImGuiRenderer;
-    uint32        FrameCount;
-} AppState;
+    char          title_buffer[1024];
+    f64           last_time;
+    f64           time_since_last_frame;
+    RendererImGui imgui_renderer;
+    u32           frame_count;
+} app_state;
+
+struct GameState
+{
+    ArenaAllocator* arena;
+    Mat4f           projection_matrix;
+};
+
+static void DrawUI(GameState* game_state)
+{}
+
+static bool OnWindowResize(EventType type, void* sender, void* listener, EventData event_data)
+{
+    GameState*      game_state = (GameState*)listener;
+    EventDataResize data = *(EventDataResize*)(&event_data);
+    game_state->projection_matrix = OrthographicMatrix(-(float)data.width * 0.5f, (float)data.width * 0.5f, -(float)data.height * 0.5f, (float)data.height * 0.5f, -1.0f, 1.0f);
+
+    KDEBUG("Window resized to %d x %d", data.width, data.height);
+    return false;
+}
+
+static bool OnKeyPress(EventType type, void* sender, void* listener, EventData event_data)
+{
+    // GameState* game_state = (GameState*)listener;
+    // if (event_data.Int32Value[0] == Keys::KEY_B)
+    // {
+    // }
+
+    return false;
+}
 
 int main(int argc, char** argv)
 {
-    bool ImGuiDemoWindowOpen = true;
-    kraft::CreateEngine({
-        .Argc = argc,
-        .Argv = argv,
-        .ApplicationName = "SampleApp",
-        .ConsoleApp = false,
+    ThreadContext* thread_context = CreateThreadContext();
+    SetCurrentThreadContext(thread_context);
+
+    srand(time(NULL));
+    ArenaAllocator* arena = CreateArena({
+        .ChunkSize = KRAFT_SIZE_MB(64),
+        .Alignment = KRAFT_SIZE_KB(64),
     });
 
+    GameState* game_state = ArenaPush(arena, GameState);
+    game_state->arena = arena;
+
+    bool                ImGuiDemoWindowOpen = true;
+    kraft::EngineConfig config = {
+        .argc = argc,
+        .argv = argv,
+        .application_name = String8Raw("SampleApp"),
+        .console_app = false,
+    };
+    kraft::CreateEngine(&config);
+
+    EventSystem::Listen(EVENT_TYPE_WINDOW_RESIZE, game_state, OnWindowResize);
+    EventSystem::Listen(EVENT_TYPE_KEY_UP, game_state, OnKeyPress);
+
     // auto Window = kraft::CreateWindow("SampleApp", 1280, 768);
-    auto Window = kraft::CreateWindow({ .Title = "SampleApp", .Width = 1280, .Height = 768, .StartMaximized = true });
-    auto Renderer = kraft::CreateRenderer({
+    auto window = CreateWindow({ .Title = "SampleApp", .Width = 1280, .Height = 768, .StartMaximized = true });
+    CreateRenderer({
         .Backend = kraft::RENDERER_BACKEND_TYPE_VULKAN,
+        .MaterialBufferSize = 32,
     });
 
     // Window->Maximize();
 
-    AppState.ImGuiRenderer.Init();
+    app_state.imgui_renderer.Init(game_state->arena);
 
-    // auto Shader = kraft::ShaderSystem::AcquireShader("res/shaders/basic.kfx.bkfx", kraft::renderer::Handle<kraft::renderer::RenderPass>::Invalid());
-    auto MeshAsset = kraft::AssetDatabase::LoadMesh("res/meshes/viking_room.obj");
-    auto Material = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt", kraft::renderer::Handle<kraft::renderer::RenderPass>::Invalid());
-    KASSERT(Material);
-    auto Length = MeshAsset->SubMeshes.Length;
-    KASSERT(Length);
-    auto Geometry = MeshAsset->SubMeshes[0].Geometry; //kraft::GeometrySystem::GetDefaultGeometry();
+    auto material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    KASSERT(material);
 
-    kraft::renderer::GlobalShaderData GlobalData = {};
-    GlobalData.Projection = kraft::OrthographicMatrix(-(float)Window->Width * 0.5f, (float)Window->Width * 0.5f, -(float)Window->Height * 0.5f, (float)Window->Height * 0.5f, -1.0f, 1.0f);
-    // GlobalData.Projection = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)Window->Width / (float)Window->Height, 0.1f, 1000.f);
-    GlobalData.View = kraft::Mat4f(kraft::Identity);
+    auto  geometry = GeometrySystem::GetDefault2DGeometry();
+    Mat4f bg_transform = ScaleMatrix(Vec3f{ 2560.0f, 1080.0f, 1.f }) * TranslationMatrix(Vec3f{ 0.f, 0.f, 0.f });
 
-    while (kraft::Engine::Running)
+    r::GlobalShaderData global_ubo = {};
+    game_state->projection_matrix = OrthographicMatrix(-(float)window->Width * 0.5f, (float)window->Width * 0.5f, -(float)window->Height * 0.5f, (float)window->Height * 0.5f, -1.0f, 1.0f);
+    // game_state->projection_matrix = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)Window->Width / (float)Window->Height, 0.1f, 1000.f);
+    global_ubo.View = Mat4f(kraft::Identity);
+
+    while (Engine::running)
     {
-        AppState.FrameCount++;
+        TempArena scratch = ScratchBegin(&game_state->arena, 1);
+        app_state.frame_count++;
 
-        float64 FrameStartTime = kraft::Platform::GetAbsoluteTime();
-        float64 DeltaTime = FrameStartTime - AppState.LastTime;
-        kraft::Time::DeltaTime = DeltaTime;
-        AppState.TimeSinceLastFrame += DeltaTime;
-        AppState.LastTime = FrameStartTime;
+        f64 FrameStartTime = Platform::GetAbsoluteTime();
+        f64 DeltaTime = FrameStartTime - app_state.last_time;
+        Time::delta_time = DeltaTime;
+        app_state.time_since_last_frame += DeltaTime;
+        app_state.last_time = FrameStartTime;
 
         // Poll events
-        kraft::Engine::Tick();
+        Engine::Tick();
 
         // We only want to render when the engine is not suspended
-        if (!kraft::Engine::Suspended)
+        if (!kraft::Engine::suspended)
         {
             kraft::g_Renderer->PrepareFrame();
             kraft::g_Renderer->BeginMainRenderpass();
 
             // Draw stuff here!
-            kraft::g_Renderer->Draw(Material->Shader, &GlobalData, Geometry->InternalID);
+            g_Renderer->AddRenderable({
+                .ModelMatrix = bg_transform,
+                .MaterialInstance = material,
+                .GeometryId = geometry->InternalID,
+                .EntityId = geometry->InternalID,
+            });
+
+            global_ubo.Projection = game_state->projection_matrix;
+            kraft::g_Renderer->Draw(&global_ubo);
 
             // Draw ImGui
-            AppState.ImGuiRenderer.BeginFrame();
+            app_state.imgui_renderer.BeginFrame();
             ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
-            AppState.ImGuiRenderer.EndFrame();
+            DrawUI(game_state);
+            app_state.imgui_renderer.EndFrame();
 
             kraft::g_Renderer->EndMainRenderpass();
-            AppState.ImGuiRenderer.EndFrameUpdatePlatformWindows();
+            app_state.imgui_renderer.EndFrameUpdatePlatformWindows();
         }
 
-        if (AppState.TimeSinceLastFrame >= 1.f)
+        if (app_state.time_since_last_frame >= 1.f)
         {
-            AppState.TimeSinceLastFrame = 0.f;
-            AppState.FrameCount = 0;
+            app_state.time_since_last_frame = 0.f;
+            app_state.frame_count = 0;
 
-            kraft::StringFormat(AppState.TitleBuffer, sizeof(AppState.TitleBuffer), "SampleApp | FrameTime: %.2f ms | %d fps", DeltaTime * 1000.f, AppState.FrameCount);
-            Window->SetWindowTitle(AppState.TitleBuffer);
+            String8 window_title = StringFormat(scratch.arena, "SampleApp | FrameTime: %.2f ms | %d fps", DeltaTime * 1000.f, app_state.frame_count);
+            window->SetWindowTitle(window_title.str);
         }
+
+        ScratchEnd(scratch);
     }
 
-    // kraft::DestroyRenderer(Renderer);
-    // kraft::DestroyWindow(Window);
-    kraft::DestroyEngine();
+    DestroyEngine();
 
     return 0;
 }

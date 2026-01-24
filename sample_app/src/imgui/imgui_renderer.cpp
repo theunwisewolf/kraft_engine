@@ -1,25 +1,11 @@
-#include "imgui_renderer.h"
-
-#include <containers/kraft_array.h>
-#include <core/kraft_core.h>
-#include <core/kraft_engine.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_string.h>
-#include <platform/kraft_filesystem.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
-#include <renderer/kraft_renderer_types.h>
-#include <renderer/vulkan/kraft_vulkan_imgui.h>
-
-#include <platform/kraft_filesystem_types.h>
-
 static bool WidgetsNeedRefresh = false;
 
-bool RendererImGui::Init()
+bool RendererImGui::Init(ArenaAllocator* arena)
 {
-    IniFilename = kraft::String(255, 0);
-    kraft::StringFormat(*IniFilename, (int)IniFilename.Allocated, "%s/kraft_sample_app_imgui_config.ini", *kraft::Engine::BasePath);
+    const u32 max_widgets = 128;
+    ini_filename = kraft::StringFormat(arena, "%S/kraft_sample_app_imgui_config.ini", kraft::Engine::base_path);
+    widgets = ArenaPushArray(arena, ImGuiWidget, max_widgets);
+    widget_count = 0;
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -29,10 +15,10 @@ bool RendererImGui::Init()
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
-    io.IniFilename = *IniFilename;
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
+    io.IniFilename = (char*)ini_filename.ptr;
 
-    kraft::renderer::VulkanImgui::Init();
+    kraft::r::VulkanImgui::Init();
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -48,12 +34,12 @@ bool RendererImGui::Init()
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();
     {
-        kraft::filesystem::FileHandle Handle;
-        KASSERT(kraft::filesystem::OpenFile("res/fonts/PlusJakartaSans-Regular.ttf", kraft::filesystem::FILE_OPEN_MODE_READ, true, &Handle));
+        fs::FileHandle Handle;
+        KASSERT(fs::OpenFile(String8Raw("res/fonts/PlusJakartaSans-Regular.ttf"), fs::FILE_OPEN_MODE_READ, true, &Handle));
 
-        uint64 Size = kraft::filesystem::GetFileSize(&Handle);
-        uint8* Buffer = (uint8*)kraft::Malloc(Size);
-        bool JakartaRegular = kraft::filesystem::ReadAllBytes(&Handle, &Buffer, &Size);
+        u64  Size = fs::GetFileSize(&Handle);
+        u8*  Buffer = (u8*)Malloc(Size);
+        bool JakartaRegular = fs::ReadAllBytes(&Handle, &Buffer, &Size);
         KASSERT(JakartaRegular);
 
         // Atlas will be freed by ImGui
@@ -143,30 +129,28 @@ bool RendererImGui::Init()
     return true;
 }
 
-void RendererImGui::AddWidget(const kraft::String& Name, ImGuiRenderCallback Callback)
+void RendererImGui::AddWidget(String8 name, ImGuiRenderCallback callback)
 {
-    ImGuiWidget Widget(Name, Callback);
-    Widgets.Push(Widget);
+    widgets[widget_count++] = ImGuiWidget(name, callback);
 
-    KINFO("Added imgui widget %s", *Name);
+    KINFO("Added imgui widget %S", name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::renderer::Handle<kraft::Texture> texture, kraft::renderer::Handle<kraft::TextureSampler> sampler)
+ImTextureID RendererImGui::AddTexture(kraft::r::Handle<kraft::Texture> texture, kraft::r::Handle<kraft::TextureSampler> sampler)
 {
-    return kraft::renderer::VulkanImgui::AddTexture(texture, sampler);
+    return kraft::r::VulkanImgui::AddTexture(texture, sampler);
 }
 
 void RendererImGui::RemoveTexture(ImTextureID TextureID)
 {
-    return kraft::renderer::VulkanImgui::RemoveTexture(TextureID);
+    return kraft::r::VulkanImgui::RemoveTexture(TextureID);
 }
 
 void RendererImGui::RenderWidgets()
 {
-    uint64 Size = Widgets.Length;
-    for (int i = 0; i < Size; i++)
+    for (int i = 0; i < widget_count; i++)
     {
-        Widgets[i].Callback(WidgetsNeedRefresh);
+        widgets[i].callback(WidgetsNeedRefresh);
     }
 
     WidgetsNeedRefresh = false;
@@ -179,7 +163,7 @@ void RendererImGui::OnResize(int width, int height)
 
 void RendererImGui::Destroy()
 {
-    kraft::renderer::VulkanImgui::Destroy();
+    kraft::r::VulkanImgui::Destroy();
 }
 
 // Only valid if multi-viewports is enabled
@@ -193,12 +177,12 @@ void RendererImGui::EndFrameUpdatePlatformWindows()
         ImGui::RenderPlatformWindowsDefault();
     }
 
-    kraft::renderer::VulkanImgui::PostFrameCleanup();
+    kraft::r::VulkanImgui::PostFrameCleanup();
 }
 
 void RendererImGui::BeginFrame()
 {
-    kraft::renderer::VulkanImgui::BeginFrame();
+    kraft::r::VulkanImgui::BeginFrame();
     ImGui::NewFrame();
 }
 
@@ -207,5 +191,5 @@ void RendererImGui::EndFrame()
     ImGui::Render();
     ImDrawData* DrawData = ImGui::GetDrawData();
 
-    kraft::renderer::VulkanImgui::EndFrame(DrawData);
+    kraft::r::VulkanImgui::EndFrame(DrawData);
 }

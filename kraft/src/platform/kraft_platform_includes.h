@@ -9,6 +9,8 @@
 #include "Windows.h"
 #include "windows/kraft_win32_types.h"
 #include "windows/kraft_win32.h"
+
+#undef CreateWindow
 #elif defined(KRAFT_PLATFORM_LINUX)
 #include "linux/kraft_linux_types.h"
 #include "linux/kraft_linux.h"

@@ -1,38 +1,35 @@
 
 #pragma once
 
-#include "containers/kraft_array.h"
-#include "core/kraft_string.h"
-
 #include <imgui/imgui.h>
 
 namespace kraft {
 
 struct Texture;
 struct TextureSampler;
-namespace renderer {
+namespace r {
 
 template<typename>
 struct Handle;
 
 }
-}
+} // namespace kraft
 
 // "refresh" is true whenever the window has been resized
 typedef void (*ImGuiRenderCallback)(bool refresh);
 
 struct ImGuiWidget
 {
-    kraft::String       Name;
-    ImGuiRenderCallback Callback = nullptr;
+    String8             name;
+    ImGuiRenderCallback callback = nullptr;
 
-    ImGuiWidget(const kraft::String& Name, ImGuiRenderCallback Callback) : Name(Name), Callback(Callback)
+    ImGuiWidget(String8 name, ImGuiRenderCallback callback) : name(name), callback(callback)
     {}
 
-    ImGuiWidget& operator=(const ImGuiWidget& Widget)
+    ImGuiWidget& operator=(const ImGuiWidget& widget)
     {
-        Name = Widget.Name;
-        Callback = Widget.Callback;
+        name = widget.name;
+        callback = widget.callback;
 
         return *this;
     }
@@ -40,12 +37,13 @@ struct ImGuiWidget
 
 struct RendererImGui
 {
-    kraft::String             IniFilename;
-    kraft::Array<ImGuiWidget> Widgets;
+    String8      ini_filename;
+    ImGuiWidget* widgets;
+    u64          widget_count = 0;
 
-    bool        Init();
-    void        AddWidget(const kraft::String& Name, ImGuiRenderCallback Callback);
-    ImTextureID AddTexture(kraft::renderer::Handle<kraft::Texture> texture, kraft::renderer::Handle<kraft::TextureSampler> sampler);
+    bool        Init(ArenaAllocator* arena);
+    void        AddWidget(String8 name, ImGuiRenderCallback callback);
+    ImTextureID AddTexture(kraft::r::Handle<kraft::Texture> texture, kraft::r::Handle<kraft::TextureSampler> sampler);
     void        RemoveTexture(ImTextureID Texture);
     void        OnResize(int Width, int Height);
     void        RenderWidgets();

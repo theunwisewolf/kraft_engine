@@ -4,16 +4,16 @@ namespace kraft::shaderfx {
 
 struct VertexAttribute
 {
-    u16                      location = 0;
-    u16                      binding = 0;
-    u16                      offset = 0;
+    u16               location = 0;
+    u16               binding = 0;
+    u16               offset = 0;
     r::ShaderDataType format = r::ShaderDataType::Invalid();
 };
 
 struct VertexInputBinding
 {
-    u16                             binding = 0;
-    u16                             stride = 0;
+    u16                      binding = 0;
+    u16                      stride = 0;
     r::VertexInputRate::Enum input_rate = r::VertexInputRate::Count;
 };
 
@@ -28,11 +28,11 @@ struct VertexLayoutDefinition
 
 struct ResourceBinding
 {
-    String8                      name;
-    u16                          set = 0;
-    u16                          binding = 0;
-    u16                          size = 0;
-    i16                          parent_index = -1; // If this is a uniform buffer, index into the actual buffer
+    String8               name;
+    u16                   set = 0;
+    u16                   binding = 0;
+    u16                   size = 0;
+    i16                   parent_index = -1; // If this is a uniform buffer, index into the actual buffer
     r::ResourceType::Enum type;
     r::ShaderStageFlags   stage;
 };
@@ -60,19 +60,19 @@ struct ShaderCodeFragment
 
 struct RenderStateDefinition
 {
-    String8                       name;
+    String8                name;
     r::CullModeFlags::Enum cull_mode;
     r::CompareOp::Enum     z_test_op;
-    bool                          z_write_enable;
-    bool                          blend_enable;
+    bool                   z_write_enable;
+    bool                   blend_enable;
     r::BlendState          blend_mode;
     r::PolygonMode::Enum   polygon_mode;
-    f32                           line_width;
+    f32                    line_width;
 };
 
 struct ConstantBufferEntry
 {
-    String8                    name;
+    String8             name;
     r::ShaderStageFlags stage;
     r::ShaderDataType   type;
 };
@@ -86,7 +86,7 @@ struct ConstantBufferDefinition
 
 struct UniformBufferEntry
 {
-    String8                  name;
+    String8           name;
     r::ShaderDataType type;
 };
 
@@ -102,7 +102,7 @@ struct RenderPassDefinition
     struct ShaderDefinition
     {
         r::ShaderStageFlags stage;
-        ShaderCodeFragment         code_fragment;
+        ShaderCodeFragment  code_fragment;
     };
 
     String8                           name;
