@@ -9,7 +9,8 @@ if "%TARGET_NAME%"=="" (
 set BUILD_TYPE=Debug
 set CURRENT_DIR=%CD%
 
-echo "Building %TARGET_NAME% in %BUILD_TYPE% mode"
+echo CURRENT_DIR = %CURRENT_DIR%
+echo Building %TARGET_NAME% in %BUILD_TYPE% mode
 
 cmake --build %CURRENT_DIR%/build --config %BUILD_TYPE% ^
-    --target %TARGET_NAME% -j 12 -- ^
+    --target %TARGET_NAME% -j 12 --
