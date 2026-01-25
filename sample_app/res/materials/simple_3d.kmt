@@ -1,0 +1,9 @@
+Material Simple3D
+{
+    Shader          "res/shaders/basic.kfx.bkfx"
+    Ambient         vec4(0.5, 0.5, 0.5, 1.0)
+    Diffuse         vec4(0.741, 0.922, 0.361, 1.0)
+    Specular        vec4(0.5, 0.5, 0.5, 1.0)
+    Shininess       float32(32)
+    DiffuseTexture  "res/textures/viking_room.png"
+}

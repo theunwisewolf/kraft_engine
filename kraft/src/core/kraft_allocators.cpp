@@ -7,8 +7,8 @@ namespace kraft {
 ArenaAllocator* CreateArena(ArenaCreateOptions Options)
 {
     Options.ChunkSize = AlignPow2(Options.ChunkSize, Options.Alignment);
-    uint64 ActualSize = sizeof(ArenaAllocator) + Options.ChunkSize;
-    uint8* Memory = (uint8*)Malloc(ActualSize, kraft::MEMORY_TAG_NONE, true);
+    u64 ActualSize = sizeof(ArenaAllocator) + Options.ChunkSize;
+    u8* Memory = (u8*)Malloc(ActualSize, kraft::MEMORY_TAG_NONE, true);
     MemSet(Memory, 0, Options.ChunkSize);
 
     ArenaAllocator* OutArena = (ArenaAllocator*)Memory;

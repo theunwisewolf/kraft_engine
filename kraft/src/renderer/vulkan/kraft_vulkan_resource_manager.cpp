@@ -426,93 +426,93 @@ static Handle<Buffer> CreateBuffer(const BufferDescription& Description)
     return InternalState->BufferPool.Insert({ .Size = ActualSize, .Ptr = Ptr }, Output);
 }
 
-static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& Description)
+static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& description)
 {
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice       device = context->LogicalDevice.Handle;
 
-    VkSubpassDescription    Subpasses[8];
-    uint32                  SubpassesIndex = 0;
-    VkAttachmentReference   DepthAttachmentRef;
-    VkAttachmentReference   ColorAttachmentRefs[31] = {};
-    uint32                  AttachmentRefsIndex = 0;
-    VkAttachmentDescription Attachments[31 + 1] = {};
-    VkImageView             FramebufferImageViews[31 + 1] = {};
-    uint32                  AttachmentsIndex = 0;
+    VkSubpassDescription    subpasses[8];
+    u32                     subpasses_index = 0;
+    VkAttachmentReference   depth_attachment_ref;
+    VkAttachmentReference   color_attachment_refs[31] = {};
+    u32                     attachment_refs_index = 0;
+    VkAttachmentDescription attachments[31 + 1] = {};
+    VkImageView             framebuffer_image_views[31 + 1] = {};
+    u32                     attachments_index = 0;
 
-    bool HasDepthTarget = false;
-    for (int i = 0; i < Description.Layout.Subpasses.Size(); i++)
+    bool has_depth_target = false;
+    for (i32 i = 0; i < description.Layout.Subpasses.Size(); i++)
     {
-        const RenderPassSubpass& Subpass = Description.Layout.Subpasses[i];
-        Subpasses[SubpassesIndex] = {};
-        Subpasses[SubpassesIndex].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        const RenderPassSubpass& subpass = description.Layout.Subpasses[i];
+        subpasses[subpasses_index] = {};
+        subpasses[subpasses_index].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-        if (Subpass.DepthTarget)
+        if (subpass.DepthTarget)
         {
-            HasDepthTarget = true;
-            DepthAttachmentRef.attachment = (uint32)Description.ColorTargets.Size(); // Depth attachment will always be at the end
-            DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            has_depth_target = true;
+            depth_attachment_ref.attachment = (u32)description.ColorTargets.Size(); // Depth attachment will always be at the end
+            depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-            Subpasses[SubpassesIndex].pDepthStencilAttachment = &DepthAttachmentRef;
+            subpasses[subpasses_index].pDepthStencilAttachment = &depth_attachment_ref;
         }
 
-        if (Subpass.ColorTargetSlots.Size() > 0)
+        if (subpass.ColorTargetSlots.Size() > 0)
         {
-            Subpasses[SubpassesIndex].colorAttachmentCount = (uint32)Subpass.ColorTargetSlots.Size();
-            Subpasses[SubpassesIndex].pColorAttachments = ColorAttachmentRefs + AttachmentRefsIndex;
-            for (int j = 0; j < Subpass.ColorTargetSlots.Size(); j++)
+            subpasses[subpasses_index].colorAttachmentCount = (u32)subpass.ColorTargetSlots.Size();
+            subpasses[subpasses_index].pColorAttachments = color_attachment_refs + attachment_refs_index;
+            for (int j = 0; j < subpass.ColorTargetSlots.Size(); j++)
             {
-                ColorAttachmentRefs[AttachmentRefsIndex].attachment = Subpass.ColorTargetSlots[j];
-                ColorAttachmentRefs[AttachmentRefsIndex].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                color_attachment_refs[attachment_refs_index].attachment = subpass.ColorTargetSlots[j];
+                color_attachment_refs[attachment_refs_index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-                AttachmentRefsIndex++;
+                attachment_refs_index++;
             }
         }
 
-        SubpassesIndex++;
+        subpasses_index++;
     }
 
     // Create color attachments
-    for (int i = 0; i < Description.ColorTargets.Size(); i++)
+    for (i32 i = 0; i < description.ColorTargets.Size(); i++)
     {
-        const ColorTarget& Target = Description.ColorTargets[i];
-        Texture*           ColorTexture = InternalState->TexturePool.GetAuxiliaryData(Target.Texture);
-        VulkanTexture*     VkColorTexture = InternalState->TexturePool.Get(Target.Texture);
+        const ColorTarget& target = description.ColorTargets[i];
+        Texture*           texture = InternalState->TexturePool.GetAuxiliaryData(target.Texture);
+        VulkanTexture*     vk_texture = InternalState->TexturePool.Get(target.Texture);
 
-        Attachments[AttachmentsIndex] = {};
-        Attachments[AttachmentsIndex].format = ToVulkanFormat(ColorTexture->TextureFormat);
-        Attachments[AttachmentsIndex].loadOp = ToVulkanAttachmentLoadOp(Target.LoadOperation);
-        Attachments[AttachmentsIndex].storeOp = ToVulkanAttachmentStoreOp(Target.StoreOperation);
-        Attachments[AttachmentsIndex].samples = ToVulkanSampleCountFlagBits(ColorTexture->SampleCount);
-        Attachments[AttachmentsIndex].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        Attachments[AttachmentsIndex].finalLayout = ToVulkanImageLayout(Target.NextUsage);
+        attachments[attachments_index] = {};
+        attachments[attachments_index].format = ToVulkanFormat(texture->TextureFormat);
+        attachments[attachments_index].loadOp = ToVulkanAttachmentLoadOp(target.LoadOperation);
+        attachments[attachments_index].storeOp = ToVulkanAttachmentStoreOp(target.StoreOperation);
+        attachments[attachments_index].samples = ToVulkanSampleCountFlagBits(texture->SampleCount);
+        attachments[attachments_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        attachments[attachments_index].finalLayout = ToVulkanImageLayout(target.NextUsage);
 
-        FramebufferImageViews[AttachmentsIndex] = VkColorTexture->View;
+        framebuffer_image_views[attachments_index] = vk_texture->View;
 
-        AttachmentsIndex++;
+        attachments_index++;
     }
 
-    if (HasDepthTarget)
+    if (has_depth_target)
     {
-        Texture*       DepthTexture = InternalState->TexturePool.GetAuxiliaryData(Description.DepthTarget.Texture);
-        VulkanTexture* VkDepthTexture = InternalState->TexturePool.Get(Description.DepthTarget.Texture);
+        Texture*       depth_texture = InternalState->TexturePool.GetAuxiliaryData(description.DepthTarget.Texture);
+        VulkanTexture* vk_depth_texture = InternalState->TexturePool.Get(description.DepthTarget.Texture);
 
-        Attachments[AttachmentsIndex] = {};
-        Attachments[AttachmentsIndex].format = ToVulkanFormat(DepthTexture->TextureFormat);
-        Attachments[AttachmentsIndex].loadOp = ToVulkanAttachmentLoadOp(Description.DepthTarget.LoadOperation);
-        Attachments[AttachmentsIndex].storeOp = ToVulkanAttachmentStoreOp(Description.DepthTarget.StoreOperation);
-        Attachments[AttachmentsIndex].stencilLoadOp = ToVulkanAttachmentLoadOp(Description.DepthTarget.StencilLoadOperation);
-        Attachments[AttachmentsIndex].stencilStoreOp = ToVulkanAttachmentStoreOp(Description.DepthTarget.StencilStoreOperation);
-        Attachments[AttachmentsIndex].samples = ToVulkanSampleCountFlagBits(DepthTexture->SampleCount);
-        Attachments[AttachmentsIndex].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        attachments[attachments_index] = {};
+        attachments[attachments_index].format = ToVulkanFormat(depth_texture->TextureFormat);
+        attachments[attachments_index].loadOp = ToVulkanAttachmentLoadOp(description.DepthTarget.LoadOperation);
+        attachments[attachments_index].storeOp = ToVulkanAttachmentStoreOp(description.DepthTarget.StoreOperation);
+        attachments[attachments_index].stencilLoadOp = ToVulkanAttachmentLoadOp(description.DepthTarget.StencilLoadOperation);
+        attachments[attachments_index].stencilStoreOp = ToVulkanAttachmentStoreOp(description.DepthTarget.StencilStoreOperation);
+        attachments[attachments_index].samples = ToVulkanSampleCountFlagBits(depth_texture->SampleCount);
+        attachments[attachments_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
         // TODO: If we want to sample the depth-stencil texture, should this layout be
         // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ? Figure this out
-        Attachments[AttachmentsIndex].finalLayout = ToVulkanImageLayout(Description.DepthTarget.NextUsage);
+        attachments[attachments_index].finalLayout = ToVulkanImageLayout(description.DepthTarget.NextUsage);
 
-        FramebufferImageViews[AttachmentsIndex] = VkDepthTexture->View;
+        framebuffer_image_views[attachments_index] = vk_depth_texture->View;
 
-        AttachmentsIndex++;
+        attachments_index++;
     }
 
     VkSubpassDependency dependencies[2];
@@ -534,32 +534,39 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& Descript
     dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-    VkRenderPassCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-    CreateInfo.attachmentCount = AttachmentsIndex;
-    CreateInfo.pAttachments = Attachments;
-    CreateInfo.dependencyCount = 2;
-    CreateInfo.pDependencies = dependencies;
-    CreateInfo.subpassCount = SubpassesIndex;
-    CreateInfo.pSubpasses = Subpasses;
+    VkRenderPassCreateInfo create_info = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+    create_info.attachmentCount = attachments_index;
+    create_info.pAttachments = attachments;
+    create_info.dependencyCount = 2;
+    create_info.pDependencies = dependencies;
+    create_info.subpassCount = subpasses_index;
+    create_info.pSubpasses = subpasses;
 
-    VulkanRenderPass Out;
-    KRAFT_VK_CHECK(vkCreateRenderPass(Device, &CreateInfo, Context->AllocationCallbacks, &Out.Handle));
-    Context->SetObjectName((uint64)Out.Handle, VK_OBJECT_TYPE_RENDER_PASS, Description.DebugName);
+    VulkanRenderPass out_render_pass;
+    KRAFT_VK_CHECK(vkCreateRenderPass(device, &create_info, context->AllocationCallbacks, &out_render_pass.Handle));
+    context->SetObjectName((u64)out_render_pass.Handle, VK_OBJECT_TYPE_RENDER_PASS, description.DebugName);
 
-    Out.Framebuffer.AttachmentCount = AttachmentsIndex;
+    out_render_pass.Framebuffer.AttachmentCount = attachments_index;
 
-    VkFramebufferCreateInfo Info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-    Info.attachmentCount = AttachmentsIndex;
-    Info.pAttachments = FramebufferImageViews;
-    Info.width = (uint32)Description.Dimensions.x;
-    Info.height = (uint32)Description.Dimensions.y;
-    Info.renderPass = Out.Handle;
-    Info.layers = 1;
+    VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    info.attachmentCount = attachments_index;
+    info.pAttachments = framebuffer_image_views;
+    info.width = (u32)description.Dimensions.x;
+    info.height = (u32)description.Dimensions.y;
+    info.renderPass = out_render_pass.Handle;
+    info.layers = 1;
 
-    KRAFT_VK_CHECK(vkCreateFramebuffer(Device, &Info, Context->AllocationCallbacks, &Out.Framebuffer.Handle));
-    Context->SetObjectName((uint64)Out.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, Description.DebugName);
+    KRAFT_VK_CHECK(vkCreateFramebuffer(device, &info, context->AllocationCallbacks, &out_render_pass.Framebuffer.Handle));
+    context->SetObjectName((u64)out_render_pass.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, description.DebugName);
 
-    return InternalState->RenderPassPool.Insert({ .Dimensions = Description.Dimensions, .DepthTarget = Description.DepthTarget, .ColorTargets = Description.ColorTargets }, Out);
+    return InternalState->RenderPassPool.Insert(
+        {
+            .Dimensions = description.Dimensions,
+            .DepthTarget = description.DepthTarget,
+            .ColorTargets = description.ColorTargets,
+        },
+        out_render_pass
+    );
 }
 
 static Handle<CommandBuffer> CreateCommandBuffer(const CommandBufferDescription& Description)
@@ -1007,4 +1014,4 @@ void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager)
     InternalState->TexturePool.Destroy();
     InternalState->TextureSamplerPool.Destroy();
 }
-} // namespace kraft::renderer
+} // namespace kraft::r

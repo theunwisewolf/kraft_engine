@@ -26,11 +26,13 @@
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_asset_types.h>
 
+#define CGLTF_IMPLEMENTATION
+#include <cgltf/cgltf.h>
+
 namespace kraft {
 
 struct AssetDatabaseStateT
 {
-    // kraft::FlatHashMap<String8, uint16> AssetsIndexMap;
     Asset*     Assets;
     u64        assets_count;
     MeshAsset* Meshes;
@@ -196,7 +198,8 @@ void AssetDatabase::ProcessAINode(MeshAsset& BaseMesh, aiNode* Node, const aiSce
 
 #endif
 
-MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
+static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* out_mesh);
+MeshAsset*        AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
 {
     // auto It = AssetDatabaseStatePtr->AssetsIndexMap.find(path);
     // if (It != AssetDatabaseStatePtr->AssetsIndexMap.end())
@@ -208,6 +211,17 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
     // {
     //     if (StringEqual(AssetDatabaseStatePtr->Assets[i].)
     // }
+
+    MeshAsset* mesh = &AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount];
+    mesh->Directory = fs::Dirname(arena, path);
+    mesh->Filename = fs::Basename(arena, path);
+
+    // GLTF
+    if (StringEndsWith(path, S(".gltf")) || StringEndsWith(path, S(".glb")))
+    {
+        KASSERT(LoadGLTFMesh(arena, path, mesh));
+        return &AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount++];
+    }
 
 #if USE_ASSIMP
     const struct aiScene* Scene =
@@ -237,128 +251,125 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
     // Options.space_conversion = UFBX_SPACE_CONVERSION_MODIFY_GEOMETRY;
     Options.generate_missing_normals = true;
     ufbx_error  UfbxError;
-    ufbx_scene* Scene = ufbx_load_file_len((char*)path.ptr, path.count, &Options, &UfbxError);
+    ufbx_scene* scene = ufbx_load_file_len((char*)path.ptr, path.count, &Options, &UfbxError);
 
-    if (!Scene)
+    if (!scene)
     {
         KERROR("[AssetDatabase::LoadMesh]: Failed to import asset. Error: %s", UfbxError.description.data);
         return nullptr;
     }
 
-    MeshAsset& Mesh = AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount];
-    Mesh.Directory = fs::Dirname(arena, path);
-    Mesh.Filename = fs::Basename(arena, path);
-    Mesh.SubMeshes.Reserve(Scene->meshes.count);
+    mesh->SubMeshes.Reserve(scene->meshes.count);
 
-    Array<int32>       NodeToMeshInstanceMapping(Scene->nodes.count, -1);
-    Array<r::Vertex3D> Vertices;
-    Array<uint32>      Indices;
-    Array<uint32>      TriangleIndices;
-    for (int i = 0; i < Scene->meshes.count; i++)
+    Array<i32>         node_to_mesh_instance_mapping(scene->nodes.count, -1);
+    Array<r::Vertex3D> vertices;
+    Array<u32>         indices;
+    Array<u32>         triangle_indices;
+    for (int i = 0; i < scene->meshes.count; i++)
     {
-        ufbx_mesh* UfbxMesh = Scene->meshes[i];
-        if (UfbxMesh->instances.count == 0)
+        ufbx_mesh* ufbx_mesh = scene->meshes[i];
+        if (ufbx_mesh->instances.count == 0)
             continue;
 
-        uint32 MaxTriangles = 0;
-        for (int PartIdx = 0; PartIdx < UfbxMesh->material_parts.count; PartIdx++)
+        u32 max_triangles = 0;
+        for (int PartIdx = 0; PartIdx < ufbx_mesh->material_parts.count; PartIdx++)
         {
-            ufbx_mesh_part* Part = &UfbxMesh->material_parts.data[PartIdx];
+            ufbx_mesh_part* Part = &ufbx_mesh->material_parts.data[PartIdx];
             if (Part->num_triangles == 0)
                 continue;
 
-            MaxTriangles = kraft::math::Max(MaxTriangles, (uint32)Part->num_triangles);
+            max_triangles = kraft::math::Max(max_triangles, (u32)Part->num_triangles);
         }
 
-        uint32 MaxIndices = UfbxMesh->max_face_triangles * 3;
-        Vertices.Resize(MaxTriangles * 3);
-        TriangleIndices.Resize(MaxIndices);
-        for (size_t PartIdx = 0; PartIdx < UfbxMesh->material_parts.count; PartIdx++)
+        u32 max_indices = ufbx_mesh->max_face_triangles * 3;
+        vertices.Resize(max_triangles * 3);
+        triangle_indices.Resize(max_indices);
+        for (u64 part_idx = 0; part_idx < ufbx_mesh->material_parts.count; part_idx++)
         {
-            uint32          NumIndices = 0;
-            ufbx_mesh_part* UfbxMeshPart = &UfbxMesh->material_parts.data[PartIdx];
-            if (UfbxMeshPart->num_triangles == 0)
+            u32             num_indices = 0;
+            ufbx_mesh_part* ufbx_mesh_part = &ufbx_mesh->material_parts.data[part_idx];
+            if (ufbx_mesh_part->num_triangles == 0)
                 continue;
 
-            for (uint32 FaceIdx = 0; FaceIdx < UfbxMeshPart->num_faces; FaceIdx++)
+            for (uint32 face_idx = 0; face_idx < ufbx_mesh_part->num_faces; face_idx++)
             {
-                ufbx_face UfbxFace = UfbxMesh->faces.data[UfbxMeshPart->face_indices.data[FaceIdx]];
-                uint32    NumTriangles = ufbx_triangulate_face(TriangleIndices.Data(), MaxIndices, UfbxMesh, UfbxFace);
-                for (uint32 TriangleIdx = 0; TriangleIdx < NumTriangles * 3; TriangleIdx++)
+                ufbx_face ufbx_face = ufbx_mesh->faces.data[ufbx_mesh_part->face_indices.data[face_idx]];
+                u32       num_triangles = ufbx_triangulate_face(triangle_indices.Data(), max_indices, ufbx_mesh, ufbx_face);
+                for (u32 triangle_idx = 0; triangle_idx < num_triangles * 3; triangle_idx++)
                 {
-                    uint32       Index = TriangleIndices[TriangleIdx];
-                    ufbx_vec3    Position = ufbx_get_vertex_vec3(&UfbxMesh->vertex_position, Index);
-                    r::Vertex3D& Vertex = Vertices[NumIndices];
-                    Vertex.Position.x = Position.x;
-                    Vertex.Position.y = Position.y;
-                    Vertex.Position.z = Position.z;
+                    u32          index = triangle_indices[triangle_idx];
+                    ufbx_vec3    position = ufbx_get_vertex_vec3(&ufbx_mesh->vertex_position, index);
+                    r::Vertex3D& vertex = vertices[num_indices];
+                    vertex.Position.x = position.x;
+                    vertex.Position.y = position.y;
+                    vertex.Position.z = position.z;
 
-                    ufbx_vec3 Normal = ufbx_get_vertex_vec3(&UfbxMesh->vertex_normal, Index);
-                    Vertex.Normal.x = Normal.x;
-                    Vertex.Normal.y = Normal.y;
-                    Vertex.Normal.z = Normal.z;
+                    ufbx_vec3 Normal = ufbx_get_vertex_vec3(&ufbx_mesh->vertex_normal, index);
+                    vertex.Normal.x = Normal.x;
+                    vertex.Normal.y = Normal.y;
+                    vertex.Normal.z = Normal.z;
 
-                    if (UfbxMesh->vertex_uv.exists)
+                    if (ufbx_mesh->vertex_uv.exists)
                     {
-                        ufbx_vec2 UV = ufbx_get_vertex_vec2(&UfbxMesh->vertex_uv, Index);
-                        Vertex.UV.x = UV.x;
-                        Vertex.UV.y = UV.y;
+                        ufbx_vec2 UV = ufbx_get_vertex_vec2(&ufbx_mesh->vertex_uv, index);
+                        vertex.UV.x = UV.x;
+                        vertex.UV.y = UV.y;
                     }
                     else
                     {
-                        Vertex.UV = kraft::Vec2fZero;
+                        vertex.UV = kraft::Vec2fZero;
                     }
 
                     // Vertices.Push(Vertex);
-                    NumIndices++;
+                    num_indices++;
                 }
             }
 
-            Indices.Clear();
-            Indices.Reserve(NumIndices);
-            ufbx_vertex_stream Streams[1];
-            size_t             NumStreams = 1;
+            indices.Clear();
+            indices.Reserve(num_indices);
+            ufbx_vertex_stream streams[1];
+            u64                num_streams = 1;
 
-            Streams[0].data = Vertices.Data();
-            Streams[0].vertex_count = NumIndices;
-            Streams[0].vertex_size = sizeof(r::Vertex3D);
-            ufbx_error Error;
-            uint32     NumVertices = ufbx_generate_indices(Streams, NumStreams, Indices.Data(), NumIndices, NULL, &Error);
-            if (Error.type != UFBX_ERROR_NONE)
+            streams[0].data = vertices.Data();
+            streams[0].vertex_count = num_indices;
+            streams[0].vertex_size = sizeof(r::Vertex3D);
+            ufbx_error error;
+            u32        num_vertices = ufbx_generate_indices(streams, num_streams, indices.Data(), num_indices, NULL, &error);
+            if (error.type != UFBX_ERROR_NONE)
             {
-                char ErrorStrBuffer[1024] = { 0 };
-                ufbx_format_error(ErrorStrBuffer, sizeof(ErrorStrBuffer), &Error);
-                KERROR("Failed to generate index buffer %s", ErrorStrBuffer);
+                char error_str_buf[1024] = { 0 };
+                ufbx_format_error(error_str_buf, sizeof(error_str_buf), &error);
+                KERROR("Failed to generate index buffer %s", error_str_buf);
 
-                ufbx_free_scene(Scene);
+                ufbx_free_scene(scene);
                 return nullptr;
             }
 
-            GeometryData Geometry = {};
-            Geometry.IndexCount = NumIndices;
-            Geometry.IndexSize = sizeof(u32);
-            Geometry.Indices = Indices.Data();
-            Geometry.VertexCount = NumVertices;
-            Geometry.VertexSize = sizeof(r::Vertex3D);
-            Geometry.Vertices = Vertices.Data();
+            GeometryData geometry = {};
+            geometry.IndexCount = num_indices;
+            geometry.IndexSize = sizeof(u32);
+            geometry.Indices = indices.Data();
+            geometry.VertexCount = num_vertices;
+            geometry.VertexSize = sizeof(r::Vertex3D);
+            geometry.Vertices = vertices.Data();
 
-            for (int j = 0; j < UfbxMesh->instances.count; j++)
+            for (int j = 0; j < ufbx_mesh->instances.count; j++)
             {
-                ufbx_node* UfbxNode = UfbxMesh->instances[j];
-                NodeToMeshInstanceMapping[UfbxNode->typed_id] = Mesh.SubMeshes.Length;
+                ufbx_node* ufbx_node = ufbx_mesh->instances[j];
+                node_to_mesh_instance_mapping[ufbx_node->typed_id] = mesh->SubMeshes.Length;
 
-                Mesh.SubMeshes.Push(MeshT());
-                MeshT& SubMesh = Mesh.SubMeshes[Mesh.SubMeshes.Length - 1];
-                SubMesh.Geometry = GeometrySystem::AcquireGeometryWithData(Geometry);
+                mesh->SubMeshes.Push(MeshT());
+                MeshT& SubMesh = mesh->SubMeshes[mesh->SubMeshes.Length - 1];
+                SubMesh.Geometry = GeometrySystem::AcquireGeometryWithData(geometry);
 
-                ufbx_material* UfbxMaterial = UfbxMesh->materials[UfbxMeshPart->index];
-                ufbx_texture*  UfbxTexture = UfbxMaterial->pbr.base_color.texture;
-                if (UfbxTexture)
+                ufbx_material* ufbx_material = ufbx_mesh->materials[ufbx_mesh_part->index];
+                ufbx_texture*  ufbx_texture = ufbx_material->pbr.base_color.texture;
+                if (ufbx_texture)
                 {
-                    r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(UfbxTexture->filename.data, UfbxTexture->filename.length));
+                    r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(ufbx_texture->filename.data, ufbx_texture->filename.length));
                     if (texture.IsInvalid())
                     {
-                        KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", UfbxTexture->filename.data);
+                        KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", ufbx_texture->filename.data);
                         continue;
                     }
 
@@ -369,65 +380,177 @@ MeshAsset* AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
     }
 
     // Update the node hierarchy
-    Mesh.NodeHierarchy.Resize(Scene->nodes.count);
-    for (int NodeIdx = 0; NodeIdx < Scene->nodes.count; NodeIdx++)
+    mesh->NodeHierarchy.Resize(scene->nodes.count);
+    for (int node_idx = 0; node_idx < scene->nodes.count; node_idx++)
     {
-        kraft::MeshAsset::Node& ThisNode = Mesh.NodeHierarchy[NodeIdx];
-        ufbx_node*              UfbxNode = Scene->nodes[NodeIdx];
-        MemCpy(ThisNode.Name, UfbxNode->name.data, sizeof(ThisNode.Name));
+        MeshAsset::Node& this_node = mesh->NodeHierarchy[node_idx];
+        ufbx_node*       ufbx_node = scene->nodes[node_idx];
+        MemCpy(this_node.Name, ufbx_node->name.data, sizeof(this_node.Name));
 
-        if (UfbxNode->parent)
+        if (ufbx_node->parent)
         {
-            kraft::MeshAsset::Node& Parent = Mesh.NodeHierarchy[UfbxNode->parent->typed_id];
-            Mat4f                   LocalTransform;
-            LocalTransform[0][0] = UfbxNode->node_to_parent.m00;
-            LocalTransform[0][1] = UfbxNode->node_to_parent.m10;
-            LocalTransform[0][2] = UfbxNode->node_to_parent.m20;
-            LocalTransform[0][3] = 0;
-            LocalTransform[1][0] = UfbxNode->node_to_parent.m01;
-            LocalTransform[1][1] = UfbxNode->node_to_parent.m11;
-            LocalTransform[1][2] = UfbxNode->node_to_parent.m21;
-            LocalTransform[1][3] = 0;
-            LocalTransform[2][0] = UfbxNode->node_to_parent.m02;
-            LocalTransform[2][1] = UfbxNode->node_to_parent.m12;
-            LocalTransform[2][2] = UfbxNode->node_to_parent.m22;
-            LocalTransform[2][3] = 0;
-            LocalTransform[3][0] = UfbxNode->node_to_parent.m03;
-            LocalTransform[3][1] = UfbxNode->node_to_parent.m13;
-            LocalTransform[3][2] = UfbxNode->node_to_parent.m23;
-            LocalTransform[3][3] = 1;
+            MeshAsset::Node& parent = mesh->NodeHierarchy[ufbx_node->parent->typed_id];
+            Mat4f            local_transform;
+            local_transform[0][0] = ufbx_node->node_to_parent.m00;
+            local_transform[0][1] = ufbx_node->node_to_parent.m10;
+            local_transform[0][2] = ufbx_node->node_to_parent.m20;
+            local_transform[0][3] = 0;
+            local_transform[1][0] = ufbx_node->node_to_parent.m01;
+            local_transform[1][1] = ufbx_node->node_to_parent.m11;
+            local_transform[1][2] = ufbx_node->node_to_parent.m21;
+            local_transform[1][3] = 0;
+            local_transform[2][0] = ufbx_node->node_to_parent.m02;
+            local_transform[2][1] = ufbx_node->node_to_parent.m12;
+            local_transform[2][2] = ufbx_node->node_to_parent.m22;
+            local_transform[2][3] = 0;
+            local_transform[3][0] = ufbx_node->node_to_parent.m03;
+            local_transform[3][1] = ufbx_node->node_to_parent.m13;
+            local_transform[3][2] = ufbx_node->node_to_parent.m23;
+            local_transform[3][3] = 1;
 
-            ThisNode.WorldTransform = LocalTransform * Parent.WorldTransform;
+            this_node.WorldTransform = local_transform * parent.WorldTransform;
             // ThisNode.WorldTransform = Parent.WorldTransform * LocalTransform;
             // ThisNode.WorldTransform = kraft::ScaleMatrix(kraft::Vec3f{20.0f, 20.0f, 20.0f}) * ThisNode.WorldTransform;
-            ThisNode.ParentNodeIdx = UfbxNode->parent->typed_id;
+            this_node.ParentNodeIdx = ufbx_node->parent->typed_id;
         }
         else
         {
             // ThisNode.WorldTransform = kraft::Mat4f(Identity) * kraft::ScaleMatrix(kraft::Vec3f{20.0f, 20.0f, 20.0f});
-            ThisNode.WorldTransform = kraft::Mat4f(Identity);
-            ThisNode.ParentNodeIdx = -1;
+            this_node.WorldTransform = kraft::Mat4f(Identity);
+            this_node.ParentNodeIdx = -1;
         }
 
-        if (UfbxNode->mesh)
+        if (ufbx_node->mesh)
         {
-            KASSERT(NodeToMeshInstanceMapping[UfbxNode->typed_id] != -1);
-            int32  MeshIdx = NodeToMeshInstanceMapping[UfbxNode->typed_id];
-            MeshT& SubMesh = Mesh.SubMeshes[MeshIdx];
-            SubMesh.Transform = ThisNode.WorldTransform;
-            ThisNode.MeshIdx = MeshIdx;
-            SubMesh.NodeIdx = NodeIdx;
+            KASSERT(node_to_mesh_instance_mapping[ufbx_node->typed_id] != -1);
+            i32    mesh_idx = node_to_mesh_instance_mapping[ufbx_node->typed_id];
+            MeshT& submesh = mesh->SubMeshes[mesh_idx];
+            submesh.Transform = this_node.WorldTransform;
+            this_node.MeshIdx = mesh_idx;
+            submesh.NodeIdx = node_idx;
         }
         else
         {
-            ThisNode.MeshIdx = -1;
+            this_node.MeshIdx = -1;
         }
     }
 
-    ufbx_free_scene(Scene);
+    ufbx_free_scene(scene);
 #endif
 
     return &AssetDatabaseStatePtr->Meshes[AssetDatabaseStatePtr->MeshCount++];
+}
+
+static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* out_mesh)
+{
+    cgltf_options options = {};
+    cgltf_data*   data = nullptr;
+
+    TempArena scratch = ScratchBegin(&arena, 1);
+    buffer    file_buf = fs::ReadAllBytes(scratch.arena, path);
+
+    cgltf_result result = cgltf_parse(&options, file_buf.ptr, file_buf.count, &data);
+    // cgltf_result result = cgltf_parse_file(&options, path.str, &data);
+
+    if (result != cgltf_result_success)
+    {
+        ScratchEnd(scratch);
+        return nullptr;
+    }
+
+    char path_cstr[512];
+    MemCpy(path_cstr, path.ptr, path.count);
+    path_cstr[path.count] = '\0';
+
+    result = cgltf_load_buffers(&options, data, path_cstr);
+    if (result != cgltf_result_success)
+    {
+        cgltf_free(data);
+        ScratchEnd(scratch);
+        return nullptr;
+    }
+
+    for (cgltf_size mesh_idx = 0; mesh_idx < data->meshes_count; mesh_idx++)
+    {
+        cgltf_mesh* mesh = &data->meshes[mesh_idx];
+        for (cgltf_size primitive_idx = 0; primitive_idx < mesh->primitives_count; primitive_idx++)
+        {
+            cgltf_primitive* primitive = &mesh->primitives[primitive_idx];
+            if (primitive->type != cgltf_primitive_type_triangles)
+            {
+                continue;
+            }
+
+            cgltf_accessor* position_accessor = NULL;
+            cgltf_accessor* uv_accessor = NULL;
+            cgltf_accessor* normal_accessor = NULL;
+
+            for (cgltf_size attribute_idx = 0; attribute_idx < primitive->attributes_count; attribute_idx++)
+            {
+                cgltf_attribute* attribute = &primitive->attributes[attribute_idx];
+                switch (attribute->type)
+                {
+                    case cgltf_attribute_type_position: position_accessor = attribute->data; break;
+                    case cgltf_attribute_type_texcoord: uv_accessor = attribute->data; break;
+                    case cgltf_attribute_type_normal:   normal_accessor = attribute->data; break;
+                }
+            }
+
+            KASSERT(position_accessor);
+
+            u64          arena_pos = ArenaPosition(arena);
+            u32          vertex_count = position_accessor->count;
+            r::Vertex3D* vertices = ArenaPushArray(arena, r::Vertex3D, vertex_count);
+            for (cgltf_size i = 0; i < vertex_count; i++)
+            {
+                r::Vertex3D* vertex = &vertices[i];
+                cgltf_accessor_read_float(position_accessor, i, vertex->Position._data, 3);
+
+                if (uv_accessor)
+                {
+                    cgltf_accessor_read_float(uv_accessor, i, vertex->UV._data, 2);
+                }
+
+                if (normal_accessor)
+                {
+                    cgltf_accessor_read_float(normal_accessor, i, vertex->Normal._data, 3);
+                }
+            }
+
+            u32* indices = nullptr;
+            u32  index_count = 0;
+            if (primitive->indices)
+            {
+                index_count = primitive->indices->count;
+                indices = ArenaPushArray(arena, u32, index_count);
+                for (cgltf_size i = 0; i < index_count; i++)
+                {
+                    indices[i] = (u32)cgltf_accessor_read_index(primitive->indices, i);
+                }
+            }
+
+            GeometryData geometry{
+                .VertexCount = vertex_count,
+                .IndexCount = index_count,
+                .VertexSize = sizeof(r::Vertex3D),
+                .IndexSize = sizeof(u32),
+                .Vertices = vertices,
+                .Indices = (void*)indices,
+            };
+
+            MeshT submesh = {};
+            submesh.Geometry = GeometrySystem::AcquireGeometryWithData(geometry);
+            submesh.Transform = Mat4f(Identity);
+
+            ArenaPopToPosition(arena, arena_pos);
+
+            out_mesh->SubMeshes.Push(submesh);
+        }
+    }
+
+    cgltf_free(data);
+    ScratchEnd(scratch);
+    return out_mesh;
 }
 
 } // namespace kraft

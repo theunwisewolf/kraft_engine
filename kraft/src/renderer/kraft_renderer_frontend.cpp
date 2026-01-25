@@ -38,8 +38,8 @@ using Renderables = FlatHashMap<ResourceID, Array<Renderable>>;
 
 struct RenderDataT
 {
-    RenderSurfaceT Surface;
-    Renderables    Renderables;
+    RenderSurface Surface;
+    Renderables   Renderables;
 };
 
 struct ResourceManager* ResourceManager = nullptr;
@@ -131,15 +131,14 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
 
         for (int i = 0; i < count; i++)
         {
-            Renderable Object = objects[i];
+            Renderable object = objects[i];
 
-            DummyDrawData.Model = Object.ModelMatrix;
-            DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
+            DummyDrawData.Model = object.ModelMatrix;
+            DummyDrawData.MaterialIdx = object.MaterialInstance->ID;
             // DummyDrawData.MousePosition = Surface.RelativeMousePosition;
-            DummyDrawData.EntityId = Object.EntityId;
+            DummyDrawData.EntityId = object.EntityId;
             renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
-
-            renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
+            renderer_data_internal.backend->DrawGeometryData(object.GeometryId);
         }
 
         objects.Clear();
@@ -160,25 +159,25 @@ void RendererFrontend::PrepareFrame()
     renderer_data_internal.current_frame_index = renderer_data_internal.backend->PrepareFrame();
 
     // Upload all the materials
-    u8*  BufferData = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
-    auto Materials = MaterialSystem::GetMaterialsBuffer();
-    u64  MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
+    u8*  buffer_data = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
+    auto materials = MaterialSystem::GetMaterialsBuffer();
+    u64  materials_buffer_size = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
 
-    MemCpy(BufferData, Materials, MaterialsBufferSize);
+    MemCpy(buffer_data, materials, materials_buffer_size);
 
     ResourceManager->UploadBuffer({
         .DstBuffer = renderer_data_internal.materials_gpu_buffer,
         .SrcBuffer = renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index],
-        .SrcSize = MaterialsBufferSize,
+        .SrcSize = materials_buffer_size,
         .DstOffset = 0,
         .SrcOffset = 0,
     });
 
     // Get all the dirty textures and create descriptor sets for them
-    auto DirtyTextures = TextureSystem::GetDirtyTextures();
-    if (DirtyTextures.Length > 0)
+    auto dirty_textures = TextureSystem::GetDirtyTextures();
+    if (dirty_textures.Length > 0)
     {
-        renderer_data_internal.backend->UpdateTextures(DirtyTextures.Data(), DirtyTextures.Length);
+        renderer_data_internal.backend->UpdateTextures(dirty_textures.Data(), dirty_textures.Length);
         TextureSystem::ClearDirtyTextures();
     }
 }
@@ -187,57 +186,57 @@ bool RendererFrontend::DrawSurfaces()
 {
     KASSERTM(renderer_data_internal.current_frame_index >= 0, "Did you forget to call Renderer.PrepareFrame()?");
 
-    GlobalShaderData GlobalShaderData = {};
-    GlobalShaderData.Projection = this->Camera->ProjectionMatrix;
-    GlobalShaderData.View = this->Camera->GetViewMatrix();
-    GlobalShaderData.CameraPosition = this->Camera->Position;
+    GlobalShaderData global_shader_data = {};
+    global_shader_data.Projection = this->Camera->ProjectionMatrix;
+    global_shader_data.View = this->Camera->GetViewMatrix();
+    global_shader_data.CameraPosition = this->Camera->Position;
 
-    u64 Start = Platform::TimeNowNS();
+    u64 start = Platform::TimeNowNS();
     for (int i = 0; i < renderer_data_internal.surfaces.Length; i++)
     {
-        RenderDataT&    SurfaceRenderData = renderer_data_internal.surfaces[i];
-        RenderSurfaceT& Surface = SurfaceRenderData.Surface;
+        RenderDataT&   surface_render_data = renderer_data_internal.surfaces[i];
+        RenderSurface& surface = surface_render_data.Surface;
 
-        if (Surface.World->GlobalLight != EntityHandleInvalid)
+        if (surface.World && surface.World->GlobalLight != EntityHandleInvalid)
         {
-            Entity GlobalLight = Surface.World->GetEntity(Surface.World->GlobalLight);
-            GlobalShaderData.GlobalLightColor = GlobalLight.GetComponent<LightComponent>().LightColor;
-            GlobalShaderData.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
+            Entity GlobalLight = surface.World->GetEntity(surface.World->GlobalLight);
+            global_shader_data.GlobalLightColor = GlobalLight.GetComponent<LightComponent>().LightColor;
+            global_shader_data.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
         }
 
-        MemCpy((void*)ResourceManager->GetBufferData(Surface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
+        MemCpy((void*)ResourceManager->GetBufferData(surface.GlobalUBO), (void*)&global_shader_data, sizeof(global_shader_data));
 
-        Surface.Begin();
-        for (auto It = SurfaceRenderData.Renderables.begin(); It != SurfaceRenderData.Renderables.end(); It++)
+        surface.Begin();
+        for (auto it = surface_render_data.Renderables.begin(); it != surface_render_data.Renderables.end(); it++)
         {
-            Shader* CurrentShader = ShaderSystem::BindByID(It->first);
-            renderer_data_internal.backend->ApplyGlobalShaderProperties(CurrentShader, Surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
+            Shader* current_shader = ShaderSystem::BindByID(it->first);
+            renderer_data_internal.backend->ApplyGlobalShaderProperties(current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
 
-            auto& Objects = It->second;
-            u64   Count = Objects.Size();
-            if (!Count)
+            auto& objects = it->second;
+            u64   count = objects.Size();
+            if (!count)
                 continue;
 
-            for (int i = 0; i < Count; i++)
+            for (int i = 0; i < count; i++)
             {
-                Renderable Object = Objects[i];
+                Renderable object = objects[i];
 
-                DummyDrawData.Model = Object.ModelMatrix;
-                DummyDrawData.MaterialIdx = Object.MaterialInstance->ID;
-                DummyDrawData.MousePosition = Surface.RelativeMousePosition;
-                DummyDrawData.EntityId = Object.EntityId;
-                renderer_data_internal.backend->ApplyLocalShaderProperties(CurrentShader, &DummyDrawData);
+                DummyDrawData.Model = object.ModelMatrix;
+                DummyDrawData.MaterialIdx = object.MaterialInstance->ID;
+                DummyDrawData.MousePosition = surface.RelativeMousePosition;
+                DummyDrawData.EntityId = object.EntityId;
+                renderer_data_internal.backend->ApplyLocalShaderProperties(current_shader, &DummyDrawData);
 
-                renderer_data_internal.backend->DrawGeometryData(Object.GeometryId);
+                renderer_data_internal.backend->DrawGeometryData(object.GeometryId);
             }
 
-            Objects.Clear();
+            objects.Clear();
 
             ShaderSystem::Unbind();
         }
-        Surface.End();
+        surface.End();
     }
-    u64 End = kraft::Platform::TimeNowNS();
+    u64 end = kraft::Platform::TimeNowNS();
 
     // KDEBUG("Render complete in: %f ms", f64(End - Start) / 1000000.0f);
 
@@ -248,28 +247,28 @@ bool RendererFrontend::DrawSurfaces()
 
 bool RendererFrontend::AddRenderable(const Renderable& renderable)
 {
-    Renderables* Renderables = nullptr;
+    Renderables* renderables = nullptr;
     if (renderer_data_internal.active_surface != -1)
     {
-        Renderables = &renderer_data_internal.surfaces[renderer_data_internal.active_surface].Renderables;
+        renderables = &renderer_data_internal.surfaces[renderer_data_internal.active_surface].Renderables;
     }
     else
     {
-        Renderables = &renderer_data_internal.renderables;
+        renderables = &renderer_data_internal.renderables;
     }
 
-    ResourceID Key = renderable.MaterialInstance->Shader->ID;
-    auto       RenderablesIt = Renderables->find(Key);
-    if (RenderablesIt == Renderables->end())
+    ResourceID key = renderable.MaterialInstance->Shader->ID;
+    auto       renderable_it = renderables->find(key);
+    if (renderable_it == renderables->end())
     {
-        auto Pair = Renderables->insert_or_assign(Key, Array<Renderable>());
-        auto It = Pair.first;
-        It->second.Reserve(1024);
-        It->second.Push(renderable);
+        auto pair = renderables->insert_or_assign(key, Array<Renderable>());
+        auto it = pair.first;
+        it->second.Reserve(1024);
+        it->second.Push(renderable);
     }
     else
     {
-        RenderablesIt->second.Push(renderable);
+        renderable_it->second.Push(renderable);
     }
 
     return true;
@@ -334,120 +333,132 @@ void RendererFrontend::DestroyGeometry(Geometry* Geometry)
     renderer_data_internal.backend->DestroyGeometry(Geometry);
 }
 
-RenderSurfaceT RendererFrontend::CreateRenderSurface(const char* Name, uint32 Width, uint32 Height, bool HasDepth)
+RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32 height, bool has_color, bool has_depth, bool depth_sample)
 {
-    RenderSurfaceT Surface = {
-        .DebugName = Name,
-        .Width = Width,
-        .Height = Height,
+    RenderSurface surface = {
+        .DebugName = name,
+        .Width = width,
+        .Height = height,
     };
 
-    Surface.ColorPassTexture = ResourceManager->CreateTexture({
-        .DebugName = "ColorPassTexture",
-        .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
-        .Format = Format::BGRA8_UNORM,
-        .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
-    });
+    RenderPassDescription description = {
+        .DebugName = name.str,
+        .Dimensions = { (f32)width, (f32)height, 0.f, 0.f },
+        .Layout = {
+            .Subpasses = {
+                {
+                    .DepthTarget = has_depth,
+                },
+            },
+        },
+    };
 
-    Surface.TextureSampler = ResourceManager->CreateTextureSampler({
+    if (has_color)
+    {
+        surface.ColorPassTexture = ResourceManager->CreateTexture({
+            .DebugName = "ColorPassTexture",
+            .Dimensions = { (f32)width, (f32)height, 1, 4 },
+            .Format = Format::BGRA8_UNORM,
+            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+        });
+
+        description.ColorTargets = {
+            {
+                .Texture = surface.ColorPassTexture,
+                .NextUsage = TextureLayout::Sampled,
+                .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
+            },
+        };
+
+        description.Layout.Subpasses[0].ColorTargetSlots = { 0 };
+    }
+
+    if (has_depth)
+    {
+        u64 usage_flags = TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT;
+        if (depth_sample)
+        {
+            usage_flags |= TEXTURE_USAGE_FLAGS_SAMPLED;
+        }
+
+        surface.DepthPassTexture = ResourceManager->CreateTexture({
+            .DebugName = "DepthPassTexture",
+            .Dimensions = { (f32)width, (f32)height, 1, 4 },
+            .Format = ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
+            .Usage = usage_flags,
+        });
+
+        description.DepthTarget = {
+            .Texture = surface.DepthPassTexture,
+            .NextUsage = depth_sample ? TextureLayout::Sampled : TextureLayout::DepthStencil,
+            .Depth = 1.0f,
+            .Stencil = 0,
+        };
+    }
+
+    surface.TextureSampler = ResourceManager->CreateTextureSampler({
         .WrapModeU = TextureWrapMode::ClampToEdge,
         .WrapModeV = TextureWrapMode::ClampToEdge,
         .WrapModeW = TextureWrapMode::ClampToEdge,
         .Compare = CompareOp::Always,
     });
 
-    if (HasDepth)
-    {
-        Surface.DepthPassTexture = ResourceManager->CreateTexture({
-            .DebugName = "DepthPassTexture",
-            .Dimensions = { (float32)Width, (float32)Height, 1, 4 },
-            .Format = ResourceManager->GetPhysicalDeviceFormatSpecs().DepthBufferFormat,
-            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
-        });
-    }
-
-    Surface.RenderPass = ResourceManager->CreateRenderPass({
-        .DebugName = Name,
-        .Dimensions = { (float)Width, (float)Height, 0.f, 0.f },
-        .ColorTargets = {
-            {
-                .Texture = Surface.ColorPassTexture,
-                .NextUsage = TextureLayout::Sampled,
-                .ClearColor = { 0.10f, 0.10f, 0.10f, 1.0f },
-            }
-        },
-        .DepthTarget = {
-            .Texture = Surface.DepthPassTexture,
-            .NextUsage = TextureLayout::DepthStencil,
-            .Depth = 1.0f,
-            .Stencil = 0,
-        },
-        .Layout = {
-            .Subpasses = {
-                {
-                    .DepthTarget = HasDepth,
-                    .ColorTargetSlots = { 0 }
-                }
-            }
-        }
-    });
-
-    Surface.GlobalUBO = ResourceManager->CreateBuffer({
-        .DebugName = Name,
+    surface.RenderPass = ResourceManager->CreateRenderPass(description);
+    surface.GlobalUBO = ResourceManager->CreateBuffer({
+        .DebugName = name.str,
         .Size = sizeof(GlobalShaderData),
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
-        .MemoryPropertyFlags =
-            MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .UsageFlags = BUFFER_USAGE_FLAGS_TRANSFER_DST | BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MEMORY_PROPERTY_FLAGS_HOST_COHERENT | MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         .MapMemory = true,
     });
 
     for (int i = 0; i < 3; i++)
     {
-        Surface.CmdBuffers[i] = ResourceManager->CreateCommandBuffer({
-            .DebugName = Name,
+        surface.CmdBuffers[i] = ResourceManager->CreateCommandBuffer({
+            .DebugName = name.str,
             .Primary = true,
         });
     }
 
-    return Surface;
+    return surface;
 }
 
-void RendererFrontend::BeginRenderSurface(const RenderSurfaceT& Surface)
+void RendererFrontend::BeginRenderSurface(const RenderSurface& surface)
 {
     renderer_data_internal.surfaces.Push({
-        .Surface = Surface,
+        .Surface = surface,
     });
 
     renderer_data_internal.active_surface = renderer_data_internal.surfaces.Length - 1;
     // RendererData.Backend->BeginRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
-RenderSurfaceT RendererFrontend::ResizeRenderSurface(RenderSurfaceT& Surface, uint32 Width, uint32 Height)
+RenderSurface RendererFrontend::ResizeRenderSurface(RenderSurface& surface, u32 width, u32 height)
 {
-    if (Width == 0 || Height == 0)
+    if (width == 0 || height == 0)
     {
-        return Surface;
+        return surface;
     }
 
     //Width *= 0.5f;
     //Height *= 0.5f;
 
-    KDEBUG("Viewport size set to = %d, %d", Width, Height);
+    KDEBUG("Viewport size set to = %d, %d", width, height);
 
     // Delete the old color pass and depth pass
-    ResourceManager->DestroyRenderPass(Surface.RenderPass);
-    ResourceManager->DestroyTexture(Surface.ColorPassTexture);
-    if (Surface.DepthPassTexture)
+    ResourceManager->DestroyRenderPass(surface.RenderPass);
+    ResourceManager->DestroyTexture(surface.ColorPassTexture);
+    if (surface.DepthPassTexture)
     {
-        ResourceManager->DestroyTexture(Surface.DepthPassTexture);
+        ResourceManager->DestroyTexture(surface.DepthPassTexture);
     }
 
     // this->CreateCommandBuffers();
-    Surface = this->CreateRenderSurface(Surface.DebugName, Width, Height, Surface.DepthPassTexture != Handle<Texture>::Invalid());
-    return Surface;
+    surface = this->CreateRenderSurface(surface.DebugName, width, height, surface.DepthPassTexture != Handle<Texture>::Invalid());
+    return surface;
 }
 
-void RendererFrontend::EndRenderSurface(const RenderSurfaceT& Surface)
+void RendererFrontend::EndRenderSurface(const RenderSurface& Surface)
 {
     renderer_data_internal.active_surface = -1;
     // RendererData.Backend->EndRenderPass(Surface.CmdBuffer, Surface.RenderPass);
@@ -458,12 +469,12 @@ void RendererFrontend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer,
     renderer_data_internal.backend->CmdSetCustomBuffer(shader, buffer, set_idx, binding_idx);
 }
 
-void RenderSurfaceT::Begin()
+void RenderSurface::Begin()
 {
     renderer_data_internal.backend->BeginRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
 }
 
-void RenderSurfaceT::End()
+void RenderSurface::End()
 {
     renderer_data_internal.backend->EndRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
 }

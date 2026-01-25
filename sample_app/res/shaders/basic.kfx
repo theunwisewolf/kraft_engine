@@ -96,7 +96,7 @@ Shader Basic
             outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * inNormal; // For non-uniform scale
             outDTO.FragPosition = vec3(variableState.Model * vec4(inPosition, 1.0));
             gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
-            // gl_Position = vec4(inPosition, 1.0);
+            //gl_Position = vec4(inPosition, 1.0);
         }
 
         #endif // VERTEX
@@ -139,6 +139,7 @@ Shader Basic
             outColor = vec4(ambient + diffuse + specular, 1.0) * vec4(texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).rgb, 1.0);
             // outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
             // outColor = vec4(Material.Diffuse.x, 0.0, 0.0, 1.0);
+            outColor = vec4(1.0, 1.0, 0.0, 1.0);
         }
 
         #endif // FRAGMENT

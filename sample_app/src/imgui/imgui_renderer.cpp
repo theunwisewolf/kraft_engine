@@ -138,6 +138,8 @@ void RendererImGui::AddWidget(String8 name, ImGuiRenderCallback callback)
 
 ImTextureID RendererImGui::AddTexture(kraft::r::Handle<kraft::Texture> texture, kraft::r::Handle<kraft::TextureSampler> sampler)
 {
+    KASSERTM(texture, "Invalid texture");
+    KASSERTM(sampler, "Invalid sampler");
     return kraft::r::VulkanImgui::AddTexture(texture, sampler);
 }
 

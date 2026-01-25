@@ -59,11 +59,11 @@ struct Camera
         {
             // this->ViewMatrix = Mat4f(Identity);
             // this->ViewMatrix = kraft::LookAt(this->Position, this->Position + this->Front, this->Up);
-            this->ViewMatrix = kraft::TranslationMatrix(this->Position);
+            this->ViewMatrix = TranslationMatrix(this->Position);
         }
         else
         {
-            this->ViewMatrix = kraft::LookAt(this->Position, this->Position + this->Front, this->Up);
+            this->ViewMatrix = LookAt(this->Position, this->Position + this->Front, this->Up);
         }
 
         return this->ViewMatrix;
@@ -73,14 +73,14 @@ struct Camera
 
     void UpdateVectors()
     {
-        Vec3f _Front;
-        _Front.x = Cos(Radians(Yaw)) * Cos(Radians(Pitch));
-        _Front.y = Sin(Radians(Pitch));
-        _Front.z = Sin(Radians(Yaw)) * Cos(Radians(Pitch));
-        this->Front = Normalize(_Front);
+        Vec3f front;
+        front.x = Cos(Radians(Yaw)) * Cos(Radians(Pitch));
+        front.y = Sin(Radians(Pitch));
+        front.z = Sin(Radians(Yaw)) * Cos(Radians(Pitch));
+        this->Front = Normalize(front);
         this->Right = Normalize(Cross(this->Front, { 0.0f, 1.0f, 0.0f }));
         this->Up = Normalize(Cross(this->Right, this->Front));
     }
 };
 
-}
+} // namespace kraft

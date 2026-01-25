@@ -1,0 +1,6 @@
+Material Simple2D
+{
+    Shader          "res/shaders/basic_2d.kfx.bkfx"
+    DiffuseColor    vec4(1.0, 1.0, 1.0, 1.0)
+    DiffuseTexture  "res/textures/meryia.png"
+}

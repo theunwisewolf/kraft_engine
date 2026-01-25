@@ -16,11 +16,11 @@ struct Asset
 
 struct MeshT
 {
-    kraft::Geometry*                 Geometry;
-    kraft::Material*                 MaterialInstance;
+    Geometry*                 Geometry;
+    Material*                 MaterialInstance;
     Array<r::Handle<Texture>> Textures;
-    kraft::Mat4f                     Transform;
-    int32                            NodeIdx;
+    Mat4f                     Transform;
+    i32                       NodeIdx;
 };
 
 struct MeshAsset : public Asset
@@ -29,8 +29,8 @@ struct MeshAsset : public Asset
     {
         char  Name[128];
         Mat4f WorldTransform;
-        int32 MeshIdx;
-        int32 ParentNodeIdx;
+        i32   MeshIdx;
+        i32   ParentNodeIdx;
     };
 
     Array<MeshT> SubMeshes;
@@ -42,4 +42,4 @@ struct TextureAsset : public Asset
     Texture Texture;
 };
 
-}
+} // namespace kraft

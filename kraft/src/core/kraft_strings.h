@@ -21,6 +21,7 @@ u64 CString8Length(u8* c_str);
 String8 String8FromPtrAndLength(u8* ptr, u64 length);
 String8 String8FromCString(char* c_str);
 
+// String8 from string literals
 #define String8Raw(str) kraft::String8FromPtrAndLength((u8*)(str), sizeof(str) - 1)
 #define S(str)          kraft::String8FromPtrAndLength((u8*)(str), sizeof(str) - 1)
 

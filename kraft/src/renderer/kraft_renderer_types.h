@@ -26,12 +26,12 @@ template<typename T>
 struct Handle
 {
 private:
-    uint16 Index;
-    uint16 Generation;
+    u16 Index;
+    u16 Generation;
 
     template<typename U, typename V>
     friend struct Pool;
-    Handle(uint16 Index, uint16 Generation) : Index(Index), Generation(Generation)
+    Handle(u16 index, u16 generation) : Index(Index), Generation(Generation)
     {}
 
 public:
@@ -53,17 +53,17 @@ public:
         return this->Generation != 0xffff;
     }
 
-    bool operator==(const Handle<T> Other)
+    bool operator==(const Handle<T> other)
     {
-        return Other.Generation == Generation && Other.Index == Index;
+        return other.Generation == Generation && other.Index == Index;
     }
 
-    bool operator!=(const Handle<T> Other)
+    bool operator!=(const Handle<T> other)
     {
-        return Other.Generation != Generation || Other.Index != Index;
+        return other.Generation != Generation || other.Index != Index;
     }
 
-    uint16 GetIndex() const
+    u16 GetIndex() const
     {
         return Index;
     }
@@ -711,7 +711,7 @@ struct TextureDescription
 
     Vec4f                   Dimensions;
     Format::Enum            Format;
-    uint64                  Usage;
+    u64                     Usage;
     TextureTiling::Enum     Tiling = TextureTiling::Optimal;
     TextureType::Enum       Type = TextureType::Type2D;
     TextureSampleCountFlags SampleCount = TEXTURE_SAMPLE_COUNT_FLAGS_1;
@@ -851,15 +851,14 @@ struct PhysicalDeviceFormatSpecs
 
 struct GPUDevice
 {
-    uint64 min_uniform_buffer_alignment;
-    uint64 min_storage_buffer_alignment;
-    bool   supports_device_local_host_visible;
+    u64  min_uniform_buffer_alignment;
+    u64  min_storage_buffer_alignment;
+    bool supports_device_local_host_visible;
 };
 
-struct RenderSurfaceT
+struct RenderSurface
 {
-    const char* DebugName;
-
+    String8               DebugName;
     u32                   Width;
     u32                   Height;
     Handle<CommandBuffer> CmdBuffers[3];

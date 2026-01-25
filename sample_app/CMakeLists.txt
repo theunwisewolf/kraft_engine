@@ -39,8 +39,8 @@ endif()
 add_custom_target(sample_app_copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/res
-        ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res
-    COMMENT "Copying resources from '${CMAKE_CURRENT_SOURCE_DIR}/res' to '${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res'..."
+        ${CMAKE_SOURCE_DIR}/bin/res
+    COMMENT "Copying resources from '${CMAKE_CURRENT_SOURCE_DIR}/res' to '${CMAKE_SOURCE_DIR}/bin/res'..."
 )
 
 add_dependencies(${PROJECT_NAME} sample_app_copy_resources)

@@ -200,28 +200,27 @@ void Dirname(const char* Path, char* Out)
     Dirname(Path, Length, Out);
 }
 
-void Dirname(const char* Path, u64 PathLength, char* Out)
+void Dirname(const char* path, u64 path_length, char* out)
 {
-    for (int i = (int)PathLength - 1; i >= 0; i--)
+    for (int i = (int)path_length - 1; i >= 0; i--)
     {
-        if (Path[i] == '/' || Path[i] == '\\')
+        if (path[i] == '/' || path[i] == '\\')
         {
-            StringNCopy(Out, Path, i);
-            Out[i] = 0;
+            StringNCopy(out, path, i);
+            out[i] = 0;
             return;
         }
     }
 
     // There is no path separator, just copy the original string back
-    StringNCopy(Out, Path, PathLength);
-    Out[PathLength] = 0;
+    StringNCopy(out, path, path_length);
+    out[path_length] = 0;
 }
 
 String8 Dirname(ArenaAllocator* arena, String8 path)
 {
     String8 result = {};
-    result.ptr = ArenaPushArray(arena, u8, path.count);
-    i32 i = (i32)path.count - 1;
+    i32     i = (i32)path.count - 1;
     for (; i >= 0; i--)
     {
         if (path.ptr[i] == '/' || path.ptr[i] == '\\')
@@ -230,8 +229,30 @@ String8 Dirname(ArenaAllocator* arena, String8 path)
         }
     }
 
-    MemCpy(result.ptr, path.ptr, i);
-    result.count = i;
+    // This represents the normal case: "xyz/SampleApp.exe"
+    if (i > 0)
+    {
+        result.ptr = ArenaPushArray(arena, u8, i + 1);
+        MemCpy(result.ptr, path.ptr, i);
+        result.ptr[i] = 0; // Null terminate, because why not
+        result.count = i;
+    }
+    // This is when path is just "/" or "\" (Root)
+    else if (i == 0)
+    {
+        result.ptr = ArenaPushArray(arena, u8, 2);
+        result.ptr[0] = path.ptr[0]; // What is at 0, just use that
+        result.ptr[1] = 0;
+        result.count = 1;
+    }
+    // If we have a path like "SampleApp.exe" then `i` will be negative
+    else
+    {
+        result.ptr = ArenaPushArray(arena, u8, 2);
+        result.ptr[0] = '.';
+        result.ptr[1] = 0;
+        result.count = 1;
+    }
 
     return result;
 }
@@ -311,6 +332,6 @@ String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
 
     return result;
 }
-} // namespace filesystem
+} // namespace fs
 
 } // namespace kraft

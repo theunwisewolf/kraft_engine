@@ -16,7 +16,7 @@ struct RendererOptions;
 
 namespace r {
 
-struct RenderSurfaceT;
+struct RenderSurface;
 struct ShaderEffect;
 struct RendererBackend;
 struct Renderable;
@@ -56,10 +56,10 @@ struct RendererFrontend
     bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
     void DestroyGeometry(Geometry* geometry);
 
-    RenderSurfaceT CreateRenderSurface(const char* name, u32 width, u32 height, bool has_depth = false);
-    void           BeginRenderSurface(const RenderSurfaceT& surface);
-    RenderSurfaceT ResizeRenderSurface(RenderSurfaceT& surface, u32 width, u32 height);
-    void           EndRenderSurface(const RenderSurfaceT& surface);
+    RenderSurface CreateRenderSurface(String8 name, u32 width, u32 height, bool has_color = true, bool has_depth = false, bool depth_sample = false);
+    void          BeginRenderSurface(const RenderSurface& surface);
+    RenderSurface ResizeRenderSurface(RenderSurface& surface, u32 width, u32 height);
+    void          EndRenderSurface(const RenderSurface& surface);
 
     void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 };

@@ -1,3 +1,5 @@
+#include "core/kraft_math.h"
+#include "imgui.h"
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 
@@ -17,6 +19,7 @@
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <systems/kraft_asset_types.h>
+#include <renderer/kraft_camera.h>
 
 #include <time.h>
 
@@ -49,7 +52,7 @@ static bool OnWindowResize(EventType type, void* sender, void* listener, EventDa
     GameState*      game_state = (GameState*)listener;
     EventDataResize data = *(EventDataResize*)(&event_data);
     game_state->projection_matrix = OrthographicMatrix(-(float)data.width * 0.5f, (float)data.width * 0.5f, -(float)data.height * 0.5f, (float)data.height * 0.5f, -1.0f, 1.0f);
-
+    game_state->projection_matrix = PerspectiveMatrix(DegToRadians(45.0f), (float)data.width / (float)data.height, 0.1f, 1000.f);
     KDEBUG("Window resized to %d x %d", data.width, data.height);
     return false;
 }
@@ -66,6 +69,9 @@ static bool OnKeyPress(EventType type, void* sender, void* listener, EventData e
 
 int main(int argc, char** argv)
 {
+    static Vec3f camera_position = Vec3f{ 0.0f, 0.0f, -10.0f };
+    static Vec3f camera_rotation = Vec3f{ 0.0f, 0.0f, 0.0f };
+
     ThreadContext* thread_context = CreateThreadContext();
     SetCurrentThreadContext(thread_context);
 
@@ -78,14 +84,14 @@ int main(int argc, char** argv)
     GameState* game_state = ArenaPush(arena, GameState);
     game_state->arena = arena;
 
-    bool                ImGuiDemoWindowOpen = true;
-    kraft::EngineConfig config = {
+    bool         ImGuiDemoWindowOpen = true;
+    EngineConfig config = {
         .argc = argc,
         .argv = argv,
         .application_name = String8Raw("SampleApp"),
         .console_app = false,
     };
-    kraft::CreateEngine(&config);
+    CreateEngine(&config);
 
     EventSystem::Listen(EVENT_TYPE_WINDOW_RESIZE, game_state, OnWindowResize);
     EventSystem::Listen(EVENT_TYPE_KEY_UP, game_state, OnKeyPress);
@@ -93,13 +99,19 @@ int main(int argc, char** argv)
     // auto Window = kraft::CreateWindow("SampleApp", 1280, 768);
     auto window = CreateWindow({ .Title = "SampleApp", .Width = 1280, .Height = 768, .StartMaximized = true });
     CreateRenderer({
-        .Backend = kraft::RENDERER_BACKEND_TYPE_VULKAN,
-        .MaterialBufferSize = 32,
+        .Backend = RENDERER_BACKEND_TYPE_VULKAN,
+        .MaterialBufferSize = 64,
     });
 
     // Window->Maximize();
 
+    auto camera = Camera();
+
     app_state.imgui_renderer.Init(game_state->arena);
+
+    auto gltf_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto mesh = AssetDatabase::LoadMesh(arena, S("res/meshes/Box.gltf"));
+    KASSERT(mesh);
 
     auto material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
     KASSERT(material);
@@ -108,9 +120,14 @@ int main(int argc, char** argv)
     Mat4f bg_transform = ScaleMatrix(Vec3f{ 2560.0f, 1080.0f, 1.f }) * TranslationMatrix(Vec3f{ 0.f, 0.f, 0.f });
 
     r::GlobalShaderData global_ubo = {};
-    game_state->projection_matrix = OrthographicMatrix(-(float)window->Width * 0.5f, (float)window->Width * 0.5f, -(float)window->Height * 0.5f, (float)window->Height * 0.5f, -1.0f, 1.0f);
-    // game_state->projection_matrix = kraft::PerspectiveMatrix(kraft::DegToRadians(45.0f), (float)Window->Width / (float)Window->Height, 0.1f, 1000.f);
-    global_ubo.View = Mat4f(kraft::Identity);
+    // game_state->projection_matrix = OrthographicMatrix(-(float)window->Width * 0.5f, (float)window->Width * 0.5f, -(float)window->Height * 0.5f, (float)window->Height * 0.5f, -1.0f, 1.0f);
+    game_state->projection_matrix = PerspectiveMatrix(DegToRadians(45.0f), (float)window->Width / (float)window->Height, 0.1f, 1000.f);
+    global_ubo.View = Mat4f(Identity);
+
+    // Create a render surface with only the depth buffer for the shadow pass
+    r::RenderSurface shadow_pass_depth_surface = g_Renderer->CreateRenderSurface(S("ShadowPass"), window->Width, window->Height, false, true, true);
+
+    auto imgui_texture = app_state.imgui_renderer.AddTexture(shadow_pass_depth_surface.DepthPassTexture, shadow_pass_depth_surface.TextureSampler);
 
     while (Engine::running)
     {
@@ -127,29 +144,69 @@ int main(int argc, char** argv)
         Engine::Tick();
 
         // We only want to render when the engine is not suspended
-        if (!kraft::Engine::suspended)
+        if (!Engine::suspended)
         {
-            kraft::g_Renderer->PrepareFrame();
-            kraft::g_Renderer->BeginMainRenderpass();
+            camera.Position = camera_position;
+            camera.Pitch = camera_rotation.x;
+            camera.Yaw = camera_rotation.y;
+            camera.Roll = camera_rotation.z;
+            camera.SetPerspectiveProjection(DegToRadians(45.0f), (float)window->Width / (float)window->Height, 0.1f, 1000.f);
+            camera.UpdateVectors();
 
-            // Draw stuff here!
-            g_Renderer->AddRenderable({
-                .ModelMatrix = bg_transform,
-                .MaterialInstance = material,
-                .GeometryId = geometry->InternalID,
-                .EntityId = geometry->InternalID,
-            });
+            g_Renderer->Camera = &camera;
+            g_Renderer->BeginRenderSurface(shadow_pass_depth_surface);
+            for (i32 i = 0; i < mesh->SubMeshes.Length; i++)
+            {
+                g_Renderer->AddRenderable({
+                    .ModelMatrix = ScaleMatrix(Vec3f{ 1.0f, 1.0f, 1.0f }),
+                    .MaterialInstance = gltf_material,
+                    .GeometryId = mesh->SubMeshes[i].Geometry->InternalID,
+                    .EntityId = mesh->SubMeshes[i].Geometry->InternalID,
+                });
+            }
+            g_Renderer->EndRenderSurface(shadow_pass_depth_surface);
+
+            g_Renderer->PrepareFrame();
+            g_Renderer->DrawSurfaces();
+            g_Renderer->BeginMainRenderpass();
+
+            // g_Renderer->AddRenderable({
+            //     .ModelMatrix = bg_transform,
+            //     .MaterialInstance = material,
+            //     .GeometryId = geometry->InternalID,
+            //     .EntityId = geometry->InternalID,
+            // });
+
+            for (i32 i = 0; i < mesh->SubMeshes.Length; i++)
+            {
+                g_Renderer->AddRenderable({
+                    .ModelMatrix = ScaleMatrix(Vec3f{ 1.0f, 1.0f, 1.0f }),
+                    .MaterialInstance = gltf_material,
+                    .GeometryId = mesh->SubMeshes[i].Geometry->InternalID,
+                    .EntityId = mesh->SubMeshes[i].Geometry->InternalID,
+                });
+            }
 
             global_ubo.Projection = game_state->projection_matrix;
-            kraft::g_Renderer->Draw(&global_ubo);
+            global_ubo.View = RotationMatrixFromEulerAngles(camera_rotation) * TranslationMatrix(camera_position);
+            g_Renderer->Draw(&global_ubo);
 
             // Draw ImGui
             app_state.imgui_renderer.BeginFrame();
-            ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
+            // ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
             DrawUI(game_state);
+
+            ImGui::Begin("Camera Debug");
+            ImGui::DragFloat3("Position", camera_position._data);
+            ImGui::DragFloat3("Rotation", camera_rotation._data);
+            ImGui::End();
+
+            ImGui::Begin("ShadowPass");
+            ImGui::Image(imgui_texture, { (f32)window->Width, (f32)window->Height }, { 0, 1 }, { 1, 0 });
+            ImGui::End();
             app_state.imgui_renderer.EndFrame();
 
-            kraft::g_Renderer->EndMainRenderpass();
+            g_Renderer->EndMainRenderpass();
             app_state.imgui_renderer.EndFrameUpdatePlatformWindows();
         }
 
@@ -158,7 +215,7 @@ int main(int argc, char** argv)
             app_state.time_since_last_frame = 0.f;
             app_state.frame_count = 0;
 
-            String8 window_title = StringFormat(scratch.arena, "SampleApp | FrameTime: %.2f ms | %d fps", DeltaTime * 1000.f, app_state.frame_count);
+            String8 window_title = StringFormat(scratch.arena, "Playground | FrameTime: %.2f ms | %d fps", DeltaTime * 1000.f, app_state.frame_count);
             window->SetWindowTitle(window_title.str);
         }
 
