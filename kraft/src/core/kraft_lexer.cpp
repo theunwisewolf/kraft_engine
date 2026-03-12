@@ -248,7 +248,7 @@ LexerError Lexer::ConsumeWhitespaces()
 
         if (IsSpace(this->text.ptr[this->position]))
         {
-            if (IsNewLine(this->text.ptr[this->position]))
+            if (this->text.ptr[this->position] == '\n')
                 line++;
 
             this->position++;
@@ -273,7 +273,7 @@ LexerError Lexer::ConsumeWhitespaces()
             CHECK_EOF_ERROR();
             while (this->BytesLeft() >= 2 && this->text.ptr[this->position] != '*' && this->text.ptr[this->position + 1] != '/')
             {
-                if (IsNewLine(this->text.ptr[this->position]))
+                if (this->text.ptr[this->position] == '\n')
                     line++;
 
                 this->position++;
