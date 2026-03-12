@@ -1,5 +1,5 @@
 #include "core/kraft_math.h"
-#include "imgui.h"
+
 #include <containers/kraft_array.h>
 #include <containers/kraft_hashmap.h>
 
@@ -69,7 +69,7 @@ static bool OnKeyPress(EventType type, void* sender, void* listener, EventData e
 
 int main(int argc, char** argv)
 {
-    static Vec3f camera_position = Vec3f{ 0.0f, 0.0f, -10.0f };
+    static Vec3f camera_position = Vec3f{ -5.0f, 0.0f, -10.0f };
     static Vec3f camera_rotation = Vec3f{ 0.0f, 0.0f, 0.0f };
 
     ThreadContext* thread_context = CreateThreadContext();
@@ -109,11 +109,11 @@ int main(int argc, char** argv)
 
     app_state.imgui_renderer.Init(game_state->arena);
 
-    auto gltf_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto gltf_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
     auto mesh = AssetDatabase::LoadMesh(arena, S("res/meshes/Box.gltf"));
     KASSERT(mesh);
 
-    auto material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto material = MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_2d.kmt"));
     KASSERT(material);
 
     auto  geometry = GeometrySystem::GetDefault2DGeometry();
@@ -166,6 +166,8 @@ int main(int argc, char** argv)
             }
             g_Renderer->EndRenderSurface(shadow_pass_depth_surface);
 
+            shadow_pass_depth_surface.global_shader_data.View = game_state->projection_matrix;
+
             g_Renderer->PrepareFrame();
             g_Renderer->DrawSurfaces();
             g_Renderer->BeginMainRenderpass();
@@ -191,6 +193,7 @@ int main(int argc, char** argv)
             global_ubo.View = RotationMatrixFromEulerAngles(camera_rotation) * TranslationMatrix(camera_position);
             g_Renderer->Draw(&global_ubo);
 
+#if 1
             // Draw ImGui
             app_state.imgui_renderer.BeginFrame();
             // ImGui::ShowDemoWindow(&ImGuiDemoWindowOpen);
@@ -205,9 +208,12 @@ int main(int argc, char** argv)
             ImGui::Image(imgui_texture, { (f32)window->Width, (f32)window->Height }, { 0, 1 }, { 1, 0 });
             ImGui::End();
             app_state.imgui_renderer.EndFrame();
-
+#endif
             g_Renderer->EndMainRenderpass();
+
+#if 1
             app_state.imgui_renderer.EndFrameUpdatePlatformWindows();
+#endif
         }
 
         if (app_state.time_since_last_frame >= 1.f)

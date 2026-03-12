@@ -79,7 +79,7 @@ Material* MaterialSystem::GetDefaultMaterial()
     return &State->material_references[0].material;
 }
 
-Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, r::Handle<r::RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialFromFile(String8 file_path)
 {
     TempArena scratch = ScratchBegin(0, 0);
     String8   _file_path = file_path;
@@ -103,10 +103,10 @@ Material* MaterialSystem::CreateMaterialFromFile(String8 file_path, r::Handle<r:
     }
 
     ScratchEnd(scratch);
-    return CreateMaterialWithData(data, RenderPassHandle);
+    return CreateMaterialWithData(data);
 }
 
-Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, r::Handle<r::RenderPass> RenderPassHandle)
+Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateFormat& Data)
 {
     u32 FreeIndex = u32(-1);
     for (u32 i = 0; i < State->MaxMaterialsCount; ++i)
@@ -129,7 +129,7 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     Reference->ref_count = 1;
 
     // Load the shader
-    Shader* Shader = ShaderSystem::AcquireShader(Data.shader_asset, RenderPassHandle);
+    Shader* Shader = ShaderSystem::AcquireShader(Data.shader_asset);
     if (!Shader)
     {
         KERROR("[CreateMaterialWithData]: Failed to load shader %S reference by the material %S", Data.shader_asset, Data.name);

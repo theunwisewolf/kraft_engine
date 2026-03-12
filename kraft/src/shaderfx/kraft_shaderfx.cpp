@@ -18,6 +18,8 @@
 #define PARSER_ERROR_TOKEN_KEYWORD_MISMATCH "Keyword mismatch\nExpected '%S' got '%S'"
 #define PARSER_ERROR_INVALID_SHADER_STAGE   "Invalid shader stage '%S'"
 
+#define KRAFT_SHADERFX_MAX_SHADER_VARIANTS 6
+
 namespace kraft::shaderfx {
 
 int GetShaderStageFromString(String8 value)
@@ -53,7 +55,7 @@ void ShaderFXParser::SetError(ArenaAllocator* arena, const char* format, ...)
     this->error_str = StringFormatV(arena, format, args);
     va_end(args);
 
-    this->ErrorLine = this->Lexer->line;
+    this->ErrorLine = this->Lexer->line + 1; // +1 because we start from 0
     this->ErrorColumn = this->Lexer->column;
     this->ErroredOut = true;
 }
@@ -69,6 +71,15 @@ bool ShaderFXParser::Parse(ArenaAllocator* arena, String8 file_path, kraft::Lexe
 
 bool ShaderFXParser::GenerateAST(ArenaAllocator* arena, ShaderEffect* effect)
 {
+    effect->code_fragment_count = 0;
+    effect->code_fragments = ArenaPushArray(arena, ShaderCodeFragment, 16);
+
+    effect->render_state_count = 0;
+    effect->render_states = ArenaPushArray(arena, RenderStateDefinition, 16);
+
+    effect->variant_count = 0;
+    effect->variants = ArenaPushArray(arena, VariantDefinition, 16);
+
     while (true)
     {
         LexerToken token;
@@ -136,11 +147,11 @@ bool ShaderFXParser::ParseIdentifier(ArenaAllocator* arena, ShaderEffect* effect
             }
         }
         break;
-        case 'P':
+        case 'V':
         {
-            if (token->MatchesKeyword(String8Raw("Pass")))
+            if (token->MatchesKeyword(String8Raw("Variant")))
             {
-                return this->ParseRenderPassBlock(arena, effect);
+                return this->ParseVariantBlock(arena, effect);
             }
         }
         break;
@@ -924,7 +935,8 @@ bool ShaderFXParser::ParseGLSLBlock(ArenaAllocator* arena, ShaderEffect* effect)
         return false;
     }
 
-    effect->code_fragment.name = ArenaPushString8Copy(arena, token.text);
+    ShaderCodeFragment* fragment = &effect->code_fragments[effect->code_fragment_count];
+    fragment->name = ArenaPushString8Copy(arena, token.text);
 
     // Consume the first brace of the GLSL Block
     if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
@@ -968,12 +980,14 @@ bool ShaderFXParser::ParseGLSLBlock(ArenaAllocator* arena, ShaderEffect* effect)
     }
 
     u64 shader_code_length = token.text.ptr - shader_code_start;
-    effect->code_fragment.code = ArenaPushString8Copy(arena, String8FromPtrAndLength(shader_code_start, shader_code_length));
+    fragment->code = ArenaPushString8Copy(arena, String8FromPtrAndLength(shader_code_start, shader_code_length));
 
     if (this->Verbose)
     {
-        KDEBUG("%S", effect->code_fragment.code);
+        KDEBUG("%S", fragment->code);
     }
+
+    effect->code_fragment_count++;
 
     return true;
 }
@@ -1006,8 +1020,10 @@ bool ShaderFXParser::ParseRenderStateBlock(ArenaAllocator* arena, ShaderEffect* 
                 return false;
             }
 
-            effect->render_state.name = ArenaPushString8Copy(arena, token.text);
-            this->ParseRenderState(arena, &effect->render_state);
+            RenderStateDefinition* state = &effect->render_states[effect->render_state_count];
+            state->name = ArenaPushString8Copy(arena, token.text);
+            this->ParseRenderState(arena, state);
+            effect->render_state_count++;
         }
     }
 
@@ -1284,9 +1300,9 @@ bool ShaderFXParser::ParseBlendOp(ArenaAllocator* arena, const LexerToken* token
     return true;
 }
 
-bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* effect)
+bool ShaderFXParser::ParseVariantBlock(ArenaAllocator* arena, ShaderEffect* effect)
 {
-    // Consume the name of the pass
+    // Consume the name of the variant
     LexerToken token;
     if (LexerError err = this->Lexer->NextToken(&token))
     {
@@ -1294,9 +1310,12 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
         return false;
     }
 
-    effect->render_pass_def.name = ArenaPushString8Copy(arena, token.text);
+    VariantDefinition* variant = &effect->variants[effect->variant_count];
+    variant->name = ArenaPushString8Copy(arena, token.text);
+    variant->has_color_output = true;
+    variant->has_depth_output = true;
 
-    // Consume the first brace of the GLSL Block
+    // Consume the opening brace
     if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
     {
         this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_OPEN_BRACE), TokenType::String(token.type));
@@ -1305,14 +1324,15 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
 
     TempArena scratch = ScratchBegin(&arena, 1);
 
-    u32                                     shader_def_count = 0;
-    RenderPassDefinition::ShaderDefinition* shader_defs = ArenaPushArray(scratch.arena, RenderPassDefinition::ShaderDefinition, 6);
+    u32                                  shader_def_count = 0;
+    VariantDefinition::ShaderDefinition* shader_defs = ArenaPushArray(scratch.arena, VariantDefinition::ShaderDefinition, KRAFT_SHADERFX_MAX_SHADER_VARIANTS);
 
     while (!this->Lexer->EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
     {
         if (token.type != TokenType::TOKEN_TYPE_IDENTIFIER)
         {
             this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+            ScratchEnd(scratch);
             return false;
         }
 
@@ -1321,17 +1341,34 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
                 this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
                 return false;
             }
 
-            StringView name = StringView((char*)token.text.ptr, token.text.count);
-            effect->render_pass_def.render_state = &effect->render_state;
+            bool valid = false;
+            for (u32 i = 0; i < effect->render_state_count; i++)
+            {
+                if (StringEqual(effect->render_states[i].name, token.text))
+                {
+                    variant->render_state = &effect->render_states[i];
+                    valid = true;
+                    break;
+                }
+            }
+
+            if (!valid)
+            {
+                this->SetError(arena, "Unknown RenderState: '%S'", token.text);
+                ScratchEnd(scratch);
+                return false;
+            }
         }
         else if (token.MatchesKeyword(String8Raw("VertexLayout")))
         {
             if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
                 this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
                 return false;
             }
 
@@ -1340,7 +1377,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             {
                 if (StringEqual(effect->vertex_layouts[i].name, token.text))
                 {
-                    effect->render_pass_def.vertex_layout = &effect->vertex_layouts[i];
+                    variant->vertex_layout = &effect->vertex_layouts[i];
                     valid = true;
                     break;
                 }
@@ -1349,6 +1386,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!valid)
             {
                 this->SetError(arena, "Unknown VertexLayout: '%S'", token.text);
+                ScratchEnd(scratch);
                 return false;
             }
         }
@@ -1357,6 +1395,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
                 this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
                 return false;
             }
 
@@ -1369,7 +1408,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             {
                 if (StringEqual(effect->local_resources[i].name, token.text))
                 {
-                    effect->render_pass_def.resources = &effect->local_resources[i];
+                    variant->resources = &effect->local_resources[i];
                     valid = true;
                     break;
                 }
@@ -1378,6 +1417,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!valid)
             {
                 this->SetError(arena, "Unknown Resource: '%S'", token.text);
+                ScratchEnd(scratch);
                 return false;
             }
         }
@@ -1386,6 +1426,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
             {
                 this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
                 return false;
             }
 
@@ -1394,7 +1435,7 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             {
                 if (StringEqual(effect->constant_buffers[i].name, token.text))
                 {
-                    effect->render_pass_def.contant_buffers = &effect->constant_buffers[i];
+                    variant->contant_buffers = &effect->constant_buffers[i];
                     valid = true;
                     break;
                 }
@@ -1403,28 +1444,99 @@ bool ShaderFXParser::ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* e
             if (!valid)
             {
                 this->SetError(arena, "Unknown ConstantBuffer: '%S'", token.text);
+                ScratchEnd(scratch);
                 return false;
             }
         }
         else if (token.MatchesKeyword(String8Raw("VertexShader")))
         {
-            shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX;
-            shader_defs[shader_def_count].code_fragment = effect->code_fragment;
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            {
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
+                return false;
+            }
 
-            shader_def_count++;
+            // Look up the GLSL code fragment by name
+            bool valid = false;
+            for (u32 i = 0; i < effect->code_fragment_count; i++)
+            {
+                if (StringEqual(effect->code_fragments[i].name, token.text))
+                {
+                    shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX;
+                    shader_defs[shader_def_count].code_fragment = effect->code_fragments[i];
+                    shader_def_count++;
+                    valid = true;
+                    break;
+                }
+            }
+
+            if (!valid)
+            {
+                this->SetError(arena, "Unknown GLSL code fragment: '%S'", token.text);
+                ScratchEnd(scratch);
+                return false;
+            }
         }
         else if (token.MatchesKeyword(String8Raw("FragmentShader")))
         {
-            shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT;
-            shader_defs[shader_def_count].code_fragment = effect->code_fragment;
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            {
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
+                return false;
+            }
 
-            shader_def_count++;
+            // Look up the GLSL code fragment by name
+            bool valid = false;
+            for (u32 i = 0; i < effect->code_fragment_count; i++)
+            {
+                if (StringEqual(effect->code_fragments[i].name, token.text))
+                {
+                    shader_defs[shader_def_count].stage = r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT;
+                    shader_defs[shader_def_count].code_fragment = effect->code_fragments[i];
+                    shader_def_count++;
+                    valid = true;
+                    break;
+                }
+            }
+
+            if (!valid)
+            {
+                this->SetError(arena, "Unknown GLSL code fragment: '%S'", token.text);
+                ScratchEnd(scratch);
+                return false;
+            }
+        }
+        else if (token.MatchesKeyword(String8Raw("ColorOutput")))
+        {
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            {
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
+                return false;
+            }
+
+            variant->has_color_output = token.MatchesKeyword(String8Raw("On"));
+        }
+        else if (token.MatchesKeyword(String8Raw("DepthOutput")))
+        {
+            if (!this->Lexer->ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
+            {
+                this->SetError(arena, PARSER_ERROR_TOKEN_MISMATCH, TokenType::String(TokenType::TOKEN_TYPE_IDENTIFIER), TokenType::String(token.type));
+                ScratchEnd(scratch);
+                return false;
+            }
+
+            variant->has_depth_output = token.MatchesKeyword(String8Raw("On"));
         }
     }
 
-    effect->render_pass_def.shader_stage_count = shader_def_count;
-    effect->render_pass_def.shader_stages = ArenaPushArray(arena, RenderPassDefinition::ShaderDefinition, shader_def_count);
-    MemCpy(effect->render_pass_def.shader_stages, shader_defs, sizeof(RenderPassDefinition::ShaderDefinition) * shader_def_count);
+    variant->shader_stage_count = shader_def_count;
+    variant->shader_stages = ArenaPushArray(arena, VariantDefinition::ShaderDefinition, shader_def_count);
+    MemCpy(variant->shader_stages, shader_defs, sizeof(VariantDefinition::ShaderDefinition) * shader_def_count);
+
+    effect->variant_count++;
 
     ScratchEnd(scratch);
 
@@ -1561,38 +1673,51 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         }
     }
 
-    // RenderState
-    effect->render_state.name = Reader.ReadString(arena);
-    effect->render_state.cull_mode = (r::CullModeFlags::Enum)Reader.Readi32();
-    effect->render_state.z_test_op = (r::CompareOp::Enum)Reader.Readi32();
-    effect->render_state.z_write_enable = Reader.Readbool();
-    effect->render_state.blend_enable = Reader.Readbool();
-    Reader.ReadRaw(&effect->render_state.blend_mode, sizeof(r::BlendState));
-    effect->render_state.polygon_mode = (r::PolygonMode::Enum)Reader.Readi32();
-    effect->render_state.line_width = Reader.Readf32();
-
-    effect->render_pass_def.name = Reader.ReadString(arena);
-
-    i64 vertex_layout_offset = Reader.Readi64();
-    effect->render_pass_def.vertex_layout = &effect->vertex_layouts[vertex_layout_offset];
-
-    i64 resources_offset = Reader.Readi64();
-    effect->render_pass_def.resources = resources_offset > -1 ? &effect->local_resources[resources_offset] : 0;
-
-    i64 constant_buffers_offset = Reader.Readi64();
-    effect->render_pass_def.contant_buffers = &effect->constant_buffers[constant_buffers_offset];
-
-    // TODO: is this required?
-    i64 _render_state_offset = Reader.Readi64();
-    effect->render_pass_def.render_state = &effect->render_state;
-
-    effect->render_pass_def.shader_stage_count = Reader.Readu32();
-    effect->render_pass_def.shader_stages = ArenaPushArray(arena, RenderPassDefinition::ShaderDefinition, effect->render_pass_def.shader_stage_count);
-    for (u32 i = 0; i < effect->render_pass_def.shader_stage_count; i++)
+    // RenderStates
+    effect->render_state_count = Reader.Readu32();
+    effect->render_states = ArenaPushArray(arena, RenderStateDefinition, effect->render_state_count);
+    for (u32 i = 0; i < effect->render_state_count; i++)
     {
-        effect->render_pass_def.shader_stages[i].stage = (r::ShaderStageFlags)Reader.Readi32();
-        effect->render_pass_def.shader_stages[i].code_fragment.name = Reader.ReadString(arena);
-        effect->render_pass_def.shader_stages[i].code_fragment.code = Reader.ReadString(arena);
+        effect->render_states[i].name = Reader.ReadString(arena);
+        effect->render_states[i].cull_mode = (r::CullModeFlags::Enum)Reader.Readi32();
+        effect->render_states[i].z_test_op = (r::CompareOp::Enum)Reader.Readi32();
+        effect->render_states[i].z_write_enable = Reader.Readbool();
+        effect->render_states[i].blend_enable = Reader.Readbool();
+        Reader.ReadRaw(&effect->render_states[i].blend_mode, sizeof(r::BlendState));
+        effect->render_states[i].polygon_mode = (r::PolygonMode::Enum)Reader.Readi32();
+        effect->render_states[i].line_width = Reader.Readf32();
+    }
+
+    // Variants
+    effect->variant_count = Reader.Readu32();
+    effect->variants = ArenaPushArray(arena, VariantDefinition, effect->variant_count);
+    for (u32 v = 0; v < effect->variant_count; v++)
+    {
+        effect->variants[v].name = Reader.ReadString(arena);
+
+        i64 vertex_layout_offset = Reader.Readi64();
+        effect->variants[v].vertex_layout = &effect->vertex_layouts[vertex_layout_offset];
+
+        i64 resources_offset = Reader.Readi64();
+        effect->variants[v].resources = resources_offset > -1 ? &effect->local_resources[resources_offset] : 0;
+
+        i64 constant_buffers_offset = Reader.Readi64();
+        effect->variants[v].contant_buffers = &effect->constant_buffers[constant_buffers_offset];
+
+        i64 render_state_offset = Reader.Readi64();
+        effect->variants[v].render_state = &effect->render_states[render_state_offset];
+
+        effect->variants[v].has_color_output = Reader.Readbool();
+        effect->variants[v].has_depth_output = Reader.Readbool();
+
+        effect->variants[v].shader_stage_count = Reader.Readu32();
+        effect->variants[v].shader_stages = ArenaPushArray(arena, VariantDefinition::ShaderDefinition, effect->variants[v].shader_stage_count);
+        for (u32 j = 0; j < effect->variants[v].shader_stage_count; j++)
+        {
+            effect->variants[v].shader_stages[j].stage = (r::ShaderStageFlags)Reader.Readi32();
+            effect->variants[v].shader_stages[j].code_fragment.name = Reader.ReadString(arena);
+            effect->variants[v].shader_stages[j].code_fragment.code = Reader.ReadString(arena);
+        }
     }
 
     kraft::Free(BinaryBuffer, BinaryBufferSize, MEMORY_TAG_FILE_BUF);
@@ -1653,23 +1778,28 @@ bool ValidateShaderFX(const ShaderEffect* shader1, const ShaderEffect* shader2)
         }
     }
 
-    KASSERT(StringEqual(shader1->render_state.name, shader2->render_state.name));
-    KASSERT(shader1->render_state.cull_mode == shader2->render_state.cull_mode);
-    KASSERT(shader1->render_state.z_test_op == shader2->render_state.z_test_op);
-    KASSERT(shader1->render_state.z_write_enable == shader2->render_state.z_write_enable);
-    KASSERT(shader1->render_state.blend_enable == shader2->render_state.blend_enable);
-    KASSERT(shader1->render_state.blend_mode.src_color_blend_factor == shader2->render_state.blend_mode.src_color_blend_factor);
-    KASSERT(shader1->render_state.blend_mode.dst_color_blend_factor == shader2->render_state.blend_mode.dst_color_blend_factor);
-    KASSERT(shader1->render_state.blend_mode.color_blend_op == shader2->render_state.blend_mode.color_blend_op);
-    KASSERT(shader1->render_state.blend_mode.src_alpha_blend_factor == shader2->render_state.blend_mode.src_alpha_blend_factor);
-    KASSERT(shader1->render_state.blend_mode.dst_alpha_blend_factor == shader2->render_state.blend_mode.dst_alpha_blend_factor);
-    KASSERT(shader1->render_state.blend_mode.alpha_blend_op == shader2->render_state.blend_mode.alpha_blend_op);
-
-    KASSERT(shader1->render_pass_def.shader_stage_count == shader2->render_pass_def.shader_stage_count);
-    for (int j = 0; j < shader1->render_pass_def.shader_stage_count; j++)
+    KASSERT(shader1->render_state_count == shader2->render_state_count);
+    for (int i = 0; i < shader1->render_state_count; i++)
     {
-        KASSERT(shader1->render_pass_def.shader_stages[j].stage == shader2->render_pass_def.shader_stages[j].stage);
-        KASSERT(StringEqual(shader1->render_pass_def.shader_stages[j].code_fragment.name, shader2->render_pass_def.shader_stages[j].code_fragment.name));
+        KASSERT(StringEqual(shader1->render_states[i].name, shader2->render_states[i].name));
+        KASSERT(shader1->render_states[i].cull_mode == shader2->render_states[i].cull_mode);
+        KASSERT(shader1->render_states[i].z_test_op == shader2->render_states[i].z_test_op);
+        KASSERT(shader1->render_states[i].z_write_enable == shader2->render_states[i].z_write_enable);
+        KASSERT(shader1->render_states[i].blend_enable == shader2->render_states[i].blend_enable);
+    }
+
+    KASSERT(shader1->variant_count == shader2->variant_count);
+    for (int v = 0; v < shader1->variant_count; v++)
+    {
+        KASSERT(StringEqual(shader1->variants[v].name, shader2->variants[v].name));
+        KASSERT(shader1->variants[v].has_color_output == shader2->variants[v].has_color_output);
+        KASSERT(shader1->variants[v].has_depth_output == shader2->variants[v].has_depth_output);
+        KASSERT(shader1->variants[v].shader_stage_count == shader2->variants[v].shader_stage_count);
+        for (int j = 0; j < shader1->variants[v].shader_stage_count; j++)
+        {
+            KASSERT(shader1->variants[v].shader_stages[j].stage == shader2->variants[v].shader_stages[j].stage);
+            KASSERT(StringEqual(shader1->variants[v].shader_stages[j].code_fragment.name, shader2->variants[v].shader_stages[j].code_fragment.name));
+        }
     }
 
     return true;

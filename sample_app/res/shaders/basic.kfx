@@ -157,9 +157,18 @@ Shader Basic
             PolygonMode     Fill
             LineWidth       1.0   
         }
+
+        State Shadow
+        {
+            Cull            Front
+            ZTest           Less
+            ZWrite          On
+            PolygonMode     Fill
+            LineWidth       1.0
+        }
     }
 
-    Pass ToScreen
+    Variant ScreenPass
     {
         RenderState     Default
         VertexLayout    Main
@@ -167,5 +176,15 @@ Shader Basic
         ConstantBuffer  Main
         VertexShader    ToScreen
         FragmentShader  ToScreen
+    }
+
+    Variant ShadowPass
+    {
+        RenderState     Shadow
+        VertexLayout    Main
+        ConstantBuffer  Main
+        VertexShader    ToScreen
+        DepthOutput     On
+        ColorOutput     Off
     }
 }

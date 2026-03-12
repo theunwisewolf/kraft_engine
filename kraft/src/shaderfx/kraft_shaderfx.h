@@ -40,7 +40,7 @@ struct ResourceBindingsDefinition;
 struct ConstantBufferDefinition;
 struct UniformBufferDefinition;
 struct RenderStateDefinition;
-struct RenderPassDefinition;
+struct VariantDefinition;
 
 struct ShaderFXParser
 {
@@ -71,7 +71,7 @@ struct ShaderFXParser
     bool ParseRenderState(ArenaAllocator* arena, RenderStateDefinition* State);
     bool ParseBlendFactor(ArenaAllocator* arena, const LexerToken* token, r::BlendFactor::Enum* factor);
     bool ParseBlendOp(ArenaAllocator* arena, const LexerToken* token, r::BlendOp::Enum* op);
-    bool ParseRenderPassBlock(ArenaAllocator* arena, ShaderEffect* Effect);
+    bool ParseVariantBlock(ArenaAllocator* arena, ShaderEffect* Effect);
 };
 
 bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* shader);

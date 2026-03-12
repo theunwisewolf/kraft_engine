@@ -31,19 +31,15 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-function)
 endif()
 
-# add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
-# )
-
-add_custom_target(sample_app_copy_resources ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+# Symlink (junction on Windows) from build res/ -> source res/
+# so resource edits (shaders, etc.) take effect immediately
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${CMAKE_CURRENT_SOURCE_DIR}/res
-        ${CMAKE_SOURCE_DIR}/bin/res
-    COMMENT "Copying resources from '${CMAKE_CURRENT_SOURCE_DIR}/res' to '${CMAKE_SOURCE_DIR}/bin/res'..."
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+    COMMENT "Symlinking resources directory..."
 )
-
-add_dependencies(${PROJECT_NAME} sample_app_copy_resources)
 
 # add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 #     COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 

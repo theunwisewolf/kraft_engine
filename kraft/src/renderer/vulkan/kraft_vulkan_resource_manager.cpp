@@ -261,94 +261,98 @@ static void                  Clear()
     }
 }
 
-static Handle<Texture> CreateTexture(const TextureDescription& Description)
+static Handle<Texture> CreateTexture(const TextureDescription& description)
 {
-    KASSERT(Description.Dimensions.x > 0 && Description.Dimensions.y > 0 && Description.Dimensions.z > 0 && Description.Dimensions.w > 0);
+    KASSERT(description.Dimensions.x > 0 && description.Dimensions.y > 0 && description.Dimensions.z > 0 && description.Dimensions.w > 0);
 
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
-    VulkanTexture  Output = {};
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice       device = context->LogicalDevice.Handle;
+    VulkanTexture  output = {};
 
     // Create a VkImage
-    if (Description.Tiling == TextureTiling::Linear)
+    if (description.Tiling == TextureTiling::Linear)
     {
-        KASSERT(Description.Type == TextureType::Type2D);
+        KASSERT(description.Type == TextureType::Type2D);
         // TODO: Depth format restrictions check
     }
 
-    VkImageCreateInfo ImageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    ImageCreateInfo.imageType = ToVulkanImageType(Description.Type);
-    ImageCreateInfo.format = ToVulkanFormat(Description.Format);
-    ImageCreateInfo.extent.width = (uint32)Description.Dimensions.x;
-    ImageCreateInfo.extent.height = (uint32)Description.Dimensions.y;
-    ImageCreateInfo.extent.depth = (uint32)Description.Dimensions.z;
-    ImageCreateInfo.mipLevels = Description.MipLevels;
-    ImageCreateInfo.arrayLayers = 1;
-    ImageCreateInfo.samples = ToVulkanSampleCountFlagBits(Description.SampleCount);
-    ImageCreateInfo.tiling = ToVulkanImageTiling(Description.Tiling);
-    ImageCreateInfo.usage = ToVulkanImageUsageFlags(Description.Usage);
-    ImageCreateInfo.sharingMode = ToVulkanSharingMode(Description.SharingMode);
-    ImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkImageCreateInfo create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    create_info.imageType = ToVulkanImageType(description.Type);
+    create_info.format = ToVulkanFormat(description.Format);
+    create_info.extent.width = (uint32)description.Dimensions.x;
+    create_info.extent.height = (uint32)description.Dimensions.y;
+    create_info.extent.depth = (uint32)description.Dimensions.z;
+    create_info.mipLevels = description.MipLevels;
+    create_info.arrayLayers = 1;
+    create_info.samples = ToVulkanSampleCountFlagBits(description.SampleCount);
+    create_info.tiling = ToVulkanImageTiling(description.Tiling);
+    create_info.usage = ToVulkanImageUsageFlags(description.Usage);
+    create_info.sharingMode = ToVulkanSharingMode(description.SharingMode);
+    create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     // If we have a depth format, ensure it is supported by the physical device
-    if (Description.Format >= Format::D16_UNORM && ImageCreateInfo.format != Context->PhysicalDevice.DepthBufferFormat)
+    if (description.Format >= Format::D16_UNORM && create_info.format != context->PhysicalDevice.DepthBufferFormat)
     {
-        VkImageFormatProperties FormatProperties;
-        VkResult                Result = vkGetPhysicalDeviceImageFormatProperties(
-            Context->PhysicalDevice.Handle, ImageCreateInfo.format, ImageCreateInfo.imageType, ImageCreateInfo.tiling, ImageCreateInfo.usage, ImageCreateInfo.flags, &FormatProperties
+        VkImageFormatProperties format_properties;
+        VkResult                result = vkGetPhysicalDeviceImageFormatProperties(
+            context->PhysicalDevice.Handle, create_info.format, create_info.imageType, create_info.tiling, create_info.usage, create_info.flags, &format_properties
         );
-        if (Result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+        if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
         {
-            KWARN("Supplied image format: %s is not supported by the GPU; Falling back to default depth buffer format.", Format::String(Description.Format));
-            ImageCreateInfo.format = Context->PhysicalDevice.DepthBufferFormat;
+            KWARN("Supplied image format: %s is not supported by the GPU; Falling back to default depth buffer format.", Format::String(description.Format));
+            create_info.format = context->PhysicalDevice.DepthBufferFormat;
         }
     }
 
     // Ensure the image format is supported
-    VkResult Result = vkCreateImage(Device, &ImageCreateInfo, Context->AllocationCallbacks, &Output.Image);
+    VkResult Result = vkCreateImage(device, &create_info, context->AllocationCallbacks, &output.Image);
     if (Result != VK_SUCCESS)
     {
         return Handle<Texture>::Invalid();
     }
 
-    Context->SetObjectName((uint64)Output.Image, VK_OBJECT_TYPE_IMAGE, Description.DebugName);
+    context->SetObjectName((uint64)output.Image, VK_OBJECT_TYPE_IMAGE, description.DebugName);
 
     VkMemoryRequirements MemoryRequirements;
-    vkGetImageMemoryRequirements(Device, Output.Image, &MemoryRequirements);
-    if (!VulkanAllocateMemory(Context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &Output.Memory))
+    vkGetImageMemoryRequirements(device, output.Image, &MemoryRequirements);
+    if (!VulkanAllocateMemory(context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &output.Memory))
     {
         return Handle<Texture>::Invalid();
     }
 
-    Context->SetObjectName((uint64)Output.Memory, VK_OBJECT_TYPE_DEVICE_MEMORY, Description.DebugName);
+    context->SetObjectName((uint64)output.Memory, VK_OBJECT_TYPE_DEVICE_MEMORY, description.DebugName);
 
-    KRAFT_VK_CHECK(vkBindImageMemory(Device, Output.Image, Output.Memory, 0));
+    KRAFT_VK_CHECK(vkBindImageMemory(device, output.Image, output.Memory, 0));
 
     // Now create the image view
     VkImageViewCreateInfo ImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    ImageViewCreateInfo.image = Output.Image;
-    ImageViewCreateInfo.viewType = Description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (Description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
-    ImageViewCreateInfo.format = ImageCreateInfo.format;
-    ImageViewCreateInfo.subresourceRange.aspectMask = GetImageAspectMask(Description.Format);
+    ImageViewCreateInfo.image = output.Image;
+    ImageViewCreateInfo.viewType = description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
+    ImageViewCreateInfo.format = create_info.format;
+    ImageViewCreateInfo.subresourceRange.aspectMask = GetImageAspectMask(description.Format);
     ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
     ImageViewCreateInfo.subresourceRange.layerCount = 1;
     ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
     ImageViewCreateInfo.subresourceRange.levelCount = 1;
+    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_R;
+    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_R;
+    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
 
-    KRAFT_VK_CHECK(vkCreateImageView(Device, &ImageViewCreateInfo, Context->AllocationCallbacks, &Output.View));
-    Context->SetObjectName((uint64)Output.View, VK_OBJECT_TYPE_IMAGE_VIEW, Description.DebugName);
+    KRAFT_VK_CHECK(vkCreateImageView(device, &ImageViewCreateInfo, context->AllocationCallbacks, &output.View));
+    context->SetObjectName((u64)output.View, VK_OBJECT_TYPE_IMAGE_VIEW, description.DebugName);
 
     Texture Metadata = {
-        .Width = Description.Dimensions.x,
-        .Height = Description.Dimensions.y,
-        .Channels = (uint8)Description.Dimensions.w,
-        .TextureFormat = Description.Format,
-        .SampleCount = Description.SampleCount,
+        .Width = description.Dimensions.x,
+        .Height = description.Dimensions.y,
+        .Channels = (u8)description.Dimensions.w,
+        .TextureFormat = description.Format,
+        .SampleCount = description.SampleCount,
     };
 
-    StringCopy(Metadata.DebugName, Description.DebugName);
+    StringCopy(Metadata.DebugName, description.DebugName);
 
-    return InternalState->TexturePool.Insert(Metadata, Output);
+    return InternalState->TexturePool.Insert(Metadata, output);
 }
 
 static Handle<TextureSampler> CreateTextureSampler(const TextureSamplerDescription& Description)
@@ -428,6 +432,10 @@ static Handle<Buffer> CreateBuffer(const BufferDescription& Description)
 
 static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& description)
 {
+#if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
+    return Handle<RenderPass>::Invalid();
+#endif
+
     VulkanContext* context = VulkanRendererBackend::Context();
     VkDevice       device = context->LogicalDevice.Handle;
 

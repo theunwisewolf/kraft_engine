@@ -40,13 +40,13 @@ struct EditorState
     ImFont* FontRegular;
     ImFont* FontBold;
 
-    kraft::EntityHandleT                             SelectedEntity = kraft::EntityHandleInvalid;
-    kraft::World*                                    CurrentWorld;
-    kraft::r::RenderSurfaceT                  RenderSurface;
-    kraft::r::RenderSurfaceT                  ObjectPickingRenderSurface;
-    EditorCameraSettings                             ViewportCameraSettings = {};
+    kraft::EntityHandleT               SelectedEntity = kraft::EntityHandleInvalid;
+    kraft::World*                      CurrentWorld;
+    kraft::r::RenderSurface            RenderSurface;
+    kraft::r::RenderSurface            ObjectPickingRenderSurface;
+    EditorCameraSettings               ViewportCameraSettings = {};
     kraft::r::Handle<kraft::r::Buffer> picking_buffer = kraft::r::Handle<kraft::r::Buffer>::Invalid();
-    void*                                            picking_buffer_memory = 0;
+    void*                              picking_buffer_memory = 0;
 
     EditorState();
     kraft::Entity GetSelectedEntity();

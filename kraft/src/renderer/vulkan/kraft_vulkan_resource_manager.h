@@ -36,4 +36,4 @@ struct VulkanResourceManagerApi
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena);
 void                    DestroyVulkanResourceManager(struct ResourceManager* ResourceManager);
 
-} // namespace kraft::renderer
+} // namespace kraft::r

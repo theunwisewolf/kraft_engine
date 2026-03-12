@@ -9,6 +9,10 @@
 #include <renderer/kraft_renderer_types.h>
 #include <shaders/includes/kraft_shader_includes.h>
 
+#ifndef KRAFT_ENABLE_VK_DYNAMIC_RENDERING
+#define KRAFT_ENABLE_VK_DYNAMIC_RENDERING 1
+#endif
+
 #define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
     do                                                                                                                                                                                                 \
     {                                                                                                                                                                                                  \
@@ -34,12 +38,12 @@ class VulkanResourceManager;
 
 struct VulkanDescriptorState
 {
-    uint8 Generations[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    u8 Generations[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
 };
 
 struct VulkanMaterialData
 {
-    uint64                InstanceUBOOffset;
+    u64                   InstanceUBOOffset;
     VkDescriptorSet       LocalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     VulkanDescriptorState DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
 };
@@ -50,8 +54,8 @@ struct VulkanMaterialData
 
 struct VulkanTexture
 {
-    uint32         Width;
-    uint32         Height;
+    u32            Width;
+    u32            Height;
     VkImage        Image;
     VkImageView    View;
     VkDeviceMemory Memory;
@@ -67,13 +71,13 @@ struct VulkanTextureSampler
 
 struct VulkanGeometryData
 {
-    uint32 ID;
-    uint32 IndexSize;
-    uint32 IndexCount;
-    uint32 IndexBufferOffset;
-    uint32 VertexSize;
-    uint32 VertexCount;
-    uint32 VertexBufferOffset;
+    u32 ID;
+    u32 IndexSize;
+    u32 IndexCount;
+    u32 IndexBufferOffset;
+    u32 VertexSize;
+    u32 VertexCount;
+    u32 VertexBufferOffset;
 };
 
 struct VulkanBuffer
@@ -83,7 +87,7 @@ struct VulkanBuffer
     VkDeviceMemory        Memory;
     VkBufferUsageFlags    UsageFlags;
     bool                  IsLocked;
-    int32                 MemoryIndex;
+    i32                   MemoryIndex;
     VkMemoryPropertyFlags MemoryPropertyFlags;
 };
 
@@ -100,11 +104,11 @@ struct VulkanPipeline
 struct VulkanPipelineDescription
 {
     VkVertexInputAttributeDescription* Attributes;
-    uint32                             AttributeCount;
+    u32                                AttributeCount;
     VkDescriptorSetLayout*             DescriptorSetLayouts;
-    uint32                             DescriptorSetLayoutCount;
+    u32                                DescriptorSetLayoutCount;
     VkPipelineShaderStageCreateInfo*   ShaderStages;
-    uint32                             ShaderStageCount;
+    u32                                ShaderStageCount;
     VkViewport                         Viewport;
     VkRect2D                           Scissor;
     bool                               IsWireframe;
@@ -151,9 +155,9 @@ enum VulkanRenderPassState
 struct VulkanFramebuffer
 {
     VkFramebuffer Handle;
-    uint32        Width;
-    uint32        Height;
-    uint32        AttachmentCount;
+    u32           Width;
+    u32           Height;
+    u32           AttachmentCount;
     VkImageView*  Attachments;
 };
 
@@ -162,24 +166,24 @@ struct VulkanRenderPass
     VkRenderPass          Handle;
     Vec4f                 Rect;
     Vec4f                 Color;
-    float32               Depth;
-    uint32                Stencil;
+    f32                   Depth;
+    u32                   Stencil;
     VulkanRenderPassState State;
     VulkanFramebuffer     Framebuffer;
 };
 
 struct VulkanQueueFamilyInfo
 {
-    int32 GraphicsQueueIndex;
-    int32 ComputeQueueIndex;
-    int32 TransferQueueIndex;
-    int32 PresentQueueIndex;
+    i32 GraphicsQueueIndex;
+    i32 ComputeQueueIndex;
+    i32 TransferQueueIndex;
+    i32 PresentQueueIndex;
 };
 
 struct VulkanSwapchainSupportInfo
 {
-    uint32                   FormatCount;
-    uint32                   PresentModeCount;
+    u32                      FormatCount;
+    u32                      PresentModeCount;
     VkSurfaceCapabilitiesKHR SurfaceCapabilities;
     VkSurfaceFormatKHR*      Formats;
     VkPresentModeKHR*        PresentModes;
@@ -213,9 +217,9 @@ struct VulkanSwapchain
     VkSurfaceFormatKHR ImageFormat;
     VkImage            Images[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     VkImageView        ImageViews[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-    uint8              CurrentFrame;
-    uint8              MaxFramesInFlight;
-    uint32             ImageCount;
+    u8                 CurrentFrame;
+    u8                 MaxFramesInFlight;
+    u32                ImageCount;
     Handle<Texture>    DepthAttachment;
     VulkanFramebuffer* Framebuffers;
 };
@@ -228,14 +232,17 @@ struct VulkanContext
     VulkanPhysicalDevice   PhysicalDevice;
     VulkanLogicalDevice    LogicalDevice;
     VkSurfaceKHR           Surface;
-    uint32                 FramebufferWidth;
-    uint32                 FramebufferHeight;
+    u32                    FramebufferWidth;
+    u32                    FramebufferHeight;
     VulkanSwapchain        Swapchain;
-    VulkanRenderPass       MainRenderPass;
-    Handle<CommandPool>    GraphicsCommandPool;
-    Handle<CommandBuffer>  GraphicsCommandBuffers[3];
-    Handle<CommandBuffer>  ActiveCommandBuffer;
-    VulkanFence*           WaitFences;
+#if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
+#else
+    VulkanRenderPass MainRenderPass;
+#endif
+    Handle<CommandPool>   GraphicsCommandPool;
+    Handle<CommandBuffer> GraphicsCommandBuffers[3];
+    Handle<CommandBuffer> ActiveCommandBuffer;
+    VulkanFence*          WaitFences;
     // VkCommandPool          GraphicsCommandPool;
     // If everything was perfect, this mapping below would not be needed
     // but, what I saw happening was on an M1 Mac, vkAcquireNextImageKHR
@@ -247,7 +254,7 @@ struct VulkanContext
     VulkanFence** InFlightImageToFenceMap;
     VkSemaphore*  ImageAvailableSemaphores;
     VkSemaphore*  RenderCompleteSemaphores;
-    uint32        CurrentSwapchainImageIndex;
+    u32           CurrentSwapchainImageIndex;
 
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
@@ -258,8 +265,8 @@ struct VulkanContext
 
     Handle<Buffer>     VertexBuffer;
     Handle<Buffer>     IndexBuffer;
-    uint32             CurrentVertexBufferOffset;
-    uint32             CurrentIndexBufferOffset;
+    u32                CurrentVertexBufferOffset;
+    u32                CurrentIndexBufferOffset;
     VulkanGeometryData Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
     VulkanMaterialData Materials[KRAFT_VULKAN_MAX_MATERIALS];
 
@@ -267,7 +274,7 @@ struct VulkanContext
     VkDescriptorPool       GlobalDescriptorPool;
     VkDescriptorSetLayout  DescriptorSetLayouts[16];
     VkDescriptorSet        GlobalTexturesDescriptorSet;
-    uint8                  DescriptorSetLayoutsCount = 0;
+    u8                     DescriptorSetLayoutsCount = 0;
     Handle<Buffer>         GlobalUniformBuffer = Handle<Buffer>::Invalid();
     void*                  GlobalUniformBufferMemory = 0;
     Handle<TextureSampler> DefaultTextureSampler;
@@ -281,16 +288,31 @@ struct VulkanPhysicalDeviceRequirements
     bool         Compute;
     bool         DiscreteGPU;
     bool         DepthBuffer;
-    uint16       DeviceExtensionsCount;
+    u16          DeviceExtensionsCount;
     const char** DeviceExtensions;
 };
 
 struct VulkanShader
 {
-    VkPipeline            Pipeline;
     VkPipelineLayout      PipelineLayout;
     VkDescriptorSetLayout descriptor_set_layouts[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
     VkDescriptorSet       descriptor_sets[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
+
+    u32         PipelineCount;
+    VkPipeline* Pipelines; // One per variant
 };
 
-} // namespace kraft::renderer
+struct VulkanImageBarrierDescription
+{
+    VkPipelineStageFlags2 src_stage_mask;
+    VkPipelineStageFlags2 dst_stage_mask;
+    VkAccessFlags2        src_access_mask;
+    VkAccessFlags2        dst_access_mask;
+    VkImageLayout         old_layout;
+    VkImageLayout         new_layout;
+    VkImageAspectFlags    aspect_mask;
+    u32                   base_mip_level;
+    u32                   level_count;
+};
+
+} // namespace kraft::r

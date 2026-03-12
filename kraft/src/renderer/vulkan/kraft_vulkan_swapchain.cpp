@@ -17,10 +17,8 @@ namespace kraft::r {
 
 #define KRAFT_CLAMP(value, min, max) (value < min) ? value = min : (value > max ? max : value);
 
-void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, bool VSync, VulkanSwapchain* out)
+void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool enable_vsync, VulkanSwapchain* out)
 {
-    // context->Swapchain = {};
-
     if (out)
         context->Swapchain = *out;
 
@@ -37,18 +35,18 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     // that there is no preferred format & we can choose any format we want
     if (info.FormatCount == 1 && info.Formats[0].format == VK_FORMAT_UNDEFINED)
     {
-        VkSurfaceFormatKHR format = { VK_FORMAT_B8G8R8A8_UNORM, info.Formats[0].colorSpace };
+        VkSurfaceFormatKHR format = { VK_FORMAT_R8G8B8A8_UNORM, info.Formats[0].colorSpace };
         context->Swapchain.ImageFormat = format;
     }
     else
     {
         bool found = false;
-        for (uint32 i = 0; i < info.FormatCount; ++i)
+        for (u32 i = 0; i < info.FormatCount; ++i)
         {
-            VkSurfaceFormatKHR format = info.Formats[i];
-            if (format.format == VK_FORMAT_B8G8R8A8_UNORM && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            VkSurfaceFormatKHR surface_format = info.Formats[i];
+            if ((surface_format.format == VK_FORMAT_R8G8B8A8_UNORM /*|| surface_format.format == VK_FORMAT_B8G8R8A8_UNORM*/) && surface_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
-                context->Swapchain.ImageFormat = format;
+                context->Swapchain.ImageFormat = surface_format;
                 found = true;
                 break;
             }
@@ -63,14 +61,14 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     // Present mode
     // Choose FIFO as default
-    VkPresentModeKHR PresentMode = VK_PRESENT_MODE_FIFO_KHR;
-    VkPresentModeKHR PreferredMode = VSync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_MAILBOX_KHR;
+    VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+    VkPresentModeKHR preferred_present_mode = enable_vsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_MAILBOX_KHR;
     for (uint32 i = 0; i < info.PresentModeCount; ++i)
     {
         // If Mailbox presentation mode is supported, we want that
-        if (info.PresentModes[i] == PreferredMode)
+        if (info.PresentModes[i] == preferred_present_mode)
         {
-            PresentMode = PreferredMode;
+            present_mode = preferred_present_mode;
             break;
         }
     }
@@ -82,10 +80,10 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     }
 
     // Ensure our extents are allowed by the GPU
-    VkExtent2D minExtent = info.SurfaceCapabilities.minImageExtent;
-    VkExtent2D maxExtent = info.SurfaceCapabilities.maxImageExtent;
-    extent.width = KRAFT_CLAMP(extent.width, minExtent.width, maxExtent.width);
-    extent.height = KRAFT_CLAMP(extent.height, minExtent.height, maxExtent.height);
+    VkExtent2D min_extent = info.SurfaceCapabilities.minImageExtent;
+    VkExtent2D max_extent = info.SurfaceCapabilities.maxImageExtent;
+    extent.width = KRAFT_CLAMP(extent.width, min_extent.width, max_extent.width);
+    extent.height = KRAFT_CLAMP(extent.height, min_extent.height, max_extent.height);
 
     // Write back the updated framebuffer width and height
     context->FramebufferWidth = extent.width;
@@ -99,35 +97,35 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
     context->Swapchain.MaxFramesInFlight = context->Swapchain.ImageCount - 1;
 
-    VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
-    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainCreateInfo.surface = context->Surface;
-    swapchainCreateInfo.imageExtent = extent;
-    swapchainCreateInfo.imageFormat = context->Swapchain.ImageFormat.format;
-    swapchainCreateInfo.imageColorSpace = context->Swapchain.ImageFormat.colorSpace;
-    swapchainCreateInfo.imageArrayLayers = 1;
-    swapchainCreateInfo.minImageCount = context->Swapchain.ImageCount;
-    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    swapchainCreateInfo.preTransform = info.SurfaceCapabilities.currentTransform;
-    swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainCreateInfo.presentMode = PresentMode;
-    swapchainCreateInfo.clipped = VK_TRUE;
-    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+    VkSwapchainCreateInfoKHR swapchain_create_info = {};
+    swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_create_info.surface = context->Surface;
+    swapchain_create_info.imageExtent = extent;
+    swapchain_create_info.imageFormat = context->Swapchain.ImageFormat.format;
+    swapchain_create_info.imageColorSpace = context->Swapchain.ImageFormat.colorSpace;
+    swapchain_create_info.imageArrayLayers = 1;
+    swapchain_create_info.minImageCount = context->Swapchain.ImageCount;
+    swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_create_info.preTransform = info.SurfaceCapabilities.currentTransform;
+    swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_create_info.presentMode = present_mode;
+    swapchain_create_info.clipped = VK_TRUE;
+    swapchain_create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    const uint32 queueFamilyIndices[2] = { (uint32)context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, (uint32)context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
+    const u32 queue_family_indices[2] = { (u32)context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, (u32)context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
 
     if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex != context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
     {
-        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        swapchainCreateInfo.queueFamilyIndexCount = 2;
-        swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_create_info.queueFamilyIndexCount = 2;
+        swapchain_create_info.pQueueFamilyIndices = queue_family_indices;
     }
     else
     {
-        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    KRAFT_VK_CHECK(vkCreateSwapchainKHR(context->LogicalDevice.Handle, &swapchainCreateInfo, context->AllocationCallbacks, &context->Swapchain.Resource));
+    KRAFT_VK_CHECK(vkCreateSwapchainKHR(context->LogicalDevice.Handle, &swapchain_create_info, context->AllocationCallbacks, &context->Swapchain.Resource));
 
     context->Swapchain.ImageCount = 0;
     KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, 0));
@@ -138,7 +136,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
     KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, context->Swapchain.Images));
 
     // Create Image views
-    for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
+    for (u32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
         VkImageViewCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -161,13 +159,9 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
         switch (context->PhysicalDevice.DepthBufferFormat)
         {
             case VK_FORMAT_D16_UNORM:          DepthBufferFormat = Format::D16_UNORM; break;
-
             case VK_FORMAT_D32_SFLOAT:         DepthBufferFormat = Format::D32_SFLOAT; break;
-
             case VK_FORMAT_D16_UNORM_S8_UINT:  DepthBufferFormat = Format::D16_UNORM_S8_UINT; break;
-
             case VK_FORMAT_D24_UNORM_S8_UINT:  DepthBufferFormat = Format::D24_UNORM_S8_UINT; break;
-
             case VK_FORMAT_D32_SFLOAT_S8_UINT: DepthBufferFormat = Format::D32_SFLOAT_S8_UINT; break;
 
             default:                           KFATAL("Unsupported depth buffer format %d", context->PhysicalDevice.DepthBufferFormat);
@@ -175,7 +169,7 @@ void VulkanCreateSwapchain(VulkanContext* context, uint32 width, uint32 height, 
 
         context->Swapchain.DepthAttachment = ResourceManager->CreateTexture({
             .DebugName = "Swapchain-Depth",
-            .Dimensions = { (float32)extent.width, (float32)extent.height, 1, 4 },
+            .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
             .Format = DepthBufferFormat,
             .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
         });
@@ -204,9 +198,9 @@ void VulkanRecreateSwapchain(VulkanContext* context)
     VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight, context->Options->VSync);
 }
 
-bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSemaphore imageAvailableSemaphore, VkFence fence, uint32* out)
+bool VulkanAcquireNextImageIndex(VulkanContext* context, u64 timeout_nanoseconds, VkSemaphore image_available_semaphore, VkFence fence, u32* out)
 {
-    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, timeoutNS, imageAvailableSemaphore, fence, out);
+    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, timeout_nanoseconds, image_available_semaphore, fence, out);
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);
@@ -221,31 +215,4 @@ bool VulkanAcquireNextImageIndex(VulkanContext* context, uint64 timeoutNS, VkSem
     return true;
 }
 
-void VulkanPresentSwapchain(VulkanContext* context, VkQueue presentQueue, VkSemaphore renderCompleteSemaphore, uint32 presentImageIndex)
-{
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &context->Swapchain.Resource;
-    presentInfo.pImageIndices = &presentImageIndex;
-    presentInfo.pResults = 0;
-
-    VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
-    // Common case
-    if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
-    {
-        context->Swapchain.CurrentFrame = (context->Swapchain.CurrentFrame + 1) % context->Swapchain.MaxFramesInFlight;
-    }
-    else if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        VulkanRecreateSwapchain(context);
-    }
-    else
-    {
-        KERROR("[VulkanPresentSwapchain]: Presentation failed!");
-    }
-}
-
-} // namespace kraft::renderer
+} // namespace kraft::r

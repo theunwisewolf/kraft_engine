@@ -304,196 +304,168 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
         }
     }
 
-    // RenderState
-    binary_output.WriteString(shader->render_state.name);
-    binary_output.Writei32(shader->render_state.cull_mode);
-    binary_output.Writei32(shader->render_state.z_test_op);
-    binary_output.Writebool(shader->render_state.z_write_enable);
-    binary_output.Writebool(shader->render_state.blend_enable);
-    binary_output.WriteRaw(&shader->render_state.blend_mode, sizeof(r::BlendState));
-    binary_output.Writei32(shader->render_state.polygon_mode);
-    binary_output.Writef32(shader->render_state.line_width);
-
-    // RenderPass
-    // binary_output.Write(shader->render_pass_def);
-
-    // We don't have to write the vertex layouts or render states
-    // They are written as part of the renderpass definition
-    binary_output.WriteString(shader->render_pass_def.name);
-
-    // Write the vertex layout & render state offsets
-    binary_output.Writei64((i64)(shader->render_pass_def.vertex_layout - &shader->vertex_layouts[0]));
-    binary_output.Writei64((i64)(shader->local_resource_count > 0 ? shader->render_pass_def.resources - &shader->local_resources[0] : -1));
-    binary_output.Writei64((i64)(shader->render_pass_def.contant_buffers - &shader->constant_buffers[0]));
-    binary_output.Writei64((i64)(shader->render_pass_def.render_state - &shader->render_state));
-
-    // Manually write the shader code fragments to the buffer
-    binary_output.Writeu32(shader->render_pass_def.shader_stage_count);
-    for (u32 j = 0; j < shader->render_pass_def.shader_stage_count; j++)
+    // RenderStates
+    binary_output.Writeu32(shader->render_state_count);
+    for (u32 i = 0; i < shader->render_state_count; i++)
     {
-        const shaderfx::RenderPassDefinition::ShaderDefinition& shader_def = shader->render_pass_def.shader_stages[j];
-        if (compiler_opts.verbose)
+        binary_output.WriteString(shader->render_states[i].name);
+        binary_output.Writei32(shader->render_states[i].cull_mode);
+        binary_output.Writei32(shader->render_states[i].z_test_op);
+        binary_output.Writebool(shader->render_states[i].z_write_enable);
+        binary_output.Writebool(shader->render_states[i].blend_enable);
+        binary_output.WriteRaw(&shader->render_states[i].blend_mode, sizeof(r::BlendState));
+        binary_output.Writei32(shader->render_states[i].polygon_mode);
+        binary_output.Writef32(shader->render_states[i].line_width);
+    }
+
+    // Variants
+    binary_output.Writeu32(shader->variant_count);
+    for (u32 v = 0; v < shader->variant_count; v++)
+    {
+        const shaderfx::VariantDefinition& variant = shader->variants[v];
+        binary_output.WriteString(variant.name);
+
+        // Write offsets into shared arrays
+        binary_output.Writei64((i64)(variant.vertex_layout - &shader->vertex_layouts[0]));
+        binary_output.Writei64((i64)(shader->local_resource_count > 0 && variant.resources ? variant.resources - &shader->local_resources[0] : -1));
+        binary_output.Writei64((i64)(variant.contant_buffers - &shader->constant_buffers[0]));
+        binary_output.Writei64((i64)(variant.render_state - &shader->render_states[0]));
+
+        // Output flags
+        binary_output.Writebool(variant.has_color_output);
+        binary_output.Writebool(variant.has_depth_output);
+
+        // Compile and write shader stages for this variant
+        binary_output.Writeu32(variant.shader_stage_count);
+        for (u32 j = 0; j < variant.shader_stage_count; j++)
         {
-            KDEBUG("Compiling shaderstage %d for '%S'", shader_def.stage, shader->resource_path);
-        }
-
-        shaderc_compile_opts = shaderc_compile_options_initialize();
-        ShaderIncludeUserData user_data = {
-            .arena = arena,
-            .shader = shader,
-        };
-        shaderc_compile_options_set_include_callbacks(shaderc_compile_opts, ShaderIncludeResolverFunction, ShaderIncludeResultReleaseFunction, &user_data);
-
-        shaderc_shader_kind shader_kind;
-        switch (shader_def.stage)
-        {
-            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
+            const shaderfx::VariantDefinition::ShaderDefinition& shader_def = variant.shader_stages[j];
+            if (compiler_opts.verbose)
             {
-                shader_kind = shaderc_vertex_shader;
-                shaderc_compile_options_add_macro_definition(
-                    shaderc_compile_opts, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                );
+                KDEBUG("Compiling variant '%S' shaderstage %d for '%S'", variant.name, shader_def.stage, shader->resource_path);
             }
-            break;
 
-            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
+            shaderc_compile_opts = shaderc_compile_options_initialize();
+            ShaderIncludeUserData user_data = {
+                .arena = arena,
+                .shader = shader,
+            };
+            shaderc_compile_options_set_include_callbacks(shaderc_compile_opts, ShaderIncludeResolverFunction, ShaderIncludeResultReleaseFunction, &user_data);
+
+            shaderc_shader_kind shader_kind;
+            switch (shader_def.stage)
             {
-                shader_kind = shaderc_geometry_shader;
-                shaderc_compile_options_add_macro_definition(
-                    shaderc_compile_opts, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                );
-            }
-            break;
-
-            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
-            {
-                shader_kind = shaderc_fragment_shader;
-                shaderc_compile_options_add_macro_definition(
-                    shaderc_compile_opts, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                );
-            }
-            break;
-
-            case r::ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
-            {
-                shader_kind = shaderc_compute_shader;
-                shaderc_compile_options_add_macro_definition(
-                    shaderc_compile_opts, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
-                );
-            }
-            break;
-        }
-
-        result = shaderc_compile_into_spv(compiler, (char*)shader_def.code_fragment.code.ptr, shader_def.code_fragment.code.count, shader_kind, "shader", "main", shaderc_compile_opts);
-        if (shaderc_result_get_compilation_status(result) == shaderc_compilation_status_success)
-        {
-            String8 spirv_binary = String8FromPtrAndLength((u8*)shaderc_result_get_bytes(result), shaderc_result_get_length(result));
-            binary_output.Writei32(shader_def.stage);
-            binary_output.WriteString(shader_def.code_fragment.name);
-            binary_output.WriteString(spirv_binary);
-
-            SpvReflectShaderModule module;
-            SpvReflectResult       spv_reflect_result = spvReflectCreateShaderModule((size_t)shaderc_result_get_length(result), (const void*)shaderc_result_get_bytes(result), &module);
-            KASSERT(spv_reflect_result == SPV_REFLECT_RESULT_SUCCESS);
-
-            // Enumerate and extract shader's input variables
-            uint32_t var_count = 0;
-            SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, NULL));
-
-            SpvReflectInterfaceVariable** input_vars = ArenaPushArray(arena, SpvReflectInterfaceVariable*, var_count);
-            SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, input_vars));
-
-            uint32 descriptor_set_count = 0;
-            SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, NULL));
-
-            SpvReflectDescriptorSet** descriptor_sets = ArenaPushArray(arena, SpvReflectDescriptorSet*, descriptor_set_count);
-            SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, descriptor_sets));
-
-            // shader->Resources.Reserve(descriptor_set_count);
-            for (uint32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
-            {
-                SpvReflectDescriptorSet* descriptor_set = descriptor_sets[set_idx];
-                printf("Set = %d Bindings = %d\n", descriptor_set->set, descriptor_set->binding_count);
-
-                for (uint32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
+                case r::ShaderStageFlags::SHADER_STAGE_FLAGS_VERTEX:
                 {
-                    SpvReflectDescriptorBinding* binding = descriptor_set->bindings[binding_idx];
-                    printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name, binding->descriptor_type);
-
-                    // shaderfx::ShaderResource Resource = {
-                    //     .Name = String(binding->name),
-                    //     .Set = descriptor_set->set,
-
-                    // };
+                    shader_kind = shaderc_vertex_shader;
+                    shaderc_compile_options_add_macro_definition(
+                        shaderc_compile_opts, KRAFT_VERTEX_DEFINE, sizeof(KRAFT_VERTEX_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
                 }
+                break;
+
+                case r::ShaderStageFlags::SHADER_STAGE_FLAGS_GEOMETRY:
+                {
+                    shader_kind = shaderc_geometry_shader;
+                    shaderc_compile_options_add_macro_definition(
+                        shaderc_compile_opts, KRAFT_GEOMETRY_DEFINE, sizeof(KRAFT_GEOMETRY_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
+                }
+                break;
+
+                case r::ShaderStageFlags::SHADER_STAGE_FLAGS_FRAGMENT:
+                {
+                    shader_kind = shaderc_fragment_shader;
+                    shaderc_compile_options_add_macro_definition(
+                        shaderc_compile_opts, KRAFT_FRAGMENT_DEFINE, sizeof(KRAFT_FRAGMENT_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
+                }
+                break;
+
+                case r::ShaderStageFlags::SHADER_STAGE_FLAGS_COMPUTE:
+                {
+                    shader_kind = shaderc_compute_shader;
+                    shaderc_compile_options_add_macro_definition(
+                        shaderc_compile_opts, KRAFT_COMPUTE_DEFINE, sizeof(KRAFT_COMPUTE_DEFINE) - 1, KRAFT_SHADERFX_ENABLE_VAL, sizeof(KRAFT_SHADERFX_ENABLE_VAL) - 1
+                    );
+                }
+                break;
             }
 
-            // Output variables, descriptor bindings, descriptor sets, and push constants
-            // can be enumerated and extracted using a similar mechanism.
-
-            // Destroy the reflection data when no longer required.
-            spvReflectDestroyShaderModule(&module);
-
-            // spvc_context                   context = NULL;
-            // spvc_parsed_ir                 ir = NULL;
-            // spvc_resources                 resources = NULL;
-            // spvc_compiler                  compiler_glsl = NULL;
-            // const spvc_reflected_resource* list = NULL;
-            // size_t                         count;
-
-            // SPVC_CHECKED_CALL(spvc_context_create(&context));
-            // spvc_context_set_error_callback(context, SpirvErrorCallback, (void*)&Shader);
-            // SPVC_CHECKED_CALL(spvc_context_parse_spirv(context, (SpvId*)shaderc_result_get_bytes(Result), shaderc_result_get_length(Result) / sizeof(SpvId), &ir));
-
-            // spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, ir, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, &compiler_glsl);
-            // spvc_compiler_create_shader_resources(compiler_glsl, &resources);
-            // spvc_resources_get_resource_list_for_type(resources, SPVC_RESOURCE_TYPE_UNIFORM_BUFFER, &list, &count);
-
-            // for (i = 0; i < count; i++)
-            // {
-            //     printf("ID: %u, BaseTypeID: %u, TypeID: %u, Name: %s\n", list[i].id, list[i].base_type_id, list[i].type_id, list[i].name);
-            //     printf(
-            //         "  Set: %u, Binding: %u\n",
-            //         spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationDescriptorSet),
-            //         spvc_compiler_get_decoration(compiler_glsl, list[i].id, SpvDecorationBinding)
-            //     );
-            // }
-
-            // Also write spirv file
-            if (compiler_opts.write_spirv_for_shaders)
+            result = shaderc_compile_into_spv(compiler, (char*)shader_def.code_fragment.code.ptr, shader_def.code_fragment.code.count, shader_kind, "shader", "main", shaderc_compile_opts);
+            if (shaderc_result_get_compilation_status(result) == shaderc_compilation_status_success)
             {
-                fs::FileHandle file_handle;
-                String8        base_dir = fs::Dirname(arena, output_path);
-                String8        extension = (shader_kind == shaderc_vertex_shader ? String8Raw(".vert.spv") : String8Raw(".frag.spv"));
+                String8 spirv_binary = String8FromPtrAndLength((u8*)shaderc_result_get_bytes(result), shaderc_result_get_length(result));
+                binary_output.Writei32(shader_def.stage);
+                binary_output.WriteString(shader_def.code_fragment.name);
+                binary_output.WriteString(spirv_binary);
 
-                String8 spirv_output_path = fs::PathJoin(arena, base_dir, shader->name);
-                spirv_output_path = fs::PathJoin(arena, spirv_output_path, extension);
+                SpvReflectShaderModule module;
+                SpvReflectResult       spv_reflect_result = spvReflectCreateShaderModule((size_t)shaderc_result_get_length(result), (const void*)shaderc_result_get_bytes(result), &module);
+                KASSERT(spv_reflect_result == SPV_REFLECT_RESULT_SUCCESS);
 
-                // BaseDir + "/" + shader.Name + (shader_kind == shaderc_vertex_shader ? ".vert" : ".frag") + ".spv";
-                if (fs::OpenFile(spirv_output_path, fs::FILE_OPEN_MODE_WRITE, true, &file_handle))
+                // Enumerate and extract shader's input variables
+                uint32_t var_count = 0;
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, NULL));
+
+                SpvReflectInterfaceVariable** input_vars = ArenaPushArray(arena, SpvReflectInterfaceVariable*, var_count);
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, input_vars));
+
+                uint32 descriptor_set_count = 0;
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, NULL));
+
+                SpvReflectDescriptorSet** descriptor_sets = ArenaPushArray(arena, SpvReflectDescriptorSet*, descriptor_set_count);
+                SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, descriptor_sets));
+
+                for (uint32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
                 {
-                    fs::WriteFile(&file_handle, spirv_binary.ptr, spirv_binary.count);
-                    fs::CloseFile(&file_handle);
+                    SpvReflectDescriptorSet* descriptor_set = descriptor_sets[set_idx];
+                    printf("Set = %d Bindings = %d\n", descriptor_set->set, descriptor_set->binding_count);
 
-                    KDEBUG("Wrote %S", spirv_output_path);
+                    for (uint32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
+                    {
+                        SpvReflectDescriptorBinding* binding = descriptor_set->bindings[binding_idx];
+                        printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name, binding->descriptor_type);
+                    }
                 }
-                else
+
+                spvReflectDestroyShaderModule(&module);
+
+                // Also write spirv file
+                if (compiler_opts.write_spirv_for_shaders)
                 {
-                    KERROR("[CompileKFX]: Failed to write spv output to file %S", output_path);
-                    return false;
+                    fs::FileHandle file_handle;
+                    String8        base_dir = fs::Dirname(arena, output_path);
+                    String8        extension = (shader_kind == shaderc_vertex_shader ? String8Raw(".vert.spv") : String8Raw(".frag.spv"));
+
+                    String8 spirv_output_path = fs::PathJoin(arena, base_dir, shader->name);
+                    spirv_output_path = fs::PathJoin(arena, spirv_output_path, extension);
+
+                    if (fs::OpenFile(spirv_output_path, fs::FILE_OPEN_MODE_WRITE, true, &file_handle))
+                    {
+                        fs::WriteFile(&file_handle, spirv_binary.ptr, spirv_binary.count);
+                        fs::CloseFile(&file_handle);
+
+                        KDEBUG("Wrote %S", spirv_output_path);
+                    }
+                    else
+                    {
+                        KERROR("[CompileKFX]: Failed to write spv output to file %S", output_path);
+                        return false;
+                    }
                 }
+
+                shaderc_result_release(result);
             }
+            else
+            {
+                KERROR("%d shader compilation failed with error:\n%s", shader_def.stage, shaderc_result_get_error_message(result));
 
-            shaderc_result_release(result);
-        }
-        else
-        {
-            KERROR("%d shader compilation failed with error:\n%s", shader_def.stage, shaderc_result_get_error_message(result));
+                shaderc_result_release(result);
+                shaderc_compiler_release(compiler);
 
-            shaderc_result_release(result);
-            shaderc_compiler_release(compiler);
-
-            return false;
+                return false;
+            }
         }
     }
 

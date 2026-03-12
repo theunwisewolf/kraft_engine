@@ -13,10 +13,6 @@ typedef u32 ResourceID;
 
 struct Material;
 
-namespace r {
-struct RenderPass;
-}
-
 struct ShaderUniform
 {
     u32                         Location;
@@ -34,8 +30,7 @@ struct Shader
     Array<ShaderUniform>   UniformCache;
     HashMap<u64, u32>      UniformCacheMapping;
 
-    r::Handle<r::RenderPass> RenderPassHandle = r::Handle<r::RenderPass>::Invalid(); // The renderpass of the shader's pipeline
-    void*                    RendererData;
+    void* RendererData;
 };
 
 enum TextureMapType : uint8

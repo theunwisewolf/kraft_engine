@@ -147,7 +147,7 @@ int main(int argc, char** argv)
     r::FontAtlas font_atlas = r::LoadFontAtlas(arena, hack_regular.ptr, hack_regular.count, 32.0f);
     r::FontAtlas logo_font_atlas = r::LoadFontAtlas(arena, iga_ninja.ptr, iga_ninja.count, 64.0f);
 
-    auto          bg_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto          bg_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"));
     auto          bg_geometry = GeometrySystem::GetDefault2DGeometry();
     Mat4f         bg_transform = ScaleMatrix(Vec3f{ 2560.0f, 1080.0f, 1.f }) * TranslationMatrix(Vec3f{ 0.f, 0.f, 0.f });
     r::Renderable background = {
@@ -156,16 +156,16 @@ int main(int argc, char** argv)
         .GeometryId = bg_geometry->InternalID,
     };
 
-    auto font_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto font_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"));
     KASSERT(font_material);
 
-    auto selected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto selected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"));
     KASSERT(selected_text_material);
 
-    auto unselected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto unselected_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"));
     KASSERT(unselected_text_material);
 
-    auto logo_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto logo_text_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"));
     KASSERT(logo_text_material);
 
     MaterialSystem::SetTexture(font_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
     MaterialSystem::SetTexture(logo_text_material, String8Raw("DiffuseTexture"), logo_font_atlas.bitmap);
     MaterialSystem::SetProperty(logo_text_material, String8Raw("DiffuseColor"), KRAFT_HEX(0x9b59b6));
 
-    auto bitmap_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"), r::Handle<r::RenderPass>::Invalid());
+    auto bitmap_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"));
     MaterialSystem::SetTexture(bitmap_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
     auto          geometry = GeometrySystem::GetDefault2DGeometry();
     Mat4f         transform = ScaleMatrix(Vec3f{ font_atlas.width, font_atlas.height, 1.f }) * TranslationMatrix(Vec3f{ 1.f, 1.f, 0.f });

@@ -381,4 +381,4 @@ static inline VkCommandPoolCreateFlags ToVulkanCommandPoolCreateFlags(int32 Flag
     return Result;
 }
 
-}
+} // namespace kraft::r

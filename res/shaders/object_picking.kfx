@@ -128,7 +128,7 @@ Shader ObjectPicking
         }
     }
 
-    Pass ToScreen
+    Variant ToScreen
     {
         RenderState     Default
         VertexLayout    Main

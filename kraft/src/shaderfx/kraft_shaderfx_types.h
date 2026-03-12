@@ -97,7 +97,7 @@ struct UniformBufferDefinition
     UniformBufferEntry* fields;
 };
 
-struct RenderPassDefinition
+struct VariantDefinition
 {
     struct ShaderDefinition
     {
@@ -112,6 +112,8 @@ struct RenderPassDefinition
     const ConstantBufferDefinition*   contant_buffers;
     u32                               shader_stage_count;
     ShaderDefinition*                 shader_stages;
+    bool                              has_color_output = true;
+    bool                              has_depth_output = true;
 };
 
 struct ShaderEffect
@@ -137,58 +139,14 @@ struct ShaderEffect
     u32                      storage_buffer_count;
     UniformBufferDefinition* storage_buffers;
 
-    RenderStateDefinition render_state;
-    ShaderCodeFragment    code_fragment;
-    RenderPassDefinition  render_pass_def;
+    u32                      render_state_count;
+    RenderStateDefinition*   render_states;
 
-    // ShaderEffect() {};
-    // ShaderEffect(ShaderEffect& Other)
-    // {
-    //     *this = Other;
-    // }
+    u32                      code_fragment_count;
+    ShaderCodeFragment*      code_fragments;
 
-    // ShaderEffect& operator=(const ShaderEffect& Other)
-    // {
-    //     Name = Other.Name;
-    //     ResourcePath = Other.ResourcePath;
-
-    //     vertex_layout_count = Other.vertex_layout_count;
-    //     vertex_layouts = Other.vertex_layouts;
-
-    //     local_resource_count = Other.local_resource_count;
-    //     local_resources = Other.local_resources;
-
-    //     global_resource_count = Other.global_resource_count;
-    //     global_resources = Other.global_resources;
-
-    //     constant_buffer_count = Other.constant_buffer_count;
-    //     constant_buffers = Other.constant_buffers;
-
-    //     uniform_buffer_count = Other.uniform_buffer_count;
-    //     uniform_buffers = Other.uniform_buffers;
-
-    //     storage_buffer_count = Other.storage_buffer_count;
-    //     storage_buffers = Other.storage_buffers;
-
-    //     code_fragment = Other.code_fragment;
-    //     render_state = Other.render_state;
-    //     Resources = Other.Resources;
-    //     render_pass_def = Other.render_pass_def;
-
-    //     // for (int i = 0; i < Other.RenderPasses.Length; i++)
-    //     // {
-    //         render_pass_def[i].Name = Other.RenderPasses[i].Name;
-    //         RenderPasses[i].ShaderStages = Other.RenderPasses[i].ShaderStages;
-
-    //         // Correctly assign the offsets
-    //         RenderPasses[i].VertexLayout = &vertex_layouts[(Other.RenderPasses[i].VertexLayout - &Other.vertex_layouts[0])];
-    //         RenderPasses[i].Resources = &LocalResources[(Other.RenderPasses[i].Resources - &Other.LocalResources[0])];
-    //         RenderPasses[i].ConstantBuffers = &ConstantBuffers[(Other.RenderPasses[i].ConstantBuffers - &Other.ConstantBuffers[0])];
-    //         RenderPasses[i].RenderState = &RenderStates[(Other.RenderPasses[i].RenderState - &Other.RenderStates[0])];
-    //     // }
-
-    //     return *this;
-    // }
+    u32                      variant_count;
+    VariantDefinition*       variants;
 };
 
 } // namespace kraft::shaderfx

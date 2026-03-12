@@ -106,7 +106,7 @@ Shader Basic
         }
     }
 
-    Pass ToScreen
+    Variant ToScreen
     {
         RenderState     Default
         VertexLayout    Main

@@ -8,7 +8,6 @@ namespace r {
 template<typename>
 struct Handle;
 
-struct RenderPass;
 struct GlobalShaderData;
 struct Buffer;
 } // namespace renderer
@@ -22,11 +21,20 @@ struct ShaderSystem
     static void Init(u32 MaxShadersCount);
     static void Shutdown();
 
-    static Shader* AcquireShader(String8 shader_path, r::Handle<r::RenderPass> render_pass_handle, bool auto_release = true);
+    static Shader* AcquireShader(String8 shader_path, bool auto_release = true);
     static bool    ReleaseShader(Shader* Shader);
     static Shader* GetDefaultShader();
     static Shader* GetActiveShader();
 
+    // Set the active variant name (called by BeginRenderSurface)
+    // When set, Bind/BindByID will look up this variant in each shader.
+    // If a shader doesn't have the variant, Bind returns nullptr (caller should skip draw).
+    static void SetActiveVariant(String8 variant_name);
+
+    // Find a variant index by name in the given shader. Returns -1 if not found.
+    static i32 FindVariantIndex(const Shader* shader, String8 variant_name);
+
+    // Bind returns nullptr if the shader doesn't have the active variant
     static Shader* Bind(Shader* Shader);
     static Shader* BindByID(u32 ID);
     static void    Unbind();

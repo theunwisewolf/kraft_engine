@@ -103,7 +103,7 @@ void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geo
 
     MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)ubo, sizeof(GlobalShaderData));
 
-    renderer_data_internal.backend->UseShader(shader);
+    renderer_data_internal.backend->UseShader(shader, 0);
     renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
 
     DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
@@ -122,6 +122,12 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
     for (auto It = renderer_data_internal.renderables.begin(); It != renderer_data_internal.renderables.end(); It++)
     {
         Shader* shader = ShaderSystem::BindByID(It->first);
+        if (!shader)
+        {
+            It->second.Clear();
+            continue;
+        }
+
         renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
 
         auto& objects = It->second;
@@ -188,7 +194,10 @@ bool RendererFrontend::DrawSurfaces()
 
     GlobalShaderData global_shader_data = {};
     global_shader_data.Projection = this->Camera->ProjectionMatrix;
-    global_shader_data.View = this->Camera->GetViewMatrix();
+    // global_shader_data.View = this->Camera->GetViewMatrix();
+    static Vec3f camera_position = Vec3f{ -5.0f, 0.0f, -10.0f };
+    static Vec3f camera_rotation = Vec3f{ 0.0f, 0.0f, 0.0f };
+    global_shader_data.View = RotationMatrixFromEulerAngles(camera_rotation) * TranslationMatrix(camera_position);
     global_shader_data.CameraPosition = this->Camera->Position;
 
     u64 start = Platform::TimeNowNS();
@@ -210,6 +219,12 @@ bool RendererFrontend::DrawSurfaces()
         for (auto it = surface_render_data.Renderables.begin(); it != surface_render_data.Renderables.end(); it++)
         {
             Shader* current_shader = ShaderSystem::BindByID(it->first);
+            if (!current_shader)
+            {
+                it->second.Clear();
+                continue;
+            }
+
             renderer_data_internal.backend->ApplyGlobalShaderProperties(current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
 
             auto& objects = it->second;
@@ -288,9 +303,9 @@ void RendererFrontend::EndMainRenderpass()
 // API
 //
 
-void RendererFrontend::CreateRenderPipeline(Shader* Shader, Handle<RenderPass> RenderPassHandle)
+void RendererFrontend::CreateRenderPipeline(Shader* Shader)
 {
-    renderer_data_internal.backend->CreateRenderPipeline(Shader, RenderPassHandle);
+    renderer_data_internal.backend->CreateRenderPipeline(Shader);
 }
 
 void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
@@ -298,9 +313,9 @@ void RendererFrontend::DestroyRenderPipeline(Shader* Shader)
     renderer_data_internal.backend->DestroyRenderPipeline(Shader);
 }
 
-void RendererFrontend::UseShader(const Shader* Shader)
+void RendererFrontend::UseShader(const Shader* Shader, u32 variant_index)
 {
-    renderer_data_internal.backend->UseShader(Shader);
+    renderer_data_internal.backend->UseShader(Shader, variant_index);
 }
 
 void RendererFrontend::DrawGeometry(uint32 GeometryID)
@@ -339,6 +354,7 @@ RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32
         .DebugName = name,
         .Width = width,
         .Height = height,
+        .VariantName = name,
     };
 
     RenderPassDescription description = {
@@ -400,7 +416,7 @@ RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32
         .WrapModeU = TextureWrapMode::ClampToEdge,
         .WrapModeV = TextureWrapMode::ClampToEdge,
         .WrapModeW = TextureWrapMode::ClampToEdge,
-        .Compare = CompareOp::Always,
+        .Compare = CompareOp::Never,
     });
 
     surface.RenderPass = ResourceManager->CreateRenderPass(description);
@@ -430,7 +446,6 @@ void RendererFrontend::BeginRenderSurface(const RenderSurface& surface)
     });
 
     renderer_data_internal.active_surface = renderer_data_internal.surfaces.Length - 1;
-    // RendererData.Backend->BeginRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
 RenderSurface RendererFrontend::ResizeRenderSurface(RenderSurface& surface, u32 width, u32 height)
@@ -458,25 +473,30 @@ RenderSurface RendererFrontend::ResizeRenderSurface(RenderSurface& surface, u32 
     return surface;
 }
 
-void RendererFrontend::EndRenderSurface(const RenderSurface& Surface)
+void RendererFrontend::EndRenderSurface(const RenderSurface& suface)
 {
     renderer_data_internal.active_surface = -1;
-    // RendererData.Backend->EndRenderPass(Surface.CmdBuffer, Surface.RenderPass);
 }
 
-void RendererFrontend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx)
+void RendererFrontend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx)
 {
     renderer_data_internal.backend->CmdSetCustomBuffer(shader, buffer, set_idx, binding_idx);
 }
 
 void RenderSurface::Begin()
 {
-    renderer_data_internal.backend->BeginRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
+    renderer_data_internal.backend->BeginSurface(this);
+
+    // Set the active shader variant for this surface
+    ShaderSystem::SetActiveVariant(this->VariantName);
 }
 
 void RenderSurface::End()
 {
-    renderer_data_internal.backend->EndRenderPass(this->CmdBuffers[renderer_data_internal.current_frame_index], this->RenderPass);
+    renderer_data_internal.backend->EndSurface(this);
+
+    // Reset active variant
+    ShaderSystem::SetActiveVariant({});
 }
 
 RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
@@ -518,8 +538,8 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         renderer_data_internal.backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
         // Render Passes
-        renderer_data_internal.backend->BeginRenderPass = VulkanRendererBackend::BeginRenderPass;
-        renderer_data_internal.backend->EndRenderPass = VulkanRendererBackend::EndRenderPass;
+        renderer_data_internal.backend->BeginSurface = VulkanRendererBackend::BeginSurface;
+        renderer_data_internal.backend->EndSurface = VulkanRendererBackend::EndSurface;
 
         // Commands
         renderer_data_internal.backend->CmdSetCustomBuffer = VulkanRendererBackend::CmdSetCustomBuffer;

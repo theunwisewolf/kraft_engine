@@ -46,9 +46,9 @@ struct RendererFrontend
     void EndMainRenderpass();
 
     // API
-    void CreateRenderPipeline(Shader* shader, Handle<RenderPass> RenderPassHandle);
+    void CreateRenderPipeline(Shader* shader);
     void DestroyRenderPipeline(Shader* shader);
-    void UseShader(const Shader* shader);
+    void UseShader(const Shader* shader, u32 variant_index = 0);
     void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void ApplyLocalShaderProperties(Shader* ActiveShader, void* Data);
     void DrawGeometry(u32 id);

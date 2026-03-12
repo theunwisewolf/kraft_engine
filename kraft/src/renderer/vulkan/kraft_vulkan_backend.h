@@ -17,6 +17,7 @@ struct ShaderEffect;
 struct VulkanContext;
 struct CommandBuffer;
 struct RenderPass;
+struct RenderSurface;
 struct GlobalShaderData;
 struct Buffer;
 struct GPUDevice;
@@ -31,13 +32,13 @@ struct VulkanRendererBackend
     static int  PrepareFrame();
     static bool BeginFrame();
     static bool EndFrame();
-    static void OnResize(int width, int height);
+    static void OnResize(i32 width, i32 height);
 
-    static void CreateRenderPipeline(Shader* shader, Handle<RenderPass> render_pass);
+    static void CreateRenderPipeline(Shader* shader);
     static void DestroyRenderPipeline(Shader* shader);
 
-    static void SetGlobalShaderData(GlobalShaderData* Data);
-    static void UseShader(const Shader* Shader);
+    static void SetGlobalShaderData(GlobalShaderData* data);
+    static void UseShader(const Shader* shader, u32 variant_index = 0);
     static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> global_ubo, Handle<Buffer> global_materials_buffer);
     static void ApplyLocalShaderProperties(Shader* shader, void* data);
     static void UpdateTextures(Handle<Texture>* textures, u64 texture_count);
@@ -49,14 +50,15 @@ struct VulkanRendererBackend
     static void DestroyGeometry(Geometry* geometry);
 
     // Render Passes
-    static void BeginRenderPass(Handle<CommandBuffer> cmd_buffer, Handle<RenderPass> pass);
-    static void EndRenderPass(Handle<CommandBuffer> cmd_buffer, Handle<RenderPass> pass);
+    static void BeginSurface(RenderSurface* surface);
+    static void EndSurface(RenderSurface* surface);
 
     // Commands
     static void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 
     // Misc
     static VulkanContext* Context();
+    // static void           ImageBarrier(Handle<Texture> texture, VkDependencyFlags dependency_flags, VulkanImageBarrierDescription description);
 
     static void SetDeviceData(GPUDevice* device);
 };

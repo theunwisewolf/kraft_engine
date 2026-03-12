@@ -34,6 +34,10 @@ struct ShaderSystemState
     // HashMap<String, u32> IndexMapping;
     u32     CurrentShaderID;
     Shader* CurrentShader;
+
+    // Active variant for surface-driven variant selection
+    String8 ActiveVariantName;
+    i32     ActiveVariantIndex; // Cached index for the current shader, -1 if not resolved
 };
 
 static ShaderSystemState* State = nullptr;
@@ -51,6 +55,8 @@ void ShaderSystem::Init(u32 MaxShaderCount)
     // State->IndexMapping = HashMap<String, u32>();
     State->CurrentShaderID = KRAFT_INVALID_ID;
     State->CurrentShader = nullptr;
+    State->ActiveVariantName = {};
+    State->ActiveVariantIndex = -1;
 
     // Load the default shader
     // KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx", Handle<RenderPass>::Invalid()));
@@ -68,7 +74,7 @@ void ShaderSystem::Shutdown()
     KINFO("[ShaderSystem::Shutdown]: Shutting down shader system");
 }
 
-Shader* ShaderSystem::AcquireShader(String8 shader_path, r::Handle<r::RenderPass> render_pass_handle, bool auto_release)
+Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
 {
     for (i32 i = 0; i < State->MaxShaderCount; i++)
     {
@@ -112,10 +118,10 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, r::Handle<r::RenderPass
     Reference->Shader.UniformCacheMapping = HashMap<u64, u32>();
     Reference->Shader.UniformCache = Array<ShaderUniform>();
 
-    const shaderfx::ShaderEffect&         Effect = Reference->Shader.ShaderEffect;
-    const shaderfx::RenderPassDefinition& Pass = Effect.render_pass_def;
-    Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Pass.resources != nullptr ? Pass.resources->binding_count : 0) + Pass.contant_buffers->field_count);
-    g_Renderer->CreateRenderPipeline(&Reference->Shader, render_pass_handle);
+    const shaderfx::ShaderEffect&      Effect = Reference->Shader.ShaderEffect;
+    const shaderfx::VariantDefinition& Variant0 = Effect.variants[0]; // Use first variant for uniform caching
+    Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Variant0.resources != nullptr ? Variant0.resources->binding_count : 0) + Variant0.contant_buffers->field_count);
+    g_Renderer->CreateRenderPipeline(&Reference->Shader);
 
     // Cache the uniforms
     // The instance uniforms begin after the global data
@@ -208,9 +214,9 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, r::Handle<r::RenderPass
 
     // Cache constant buffers as local uniforms
     u32 offset = 0;
-    for (u64 i = 0; i < Pass.contant_buffers->field_count; i++)
+    for (u64 i = 0; i < Variant0.contant_buffers->field_count; i++)
     {
-        auto& buffer_def = Pass.contant_buffers->fields[i];
+        auto& buffer_def = Variant0.contant_buffers->fields[i];
 
         // Push constants must be aligned to 4 bytes
         u32 aligned_size = (u32)math::AlignUp(r::ShaderDataType::SizeOf(buffer_def.type), 4);
@@ -285,15 +291,46 @@ Shader* ShaderSystem::GetActiveShader()
     return State->CurrentShader;
 }
 
+void ShaderSystem::SetActiveVariant(String8 variant_name)
+{
+    State->ActiveVariantName = variant_name;
+    State->ActiveVariantIndex = -1; // Reset cached index
+}
+
+i32 ShaderSystem::FindVariantIndex(const Shader* shader, String8 variant_name)
+{
+    const shaderfx::ShaderEffect& effect = shader->ShaderEffect;
+    for (u32 i = 0; i < effect.variant_count; i++)
+    {
+        if (StringEqual(effect.variants[i].name, variant_name))
+        {
+            return (i32)i;
+        }
+    }
+
+    return -1;
+}
+
 Shader* ShaderSystem::Bind(Shader* Shader)
 {
-    if (State->CurrentShaderID != Shader->ID)
+    // Resolve variant index
+    u32 variant_index = 0;
+    if (State->ActiveVariantName.count > 0)
     {
-        g_Renderer->UseShader(Shader);
+        i32 idx = FindVariantIndex(Shader, State->ActiveVariantName);
+        if (idx < 0)
+        {
+            // Shader doesn't have the requested variant - skip
+            return nullptr;
+        }
 
-        State->CurrentShaderID = Shader->ID;
-        State->CurrentShader = Shader;
+        variant_index = (u32)idx;
     }
+
+    g_Renderer->UseShader(Shader, variant_index);
+
+    State->CurrentShaderID = Shader->ID;
+    State->CurrentShader = Shader;
 
     return Shader;
 }
@@ -303,9 +340,7 @@ Shader* ShaderSystem::BindByID(u32 ShaderID)
     KASSERT(ShaderID < State->MaxShaderCount);
     ShaderReference* Reference = &State->Shaders[ShaderID];
 
-    ShaderSystem::Bind(&Reference->Shader);
-
-    return &Reference->Shader;
+    return ShaderSystem::Bind(&Reference->Shader);
 }
 
 void ShaderSystem::Unbind()

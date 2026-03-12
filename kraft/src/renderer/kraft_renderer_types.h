@@ -20,6 +20,7 @@ namespace r {
 struct RenderPass;
 struct CommandBuffer;
 struct Buffer;
+struct RenderSurface;
 
 // Templated only for type-safety
 template<typename T>
@@ -92,10 +93,10 @@ struct alignas(16) GlobalShaderData
 
 struct Renderable
 {
-    kraft::Mat4f ModelMatrix;
-    Material*    MaterialInstance;
-    u32          GeometryId;
-    u32          EntityId;
+    Mat4f     ModelMatrix;
+    Material* MaterialInstance;
+    u32       GeometryId;
+    u32       EntityId;
 };
 
 struct RenderPacket
@@ -117,10 +118,10 @@ struct RendererBackend
     void (*OnResize)(int width, int height);
 
     // Shader
-    void (*UseShader)(const Shader* Shader);
+    void (*UseShader)(const Shader* Shader, u32 VariantIndex);
     void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
-    void (*CreateRenderPipeline)(Shader* Shader, Handle<RenderPass> RenderPassHandle);
+    void (*CreateRenderPipeline)(Shader* Shader);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
@@ -131,8 +132,8 @@ struct RendererBackend
     void (*DestroyGeometry)(Geometry* Geometry);
 
     // Render Passes
-    void (*BeginRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
-    void (*EndRenderPass)(Handle<CommandBuffer> CmdBufferHandle, Handle<RenderPass> PassHandle);
+    void (*BeginSurface)(RenderSurface* surface);
+    void (*EndSurface)(RenderSurface* surface);
 
     void (*CmdSetCustomBuffer)(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
 
@@ -723,9 +724,9 @@ struct BufferDescription
 {
     const char* DebugName;
 
-    uint64            Size;
-    uint64            UsageFlags;
-    uint64            MemoryPropertyFlags;
+    u64               Size;
+    u64               UsageFlags;
+    u64               MemoryPropertyFlags;
     SharingMode::Enum SharingMode = SharingMode::Exclusive;
     bool              BindMemory = true;
     bool              MapMemory = false;
@@ -733,8 +734,8 @@ struct BufferDescription
 
 struct Buffer
 {
-    uint64 Size = 0;
-    void*  Ptr = nullptr;
+    u64   Size = 0;
+    void* Ptr = nullptr;
 
     // TODO (amn): Figure out what other fields we need here
 };
@@ -743,7 +744,7 @@ struct BufferView
 {
     Handle<Buffer> GPUBuffer = {};
     uint8*         Ptr = 0;    // Location of data inside the GPUBuffer
-    uint64         Offset = 0; // Offset from the start of the buffer
+    u64            Offset = 0; // Offset from the start of the buffer
 };
 
 struct RenderPassSubpass
@@ -826,9 +827,9 @@ struct UploadBufferDescription
 {
     Handle<Buffer> DstBuffer;
     Handle<Buffer> SrcBuffer;
-    uint64         SrcSize;
-    uint64         DstOffset = 0;
-    uint64         SrcOffset = 0;
+    u64            SrcSize;
+    u64            DstOffset = 0;
+    u64            SrcOffset = 0;
 };
 
 struct ReadTextureDataDescription
@@ -859,6 +860,7 @@ struct GPUDevice
 struct RenderSurface
 {
     String8               DebugName;
+    String8               VariantName; // Shader variant to use when rendering to this surface
     u32                   Width;
     u32                   Height;
     Handle<CommandBuffer> CmdBuffers[3];
@@ -869,6 +871,7 @@ struct RenderSurface
     Handle<TextureSampler> TextureSampler;
     Handle<Buffer>         GlobalUBO;
     World*                 World;
+    GlobalShaderData       global_shader_data;
 
     // Mouse position relative to the surface
     // Used in global data

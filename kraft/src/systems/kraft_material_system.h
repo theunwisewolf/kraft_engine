@@ -5,9 +5,7 @@
 namespace kraft::r {
 template<typename>
 struct Handle;
-
-struct RenderPass;
-} // namespace kraft::renderer
+} // namespace kraft::r
 
 namespace kraft {
 
@@ -22,8 +20,8 @@ struct MaterialSystem
     static void Shutdown();
 
     static Material* GetDefaultMaterial();
-    static Material* CreateMaterialFromFile(String8 path, r::Handle<r::RenderPass> RenderPassHandle); // TODO: :cry: TEMP Renderpass handle
-    static Material* CreateMaterialWithData(const MaterialDataIntermediateFormat& Data, r::Handle<r::RenderPass> RenderPassHandle);
+    static Material* CreateMaterialFromFile(String8 path);
+    static Material* CreateMaterialWithData(const MaterialDataIntermediateFormat& Data);
     static void      DestroyMaterial(String8 name);
     static void      DestroyMaterial(Material* material);
 
