@@ -614,6 +614,7 @@ enum BufferUsageFlags
     BUFFER_USAGE_FLAGS_INDEX_BUFFER = 1 << 6,
     BUFFER_USAGE_FLAGS_VERTEX_BUFFER = 1 << 7,
     BUFFER_USAGE_FLAGS_INDIRECT_BUFFER = 1 << 8,
+    BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS = 1 << 9,
 };
 
 enum MemoryPropertyFlags
@@ -622,6 +623,12 @@ enum MemoryPropertyFlags
     MEMORY_PROPERTY_FLAGS_HOST_VISIBLE = 1 << 1,
     MEMORY_PROPERTY_FLAGS_HOST_COHERENT = 1 << 2,
     MEMORY_PROPERTY_FLAGS_HOST_CACHED = 1 << 3,
+};
+
+// Same as defined in Vulkan
+enum MemoryAllocateFlags
+{
+    MEMORY_ALLOCATE_DEVICE_ADDRESS = 0x00000002,
 };
 
 enum ShaderStageFlags : int
@@ -736,6 +743,7 @@ struct BufferDescription
     u64               Size;
     u64               UsageFlags;
     u64               MemoryPropertyFlags;
+    u64               MemoryAllocationFlags;
     SharingMode::Enum SharingMode = SharingMode::Exclusive;
     bool              BindMemory = true;
     bool              MapMemory = false;

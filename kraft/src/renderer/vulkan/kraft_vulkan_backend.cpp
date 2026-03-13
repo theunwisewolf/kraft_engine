@@ -1154,6 +1154,7 @@ void VulkanRendererBackend::ApplyLocalShaderProperties(Shader* shader, void* dat
 {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader*        shader_data = (VulkanShader*)shader->RendererData;
+
     vkCmdPushConstants(cmd_buffer->Resource, shader_data->PipelineLayout, VK_SHADER_STAGE_ALL, 0, 128, data);
 }
 
@@ -1182,7 +1183,7 @@ void VulkanRendererBackend::DrawGeometryData(u32 geometry_id)
 {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanGeometryData   geometry_data = s_Context.Geometries[geometry_id];
-    VkDeviceSize         offsets[1] = { geometry_data.VertexBufferOffset };
+    // VkDeviceSize         offsets[1] = { geometry_data.VertexBufferOffset };
 
     VulkanBuffer* vertex_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.VertexBuffer);
     VulkanBuffer* index_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
@@ -1588,8 +1589,9 @@ bool createBuffers()
     s_Context.VertexBuffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = VertexBufferSize,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
-        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .UsageFlags = BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BUFFER_USAGE_FLAGS_TRANSFER_DST // | BufferUsageFlags::BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS,
+        // .MemoryAllocationFlags = MemoryAllocateFlags::MEMORY_ALLOCATE_DEVICE_ADDRESS,
     });
 
     const u64 IndexBufferSize = sizeof(u32) * 1024 * 256;

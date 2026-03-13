@@ -83,12 +83,13 @@ struct VulkanGeometryData
 struct VulkanBuffer
 {
     VkBuffer              Handle;
-    uint64                Size;
+    u64                   Size;
     VkDeviceMemory        Memory;
     VkBufferUsageFlags    UsageFlags;
     bool                  IsLocked;
     i32                   MemoryIndex;
     VkMemoryPropertyFlags MemoryPropertyFlags;
+    VkDeviceAddress       device_address = 0; // Only set if buffer usage was BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS
 };
 
 //
@@ -223,7 +224,7 @@ struct VulkanSwapchain
     VulkanFramebuffer* Framebuffers;
 
     // Depending on the MSAASampleCount, this will either be MSAA or 1-Sample
-    Handle<Texture>    DepthAttachment;
+    Handle<Texture> DepthAttachment;
 
     // MSAA render targets
     Handle<Texture>       MSAAColorAttachment;

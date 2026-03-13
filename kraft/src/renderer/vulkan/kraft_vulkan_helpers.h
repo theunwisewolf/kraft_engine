@@ -292,21 +292,22 @@ static inline VkSharingMode ToVulkanSharingMode(SharingMode::Enum Value)
 //     return Mapping[Value];
 // }
 
-static inline VkBufferUsageFlags ToVulkanBufferUsage(uint64 Flags)
+static inline VkBufferUsageFlags ToVulkanBufferUsage(u64 flags)
 {
-    VkBufferUsageFlags Result = 0;
+    VkBufferUsageFlags result = 0;
 
-    Result |= (Flags & BUFFER_USAGE_FLAGS_TRANSFER_SRC) ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_TRANSFER_DST) ? VK_BUFFER_USAGE_TRANSFER_DST_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_UNIFORM_TEXEL_BUFFER) ? VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_STORAGE_TEXEL_BUFFER) ? VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_UNIFORM_BUFFER) ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_STORAGE_BUFFER) ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_INDEX_BUFFER) ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_VERTEX_BUFFER) ? VK_BUFFER_USAGE_VERTEX_BUFFER_BIT : 0;
-    Result |= (Flags & BUFFER_USAGE_FLAGS_INDEX_BUFFER) ? VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_TRANSFER_SRC) ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_TRANSFER_DST) ? VK_BUFFER_USAGE_TRANSFER_DST_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_UNIFORM_TEXEL_BUFFER) ? VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_STORAGE_TEXEL_BUFFER) ? VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_UNIFORM_BUFFER) ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_STORAGE_BUFFER) ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_INDEX_BUFFER) ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_VERTEX_BUFFER) ? VK_BUFFER_USAGE_VERTEX_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_INDEX_BUFFER) ? VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT : 0;
+    result |= (flags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS) ? VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT : 0;
 
-    return Result;
+    return result;
 }
 
 // VkMemoryPropertyFlagBits ToVulkanMemoryPropertyFlagBits(MemoryPropertyFlags::Enum Value)
@@ -322,16 +323,21 @@ static inline VkBufferUsageFlags ToVulkanBufferUsage(uint64 Flags)
 //     return Mapping[Value];
 // }
 
-static inline VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(uint64 Flags)
+static inline VkMemoryPropertyFlags ToVulkanMemoryPropertyFlags(u64 flags)
 {
-    VkMemoryPropertyFlags Result = 0;
+    VkMemoryPropertyFlags result = 0;
 
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL) ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_VISIBLE) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0;
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_COHERENT) ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0;
-    Result |= (Flags & MEMORY_PROPERTY_FLAGS_HOST_CACHED) ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
+    result |= (flags & MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL) ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 0;
+    result |= (flags & MEMORY_PROPERTY_FLAGS_HOST_VISIBLE) ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 0;
+    result |= (flags & MEMORY_PROPERTY_FLAGS_HOST_COHERENT) ? VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 0;
+    result |= (flags & MEMORY_PROPERTY_FLAGS_HOST_CACHED) ? VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 0;
 
-    return Result;
+    return result;
+}
+
+static inline VkMemoryAllocateFlags ToVulkanMemoryAllocateFlags(u64 flags)
+{
+    return VkMemoryPropertyFlags(flags);
 }
 
 static inline VkAttachmentLoadOp ToVulkanAttachmentLoadOp(LoadOp::Enum Value)

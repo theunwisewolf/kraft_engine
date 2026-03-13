@@ -492,6 +492,7 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     FeatureRequests12.descriptorBindingPartiallyBound = true;
     FeatureRequests12.runtimeDescriptorArray = true;
     FeatureRequests12.scalarBlockLayout = true;
+    FeatureRequests12.bufferDeviceAddress = true;
     // FeatureRequests12.descriptorBindingUpdateUnusedWhilePending = true;
 
     VkPhysicalDeviceVulkan13Features FeatureRequests13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };

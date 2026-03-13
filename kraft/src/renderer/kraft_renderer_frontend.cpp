@@ -91,10 +91,11 @@ void RendererFrontend::Init()
 
 struct __DrawData
 {
-    Mat4f  Model;
-    Vec2f  MousePosition;
-    uint32 EntityId;
-    uint32 MaterialIdx;
+    Mat4f Model;
+    Vec2f MousePosition;
+    u32   EntityId;
+    u32   MaterialIdx;
+    // u64   vertex_buffer_address;
 } DummyDrawData;
 
 void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geometry_id)

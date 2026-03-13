@@ -17,12 +17,12 @@
 
 namespace kraft::r {
 
-static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 typeFilter, u32 propertyFlags)
+static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 type_filter, u32 property_flags)
 {
     for (u32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
     {
         VkMemoryType type = device.MemoryProperties.memoryTypes[i];
-        if (typeFilter & (1 << i) && (type.propertyFlags & propertyFlags) == propertyFlags)
+        if (type_filter & (1 << i) && (type.propertyFlags & property_flags) == property_flags)
         {
             return i;
         }
@@ -31,10 +31,10 @@ static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 typeFilter, u32 prop
     return -1;
 }
 
-static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeFilter, VkMemoryPropertyFlags propertyFlags, VkDeviceMemory* out)
+static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, i32 type_filter, VkMemoryPropertyFlags property_flags, VkMemoryAllocateFlags allocate_flags, VkDeviceMemory* out)
 {
-    i32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
-    if (memoryTypeIndex == -1)
+    i32 memory_type_index = FindMemoryIndex(context->PhysicalDevice, type_filter, property_flags);
+    if (memory_type_index == -1)
     {
         KERROR("[VulkanAllocateMemory]: Failed to find suitable memoryType");
         return false;
@@ -42,10 +42,17 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int3
 
     VkMemoryAllocateInfo info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
     info.allocationSize = size;
-    info.memoryTypeIndex = memoryTypeIndex;
+    info.memoryTypeIndex = memory_type_index;
 
-    VkResult Result = vkAllocateMemory(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, out);
-    KRAFT_VK_CHECK(Result);
+    if (allocate_flags)
+    {
+        VkMemoryAllocateFlagsInfo flags_info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO };
+        flags_info.flags = allocate_flags;
+        info.pNext = &flags_info;
+    }
+
+    VkResult result = vkAllocateMemory(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, out);
+    KRAFT_VK_CHECK(result);
 
     return true;
 }
@@ -314,7 +321,7 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
 
     VkMemoryRequirements memory_requirements;
     vkGetImageMemoryRequirements(device, output.Image, &memory_requirements);
-    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &output.Memory))
+    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &output.Memory))
     {
         return Handle<Texture>::Invalid();
     }
@@ -384,49 +391,58 @@ static Handle<TextureSampler> CreateTextureSampler(const TextureSamplerDescripti
 
 static Handle<Buffer> CreateBuffer(const BufferDescription& Description)
 {
-    VulkanContext*        Context = VulkanRendererBackend::Context();
-    VkDevice              Device = Context->LogicalDevice.Handle;
-    VulkanBuffer          Output = {};
-    VkMemoryPropertyFlags MemoryProperties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
-    uint64                ActualSize = Description.Size; // TODO: Fix
+    VulkanContext*        context = VulkanRendererBackend::Context();
+    VkDevice              device = context->LogicalDevice.Handle;
+    VulkanBuffer          output = {};
+    VkMemoryPropertyFlags memory_properties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
+    VkMemoryAllocateFlags allocate_flags = ToVulkanMemoryAllocateFlags(Description.MemoryAllocationFlags);
+    u64                   actual_size = Description.Size; // TODO: Fix
 
     if (Description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER)
     {
-        ActualSize = math::AlignUp(ActualSize, Context->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
+        actual_size = math::AlignUp(actual_size, context->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
     }
     else if (Description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER)
     {
-        ActualSize = math::AlignUp(ActualSize, Context->PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment);
+        actual_size = math::AlignUp(actual_size, context->PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment);
     }
 
-    VkBufferCreateInfo CreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-    CreateInfo.size = ActualSize;
-    CreateInfo.sharingMode = ToVulkanSharingMode(Description.SharingMode);
-    CreateInfo.usage = ToVulkanBufferUsage(Description.UsageFlags);
+    VkBufferCreateInfo create_info = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    create_info.size = actual_size;
+    create_info.sharingMode = ToVulkanSharingMode(Description.SharingMode);
+    create_info.usage = ToVulkanBufferUsage(Description.UsageFlags);
 
-    KRAFT_VK_CHECK(vkCreateBuffer(Device, &CreateInfo, Context->AllocationCallbacks, &Output.Handle));
-    Context->SetObjectName((uint64)Output.Handle, VK_OBJECT_TYPE_BUFFER, Description.DebugName);
+    KRAFT_VK_CHECK(vkCreateBuffer(device, &create_info, context->AllocationCallbacks, &output.Handle));
+    context->SetObjectName((u64)output.Handle, VK_OBJECT_TYPE_BUFFER, Description.DebugName);
 
-    VkMemoryRequirements MemoryRequirements;
-    vkGetBufferMemoryRequirements(Device, Output.Handle, &MemoryRequirements);
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(device, output.Handle, &memory_requirements);
 
-    if (!VulkanAllocateMemory(Context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, MemoryProperties, &Output.Memory))
+    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, memory_properties, allocate_flags, &output.Memory))
     {
         return Handle<Buffer>::Invalid();
     }
 
     if (Description.BindMemory)
     {
-        KRAFT_VK_CHECK(vkBindBufferMemory(Device, Output.Handle, Output.Memory, 0));
+        KRAFT_VK_CHECK(vkBindBufferMemory(device, output.Handle, output.Memory, 0));
     }
 
-    void* Ptr = nullptr;
+    // Get the device address if this buffer is to be used as a raw pointer in shaders
+    if (Description.MemoryPropertyFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS)
+    {
+        VkBufferDeviceAddressInfo addr_info = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+        addr_info.buffer = output.Handle;
+        output.device_address = vkGetBufferDeviceAddress(device, &addr_info);
+    }
+
+    void* ptr = nullptr;
     if (Description.MapMemory)
     {
-        vkMapMemory(Device, Output.Memory, 0, VK_WHOLE_SIZE, 0, &Ptr);
+        vkMapMemory(device, output.Memory, 0, VK_WHOLE_SIZE, 0, &ptr);
     }
 
-    return InternalState->BufferPool.Insert({ .Size = ActualSize, .Ptr = Ptr }, Output);
+    return InternalState->BufferPool.Insert({ .Size = actual_size, .Ptr = ptr }, output);
 }
 
 static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& description)
