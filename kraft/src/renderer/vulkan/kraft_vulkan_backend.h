@@ -39,7 +39,7 @@ struct VulkanRendererBackend
 
     static void SetGlobalShaderData(GlobalShaderData* data);
     static void UseShader(const Shader* shader, u32 variant_index = 0);
-    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> global_ubo, Handle<Buffer> global_materials_buffer);
+    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
     static void ApplyLocalShaderProperties(Shader* shader, void* data);
     static void UpdateTextures(Handle<Texture>* textures, u64 texture_count);
 

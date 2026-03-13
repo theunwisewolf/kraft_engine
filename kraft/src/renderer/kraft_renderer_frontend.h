@@ -49,8 +49,8 @@ struct RendererFrontend
     void CreateRenderPipeline(Shader* shader);
     void DestroyRenderPipeline(Shader* shader);
     void UseShader(const Shader* shader, u32 variant_index = 0);
-    void ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
-    void ApplyLocalShaderProperties(Shader* ActiveShader, void* Data);
+    void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
+    void ApplyLocalShaderProperties(Shader* shader, void* data);
     void DrawGeometry(u32 id);
     bool CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
     bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);

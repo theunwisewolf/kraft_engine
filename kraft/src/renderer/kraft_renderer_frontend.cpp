@@ -104,7 +104,7 @@ void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geo
     MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)ubo, sizeof(GlobalShaderData));
 
     renderer_data_internal.backend->UseShader(shader, 0);
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
 
     DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
     DummyDrawData.MaterialIdx = 0;
@@ -128,7 +128,7 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
             continue;
         }
 
-        renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer);
+        renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
 
         auto& objects = It->second;
         u64   count = objects.Size();
@@ -225,7 +225,7 @@ bool RendererFrontend::DrawSurfaces()
                 continue;
             }
 
-            renderer_data_internal.backend->ApplyGlobalShaderProperties(current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer);
+            renderer_data_internal.backend->ApplyGlobalShaderProperties(current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
 
             auto& objects = it->second;
             u64   count = objects.Size();
@@ -323,9 +323,9 @@ void RendererFrontend::DrawGeometry(uint32 GeometryID)
     renderer_data_internal.backend->DrawGeometryData(GeometryID);
 }
 
-void RendererFrontend::ApplyGlobalShaderProperties(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer)
+void RendererFrontend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer)
 {
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(ActiveShader, GlobalUBOBuffer, GlobalMaterialsBuffer);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, ubo_buffer, materials_buffer, vertex_buffer);
 }
 
 void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)

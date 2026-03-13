@@ -316,7 +316,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &descriptor_pool_create_info, s_Context.AllocationCallbacks, &s_Context.GlobalDescriptorPool);
 
         // Descriptor sets
-        VkDescriptorSetLayoutBinding global_data_layout_bindings[3] = {};
+        VkDescriptorSetLayoutBinding global_data_layout_bindings[4] = {};
 
         // Binding #0: Global Shader Data - Projection, View, Camera, etc
         global_data_layout_bindings[0].binding = 0;
@@ -338,6 +338,13 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         global_data_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         global_data_layout_bindings[2].pImmutableSamplers = 0;
         global_data_layout_bindings[2].stageFlags = VK_SHADER_STAGE_ALL;
+
+        // Binding #3: Vertex data
+        global_data_layout_bindings[3].binding = 3;
+        global_data_layout_bindings[3].descriptorCount = 1;
+        global_data_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        global_data_layout_bindings[3].pImmutableSamplers = 0;
+        global_data_layout_bindings[3].stageFlags = VK_SHADER_STAGE_ALL;
 
         VkDescriptorSetLayoutCreateInfo global_data_layout_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         global_data_layout_create_info.bindingCount = KRAFT_C_ARRAY_SIZE(global_data_layout_bindings);
@@ -880,26 +887,26 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         }
 
         // Input bindings and attributes
-        u64                              input_binding_count = variant.vertex_layout->input_binding_count;
-        VkVertexInputBindingDescription* input_binding_descs = ArenaPushArray(scratch.arena, VkVertexInputBindingDescription, input_binding_count);
-        for (int j = 0; j < input_binding_count; j++)
-        {
-            const shaderfx::VertexInputBinding& input_binding_def = variant.vertex_layout->input_bindings[j];
-            input_binding_descs[j].binding = input_binding_def.binding;
-            input_binding_descs[j].inputRate = input_binding_def.input_rate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
-            input_binding_descs[j].stride = input_binding_def.stride;
-        }
+        // u64                              input_binding_count = variant.vertex_layout->input_binding_count;
+        // VkVertexInputBindingDescription* input_binding_descs = ArenaPushArray(scratch.arena, VkVertexInputBindingDescription, input_binding_count);
+        // for (int j = 0; j < input_binding_count; j++)
+        // {
+        //     const shaderfx::VertexInputBinding& input_binding_def = variant.vertex_layout->input_bindings[j];
+        //     input_binding_descs[j].binding = input_binding_def.binding;
+        //     input_binding_descs[j].inputRate = input_binding_def.input_rate == VertexInputRate::PerVertex ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+        //     input_binding_descs[j].stride = input_binding_def.stride;
+        // }
 
-        u64                                attribute_count = variant.vertex_layout->attribute_count;
-        VkVertexInputAttributeDescription* attribute_descs = ArenaPushArray(scratch.arena, VkVertexInputAttributeDescription, attribute_count);
-        for (int j = 0; j < attribute_count; j++)
-        {
-            const shaderfx::VertexAttribute& vertex_attribute_def = variant.vertex_layout->attributes[j];
-            attribute_descs[j].location = vertex_attribute_def.location;
-            attribute_descs[j].format = ToVulkanFormat(vertex_attribute_def.format);
-            attribute_descs[j].binding = vertex_attribute_def.binding;
-            attribute_descs[j].offset = vertex_attribute_def.offset;
-        }
+        // u64                                attribute_count = variant.vertex_layout->attribute_count;
+        // VkVertexInputAttributeDescription* attribute_descs = ArenaPushArray(scratch.arena, VkVertexInputAttributeDescription, attribute_count);
+        // for (int j = 0; j < attribute_count; j++)
+        // {
+        //     const shaderfx::VertexAttribute& vertex_attribute_def = variant.vertex_layout->attributes[j];
+        //     attribute_descs[j].location = vertex_attribute_def.location;
+        //     attribute_descs[j].format = ToVulkanFormat(vertex_attribute_def.format);
+        //     attribute_descs[j].binding = vertex_attribute_def.binding;
+        //     attribute_descs[j].offset = vertex_attribute_def.offset;
+        // }
 
         VkPipelineViewportStateCreateInfo viewport_state_create_info = {};
         viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -982,16 +989,14 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         dynamic_state_create_info.dynamicStateCount = sizeof(dynamic_states) / sizeof(dynamic_states[0]);
         pipeline_create_info.pDynamicState = &dynamic_state_create_info;
 
-        VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = {};
-        vertex_input_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_state_create_info.pVertexBindingDescriptions = &input_binding_descs[0];
-        vertex_input_state_create_info.vertexBindingDescriptionCount = (u32)input_binding_count;
-        vertex_input_state_create_info.pVertexAttributeDescriptions = &attribute_descs[0];
-        vertex_input_state_create_info.vertexAttributeDescriptionCount = (u32)attribute_count;
-        pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+        // VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        // vertex_input_state_create_info.pVertexBindingDescriptions = &input_binding_descs[0];
+        // vertex_input_state_create_info.vertexBindingDescriptionCount = (u32)input_binding_count;
+        // vertex_input_state_create_info.pVertexAttributeDescriptions = &attribute_descs[0];
+        // vertex_input_state_create_info.vertexAttributeDescriptionCount = (u32)attribute_count;
+        // pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
 
-        VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info = {};
-        input_assembly_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
         input_assembly_state_create_info.primitiveRestartEnable = VK_FALSE;
         input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
@@ -1075,19 +1080,19 @@ void VulkanRendererBackend::UseShader(const Shader* Shader, u32 variant_index)
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
-void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> global_ubo_buffer, Handle<Buffer> global_materials_buffer)
+void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer)
 {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader*        shader_data = (VulkanShader*)shader->RendererData;
 
-    VkBuffer               gpu_buffer = VulkanResourceManagerApi::GetBuffer(global_ubo_buffer.IsInvalid() ? s_Context.GlobalUniformBuffer : global_ubo_buffer)->Handle;
+    VkBuffer               gpu_buffer = VulkanResourceManagerApi::GetBuffer(ubo_buffer.IsInvalid() ? s_Context.GlobalUniformBuffer : ubo_buffer)->Handle;
     VkDescriptorBufferInfo global_data_buffer_info = {};
     global_data_buffer_info.buffer = gpu_buffer;
     global_data_buffer_info.offset = 0;
     global_data_buffer_info.range = VK_WHOLE_SIZE;
 
     u32                  count = 0;
-    VkWriteDescriptorSet descriptor_write_info[3] = {};
+    VkWriteDescriptorSet descriptor_write_info[4] = {};
     descriptor_write_info[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_write_info[0].descriptorCount = 1;
     descriptor_write_info[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1109,19 +1114,35 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<B
     descriptor_write_info[1].pImageInfo = &image_info;
     count++;
 
-    VulkanBuffer*          materials_gpu_buffer = VulkanResourceManagerApi::GetBuffer(global_materials_buffer);
-    VkDescriptorBufferInfo global_materials_buffer_info = {};
+    VulkanBuffer*          materials_gpu_buffer = VulkanResourceManagerApi::GetBuffer(materials_buffer);
+    VkDescriptorBufferInfo materials_buffer_info = {};
     if (materials_gpu_buffer)
     {
-        global_materials_buffer_info.buffer = materials_gpu_buffer->Handle;
-        global_materials_buffer_info.range = VK_WHOLE_SIZE;
+        materials_buffer_info.buffer = materials_gpu_buffer->Handle;
+        materials_buffer_info.range = VK_WHOLE_SIZE;
 
         descriptor_write_info[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_write_info[2].descriptorCount = 1;
         descriptor_write_info[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptor_write_info[2].dstBinding = 2;
         descriptor_write_info[2].dstArrayElement = 0;
-        descriptor_write_info[2].pBufferInfo = &global_materials_buffer_info;
+        descriptor_write_info[2].pBufferInfo = &materials_buffer_info;
+        count++;
+    }
+
+    VulkanBuffer*          vertex_gpu_buffer = VulkanResourceManagerApi::GetBuffer(vertex_buffer.IsInvalid() ? s_Context.VertexBuffer : vertex_buffer);
+    VkDescriptorBufferInfo vertex_buffer_info = {};
+    if (vertex_gpu_buffer)
+    {
+        vertex_buffer_info.buffer = vertex_gpu_buffer->Handle;
+        vertex_buffer_info.range = VK_WHOLE_SIZE;
+
+        descriptor_write_info[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write_info[3].descriptorCount = 1;
+        descriptor_write_info[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptor_write_info[3].dstBinding = 3;
+        descriptor_write_info[3].dstArrayElement = 0;
+        descriptor_write_info[3].pBufferInfo = &vertex_buffer_info;
         count++;
     }
 
@@ -1166,9 +1187,9 @@ void VulkanRendererBackend::DrawGeometryData(u32 geometry_id)
     VulkanBuffer* vertex_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.VertexBuffer);
     VulkanBuffer* index_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
 
-    vkCmdBindVertexBuffers(cmd_buffer->Resource, 0, 1, &vertex_buffer->Handle, offsets);
+    // vkCmdBindVertexBuffers(cmd_buffer->Resource, 0, 1, &vertex_buffer->Handle, offsets);
     vkCmdBindIndexBuffer(cmd_buffer->Resource, index_buffer->Handle, geometry_data.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cmd_buffer->Resource, geometry_data.IndexCount, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd_buffer->Resource, geometry_data.IndexCount, 1, 0, geometry_data.VertexBufferOffset / geometry_data.VertexSize, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u32 dst_buffer_offset, const void* data, u32 size)
@@ -1567,7 +1588,7 @@ bool createBuffers()
     s_Context.VertexBuffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = VertexBufferSize,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_VERTEX_BUFFER,
+        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
     });
 

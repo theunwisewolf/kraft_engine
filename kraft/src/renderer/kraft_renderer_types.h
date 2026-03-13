@@ -128,7 +128,7 @@ struct RendererBackend
 
     // Shader
     void (*UseShader)(const Shader* Shader, u32 VariantIndex);
-    void (*ApplyGlobalShaderProperties)(Shader* ActiveShader, Handle<Buffer> GlobalUBOBuffer, Handle<Buffer> GlobalMaterialsBuffer);
+    void (*ApplyGlobalShaderProperties)(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader);
     void (*DestroyRenderPipeline)(Shader* Shader);

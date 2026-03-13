@@ -216,6 +216,10 @@ void _createDefaultGeometries()
 #endif
 
     // 2D Geometry
+    // TODO(vertex-pulling): Disabled because Vertex2D (36 bytes) in the shared vertex SSBO
+    // breaks the uniform Vertex3D (32 byte) stride assumption in shaders.
+    // Re-enable once per-format vertex buffers or byte-offset addressing is implemented.
+#if 0
     {
         GeometryReference* Ref = &State->Geometries[1];
         r::Vertex2D        Vertices[] = {
@@ -251,6 +255,7 @@ void _createDefaultGeometries()
         }
 #endif
     }
+#endif
 }
 
 } // namespace kraft
