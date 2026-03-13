@@ -220,8 +220,14 @@ struct VulkanSwapchain
     u8                 CurrentFrame;
     u8                 MaxFramesInFlight;
     u32                ImageCount;
-    Handle<Texture>    DepthAttachment;
     VulkanFramebuffer* Framebuffers;
+
+    // Depending on the MSAASampleCount, this will either be MSAA or 1-Sample
+    Handle<Texture>    DepthAttachment;
+
+    // MSAA render targets
+    Handle<Texture>       MSAAColorAttachment;
+    VkSampleCountFlagBits MSAASampleCount = VK_SAMPLE_COUNT_1_BIT;
 };
 
 struct VulkanContext

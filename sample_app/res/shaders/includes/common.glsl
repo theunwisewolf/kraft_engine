@@ -14,8 +14,11 @@ layout (set = 0, binding = 0) uniform GlobalUniformBuffer
     vec3 LightPosition;
     uint Pad0;
     vec4 LightColor;
-    vec3 CameraPosition;
-    uint Pad1;
+    vec3  CameraPosition;
+    float Time;
+    float DeltaTime;
+    uint  Pad1;
+    uint  Pad2;
 } globalState;
 
 #if defined FRAGMENT

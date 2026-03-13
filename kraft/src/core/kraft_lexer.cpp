@@ -29,6 +29,9 @@ LexerError Lexer::NextToken(LexerToken* out_token)
 
     // Skip through whitespaces
     this->ConsumeWhitespaces();
+
+    CHECK_EOF_ERROR();
+
     out_token->type = TokenType::TOKEN_TYPE_UNKNOWN;
 
     u8 character = this->text.ptr[this->position];
@@ -244,7 +247,8 @@ LexerError Lexer::ConsumeWhitespaces()
 {
     while (true)
     {
-        CHECK_EOF_ERROR();
+        if (this->ReachedEOF())
+            return LEXER_ERROR_NONE;
 
         if (IsSpace(this->text.ptr[this->position]))
         {

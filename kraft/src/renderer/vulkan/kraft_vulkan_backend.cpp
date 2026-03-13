@@ -517,7 +517,9 @@ bool VulkanRendererBackend::BeginFrame()
     VulkanBeginCommandBuffer(gpu_cmd_buffer, false, false, false);
 
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
-    // We need to manually transition the swapchain image to the right format for dynamic rendering
+    bool msaa_enabled = s_Context.Swapchain.MSAASampleCount != VK_SAMPLE_COUNT_1_BIT;
+
+    // We must manually transition the swapchain image to the right format for dynamic rendering
     // Depth target
     imageBarrier(
         VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.DepthAttachment)->Image,
@@ -535,7 +537,7 @@ bool VulkanRendererBackend::BeginFrame()
         }
     );
 
-    // Gbuffer target
+    // Swapchain color target (resolve target when MSAA, render target otherwise)
     imageBarrier(
         s_Context.Swapchain.Images[s_Context.CurrentSwapchainImageIndex],
         VK_DEPENDENCY_BY_REGION_BIT,
@@ -552,18 +554,53 @@ bool VulkanRendererBackend::BeginFrame()
         }
     );
 
+    // MSAA color target barrier
+    if (msaa_enabled)
+    {
+        imageBarrier(
+            VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.MSAAColorAttachment)->Image,
+            VK_DEPENDENCY_BY_REGION_BIT,
+            {
+                .src_stage_mask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                .dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .src_access_mask = 0,
+                .dst_access_mask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .old_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .new_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                .aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .base_mip_level = 0,
+                .level_count = VK_REMAINING_MIP_LEVELS,
+            }
+        );
+    }
+
     VkRenderingAttachmentInfo color_attachment_info = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    color_attachment_info.imageView = s_Context.Swapchain.ImageViews[s_Context.CurrentSwapchainImageIndex];
-    color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment_info.clearValue.color = { { 0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f } };
+    if (msaa_enabled)
+    {
+        // Render to MSAA image, resolve to swapchain
+        color_attachment_info.imageView = VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.MSAAColorAttachment)->View;
+        color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // MSAA image doesn't need to be stored
+        color_attachment_info.clearValue.color = { { 0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f } };
+        color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        color_attachment_info.resolveImageView = s_Context.Swapchain.ImageViews[s_Context.CurrentSwapchainImageIndex];
+        color_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    }
+    else
+    {
+        color_attachment_info.imageView = s_Context.Swapchain.ImageViews[s_Context.CurrentSwapchainImageIndex];
+        color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment_info.clearValue.color = { { 0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f } };
+    }
 
     VkRenderingAttachmentInfo depth_attachment_info = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
     depth_attachment_info.imageView = VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.DepthAttachment)->View;
     depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
     depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depth_attachment_info.clearValue.depthStencil = { 1.f, 0 };
 
     VkRenderingInfo rendering_info = { VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -887,7 +924,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         VkPipelineMultisampleStateCreateInfo multisample_state_create_info = {};
         multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-        multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisample_state_create_info.rasterizationSamples = s_Context.Swapchain.MSAASampleCount;
         multisample_state_create_info.minSampleShading = 1.0f;
         multisample_state_create_info.pSampleMask = 0;
         multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;

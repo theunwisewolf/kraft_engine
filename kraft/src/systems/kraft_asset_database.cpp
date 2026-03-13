@@ -362,18 +362,21 @@ MeshAsset*        AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
                 MeshT& SubMesh = mesh->SubMeshes[mesh->SubMeshes.Length - 1];
                 SubMesh.Geometry = GeometrySystem::AcquireGeometryWithData(geometry);
 
-                ufbx_material* ufbx_material = ufbx_mesh->materials[ufbx_mesh_part->index];
-                ufbx_texture*  ufbx_texture = ufbx_material->pbr.base_color.texture;
-                if (ufbx_texture)
+                if (ufbx_mesh_part->index < ufbx_mesh->materials.count)
                 {
-                    r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(ufbx_texture->filename.data, ufbx_texture->filename.length));
-                    if (texture.IsInvalid())
+                    ufbx_material* ufbx_material = ufbx_mesh->materials[ufbx_mesh_part->index];
+                    ufbx_texture*  ufbx_texture = ufbx_material->pbr.base_color.texture;
+                    if (ufbx_texture)
                     {
-                        KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", ufbx_texture->filename.data);
-                        continue;
-                    }
+                        r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(ufbx_texture->filename.data, ufbx_texture->filename.length));
+                        if (texture.IsInvalid())
+                        {
+                            KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", ufbx_texture->filename.data);
+                            continue;
+                        }
 
-                    SubMesh.Textures.Push(texture);
+                        SubMesh.Textures.Push(texture);
+                    }
                 }
             }
         }

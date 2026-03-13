@@ -138,41 +138,95 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
     // Create Image views
     for (u32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
-        VkImageViewCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = context->Swapchain.Images[i];
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = context->Swapchain.ImageFormat.format;
-        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        createInfo.subresourceRange.baseMipLevel = 0;
-        createInfo.subresourceRange.levelCount = 1;
-        createInfo.subresourceRange.baseArrayLayer = 0;
-        createInfo.subresourceRange.layerCount = 1;
+        VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        info.image = context->Swapchain.Images[i];
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.format = context->Swapchain.ImageFormat.format;
+        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.baseMipLevel = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.layerCount = 1;
 
-        KRAFT_VK_CHECK(vkCreateImageView(context->LogicalDevice.Handle, &createInfo, context->AllocationCallbacks, &context->Swapchain.ImageViews[i]));
+        KRAFT_VK_CHECK(vkCreateImageView(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->Swapchain.ImageViews[i]));
     }
 
-    // Depth buffer if required
+    // Convert depth format
+    Format::Enum depth_buffer_format = Format::Count;
     if (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED)
     {
-        Format::Enum DepthBufferFormat = Format::Count;
         switch (context->PhysicalDevice.DepthBufferFormat)
         {
-            case VK_FORMAT_D16_UNORM:          DepthBufferFormat = Format::D16_UNORM; break;
-            case VK_FORMAT_D32_SFLOAT:         DepthBufferFormat = Format::D32_SFLOAT; break;
-            case VK_FORMAT_D16_UNORM_S8_UINT:  DepthBufferFormat = Format::D16_UNORM_S8_UINT; break;
-            case VK_FORMAT_D24_UNORM_S8_UINT:  DepthBufferFormat = Format::D24_UNORM_S8_UINT; break;
-            case VK_FORMAT_D32_SFLOAT_S8_UINT: DepthBufferFormat = Format::D32_SFLOAT_S8_UINT; break;
-
+            case VK_FORMAT_D16_UNORM:          depth_buffer_format = Format::D16_UNORM; break;
+            case VK_FORMAT_D32_SFLOAT:         depth_buffer_format = Format::D32_SFLOAT; break;
+            case VK_FORMAT_D16_UNORM_S8_UINT:  depth_buffer_format = Format::D16_UNORM_S8_UINT; break;
+            case VK_FORMAT_D24_UNORM_S8_UINT:  depth_buffer_format = Format::D24_UNORM_S8_UINT; break;
+            case VK_FORMAT_D32_SFLOAT_S8_UINT: depth_buffer_format = Format::D32_SFLOAT_S8_UINT; break;
             default:                           KFATAL("Unsupported depth buffer format %d", context->PhysicalDevice.DepthBufferFormat);
         }
+    }
 
-        context->Swapchain.DepthAttachment = ResourceManager->CreateTexture({
-            .DebugName = "Swapchain-Depth",
-            .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
-            .Format = DepthBufferFormat,
-            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
-        });
+    TextureSampleCountFlags sample_count = TEXTURE_SAMPLE_COUNT_FLAGS_1;
+
+    // MSAA
+    // Figure out the sample count and create the required targets
+    {
+        u8                 requested = context->Options->MSAASamples;
+        VkSampleCountFlags supported = context->PhysicalDevice.Properties.limits.framebufferColorSampleCounts & context->PhysicalDevice.Properties.limits.framebufferDepthSampleCounts;
+
+        VkSampleCountFlagBits msaa = VK_SAMPLE_COUNT_1_BIT;
+        if (requested >= 8 && (supported & VK_SAMPLE_COUNT_8_BIT))
+            msaa = VK_SAMPLE_COUNT_8_BIT;
+        else if (requested >= 4 && (supported & VK_SAMPLE_COUNT_4_BIT))
+            msaa = VK_SAMPLE_COUNT_4_BIT;
+        else if (requested >= 2 && (supported & VK_SAMPLE_COUNT_2_BIT))
+            msaa = VK_SAMPLE_COUNT_2_BIT;
+
+        context->Swapchain.MSAASampleCount = msaa;
+
+        if (msaa != VK_SAMPLE_COUNT_1_BIT)
+        {
+            if (msaa == VK_SAMPLE_COUNT_2_BIT)
+                sample_count = TEXTURE_SAMPLE_COUNT_FLAGS_2;
+            else if (msaa == VK_SAMPLE_COUNT_4_BIT)
+                sample_count = TEXTURE_SAMPLE_COUNT_FLAGS_4;
+            else if (msaa == VK_SAMPLE_COUNT_8_BIT)
+                sample_count = TEXTURE_SAMPLE_COUNT_FLAGS_8;
+
+            context->Swapchain.MSAAColorAttachment = ResourceManager->CreateTexture({
+                .DebugName = "MSAA-Color",
+                .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
+                .Format = Format::RGBA8_UNORM,
+                .Usage = (u64)(TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT),
+                .SampleCount = sample_count,
+            });
+
+            KINFO("[VulkanCreateSwapchain]: MSAA enabled with %dx samples", (int)msaa);
+        }
+    }
+
+    // Figure out the right depth format
+    if (depth_buffer_format != Format::Count)
+    {
+        if (context->Swapchain.MSAASampleCount == VK_SAMPLE_COUNT_1_BIT)
+        {
+            context->Swapchain.DepthAttachment = ResourceManager->CreateTexture({
+                .DebugName = "Swapchain-Depth",
+                .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
+                .Format = depth_buffer_format,
+                .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
+            });
+        }
+        else
+        {
+            context->Swapchain.DepthAttachment = ResourceManager->CreateTexture({
+                .DebugName = "MSAA-Depth",
+                .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
+                .Format = depth_buffer_format,
+                .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_DEPTH_STENCIL_ATTACHMENT,
+                .SampleCount = sample_count,
+            });
+        }
     }
 
     KSUCCESS("[VulkanCreateSwapchain]: Swapchain created successfully!");

@@ -32,7 +32,7 @@ private:
 
     template<typename U, typename V>
     friend struct Pool;
-    Handle(u16 index, u16 generation) : Index(Index), Generation(Generation)
+    Handle(u16 index, u16 generation) : Index(index), Generation(generation)
     {}
 
 public:
@@ -84,7 +84,16 @@ struct alignas(16) GlobalShaderData
             u32   Pad0;
             Vec4f GlobalLightColor;
             Vec3f CameraPosition;
-            u32   Pad1;
+            f32   Time;
+            f32   DeltaTime;
+            f32   Exposure;
+            f32   Saturation;
+            f32   VignetteStrength;
+            f32   VignetteRadius;
+            f32   Contrast;
+            f32   Warmth;
+            f32   ScreenWidth;
+            f32   ScreenHeight;
         };
 
         char _[256];
@@ -190,19 +199,19 @@ struct ShaderDataType
     {
         switch (Value.UnderlyingType)
         {
-            case Float:     return 1 * sizeof(float32) * Value.ArraySize;
-            case Float2:    return 2 * sizeof(float32) * Value.ArraySize;
-            case Float3:    return 3 * sizeof(float32) * Value.ArraySize;
-            case Float4:    return 4 * sizeof(float32) * Value.ArraySize;
-            case Mat4:      return 16 * sizeof(float32) * Value.ArraySize;
+            case Float:     return 1 * sizeof(f32) * Value.ArraySize;
+            case Float2:    return 2 * sizeof(f32) * Value.ArraySize;
+            case Float3:    return 3 * sizeof(f32) * Value.ArraySize;
+            case Float4:    return 4 * sizeof(f32) * Value.ArraySize;
+            case Mat4:      return 16 * sizeof(f32) * Value.ArraySize;
             case Byte:      return 1 * sizeof(byte) * Value.ArraySize;
             case Byte4N:    return 4 * sizeof(byte) * Value.ArraySize;
             case UByte:     return 4 * sizeof(byte) * Value.ArraySize;
             case UByte4N:   return 4 * sizeof(byte) * Value.ArraySize;
-            case Short2:    return 2 * sizeof(int16) * Value.ArraySize;
-            case Short2N:   return 2 * sizeof(int16) * Value.ArraySize;
-            case Short4:    return 4 * sizeof(int16) * Value.ArraySize;
-            case Short4N:   return 4 * sizeof(int16) * Value.ArraySize;
+            case Short2:    return 2 * sizeof(i16) * Value.ArraySize;
+            case Short2N:   return 2 * sizeof(i16) * Value.ArraySize;
+            case Short4:    return 4 * sizeof(i16) * Value.ArraySize;
+            case Short4N:   return 4 * sizeof(i16) * Value.ArraySize;
             case UInt:      return 1 * sizeof(u32) * Value.ArraySize;
             case UInt2:     return 2 * sizeof(u32) * Value.ArraySize;
             case UInt4:     return 4 * sizeof(u32) * Value.ArraySize;
@@ -679,7 +688,7 @@ struct DepthTarget
     LoadOp::Enum        StencilLoadOperation = LoadOp::Clear;
     StoreOp::Enum       StencilStoreOperation = StoreOp::Store;
     TextureLayout::Enum NextUsage = TextureLayout::DepthStencil;
-    float32             Depth = 1.0f;
+    f32                 Depth = 1.0f;
     u32                 Stencil = 0;
 };
 

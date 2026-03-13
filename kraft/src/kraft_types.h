@@ -13,8 +13,8 @@ namespace kraft {
 struct WindowOptions
 {
     String Title = "";
-    uint32 Width = 0;
-    uint32 Height = 0;
+    u32    Width = 0;
+    u32    Height = 0;
     int    RenderererHint = 1;
     bool   Primary = true;
     bool   StartMaximized = false;
@@ -33,10 +33,11 @@ struct RendererOptions
 {
     RendererBackendType Backend = RENDERER_BACKEND_TYPE_VULKAN;
     bool                VSync = false;
-    uint16              GlobalUBOSizeInBytes = 128;
-    uint16              TextureCacheSize = 512;
-    uint16              MaxMaterials = 1024;
-    uint16              MaterialBufferSize = 64; // Maximum size of a single material in bytes
+    u16                 GlobalUBOSizeInBytes = 128;
+    u16                 TextureCacheSize = 512;
+    u16                 MaxMaterials = 1024;
+    u16                 MaterialBufferSize = 64; // Maximum size of a single material in bytes
+    u8                  MSAASamples = 1;         // 1 = no MSAA, 2/4/8 = MSAA sample count
 };
 
 #endif

@@ -88,7 +88,7 @@ bool Init()
     init_info.Subpass = 0;
     init_info.MinImageCount = context->Swapchain.ImageCount;
     init_info.ImageCount = context->Swapchain.ImageCount;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.MSAASamples = context->Swapchain.MSAASampleCount;
     init_info.Allocator = context->AllocationCallbacks;
     init_info.CheckVkResultFn = CheckVkResult;
 

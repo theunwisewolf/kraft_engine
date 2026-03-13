@@ -352,9 +352,9 @@ RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32
 {
     RenderSurface surface = {
         .DebugName = name,
+        .VariantName = name,
         .Width = width,
         .Height = height,
-        .VariantName = name,
     };
 
     RenderPassDescription description = {

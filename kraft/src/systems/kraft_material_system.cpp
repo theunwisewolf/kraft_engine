@@ -313,6 +313,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
 
     if (!file_buf.count)
     {
+        KERROR("material file %S is empty", file_path);
+        ScratchEnd(scratch);
         return false;
     }
 
@@ -324,8 +326,14 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
         LexerToken token;
         if (LexerError err = lexer.NextToken(&token))
         {
+            if (err == LEXER_ERROR_UNEXPECTED_EOF)
+            {
+                break;
+            }
 
             KERROR("Encountered an error while trying to get the next token from the material file! ErrorCode = %d", err);
+
+            ScratchEnd(scratch);
             return false;
         }
 
@@ -335,42 +343,28 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
             {
                 if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                 {
+                    KERROR("Error on line %d\nExpected TOKEN_TYPE_IDENTIFIER", lexer.line+1);
+                    ScratchEnd(scratch);
                     return false;
                 }
 
                 Data->name = ArenaPushString8Copy(arena, token.text);
                 if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_BRACE))
                 {
+                    KERROR("Error on line %d\nExpected TOKEN_TYPE_OPEN_BRACE", lexer.line+1);
+                    ScratchEnd(scratch);
                     return false;
                 }
 
                 // Parse material block
                 while (!lexer.EqualsToken(&token, TokenType::TOKEN_TYPE_CLOSE_BRACE))
                 {
-                    if (token.MatchesKeyword(String8Raw("DiffuseTexture")))
+                    if (token.MatchesKeyword(String8Raw("Shader")))
                     {
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
                         {
-                            return false;
-                        }
-
-                        const String&      TexturePath = String((char*)token.text.ptr, token.text.count);
-                        r::Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
-                        if (Resource.IsInvalid())
-                        {
-                            KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %S. Using default texture.", *TexturePath, file_path);
-                            Resource = TextureSystem::GetDefaultDiffuseTexture();
-                        }
-
-                        String8 key = String8Raw("DiffuseTexture");
-                        u64     key_hash = FNV1AHashBytes(key);
-                        Data->properties[key_hash] = Resource;
-                        Data->properties[key_hash].Size = r::ShaderDataType::SizeOf(r::ShaderDataType{ .UnderlyingType = r::ShaderDataType::TextureID });
-                    }
-                    else if (token.MatchesKeyword(String8Raw("Shader")))
-                    {
-                        if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
-                        {
+                            KERROR("Error on line %d\nExpected TOKEN_TYPE_STRING", lexer.line+1);
+                            ScratchEnd(scratch);
                             return false;
                         }
 
@@ -382,6 +376,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         u64     key_hash = FNV1AHashBytes(key);
                         if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_IDENTIFIER))
                         {
+                            KERROR("Error on line %d\nExpected TOKEN_TYPE_IDENTIFIER", lexer.line+1);
+                            ScratchEnd(scratch);
                             return false;
                         }
 
@@ -407,6 +403,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         {
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_OPEN_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
@@ -424,6 +422,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                                 }
                                 else
                                 {
+                                    KERROR("Error on line %d\nExpected TOKEN_TYPE_COMMA or TOKEN_TYPE_NUMBER", lexer.line+1);
+                                    ScratchEnd(scratch);
                                     return false;
                                 }
                             }
@@ -439,6 +439,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                                     component_count,
                                     expected_component_count
                                 );
+
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
@@ -455,11 +457,15 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         {
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_OPEN_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_NUMBER", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
@@ -468,6 +474,8 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_CLOSE_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
                         }
@@ -475,11 +483,15 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
                         {
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_OPEN_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_NUMBER))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_NUMBER", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
 
@@ -488,12 +500,49 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
 
                             if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
                             {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_CLOSE_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
+                                return false;
+                            }
+                        }
+                        else if (token.MatchesKeyword(String8Raw("tex")))
+                        {
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_OPEN_PARENTHESIS))
+                            {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_OPEN_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
+                                return false;
+                            }
+
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_STRING))
+                            {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_STRING (texture path)", lexer.line+1);
+                                ScratchEnd(scratch);
+                                return false;
+                            }
+
+                            const String&      TexturePath = String((char*)token.text.ptr, token.text.count);
+                            r::Handle<Texture> Resource = TextureSystem::AcquireTexture(TexturePath);
+                            if (Resource.IsInvalid())
+                            {
+                                KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %s for material %S. Using default texture.", *TexturePath, file_path);
+                                Resource = TextureSystem::GetDefaultDiffuseTexture();
+                            }
+
+                            Data->properties[key_hash] = Resource;
+                            Data->properties[key_hash].Size = r::ShaderDataType::SizeOf(r::ShaderDataType{ .UnderlyingType = r::ShaderDataType::TextureID });
+
+                            if (!lexer.ExpectToken(&token, TokenType::TOKEN_TYPE_CLOSE_PARENTHESIS))
+                            {
+                                KERROR("Error on line %d\nExpected TOKEN_TYPE_CLOSE_PARENTHESIS", lexer.line+1);
+                                ScratchEnd(scratch);
                                 return false;
                             }
                         }
                         else
                         {
                             KERROR("Material has an invalid field %S", token.text);
+                            ScratchEnd(scratch);
                             return false;
                         }
                     }

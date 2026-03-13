@@ -17,9 +17,9 @@
 
 namespace kraft::r {
 
-static int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uint32 propertyFlags)
+static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 typeFilter, u32 propertyFlags)
 {
-    for (uint32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
+    for (u32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
     {
         VkMemoryType type = device.MemoryProperties.memoryTypes[i];
         if (typeFilter & (1 << i) && (type.propertyFlags & propertyFlags) == propertyFlags)
@@ -33,15 +33,14 @@ static int32 FindMemoryIndex(VulkanPhysicalDevice device, uint32 typeFilter, uin
 
 static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, int32 typeFilter, VkMemoryPropertyFlags propertyFlags, VkDeviceMemory* out)
 {
-    int32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
+    i32 memoryTypeIndex = FindMemoryIndex(context->PhysicalDevice, typeFilter, propertyFlags);
     if (memoryTypeIndex == -1)
     {
         KERROR("[VulkanAllocateMemory]: Failed to find suitable memoryType");
         return false;
     }
 
-    VkMemoryAllocateInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    VkMemoryAllocateInfo info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
     info.allocationSize = size;
     info.memoryTypeIndex = memoryTypeIndex;
 
@@ -60,10 +59,10 @@ struct TempMemoryBlock
 
 struct VulkanTempMemoryBlockAllocator
 {
-    uint64           CurrentFreeOffset = uint32(-1); // Offset of the memory that is current free
-    uint64           BlockSize = 0;                  // Size of each "block" to allocate
-    uint64           AllocationCount = 0;            // Number of allocations
-    TempMemoryBlock* CurrentBlock = nullptr;         // Current Memory block
+    uint64           CurrentFreeOffset = u32(-1); // Offset of the memory that is current free
+    uint64           BlockSize = 0;               // Size of each "block" to allocate
+    uint64           AllocationCount = 0;         // Number of allocations
+    TempMemoryBlock* CurrentBlock = nullptr;      // Current Memory block
 
     void Initialize(ArenaAllocator* Arena, uint64 BlockSize);
     void Destroy();
@@ -279,9 +278,9 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
     VkImageCreateInfo create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     create_info.imageType = ToVulkanImageType(description.Type);
     create_info.format = ToVulkanFormat(description.Format);
-    create_info.extent.width = (uint32)description.Dimensions.x;
-    create_info.extent.height = (uint32)description.Dimensions.y;
-    create_info.extent.depth = (uint32)description.Dimensions.z;
+    create_info.extent.width = (u32)description.Dimensions.x;
+    create_info.extent.height = (u32)description.Dimensions.y;
+    create_info.extent.depth = (u32)description.Dimensions.z;
     create_info.mipLevels = description.MipLevels;
     create_info.arrayLayers = 1;
     create_info.samples = ToVulkanSampleCountFlagBits(description.SampleCount);
@@ -313,9 +312,9 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
 
     context->SetObjectName((uint64)output.Image, VK_OBJECT_TYPE_IMAGE, description.DebugName);
 
-    VkMemoryRequirements MemoryRequirements;
-    vkGetImageMemoryRequirements(device, output.Image, &MemoryRequirements);
-    if (!VulkanAllocateMemory(context, MemoryRequirements.size, MemoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &output.Memory))
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements(device, output.Image, &memory_requirements);
+    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &output.Memory))
     {
         return Handle<Texture>::Invalid();
     }
@@ -325,21 +324,21 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
     KRAFT_VK_CHECK(vkBindImageMemory(device, output.Image, output.Memory, 0));
 
     // Now create the image view
-    VkImageViewCreateInfo ImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    ImageViewCreateInfo.image = output.Image;
-    ImageViewCreateInfo.viewType = description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
-    ImageViewCreateInfo.format = create_info.format;
-    ImageViewCreateInfo.subresourceRange.aspectMask = GetImageAspectMask(description.Format);
-    ImageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    ImageViewCreateInfo.subresourceRange.layerCount = 1;
-    ImageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    ImageViewCreateInfo.subresourceRange.levelCount = 1;
-    ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-    ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_R;
-    ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_R;
-    ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
+    VkImageViewCreateInfo view_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    view_create_info.image = output.Image;
+    view_create_info.viewType = description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
+    view_create_info.format = create_info.format;
+    view_create_info.subresourceRange.aspectMask = GetImageAspectMask(description.Format);
+    view_create_info.subresourceRange.baseArrayLayer = 0;
+    view_create_info.subresourceRange.layerCount = 1;
+    view_create_info.subresourceRange.baseMipLevel = 0;
+    view_create_info.subresourceRange.levelCount = 1;
+    // ImageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    // ImageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_R;
+    // ImageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_R;
+    // ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
 
-    KRAFT_VK_CHECK(vkCreateImageView(device, &ImageViewCreateInfo, context->AllocationCallbacks, &output.View));
+    KRAFT_VK_CHECK(vkCreateImageView(device, &view_create_info, context->AllocationCallbacks, &output.View));
     context->SetObjectName((u64)output.View, VK_OBJECT_TYPE_IMAGE_VIEW, description.DebugName);
 
     Texture Metadata = {
@@ -718,8 +717,8 @@ static bool UploadTexture(Handle<Texture> Resource, Handle<Buffer> BufferHandle,
     Region.imageSubresource.layerCount = 1;
     Region.imageSubresource.mipLevel = 0;
 
-    Region.imageExtent.width = (uint32)TextureMetadata->Width;
-    Region.imageExtent.height = (uint32)TextureMetadata->Height;
+    Region.imageExtent.width = (u32)TextureMetadata->Width;
+    Region.imageExtent.height = (u32)TextureMetadata->Height;
     Region.imageExtent.depth = 1;
 
     vkCmdCopyBufferToImage(VkTempCmdBuffer->Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
@@ -781,9 +780,9 @@ static bool ReadTextureData(const ReadTextureDataDescription& Description)
     KASSERT(Description.OutBuffer);
 
     Texture*   TextureMetadata = InternalState->TexturePool.GetAuxiliaryData(Description.SrcTexture);
-    uint32     WidthToRead = Description.Width == 0 ? (uint32_t)TextureMetadata->Width : (uint32_t)Description.Width;
-    uint32     HeightToRead = Description.Height == 0 ? (uint32_t)TextureMetadata->Height : (uint32_t)Description.Height;
-    uint32     StagingBufferSize = WidthToRead * HeightToRead * 4;
+    u32        WidthToRead = Description.Width == 0 ? (u32)TextureMetadata->Width : (u32)Description.Width;
+    u32        HeightToRead = Description.Height == 0 ? (u32)TextureMetadata->Height : (u32)Description.Height;
+    u32        StagingBufferSize = WidthToRead * HeightToRead * 4;
     BufferView StagingBuffer = CreateTempBuffer(StagingBufferSize);
 
     if (Description.OutBufferSize < StagingBufferSize)
