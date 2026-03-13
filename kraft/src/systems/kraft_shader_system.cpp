@@ -386,11 +386,17 @@ bool ShaderSystem::SetUniformByIndex(u32 Index, kraft::BufferView Value, bool In
 bool ShaderSystem::SetUniform(String8 name, void* Value, bool Invalidate)
 {
     if (State->CurrentShaderID == KRAFT_INVALID_ID)
+    {
+        KWARN("[SetUniform]: No shader is currently bound");
         return false;
+    }
 
     auto It = State->CurrentShader->UniformCacheMapping.find(FNV1AHashBytes(name));
     if (It == State->CurrentShader->UniformCacheMapping.iend())
+    {
+        KWARN("[SetUniform]: Unknown uniform '%S' on shader '%S'", name, State->CurrentShader->Path);
         return false;
+    }
 
     return SetUniformByIndex(It->second, Value, Invalidate);
 }

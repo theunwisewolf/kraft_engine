@@ -185,6 +185,37 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
     }
 
+    // Warn about .kmt properties that don't match any shader uniform
+    for (auto it = Data.properties.begin(); it != Data.properties.end(); it++)
+    {
+        u64  property_key = it->first;
+        auto uniform_it = Shader->UniformCacheMapping.find(property_key);
+        if (uniform_it == Shader->UniformCacheMapping.iend())
+        {
+            KWARN("[CreateMaterialWithData]: Material '%S' contains property with hash %lld that doesn't match any shader uniform (typo in .kmt?)", Data.name, property_key);
+        }
+    }
+
+    // Validate that material data fits within MaterialBufferSize
+    {
+        u32 max_offset = 0;
+        for (auto it = Shader->UniformCacheMapping.ibegin(); it != Shader->UniformCacheMapping.iend(); it++)
+        {
+            ShaderUniform* uniform = &Shader->UniformCache[it->second];
+            if (uniform->Scope != r::ShaderUniformScope::Instance)
+                continue;
+
+            u32 end = uniform->Offset + uniform->Stride;
+            if (end > max_offset)
+                max_offset = end;
+        }
+
+        if (max_offset > State->MaterialBufferSize)
+        {
+            KERROR("[CreateMaterialWithData]: Material '%S' requires %d bytes but MaterialBufferSize is %d. Material data will overflow into adjacent materials!", Data.name, max_offset, State->MaterialBufferSize);
+        }
+    }
+
     Instance->Properties = Data.properties;
     return Instance;
 }
@@ -568,7 +599,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
         auto it = instance->Shader->UniformCacheMapping.find(key_hash);                                                                                                                                \
         if (it == instance->Shader->UniformCacheMapping.iend())                                                                                                                                        \
         {                                                                                                                                                                                              \
-            KERROR("[SetTexture]: Unknown key %S", key);                                                                                                                                               \
+            KERROR("[SetProperty]: Unknown property '%S' on material '%S'", key, instance->Name);                                                                                                      \
             return false;                                                                                                                                                                              \
         }                                                                                                                                                                                              \
                                                                                                                                                                                                        \
