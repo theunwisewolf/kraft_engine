@@ -1,74 +1,65 @@
 #include "kraft_events.h"
 
-#include <containers/kraft_carray.h>
-
 namespace kraft {
 
-bool             EventSystem::Initialized = false;
-EventSystemState EventSystem::State;
+bool             EventSystem::initialized = false;
+EventSystemState EventSystem::state;
 
-bool EventSystem::Init()
+bool EventSystem::Init(ArenaAllocator* arena)
 {
-    if (Initialized)
+    if (initialized)
     {
         KERROR("EventSystem already initialized!");
         return false;
     }
 
-    MemZero(&State, sizeof(EventSystemState));
-    Initialized = true;
+    MemZero(&state, sizeof(EventSystemState));
+    state.arena = arena;
+
+    for (int i = 0; i < EventType::EVENT_TYPE_NUM_COUNT; i++)
+    {
+        state.event_entries[i].listeners.Init(arena);
+    }
+
+    initialized = true;
 
     return true;
 }
 
 bool EventSystem::Shutdown()
 {
-    for (int i = 0; i < EventType::EVENT_TYPE_NUM_COUNT; i++)
-    {
-        EventListener* events = State.EventEntries[i].Events;
-        arrfree(events);
-
-        State.EventEntries[i].Events = nullptr;
-    }
-
+    initialized = false;
     return true;
 }
 
 bool EventSystem::Listen(EventType type, void* listener, EventCallback callback)
 {
-    EventListener* events = State.EventEntries[type].Events;
-
-    // Check for duplicate events
-    for (int i = 0; i < arrlen(events); ++i)
+    EventListener* it;
+    ca_for(state.event_entries[type].listeners, it)
     {
-        if (events[i].Listener == listener)
+        if (it->listener == listener)
         {
-            // TODO (amn): Fix this
-            // KERROR("[EventSystem::Listen]: An event entry with the same listener already exists for event type %d", type);
-            // return false;
+            // Duplicate listener
         }
     }
 
-    EventListener e;
-    e.Listener = listener;
-    e.Callback = callback;
-
-    arrpush(events, e);
-    State.EventEntries[type].Events = events;
+    state.event_entries[type].listeners.Push({ listener, callback });
     return true;
 }
 
 bool EventSystem::Unlisten(EventType type, void* listener, EventCallback callback)
 {
-    EventListener* events = State.EventEntries[type].Events;
-    for (int i = 0; i < arrlen(events); i++)
+    EventListener* it;
+    u32            index = 0;
+    ca_for(state.event_entries[type].listeners, it)
     {
-        EventListener event = events[i];
-        if (event.Listener == listener && event.Callback == callback)
+        if (it->listener == listener && it->callback == callback)
         {
-            arrdel(events, i);
+            state.event_entries[type].listeners.SwapRemove(index);
             return true;
         }
+
+        index++;
     }
 
     return false;
@@ -76,15 +67,14 @@ bool EventSystem::Unlisten(EventType type, void* listener, EventCallback callbac
 
 void EventSystem::Dispatch(EventType type, EventData data, void* sender)
 {
-    EventListener* events = State.EventEntries[type].Events;
-    for (int i = 0; i < arrlen(events); ++i)
+    EventListener* it;
+    ca_for(state.event_entries[type].listeners, it)
     {
-        EventListener e = events[i];
-        if (e.Callback(type, sender, e.Listener, data))
+        if (it->callback(type, sender, it->listener, data))
         {
             return;
         }
     }
 }
 
-}
+} // namespace kraft

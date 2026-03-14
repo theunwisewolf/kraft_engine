@@ -1,23 +1,14 @@
 #pragma once
 
 #include <cstring>
-#include <wchar.h>
 
 #include <core/kraft_core.h>
 
-namespace kraft
-{
+namespace kraft {
 
-// char
-KRAFT_INLINE static uint64 Strlen(const char* Str)
+KRAFT_INLINE static u64 Strlen(const char* str)
 {
-    return strlen(Str);
+    return strlen(str);
 }
 
-// wchar_t
-KRAFT_INLINE static uint64 Strlen(const wchar_t* Str)
-{
-    return wcslen(Str);
-}
-
-}
+} // namespace kraft

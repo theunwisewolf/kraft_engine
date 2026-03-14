@@ -1,0 +1,5 @@
+#include "kraft_asset_database.cpp"
+#include "kraft_texture_system.cpp"
+#include "kraft_material_system.cpp"
+#include "kraft_geometry_system.cpp"
+#include "kraft_shader_system.cpp"

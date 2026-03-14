@@ -540,65 +540,65 @@ KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_len
     return strncpy(dst, src, src_length_to_cpy);
 }
 
-KRAFT_INLINE static char* StringConcat(char* dst, const char* src)
-{
-    return strcat(dst, src);
-}
+// KRAFT_INLINE static char* StringConcat(char* dst, const char* src)
+// {
+//     return strcat(dst, src);
+// }
 
-KRAFT_INLINE static char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
-{
-    return strncat(dst, src, src_length_to_cpy);
-}
+// KRAFT_INLINE static char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
+// {
+//     return strncat(dst, src, src_length_to_cpy);
+// }
 
-KRAFT_INLINE static const char* StringTrim(const char* in)
-{
-    if (!in)
-        return in;
+// KRAFT_INLINE static const char* StringTrim(const char* in)
+// {
+//     if (!in)
+//         return in;
 
-    uint64 length = StringLength(in);
-    if (length == 0)
-        return in;
+//     uint64 length = StringLength(in);
+//     if (length == 0)
+//         return in;
 
-    uint64 start = 0;
-    uint64 end = length - 1;
+//     uint64 start = 0;
+//     uint64 end = length - 1;
 
-    while (start < length && isspace(in[start]))
-        start++;
-    while (end >= start && isspace(in[end]))
-        end--;
+//     while (start < length && isspace(in[start]))
+//         start++;
+//     while (end >= start && isspace(in[end]))
+//         end--;
 
-    length = end - start + 1;
-    char* out = (char*)kraft::Malloc((length + 1) * sizeof(char), MEMORY_TAG_STRING, true);
-    kraft::MemCpy(out, (void*)(in + start), length * sizeof(char));
+//     length = end - start + 1;
+//     char* out = (char*)kraft::Malloc((length + 1) * sizeof(char), MEMORY_TAG_STRING, true);
+//     kraft::MemCpy(out, (void*)(in + start), length * sizeof(char));
 
-    return (const char*)out;
-}
+//     return (const char*)out;
+// }
 
 // Will not work with string-literals as they are read only!
-KRAFT_INLINE static char* StringTrimLight(char* in)
-{
-    if (!in)
-        return in;
+// KRAFT_INLINE static char* StringTrimLight(char* in)
+// {
+//     if (!in)
+//         return in;
 
-    while (isspace(*in))
-        in++;
-    char* p = in;
+//     while (isspace(*in))
+//         in++;
+//     char* p = in;
 
-    while (*p)
-        p++;
-    p--;
+//     while (*p)
+//         p++;
+//     p--;
 
-    while (isspace(*p))
-        p--;
-    p[1] = 0;
+//     while (isspace(*p))
+//         p--;
+//     p[1] = 0;
 
-    return in;
-}
+//     return in;
+// }
 
-KRAFT_INLINE static uint64 StringEqual(const char* a, const char* b)
-{
-    return strcmp(a, b) == 0;
-}
+// KRAFT_INLINE static u64 StringEqual(const char* a, const char* b)
+// {
+//     return strcmp(a, b) == 0;
+// }
 
 #define KRAFT_STRINGIFY(A)      #A
 #define KRAFT_STATIC_STR_CONCAT (strA, strB) strA strB

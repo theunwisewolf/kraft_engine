@@ -4,3 +4,4 @@
 #include "kraft_carray.h"
 #include "kraft_hashmap.h"
 #include "kraft_ringbuffer.h"
+#include "kraft_chunked_array.h"

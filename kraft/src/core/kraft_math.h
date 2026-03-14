@@ -1,3 +1,6 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 #pragma once
 
 #ifndef KRAFT_MATH_H_
@@ -448,17 +451,17 @@ struct Vector<T, 4>
 
 #pragma warning(pop)
 
-UNARY_OPERATOR(-);
-UNARY_OPERATOR(!);
-UNARY_OPERATOR(~);
+UNARY_OPERATOR(-)
+UNARY_OPERATOR(!)
+UNARY_OPERATOR(~)
 
-BINARY_OPERATOR(-);
-BINARY_OPERATOR(+);
-BINARY_OPERATOR(*);
-BINARY_OPERATOR(/);
-BINARY_OPERATOR(&);
-BINARY_OPERATOR(|);
-BINARY_OPERATOR(^);
+BINARY_OPERATOR(-)
+BINARY_OPERATOR(+)
+BINARY_OPERATOR(*)
+BINARY_OPERATOR(/)
+BINARY_OPERATOR(&)
+BINARY_OPERATOR(|)
+BINARY_OPERATOR(^)
 
 BINARY_INPLACE_OPERATOR(-=);
 BINARY_INPLACE_OPERATOR(+=);
@@ -556,8 +559,11 @@ KRAFT_INLINE static const bool Vec3fCompare(Vector<float, 3> a, Vector<float, 3>
 }
 
 typedef Vector<f32, 2> Vec2f;
+typedef Vector<f32, 2> vec2;
 typedef Vector<f32, 3> Vec3f;
+typedef Vector<f32, 3> vec3;
 typedef Vector<f32, 4> Vec4f;
+typedef Vector<f32, 4> vec4;
 
 extern const Vec2f Vec2fZero;
 extern const Vec3f Vec3fZero;
@@ -761,6 +767,7 @@ private:
 };
 
 typedef Matrix<f32, 4, 4> Mat4f;
+typedef Matrix<f32, 4, 4> mat4;
 
 // Matrix multiplication
 template<typename T, int rows, int cols>
@@ -1046,15 +1053,15 @@ void PrintVector(Vector<T, N> in)
     printf(" }\n");
 }
 
-UNARY_OPERATOR(-);
-UNARY_OPERATOR(!);
-UNARY_OPERATOR(~);
+UNARY_OPERATOR(-)
+UNARY_OPERATOR(!)
+UNARY_OPERATOR(~)
 
-BINARY_OPERATOR(-);
-BINARY_OPERATOR(+);
-BINARY_OPERATOR(&);
-BINARY_OPERATOR(|);
-BINARY_OPERATOR(^);
+BINARY_OPERATOR(-)
+BINARY_OPERATOR(+)
+BINARY_OPERATOR(&)
+BINARY_OPERATOR(|)
+BINARY_OPERATOR(^)
 
 BINARY_SCALAR_OPERATOR(*);
 BINARY_SCALAR_OPERATOR(/);
@@ -1189,3 +1196,5 @@ KRAFT_API Mat4f LookAt(Vec3f Eye, Vec3f Center, Vec3f Up);
 #define KRAFT_RGBA(r, g, b, a) kraft::Vec4f(f32(r) / 255.0f, f32(g) / 255.0f, f32(b) / 255.0f, f32(a) / 255.0f)
 #define KRAFT_RGB(r, g, b)     KRAFT_RGBA(r, g, b, 255.0f)
 #define KRAFT_HEX(hex)         KRAFT_RGBA((hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff, 255.0f)
+
+#pragma GCC diagnostic pop

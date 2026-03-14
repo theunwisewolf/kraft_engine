@@ -29,8 +29,8 @@ struct World
     bool   IsValidEntity(EntityHandleT Handle) const;
 
     Entity CreateEntity();
-    Entity CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
-    Entity CreateEntity(StringView Name, const Entity& Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
+    Entity CreateEntity(String8 name, EntityHandleT Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
+    Entity CreateEntity(String8 name, const Entity& Parent, Vec3f Position = Vec3fZero, Vec3f Rotation = Vec3fZero, Vec3f Scale = Vec3fOne);
     void   DestroyEntity(Entity Entity);
 
     void                       Render();

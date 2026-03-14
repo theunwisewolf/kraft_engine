@@ -80,11 +80,11 @@ struct RelationshipComponent
 
 struct MetadataComponent
 {
-    String Name = "";
+    String8 name = {};
 
     MetadataComponent() = default;
-    MetadataComponent(const String& Name) : Name(Name) {};
-    MetadataComponent(StringView Name) : Name(Name.Buffer, Name.GetLengthInBytes()) {};
+    MetadataComponent(String8 name) : name(name) {};
+    // MetadataComponent(StringView Name) : Name(Name.Buffer, Name.GetLengthInBytes()) {};
 };
 
 struct MeshComponent

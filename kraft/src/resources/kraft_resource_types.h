@@ -28,7 +28,7 @@ struct Shader
     String8                Path;
     shaderfx::ShaderEffect ShaderEffect;
     Array<ShaderUniform>   UniformCache;
-    HashMap<u64, u32>      UniformCacheMapping;
+    FlatHashMap<u64, u32>  UniformCacheMapping;
 
     void* RendererData;
 };
@@ -144,7 +144,7 @@ struct Material
 
 struct Geometry
 {
-    ResourceID         ID;
+    ResourceID          ID;
     r::GeometryDrawData DrawData;
 };
 

@@ -11,31 +11,18 @@ project(${PROJECT_NAME} LANGUAGES CXX C)
 
 set(SRC_FILES 
     src/kraft.cpp
-    src/containers/kraft_carray.cpp
-    src/containers/kraft_array.cpp
-    src/core/kraft_string.cpp
-    src/core/kraft_string_view.cpp
 )
 
 if (WIN32)
 endif()
 
-set(HEADER_FILES
-    src/util.h
-)
+set(HEADER_FILES)
 
 
 if (KRAFT_APP_TYPE STREQUAL "GUI")
     list(APPEND HEADER_FILES
         # Renderer
         src/renderer/renderables/kraft_gameobject.cpp
-
-        # Systems
-        src/systems/kraft_texture_system.cpp
-        src/systems/kraft_material_system.cpp
-        src/systems/kraft_geometry_system.cpp
-        src/systems/kraft_shader_system.cpp
-        src/systems/kraft_asset_database.cpp
 
         # imgui
         vendor/imgui/imgui.cpp

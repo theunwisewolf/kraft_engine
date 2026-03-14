@@ -18,50 +18,47 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME "default-diffuse"
+#define KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME S("default-diffuse")
 
 namespace kraft {
 
 struct TextureReference
 {
-    u32                RefCount;
-    bool               AutoRelease;
-    r::Handle<Texture> Resource;
+    u32                ref_count;
+    bool               auto_release;
+    r::Handle<Texture> handle;
 
-    TextureReference() : RefCount(0), AutoRelease(true), Resource(r::Handle<Texture>::Invalid())
+    TextureReference() : ref_count(0), auto_release(true), handle(r::Handle<Texture>::Invalid())
     {}
 
-    TextureReference(r::Handle<Texture> Resource, bool AutoRelease = true) : RefCount(0), AutoRelease(AutoRelease), Resource(Resource)
+    TextureReference(r::Handle<Texture> handle, bool auto_release = true) : ref_count(0), auto_release(auto_release), handle(handle)
     {}
 };
 
 // Private state
 struct TextureSystemState
 {
-    u32                               MaxTextureCount;
-    HashMap<String, TextureReference> TextureCache;
-    Array<r::Handle<Texture>>         DirtyTextures;
-
-    TextureSystemState(u32 MaxTextures)
-    {
-        this->MaxTextureCount = MaxTextures;
-    }
+    u32                                    max_texture_count;
+    FlatHashMap<String8, TextureReference> cache;
+    Array<r::Handle<Texture>>              dirty_textures;
 };
 
-static TextureSystemState* State = 0;
+static TextureSystemState* texture_system_state = 0;
 static void                _createDefaultTextures();
 
-static r::Format::Enum FormatFromChannels(int Channels)
+static r::Format::Enum FormatFromChannels(u8 channels)
 {
-    if (Channels == 1)
+    if (channels == 1)
     {
         return r::Format::RED;
     }
-    if (Channels == 3)
+
+    if (channels == 3)
     {
         return r::Format::RGB8_UNORM;
     }
-    if (Channels == 4)
+
+    if (channels == 4)
     {
         return r::Format::RGBA8_UNORM;
     }
@@ -69,34 +66,34 @@ static r::Format::Enum FormatFromChannels(int Channels)
     return r::Format::RGBA8_UNORM;
 }
 
-void TextureSystem::Init(u32 maxTextureCount)
+void TextureSystem::Init(u32 max_texture_count)
 {
-    void* RawMemory = kraft::Malloc(sizeof(TextureSystemState), MEMORY_TAG_TEXTURE_SYSTEM, true);
+    void* raw_memory = kraft::Malloc(sizeof(TextureSystemState), MEMORY_TAG_TEXTURE_SYSTEM, true);
 
-    State = new (RawMemory) TextureSystemState(maxTextureCount);
-    State = (TextureSystemState*)RawMemory;
+    texture_system_state = new (raw_memory) TextureSystemState{ max_texture_count };
+    texture_system_state = (TextureSystemState*)raw_memory;
 
     _createDefaultTextures();
 }
 
 void TextureSystem::Shutdown()
 {
-    u32 totalSize = sizeof(TextureSystemState);
-    kraft::Free(State, totalSize, MEMORY_TAG_TEXTURE_SYSTEM);
+    u32 total_size = sizeof(TextureSystemState);
+    kraft::Free(texture_system_state, total_size, MEMORY_TAG_TEXTURE_SYSTEM);
 
     KINFO("[TextureSystem::Shutdown]: Shutting down texture system");
 }
 
-r::Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRelease)
+r::Handle<Texture> TextureSystem::AcquireTexture(String8 name, bool auto_release)
 {
-    auto ExistingTexture = State->TextureCache.find(Name);
-    if (ExistingTexture != State->TextureCache.end())
+    auto existing_texture = texture_system_state->cache.find(name);
+    if (existing_texture != texture_system_state->cache.end())
     {
-        ExistingTexture.value().RefCount++;
-        return ExistingTexture.value().Resource;
+        existing_texture->second.ref_count++;
+        return existing_texture->second.handle;
     }
 
-    if (State->TextureCache.size() == State->MaxTextureCount)
+    if (texture_system_state->cache.size() == texture_system_state->max_texture_count)
     {
         KERROR("[TextureSystem::AcquireTexture]: Failed to acquire texture; Out-of-memory!");
         return r::Handle<Texture>::Invalid();
@@ -106,50 +103,53 @@ r::Handle<Texture> TextureSystem::AcquireTexture(const String& Name, bool AutoRe
     // TODO (amn): File reading should be done by an asset database
     stbi_set_flip_vertically_on_load(1);
 
-    int Width, Height, Channels, DesiredChannels = 0;
-    if (!stbi_info(*Name, &Width, &Height, &Channels))
+    i32 width, height, channels, desired_channels = 0;
+    if (!stbi_info(name.str, &width, &height, &channels))
     {
-        KERROR("[TextureSystem::LoadTexture]: Failed to load metadata for image '%s' with error '%s'", Name.Data(), stbi_failure_reason());
-
+        KERROR("[TextureSystem::LoadTexture]: Failed to load metadata for image '%S' with error '%s'", name, stbi_failure_reason());
         return r::Handle<Texture>::Invalid();
     }
 
     // GPUs dont usually support 3 channel images, so we load with 4
-    DesiredChannels = (Channels == 3) ? 4 : Channels;
+    desired_channels = (channels == 3) ? 4 : channels;
 
-    u8* TextureData = stbi_load(*Name, &Width, &Height, &Channels, DesiredChannels);
-    if (!TextureData)
+    TempArena scratch = ScratchBegin(0, 0);
+
+    // Stb expects a null-terminated string
+    // While most string8 strings will be null terminated, it's better to be safe than sorry
+    String8 texture_path_null_terminated = ArenaPushString8Copy(scratch.arena, name);
+    u8*     texture_data = stbi_load(texture_path_null_terminated.str, &width, &height, &channels, desired_channels);
+    if (!texture_data)
     {
-        KERROR("[TextureSystem::LoadTexture]: Failed to load image %s", Name.Data());
-        if (const char* FailureReason = stbi_failure_reason())
+        KERROR("[TextureSystem::LoadTexture]: Failed to load image '%S'", name);
+        if (const char* reason = stbi_failure_reason())
         {
-            KERROR("[TextureSystem::LoadTexture]: Error %s", FailureReason);
+            KERROR("[TextureSystem::LoadTexture]: Error %s", reason);
         }
 
+        ScratchEnd(scratch);
         return r::Handle<Texture>::Invalid();
     }
 
-    char DebugName[512] = { 0 };
-    MemCpy(DebugName, *Name, Name.GetLengthInBytes());
-
-    r::Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData(
+    r::Handle<Texture> handle = TextureSystem::CreateTextureWithData(
         {
-            .DebugName = DebugName,
-            .Dimensions = { (float32)Width, (float32)Height, 1, (float32)DesiredChannels },
-            .Format = FormatFromChannels(DesiredChannels),
+            .DebugName = texture_path_null_terminated.str,
+            .Dimensions = { (f32)width, (f32)height, 1, (f32)desired_channels },
+            .Format = FormatFromChannels(desired_channels),
             .Usage = r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
-        TextureData
+        texture_data
     );
 
-    stbi_image_free(TextureData);
+    stbi_image_free(texture_data);
 
-    State->TextureCache[Name] = TextureReference(TextureResource, AutoRelease);
+    texture_system_state->cache[name] = TextureReference(handle, auto_release);
 
-    if (!TextureResource.IsInvalid())
-        KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %s", *Name);
+    if (!handle.IsInvalid())
+        KDEBUG("[TextureSystem::AcquireTexture]: Acquired texture %S", name);
 
-    return TextureResource;
+    ScratchEnd(scratch);
+    return handle;
 }
 
 r::Handle<Texture> TextureSystem::AcquireTextureWithData(String8 name, u8* data, u32 width, u32 height, u32 channels)
@@ -173,118 +173,118 @@ r::Handle<Texture> TextureSystem::AcquireTextureWithData(String8 name, u8* data,
     return resource;
 }
 
-void TextureSystem::ReleaseTexture(const String& TextureName)
+void TextureSystem::ReleaseTexture(String8 texture_name)
 {
-    if (TextureName == KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME)
+    if (StringEqual(texture_name, KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME))
     {
-        KDEBUG("[TextureSystem::ReleaseTexture]: %s is a default texture; Cannot be released!", TextureName.Data());
+        KDEBUG("[TextureSystem::ReleaseTexture]: '%S' is a default texture; Cannot be released!", texture_name);
         return;
     }
 
-    KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture %s", TextureName.Data());
-    auto It = State->TextureCache.find(TextureName);
-    if (It == State->TextureCache.end())
+    KDEBUG("[TextureSystem::ReleaseTexture]: Releasing texture '%S'", texture_name);
+    auto it = texture_system_state->cache.find(texture_name);
+    if (it == texture_system_state->cache.end())
     {
-        KERROR("[TextureSystem::ReleaseTexture]: Called for unknown texture %s", *TextureName);
+        KERROR("[TextureSystem::ReleaseTexture]: Called for unknown texture '%S'", texture_name);
         return;
     }
 
-    TextureReference& Ref = It.value();
-    if (Ref.RefCount == 0)
+    TextureReference& ref = it->second;
+    if (ref.ref_count == 0)
     {
-        KWARN("[TextureSystem::ReleaseTexture]: Texture %s already released!", *TextureName);
+        KWARN("[TextureSystem::ReleaseTexture]: Texture '%S' already released!", texture_name);
         return;
     }
 
-    Ref.RefCount--;
-    if (Ref.RefCount == 0 && Ref.AutoRelease)
+    ref.ref_count--;
+    if (ref.ref_count == 0 && ref.auto_release)
     {
-        r::ResourceManager->DestroyTexture(Ref.Resource);
-        State->TextureCache.erase(It);
+        r::ResourceManager->DestroyTexture(ref.handle);
+        texture_system_state->cache.erase(it);
     }
 }
 
-void TextureSystem::ReleaseTexture(r::Handle<Texture> Resource)
+void TextureSystem::ReleaseTexture(r::Handle<Texture> handle)
 {
     KWARN("Not implemented");
     // TODO (amn): Figure this out
-    // State->TextureCache.values()
+    // texture_system_state->cache.values()
     // if (Texture)
     // {
     //     TextureSystem::ReleaseTexture(Texture->Name);
     // }
 }
 
-r::Handle<Texture> TextureSystem::CreateTextureWithData(r::TextureDescription&& Description, const u8* Data)
+r::Handle<Texture> TextureSystem::CreateTextureWithData(r::TextureDescription description, const u8* data)
 {
-    Description.Usage |= r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
-    r::Handle<Texture> TextureResource = r::ResourceManager->CreateTexture(Description);
+    description.Usage |= r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST;
+    r::Handle<Texture> handle = r::ResourceManager->CreateTexture(description);
 
-    KASSERT(!TextureResource.IsInvalid());
+    KASSERT(!handle.IsInvalid());
 
-    u64           TextureSize = (u64)(Description.Dimensions.x * Description.Dimensions.y * Description.Dimensions.z * Description.Dimensions.w);
-    r::BufferView StagingBuffer = r::ResourceManager->CreateTempBuffer(TextureSize);
-    MemCpy(StagingBuffer.Ptr, Data, TextureSize);
+    u64           size = (u64)(description.Dimensions.x * description.Dimensions.y * description.Dimensions.z * description.Dimensions.w);
+    r::BufferView staging_buf = r::ResourceManager->CreateTempBuffer(size);
+    MemCpy(staging_buf.Ptr, data, size);
 
-    if (!r::ResourceManager->UploadTexture(TextureResource, StagingBuffer.GPUBuffer, StagingBuffer.Offset))
+    if (!r::ResourceManager->UploadTexture(handle, staging_buf.GPUBuffer, staging_buf.Offset))
     {
         KERROR("Texture upload failed");
         // TODO (amn): Delete texture handle
     }
     else
     {
-        State->DirtyTextures.Push(TextureResource);
+        texture_system_state->dirty_textures.Push(handle);
     }
 
-    return TextureResource;
+    return handle;
 }
 
-kraft::BufferView TextureSystem::CreateEmptyTexture(u32 Width, u32 Height, u8 Channels)
+kraft::BufferView TextureSystem::CreateEmptyTexture(u32 width, u32 height, u8 channels)
 {
-    u32 TextureSize = Width * Height * Channels;
-    u8* Pixels = (u8*)Malloc(TextureSize, MEMORY_TAG_TEXTURE);
-    MemSet(Pixels, 255, TextureSize);
+    u32 texture_size = width * height * channels;
+    u8* pixels = (u8*)Malloc(texture_size, MEMORY_TAG_TEXTURE);
+    MemSet(pixels, 255, texture_size);
 
-    const int      Segments = 8;
-    const int      BoxSize = Width / Segments;
-    unsigned char  White[4] = { 255, 255, 255, 255 };
-    unsigned char  Black[4] = { 0, 0, 0, 255 };
-    unsigned char* Color = NULL;
-    bool           Swap = 0;
-    bool           Fill = 0;
-    for (u32 i = 0; i < Width * Height; i++)
+    const int      segments = 8;
+    const int      box_size = width / segments;
+    unsigned char  white[4] = { 255, 255, 255, 255 };
+    unsigned char  black[4] = { 0, 0, 0, 255 };
+    unsigned char* color = NULL;
+    bool           swap = 0;
+    bool           fill = 0;
+    for (u32 i = 0; i < width * height; i++)
     {
         if (i > 0)
         {
-            if (i % (Width * BoxSize) == 0)
-                Swap = !Swap;
+            if (i % (width * box_size) == 0)
+                swap = !swap;
 
-            if (i % BoxSize == 0)
-                Fill = !Fill;
+            if (i % box_size == 0)
+                fill = !fill;
         }
 
-        if (Fill)
+        if (fill)
         {
-            if (Swap)
-                Color = Black;
+            if (swap)
+                color = black;
             else
-                Color = White;
+                color = white;
         }
         else
         {
-            if (Swap)
-                Color = White;
+            if (swap)
+                color = white;
             else
-                Color = Black;
+                color = black;
         }
 
-        for (u32 j = 0; j < Channels; j++)
+        for (u32 j = 0; j < channels; j++)
         {
-            Pixels[i * Channels + j] = Color[j];
+            pixels[i * channels + j] = color[j];
         }
     }
 
-    return { .Memory = Pixels, .Size = TextureSize };
+    return { .Memory = pixels, .Size = texture_size };
 
     // for (int i = 0; i < width; i++)
     // {
@@ -318,17 +318,17 @@ kraft::BufferView TextureSystem::CreateEmptyTexture(u32 Width, u32 Height, u8 Ch
 
 r::Handle<Texture> TextureSystem::GetDefaultDiffuseTexture()
 {
-    return State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME].Resource;
+    return texture_system_state->cache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME].handle;
 }
 
 Array<r::Handle<Texture>> TextureSystem::GetDirtyTextures()
 {
-    return State->DirtyTextures;
+    return texture_system_state->dirty_textures;
 }
 
 void TextureSystem::ClearDirtyTextures()
 {
-    State->DirtyTextures.Clear();
+    texture_system_state->dirty_textures.Clear();
 }
 
 //
@@ -337,22 +337,22 @@ void TextureSystem::ClearDirtyTextures()
 
 static void _createDefaultTextures()
 {
-    const int         Width = 256;
-    const int         Height = 256;
-    const int         Channels = 4;
-    kraft::BufferView TextureData = TextureSystem::CreateEmptyTexture(Width, Height, Channels);
+    const i32         width = 256;
+    const i32         height = 256;
+    const i8          channels = 4;
+    kraft::BufferView TextureData = TextureSystem::CreateEmptyTexture(width, height, channels);
 
     r::Handle<Texture> TextureResource = TextureSystem::CreateTextureWithData(
         {
             .DebugName = "Default-Diffuse-Texture",
-            .Dimensions = { (float32)Width, (float32)Height, 1, (float32)Channels },
+            .Dimensions = { (f32)width, (f32)height, 1, (f32)channels },
             .Format = r::Format::RGBA8_UNORM,
             .Usage = r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_SRC | r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSFER_DST | r::TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         },
         TextureData.Memory
     );
 
-    State->TextureCache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME] = TextureReference(TextureResource, false);
+    texture_system_state->cache[KRAFT_DEFAULT_DIFFUSE_TEXTURE_NAME] = TextureReference(TextureResource, false);
     Free((void*)TextureData.Memory, TextureData.Size, MEMORY_TAG_TEXTURE);
 }
 

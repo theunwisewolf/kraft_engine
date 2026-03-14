@@ -1,10 +1,11 @@
 #pragma once
 
-// inspiration from the kohi engine
+#include <containers/kraft_chunked_array.h>
 
 namespace kraft {
 
-// Different event types
+struct ArenaAllocator;
+
 enum EventType
 {
     EVENT_TYPE_WINDOW_RESIZE,
@@ -25,59 +26,58 @@ enum EventType
 
 struct EventDataResize
 {
-    uint32 width;
-    uint32 height;
-    bool   maximized;
+    u32  width;
+    u32  height;
+    bool maximized;
 };
 
-// Data associated with any event
 struct EventData
 {
-    // a 128 bit struct
     union
     {
-        char  CharValue[16];
-        int8  Int8Value[16];
-        int16 Int16Value[8];
-        int32 Int32Value[4];
-        int64 Int64Value[2];
+        char CharValue[16];
+        i8   Int8Value[16];
+        i16  Int16Value[8];
+        i32  Int32Value[4];
+        i64  Int64Value[2];
 
-        uint8  UInt8Value[16];
-        uint16 UInt16Value[8];
-        uint32 UInt32Value[4];
-        uint64 UInt64Value[2];
+        u8  UInt8Value[16];
+        u16 UInt16Value[8];
+        u32 UInt32Value[4];
+        u64 UInt64Value[2];
 
-        float32 Float32Value[4];
-        float64 Float64Value[2];
+        f32 Float32Value[4];
+        f64 Float64Value[2];
     };
 };
 
-// Adding event type here can be useful because we might want to have a single
-// listener that is handling multiple event types
 typedef bool (*EventCallback)(EventType type, void* sender, void* listener, EventData data);
 
 struct EventListener
 {
-    void*         Listener;
-    EventCallback Callback;
+    void*         listener;
+    EventCallback callback;
 };
+
+#define KRAFT_EVENT_LISTENERS_PER_CHUNK 16
 
 struct EventEntry
 {
-    EventListener* Events;
+    ChunkedArray<EventListener, KRAFT_EVENT_LISTENERS_PER_CHUNK> listeners;
 };
 
 struct EventSystemState
 {
-    EventEntry EventEntries[EventType::EVENT_TYPE_NUM_COUNT];
+    ArenaAllocator* arena;
+    EventEntry      event_entries[EventType::EVENT_TYPE_NUM_COUNT];
 };
 
 struct KRAFT_API EventSystem
 {
-    static EventSystemState State;
-    static bool             Initialized;
+    static EventSystemState state;
+    static bool             initialized;
 
-    static bool Init();
+    static bool Init(ArenaAllocator* arena);
     static bool Shutdown();
     static bool Listen(EventType type, void* listener, EventCallback callback);
     static bool Unlisten(EventType type, void* listener, EventCallback callback);

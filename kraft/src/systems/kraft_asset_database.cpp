@@ -368,7 +368,7 @@ MeshAsset*        AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
                     ufbx_texture*  ufbx_texture = ufbx_material->pbr.base_color.texture;
                     if (ufbx_texture)
                     {
-                        r::Handle<Texture> texture = TextureSystem::AcquireTexture(String(ufbx_texture->filename.data, ufbx_texture->filename.length));
+                        r::Handle<Texture> texture = TextureSystem::AcquireTexture(String8FromPtrAndLength((u8*)ufbx_texture->filename.data, ufbx_texture->filename.length));
                         if (texture.IsInvalid())
                         {
                             KERROR("[AssetDatabase::LoadMesh]: Failed to load texture %s", ufbx_texture->filename.data);

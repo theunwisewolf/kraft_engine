@@ -31,7 +31,8 @@ bool StringEqual(String8 a, String8 b)
 {
     if (a.count != b.count)
         return false;
-    for (u32 i = 0; i < a.count; i++)
+
+    for (u64 i = 0; i < a.count; i++)
     {
         if (a.ptr[i] != b.ptr[i])
             return false;
@@ -67,6 +68,17 @@ String8 StringCat(ArenaAllocator* arena, String8 a, String8 b)
     MemCpy(result.ptr, a.ptr, a.count);
     MemCpy(result.ptr + a.count, b.ptr, b.count);
     result.ptr[result.count] = 0;
+
+    return result;
+}
+
+String8 StringCopy(ArenaAllocator* arena, String8 str)
+{
+    String8 result = {};
+    result.count = str.count;
+    result.ptr = ArenaPushArray(arena, u8, str.count + 1);
+    MemCpy(result.ptr, str.ptr, str.count);
+    result.ptr[str.count] = 0;
 
     return result;
 }

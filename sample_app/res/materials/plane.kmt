@@ -4,6 +4,6 @@ Material Simple3D
     Ambient         vec4(0.2, 0.2, 0.2, 0.2)
     Diffuse         vec4(1.0, 1.0, 1.0, 1.0)
     Specular        vec4(1.0, 1.0, 1.0, 1.0)
-    Shininess       float32(32)
+    Shininess       f32(32)
     DiffuseTexture  "res/textures/pixel32x32.png"
 }

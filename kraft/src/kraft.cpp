@@ -1,6 +1,17 @@
 #include "kraft.h"
 
 #include <core/kraft_base_includes.h>
+#include <containers/kraft_containers_includes.h>
+
+#if defined(KRAFT_GUI_APP)
+
+#include <resources/kraft_resource_types.h>
+#include <renderer/kraft_renderer_includes.h>
+#include <world/kraft_world_includes.h>
+#include <systems/kraft_systems_includes.h>
+#include <shaders/includes/kraft_shader_includes.h>
+
+#endif
 
 #if defined(KRAFT_GUI_APP)
 #define VOLK_IMPLEMENTATION
@@ -10,8 +21,7 @@
 #include <platform/kraft_platform_includes.h>
 
 #include <core/kraft_base_includes.cpp>
-
-#include <renderer/kraft_renderer_types.h>
+#include <containers/kraft_containers_includes.cpp>
 
 // HACK: for now
 #include <shaderfx/kraft_shaderfx_includes.h>
@@ -19,24 +29,11 @@
 #include <platform/kraft_platform_includes.cpp>
 #include <shaderfx/kraft_shaderfx_includes.cpp>
 
-#include <containers/kraft_containers_includes.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_engine.h>
-#include <core/kraft_events.h>
-#include <core/kraft_log.h>
-#include <core/kraft_string.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
-
 #include <kraft_types.h>
 
 #if defined(KRAFT_GUI_APP)
 
-#include <resources/kraft_resource_types.h>
-#include <renderer/kraft_renderer_includes.h>
-#include <world/kraft_world_includes.h>
-#include <shaders/includes/kraft_shader_includes.h>
-
+#include <systems/kraft_systems_includes.cpp>
 #include <renderer/kraft_renderer_includes.cpp>
 #include <world/kraft_world_includes.cpp>
 
@@ -59,11 +56,6 @@ void DestroyEngine()
 #if defined(KRAFT_GUI_APP)
 
 #include <renderer/kraft_renderer_frontend.h>
-#include <systems/kraft_asset_database.h>
-#include <systems/kraft_geometry_system.h>
-#include <systems/kraft_material_system.h>
-#include <systems/kraft_shader_system.h>
-#include <systems/kraft_texture_system.h>
 
 #undef CreateWindow
 

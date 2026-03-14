@@ -18,45 +18,23 @@ namespace kraft {
 static void ReleaseShaderInternal(u32 Index);
 static u32  AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, r::ShaderDataType data_type, r::ShaderUniformScope::Enum scope);
 
-struct ShaderReference
-{
-    u32    RefCount;
-    bool   AutoRelease;
-    Shader Shader;
-};
+static ShaderSystemState* shader_system_state = nullptr;
 
-struct ShaderSystemState
-{
-    ArenaAllocator* arena;
-
-    u32              MaxShaderCount;
-    ShaderReference* Shaders;
-    // HashMap<String, u32> IndexMapping;
-    u32     CurrentShaderID;
-    Shader* CurrentShader;
-
-    // Active variant for surface-driven variant selection
-    String8 ActiveVariantName;
-    i32     ActiveVariantIndex; // Cached index for the current shader, -1 if not resolved
-};
-
-static ShaderSystemState* State = nullptr;
-
-void ShaderSystem::Init(u32 MaxShaderCount)
+void ShaderSystem::Init(u32 max_shader_count)
 {
     ArenaAllocator* arena = CreateArena({ .ChunkSize = KRAFT_SIZE_MB(64), .Alignment = 64, .Tag = MEMORY_TAG_SHADER_SYSTEM });
 
-    // u32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * MaxShaderCount;
+    // u32 SizeRequirement = sizeof(ShaderSystemState) + sizeof(ShaderReference) * max_shader_count;
     // char*  RawMemory = (char*)kraft::Malloc(SizeRequirement, MEMORY_TAG_SHADER_SYSTEM, true);
-    State = ArenaPush(arena, ShaderSystemState);
-    State->arena = arena;
-    State->Shaders = ArenaPushArray(arena, ShaderReference, MaxShaderCount);
-    State->MaxShaderCount = MaxShaderCount;
-    // State->IndexMapping = HashMap<String, u32>();
-    State->CurrentShaderID = KRAFT_INVALID_ID;
-    State->CurrentShader = nullptr;
-    State->ActiveVariantName = {};
-    State->ActiveVariantIndex = -1;
+    shader_system_state = ArenaPush(arena, ShaderSystemState);
+    shader_system_state->arena = arena;
+    shader_system_state->shaders = ArenaPushArray(arena, ShaderReference, max_shader_count);
+    shader_system_state->max_shader_count = max_shader_count;
+    // shader_system_state->IndexMapping = HashMap<String, u32>();
+    shader_system_state->current_shader_id = KRAFT_INVALID_ID;
+    shader_system_state->current_shader = nullptr;
+    shader_system_state->active_variant_name = {};
+    shader_system_state->active_variant_index = -1;
 
     // Load the default shader
     // KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx", Handle<RenderPass>::Invalid()));
@@ -69,59 +47,59 @@ void ShaderSystem::Shutdown()
     // Free the default shader
     ReleaseShaderInternal(0);
 
-    DestroyArena(State->arena);
+    DestroyArena(shader_system_state->arena);
 
     KINFO("[ShaderSystem::Shutdown]: Shutting down shader system");
 }
 
 Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
 {
-    for (i32 i = 0; i < State->MaxShaderCount; i++)
+    for (i32 i = 0; i < shader_system_state->max_shader_count; i++)
     {
-        if (StringEqual(State->Shaders[i].Shader.Path, shader_path))
+        if (StringEqual(shader_system_state->shaders[i].shader.Path, shader_path))
         {
-            State->Shaders[i].RefCount++;
-            return &State->Shaders[i].Shader;
+            shader_system_state->shaders[i].ref_count++;
+            return &shader_system_state->shaders[i].shader;
         }
     }
 
-    int FreeIndex = -1;
-    for (u32 i = 0; i < State->MaxShaderCount; i++)
+    int free_index = -1;
+    for (u32 i = 0; i < shader_system_state->max_shader_count; i++)
     {
-        if (State->Shaders[i].RefCount == 0)
+        if (shader_system_state->shaders[i].ref_count == 0)
         {
-            FreeIndex = i;
+            free_index = i;
             break;
         }
     }
 
-    if (FreeIndex == -1)
+    if (free_index == -1)
     {
         KWARN("[ShaderSystem::AcquireShader]: Out of memory");
         return nullptr;
     }
 
-    ShaderReference* Reference = &State->Shaders[FreeIndex];
-    if (!shaderfx::LoadShaderFX(State->arena, shader_path, &Reference->Shader.ShaderEffect))
+    ShaderReference* reference = &shader_system_state->shaders[free_index];
+    if (!shaderfx::LoadShaderFX(shader_system_state->arena, shader_path, &reference->shader.ShaderEffect))
     {
         KWARN("[ShaderSystem::AcquireShader]: Failed to load %S", shader_path);
         return nullptr;
     }
 
-    // State->IndexMapping[shader_path] = FreeIndex;
-    Reference->Shader.ID = FreeIndex; // Cache the index
-    Reference->Shader.Path = shader_path;
-    Reference->RefCount = 1;
-    Reference->AutoRelease = auto_release;
+    // shader_system_state->IndexMapping[shader_path] = FreeIndex;
+    reference->shader.ID = free_index; // Cache the index
+    reference->shader.Path = shader_path;
+    reference->ref_count = 1;
+    reference->auto_release = auto_release;
 
-    u32 GlobalResourceBindingsCount = 2; // TODO (amn): Don't hardcode
-    Reference->Shader.UniformCacheMapping = HashMap<u64, u32>();
-    Reference->Shader.UniformCache = Array<ShaderUniform>();
+    u32 global_resource_bindings_count = 2; // TODO (amn): Don't hardcode
+    reference->shader.UniformCacheMapping = FlatHashMap<u64, u32>();
+    reference->shader.UniformCache = Array<ShaderUniform>();
 
-    const shaderfx::ShaderEffect&      Effect = Reference->Shader.ShaderEffect;
-    const shaderfx::VariantDefinition& Variant0 = Effect.variants[0]; // Use first variant for uniform caching
-    Reference->Shader.UniformCache.Reserve(GlobalResourceBindingsCount + (Variant0.resources != nullptr ? Variant0.resources->binding_count : 0) + Variant0.contant_buffers->field_count);
-    g_Renderer->CreateRenderPipeline(&Reference->Shader);
+    const shaderfx::ShaderEffect&      Effect = reference->shader.ShaderEffect;
+    const shaderfx::VariantDefinition& variant0 = Effect.variants[0]; // Use first variant for uniform caching
+    reference->shader.UniformCache.Reserve(global_resource_bindings_count + (variant0.resources != nullptr ? variant0.resources->binding_count : 0) + variant0.contant_buffers->field_count);
+    g_Renderer->CreateRenderPipeline(&reference->shader);
 
     // Cache the uniforms
     // The instance uniforms begin after the global data
@@ -141,7 +119,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
                     cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
+                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
 
                     cursor += r::ShaderDataType::SizeOf(field.type);
                 }
@@ -154,7 +132,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
                     cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
+                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
 
                     cursor += r::ShaderDataType::SizeOf(field.type);
                 }
@@ -181,7 +159,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
                     cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
+                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
 
                     cursor += r::ShaderDataType::SizeOf(field.type);
                 }
@@ -194,7 +172,7 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
                 {
                     const auto& field = buffer_definition.fields[field_idx];
                     cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&Reference->Shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
+                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
 
                     cursor += r::ShaderDataType::SizeOf(field.type);
                 }
@@ -206,66 +184,66 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
         }
     }
 
-    for (auto it = Reference->Shader.UniformCacheMapping.ibegin(); it != Reference->Shader.UniformCacheMapping.iend(); it++)
+    for (auto it = reference->shader.UniformCacheMapping.begin(); it != reference->shader.UniformCacheMapping.end(); it++)
     {
-        const auto& uniform = Reference->Shader.UniformCache[it.value()];
-        KDEBUG("%lld = %s Binding %d Offset %d", it.key(), r::ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
+        const auto& uniform = reference->shader.UniformCache[it->second];
+        KDEBUG("%lld = %s Binding %d Offset %d", it->first, r::ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
     }
 
     // Cache constant buffers as local uniforms
     u32 offset = 0;
-    for (u64 i = 0; i < Variant0.contant_buffers->field_count; i++)
+    for (u64 i = 0; i < variant0.contant_buffers->field_count; i++)
     {
-        auto& buffer_def = Variant0.contant_buffers->fields[i];
+        auto& buffer_def = variant0.contant_buffers->fields[i];
 
         // Push constants must be aligned to 4 bytes
         u32 aligned_size = (u32)math::AlignUp(r::ShaderDataType::SizeOf(buffer_def.type), 4);
-        AddUniform(&Reference->Shader, buffer_def.name, 0, offset, aligned_size, r::ShaderDataType::Invalid(), r::ShaderUniformScope::Local);
+        AddUniform(&reference->shader, buffer_def.name, 0, offset, aligned_size, r::ShaderDataType::Invalid(), r::ShaderUniformScope::Local);
 
         offset += aligned_size;
     }
 
-    return &State->Shaders[FreeIndex].Shader;
+    return &shader_system_state->shaders[free_index].shader;
 }
 
 static u32 AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, r::ShaderDataType data_type, r::ShaderUniformScope::Enum scope)
 {
-    ShaderUniform Uniform = {};
-    Uniform.Location = location;
-    Uniform.Offset = offset;
-    Uniform.Stride = size;
-    Uniform.Scope = scope;
-    Uniform.DataType = data_type;
+    ShaderUniform uniform = {};
+    uniform.Location = location;
+    uniform.Offset = offset;
+    uniform.Stride = size;
+    uniform.Scope = scope;
+    uniform.DataType = data_type;
 
     u32 index = (u32)shader->UniformCache.Size();
     shader->UniformCacheMapping[FNV1AHashBytes(name)] = index;
-    shader->UniformCache.Push(Uniform);
+    shader->UniformCache.Push(uniform);
 
     return index;
 }
 
-static void ReleaseShaderInternal(u32 Index)
+static void ReleaseShaderInternal(u32 index)
 {
-    ShaderReference* Reference = &State->Shaders[Index];
-    if (Reference->RefCount > 0)
+    ShaderReference* reference = &shader_system_state->shaders[index];
+    if (reference->ref_count > 0)
     {
-        Reference->RefCount--;
+        reference->ref_count--;
     }
 
-    if (Reference->AutoRelease && Reference->RefCount == 0)
+    if (reference->auto_release && reference->ref_count == 0)
     {
-        g_Renderer->DestroyRenderPipeline(&Reference->Shader);
+        g_Renderer->DestroyRenderPipeline(&reference->shader);
 
-        Reference->AutoRelease = false;
-        Reference->Shader = {};
+        reference->auto_release = false;
+        reference->shader = {};
     }
 }
 
 bool ShaderSystem::ReleaseShader(Shader* shader)
 {
-    for (i32 i = 0; i < State->MaxShaderCount; i++)
+    for (i32 i = 0; i < shader_system_state->max_shader_count; i++)
     {
-        if (StringEqual(State->Shaders[i].Shader.Path, shader->Path))
+        if (StringEqual(shader_system_state->shaders[i].shader.Path, shader->Path))
         {
             if (i == 0)
             {
@@ -283,18 +261,18 @@ bool ShaderSystem::ReleaseShader(Shader* shader)
 
 Shader* ShaderSystem::GetDefaultShader()
 {
-    return &State->Shaders[0].Shader;
+    return &shader_system_state->shaders[0].shader;
 }
 
 Shader* ShaderSystem::GetActiveShader()
 {
-    return State->CurrentShader;
+    return shader_system_state->current_shader;
 }
 
 void ShaderSystem::SetActiveVariant(String8 variant_name)
 {
-    State->ActiveVariantName = variant_name;
-    State->ActiveVariantIndex = -1; // Reset cached index
+    shader_system_state->active_variant_name = variant_name;
+    shader_system_state->active_variant_index = -1; // Reset cached index
 }
 
 i32 ShaderSystem::FindVariantIndex(const Shader* shader, String8 variant_name)
@@ -315,9 +293,9 @@ Shader* ShaderSystem::Bind(Shader* Shader)
 {
     // Resolve variant index
     u32 variant_index = 0;
-    if (State->ActiveVariantName.count > 0)
+    if (shader_system_state->active_variant_name.count > 0)
     {
-        i32 idx = FindVariantIndex(Shader, State->ActiveVariantName);
+        i32 idx = FindVariantIndex(Shader, shader_system_state->active_variant_name);
         if (idx < 0)
         {
             // Shader doesn't have the requested variant - skip
@@ -329,36 +307,36 @@ Shader* ShaderSystem::Bind(Shader* Shader)
 
     g_Renderer->UseShader(Shader, variant_index);
 
-    State->CurrentShaderID = Shader->ID;
-    State->CurrentShader = Shader;
+    shader_system_state->current_shader_id = Shader->ID;
+    shader_system_state->current_shader = Shader;
 
     return Shader;
 }
 
-Shader* ShaderSystem::BindByID(u32 ShaderID)
+Shader* ShaderSystem::BindByID(u32 id)
 {
-    KASSERT(ShaderID < State->MaxShaderCount);
-    ShaderReference* Reference = &State->Shaders[ShaderID];
+    KASSERT(id < shader_system_state->max_shader_count);
+    ShaderReference* reference = &shader_system_state->shaders[id];
 
-    return ShaderSystem::Bind(&Reference->Shader);
+    return ShaderSystem::Bind(&reference->shader);
 }
 
 void ShaderSystem::Unbind()
 {
-    if (State->CurrentShader)
+    if (shader_system_state->current_shader)
     {
-        State->CurrentShaderID = KRAFT_INVALID_ID;
-        State->CurrentShader = nullptr;
+        shader_system_state->current_shader_id = KRAFT_INVALID_ID;
+        shader_system_state->current_shader = nullptr;
     }
 }
 
 bool ShaderSystem::GetUniform(const Shader* shader, String8 name, ShaderUniform* uniform)
 {
-    auto It = shader->UniformCacheMapping.find(FNV1AHashBytes(name));
-    if (It == shader->UniformCacheMapping.iend())
+    auto it = shader->UniformCacheMapping.find(FNV1AHashBytes(name));
+    if (it == shader->UniformCacheMapping.end())
         return false;
 
-    return GetUniformByIndex(shader, It->second.get(), uniform);
+    return GetUniformByIndex(shader, it->second, uniform);
 }
 
 bool ShaderSystem::GetUniformByIndex(const Shader* Shader, u32 Index, ShaderUniform* Uniform)
@@ -385,25 +363,25 @@ bool ShaderSystem::SetUniformByIndex(u32 Index, kraft::BufferView Value, bool In
 
 bool ShaderSystem::SetUniform(String8 name, void* Value, bool Invalidate)
 {
-    if (State->CurrentShaderID == KRAFT_INVALID_ID)
+    if (shader_system_state->current_shader_id == KRAFT_INVALID_ID)
     {
         KWARN("[SetUniform]: No shader is currently bound");
         return false;
     }
 
-    auto It = State->CurrentShader->UniformCacheMapping.find(FNV1AHashBytes(name));
-    if (It == State->CurrentShader->UniformCacheMapping.iend())
+    auto it = shader_system_state->current_shader->UniformCacheMapping.find(FNV1AHashBytes(name));
+    if (it == shader_system_state->current_shader->UniformCacheMapping.end())
     {
-        KWARN("[SetUniform]: Unknown uniform '%S' on shader '%S'", name, State->CurrentShader->Path);
+        KWARN("[SetUniform]: Unknown uniform '%S' on shader '%S'", name, shader_system_state->current_shader->Path);
         return false;
     }
 
-    return SetUniformByIndex(It->second, Value, Invalidate);
+    return SetUniformByIndex(it->second, Value, Invalidate);
 }
 
 bool ShaderSystem::SetUniformByIndex(u32 Index, void* Value, bool Invalidate)
 {
-    KASSERT(Index < State->CurrentShader->UniformCache.Length);
+    KASSERT(Index < shader_system_state->current_shader->UniformCache.Length);
 
     return true;
 }

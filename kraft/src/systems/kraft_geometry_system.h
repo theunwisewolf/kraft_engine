@@ -4,8 +4,6 @@
 
 namespace kraft {
 
-struct Geometry;
-
 struct GeometrySystemConfig
 {
     u32 MaxGeometriesCount;
@@ -19,6 +17,19 @@ struct GeometryData
     u32   IndexSize;  // Size of a single index
     void* Vertices;
     void* Indices;
+};
+
+struct GeometryReference
+{
+    u32      ref_count;
+    bool     auto_release;
+    Geometry geometry;
+};
+
+struct GeometrySystemState
+{
+    u32                max_geometries_count;
+    GeometryReference* geometries;
 };
 
 struct GeometrySystem

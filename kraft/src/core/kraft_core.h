@@ -158,6 +158,7 @@ struct String8
         u8*   ptr;
         char* str;
     };
+
     u64 count;
 };
 
@@ -190,7 +191,7 @@ typedef String8 buffer;
 
 // Some forward declares for most-used types
 namespace kraft {
-template<typename T, uint64 InternalBufferSize>
+template<typename T, u64 InternalBufferSize>
 struct KString;
 
 template<typename T>
@@ -208,7 +209,8 @@ struct Matrix;
 template<typename T, int n>
 struct Vector;
 
-typedef Vector<float32, 4> Vec4f;
+typedef Vector<f32, 4> Vec4f;
+typedef Vector<f32, 4> vec4;
 } // namespace kraft
 
 // Storage Classes

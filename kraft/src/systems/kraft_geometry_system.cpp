@@ -1,81 +1,64 @@
 #include "kraft_geometry_system.h"
 
-#include <containers/kraft_array.h>
-#include <containers/kraft_hashmap.h>
-#include <core/kraft_string.h>
-#include <renderer/kraft_renderer_frontend.h>
-#include <systems/kraft_material_system.h>
-
-// TODO: REMOVE
 #include <core/kraft_base_includes.h>
+#include <containers/kraft_containers_includes.h>
+#include <core/kraft_base_includes.h>
+#include <renderer/kraft_renderer_includes.h>
+#include <systems/kraft_systems_includes.h>
 
-#include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 
 namespace kraft {
 
-struct GeometryReference
-{
-    u32      ReferenceCount;
-    bool     AutoRelease;
-    Geometry Geometry;
-};
-
-struct GeometrySystemState
-{
-    u32                MaxGeometriesCount;
-    GeometryReference* Geometries;
-};
-
-static GeometrySystemState* State = nullptr;
+static GeometrySystemState* geometry_system_state = nullptr;
 
 static void _createDefaultGeometries();
 
 void GeometrySystem::Init(GeometrySystemConfig Config)
 {
-    u32 TotalSize = sizeof(GeometrySystemState) + sizeof(GeometryReference) * Config.MaxGeometriesCount;
+    u32 total_size = sizeof(GeometrySystemState) + sizeof(GeometryReference) * Config.MaxGeometriesCount;
 
-    u8* Memory = (u8*)Malloc(TotalSize, MEMORY_TAG_GEOMETRY_SYSTEM, true);
-    State = (GeometrySystemState*)Memory;
-    State->MaxGeometriesCount = Config.MaxGeometriesCount;
-    State->Geometries = (GeometryReference*)(Memory + sizeof(GeometrySystemState));
+    u8* memory = (u8*)Malloc(total_size, MEMORY_TAG_GEOMETRY_SYSTEM, true);
+    geometry_system_state = (GeometrySystemState*)memory;
+    geometry_system_state->max_geometries_count = Config.MaxGeometriesCount;
+    geometry_system_state->geometries = (GeometryReference*)(memory + sizeof(GeometrySystemState));
 
     _createDefaultGeometries();
 }
 
 void GeometrySystem::Shutdown()
 {
-    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
+    for (u32 i = 0; i < geometry_system_state->max_geometries_count; ++i)
     {
-        GeometryReference* Reference = &State->Geometries[i];
-        if (Reference->ReferenceCount > 0)
+        GeometryReference* reference = &geometry_system_state->geometries[i];
+        if (reference->ref_count > 0)
         {
-            GeometrySystem::DestroyGeometry(&Reference->Geometry);
+            GeometrySystem::DestroyGeometry(&reference->geometry);
         }
     }
 
-    uint32 TotalSize = sizeof(GeometrySystemState) + sizeof(GeometryReference) * State->MaxGeometriesCount;
-    kraft::Free(State, TotalSize, MEMORY_TAG_GEOMETRY_SYSTEM);
+    u32 total_size = sizeof(GeometrySystemState) + sizeof(GeometryReference) * geometry_system_state->max_geometries_count;
+    Free(geometry_system_state, total_size, MEMORY_TAG_GEOMETRY_SYSTEM);
 }
 
 Geometry* GeometrySystem::GetDefaultGeometry()
 {
-    return &State->Geometries[0].Geometry;
+    return &geometry_system_state->geometries[0].geometry;
 }
 
 Geometry* GeometrySystem::GetDefault2DGeometry()
 {
-    return &State->Geometries[1].Geometry;
+    return &geometry_system_state->geometries[1].geometry;
 }
 
 Geometry* GeometrySystem::AcquireGeometry(u32 id)
 {
-    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
+    for (u32 i = 0; i < geometry_system_state->max_geometries_count; ++i)
     {
-        GeometryReference* Reference = &State->Geometries[i];
-        if (Reference->Geometry.ID == id)
+        GeometryReference* reference = &geometry_system_state->geometries[i];
+        if (reference->geometry.ID == id)
         {
-            return &Reference->Geometry;
+            return &reference->geometry;
         }
     }
 
@@ -84,13 +67,13 @@ Geometry* GeometrySystem::AcquireGeometry(u32 id)
     return nullptr;
 }
 
-Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRelease)
+Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData data, bool auto_release)
 {
     int index = -1;
-    for (u32 i = 0; i < State->MaxGeometriesCount; ++i)
+    for (u32 i = 0; i < geometry_system_state->max_geometries_count; ++i)
     {
-        GeometryReference* Reference = &State->Geometries[i];
-        if (Reference->ReferenceCount == 0)
+        GeometryReference* reference = &geometry_system_state->geometries[i];
+        if (reference->ref_count == 0)
         {
             index = (int)i;
             break;
@@ -103,23 +86,23 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
         return nullptr;
     }
 
-    GeometryReference* Reference = &State->Geometries[index];
-    Reference->ReferenceCount = 1;
-    Reference->AutoRelease = AutoRelease;
-    Reference->Geometry.ID = index;
+    GeometryReference* reference = &geometry_system_state->geometries[index];
+    reference->ref_count = 1;
+    reference->auto_release = auto_release;
+    reference->geometry.ID = index;
 
 #ifdef KRAFT_GUI_APP
-    if (!g_Renderer->CreateGeometry(&Reference->Geometry, Data.VertexCount, Data.Vertices, Data.VertexSize, Data.IndexCount, Data.Indices, Data.IndexSize))
+    if (!g_Renderer->CreateGeometry(&reference->geometry, data.VertexCount, data.Vertices, data.VertexSize, data.IndexCount, data.Indices, data.IndexSize))
     {
-        Reference->ReferenceCount = 0;
-        Reference->Geometry.ID = State->MaxGeometriesCount;
+        reference->ref_count = 0;
+        reference->geometry.ID = geometry_system_state->max_geometries_count;
 
         KERROR("[GeometrySystem::AcquireGeometryWithData]: Failed to create geometry!");
         return nullptr;
     }
 #endif
 
-    return &Reference->Geometry;
+    return &reference->geometry;
 }
 
 bool GeometrySystem::UpdateGeometry(Geometry* geometry, GeometryData data)
@@ -137,10 +120,10 @@ bool GeometrySystem::UpdateGeometry(Geometry* geometry, GeometryData data)
 bool GeometrySystem::UpdateGeometry(u32 id, GeometryData data)
 {
 #ifdef KRAFT_GUI_APP
-    if (id >= 0 && id < State->MaxGeometriesCount)
+    if (id < geometry_system_state->max_geometries_count)
     {
-        GeometryReference* reference = &State->Geometries[id];
-        if (!g_Renderer->UpdateGeometry(&reference->Geometry, data.VertexCount, data.Vertices, data.VertexSize, data.IndexCount, data.Indices, data.IndexSize))
+        GeometryReference* reference = &geometry_system_state->geometries[id];
+        if (!g_Renderer->UpdateGeometry(&reference->geometry, data.VertexCount, data.Vertices, data.VertexSize, data.IndexCount, data.Indices, data.IndexSize))
         {
             return false;
         }
@@ -154,57 +137,56 @@ bool GeometrySystem::UpdateGeometry(u32 id, GeometryData data)
     return true;
 }
 
-void GeometrySystem::ReleaseGeometry(Geometry* Geometry)
+void GeometrySystem::ReleaseGeometry(Geometry* geometry)
 {
-    u32 ID = Geometry->ID;
-    ReleaseGeometry(ID);
+    ReleaseGeometry(geometry->ID);
 }
 
-void GeometrySystem::ReleaseGeometry(u32 ID)
+void GeometrySystem::ReleaseGeometry(u32 id)
 {
-    if (ID >= 0 && ID < State->MaxGeometriesCount)
+    if (id < geometry_system_state->max_geometries_count)
     {
-        GeometryReference* Reference = &State->Geometries[ID];
-        if (Reference->ReferenceCount > 0)
+        GeometryReference* ref = &geometry_system_state->geometries[id];
+        if (ref->ref_count > 0)
         {
-            Reference->ReferenceCount--;
+            ref->ref_count--;
         }
 
-        if (Reference->ReferenceCount == 0 && Reference->AutoRelease)
+        if (ref->ref_count == 0 && ref->auto_release)
         {
-            DestroyGeometry(&Reference->Geometry);
+            DestroyGeometry(&ref->geometry);
         }
     }
     else
     {
-        KERROR("[GeometrySystem::ReleaseGeometry]: Invalid geometry id %d", ID);
+        KERROR("[GeometrySystem::ReleaseGeometry]: Invalid geometry id %d", id);
     }
 }
 
-void GeometrySystem::DestroyGeometry(Geometry* Geometry)
+void GeometrySystem::DestroyGeometry(Geometry* geometry)
 {
-    Geometry->ID = State->MaxGeometriesCount;
-    Geometry->DrawData = {};
+    geometry->ID = geometry_system_state->max_geometries_count;
+    geometry->DrawData = {};
 }
 
 void _createDefaultGeometries()
 {
-    GeometryReference* Ref = &State->Geometries[0];
-    r::Vertex3D        Vertices[] = {
+    GeometryReference* ref = &geometry_system_state->geometries[0];
+    r::Vertex3D        vertices[] = {
         { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 } },
         { Vec3f(+0.5f, -0.5f, +0.0f), { 1.f, 0.f }, { 0, 0, 0 } },
         { Vec3f(-0.5f, -0.5f, +0.0f), { 0.f, 0.f }, { 0, 0, 0 } },
         { Vec3f(-0.5f, +0.5f, +0.0f), { 0.f, 1.f }, { 0, 0, 0 } },
     };
 
-    u32 Indices[] = { 0, 1, 2, 2, 3, 0 };
+    u32 indices[] = { 0, 1, 2, 2, 3, 0 };
 
-    Ref->Geometry.ID = 0;
-    Ref->AutoRelease = false;
-    Ref->ReferenceCount = 1;
+    ref->geometry.ID = 0;
+    ref->auto_release = false;
+    ref->ref_count = 1;
 
 #ifdef KRAFT_GUI_APP
-    if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(r::Vertex3D), 6, Indices, sizeof(Indices[0])))
+    if (!g_Renderer->CreateGeometry(&ref->geometry, 4, vertices, sizeof(r::Vertex3D), 6, indices, sizeof(indices[0])))
     {
         KFATAL("[GeometrySystem]: Failed to create default geometries");
         return;
@@ -217,7 +199,7 @@ void _createDefaultGeometries()
     // Re-enable once per-format vertex buffers or byte-offset addressing is implemented.
 #if 0
     {
-        GeometryReference* Ref = &State->Geometries[1];
+        GeometryReference* Ref = &geometry_system_state->geometries[1];
         r::Vertex2D        Vertices[] = {
             {
                 Vec3f(+0.5f, +0.5f, +0.0f),
@@ -239,9 +221,9 @@ void _createDefaultGeometries()
 
         uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
 
-        Ref->Geometry.ID = 1;
-        Ref->AutoRelease = false;
-        Ref->ReferenceCount = 1;
+        Ref->geometry.ID = 1;
+        Ref->auto_release = false;
+        Ref->ref_count = 1;
 
 #ifdef KRAFT_GUI_APP
         if (!g_Renderer->CreateGeometry(&Ref->Geometry, 4, Vertices, sizeof(r::Vertex2D), 6, Indices, sizeof(Indices[0])))

@@ -57,7 +57,7 @@ u64             ArenaPosition(ArenaAllocator* arena);
 
 void    ArenaPop(ArenaAllocator* arena, u64 size);
 void    ArenaPopToPosition(ArenaAllocator* arena, u64 position);
-char*   ArenaPushString(ArenaAllocator* arena, const char* src, uint64 length);
+char*   ArenaPushString(ArenaAllocator* arena, const char* src, u64 length);
 String8 ArenaPushString8Empty(ArenaAllocator* arena, u64 size);
 String8 ArenaPushString8Copy(ArenaAllocator* arena, String8 str);
 void    ArenaPopString8(ArenaAllocator* arena, String8 str);

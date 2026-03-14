@@ -17,7 +17,7 @@ namespace kraft {
 World::World()
 {
     EntityCount = 0;
-    Entity WorldRootEntity = this->CreateEntity("WorldRoot", EntityHandleInvalid);
+    Entity WorldRootEntity = this->CreateEntity(S("WorldRoot"), EntityHandleInvalid);
     this->Root = WorldRootEntity.EntityHandle;
     this->Camera = kraft::Camera();
 }
@@ -42,14 +42,14 @@ Entity World::CreateEntity()
     return NewEntity;
 }
 
-Entity World::CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
+Entity World::CreateEntity(String8 name, EntityHandleT Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
 {
     EntityHandleT EntityHandle = Registry.create();
     Entity        NewEntity = Entity(EntityHandle, this);
     this->Entities[EntityHandle] = NewEntity;
     this->EntityCount++;
 
-    Registry.emplace<MetadataComponent>(EntityHandle, Name);
+    Registry.emplace<MetadataComponent>(EntityHandle, name);
     Registry.emplace<RelationshipComponent>(EntityHandle, Parent);
     Registry.emplace<TransformComponent>(EntityHandle, Position, Rotation, Scale);
     if (Parent != EntityHandleInvalid)
@@ -61,9 +61,9 @@ Entity World::CreateEntity(StringView Name, EntityHandleT Parent, Vec3f Position
     return NewEntity;
 }
 
-Entity World::CreateEntity(StringView Name, const Entity& Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
+Entity World::CreateEntity(String8 name, const Entity& Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
 {
-    return this->CreateEntity(Name, Parent.EntityHandle, Position, Rotation, Scale);
+    return this->CreateEntity(name, Parent.EntityHandle, Position, Rotation, Scale);
 }
 
 void World::DestroyEntity(Entity Entity)

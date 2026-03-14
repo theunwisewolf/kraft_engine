@@ -1,17 +1,5 @@
 #include "kraft_engine.h"
 
-#include <containers/kraft_array.h>
-#include <systems/kraft_asset_database.h>
-
-#if defined(KRAFT_GUI_APP)
-#include <renderer/kraft_renderer_frontend.h>
-#include <renderer/kraft_resource_manager.h>
-#include <systems/kraft_geometry_system.h>
-#include <systems/kraft_material_system.h>
-#include <systems/kraft_shader_system.h>
-#include <systems/kraft_texture_system.h>
-#endif
-
 #include <kraft_types.h>
 
 namespace kraft {
@@ -73,7 +61,7 @@ bool Engine::Init(const EngineConfig* config)
     base_path = fs::CleanPath(arena, base_path);
 
     Platform::Init(&Engine::config);
-    EventSystem::Init();
+    EventSystem::Init(arena);
     InputSystem::Init();
 
 #if defined(KRAFT_GUI_APP)
