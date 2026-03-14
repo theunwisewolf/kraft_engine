@@ -144,10 +144,8 @@ struct Material
 
 struct Geometry
 {
-    ResourceID ID;
-
-    // For backend mapping
-    ResourceID InternalID;
+    ResourceID         ID;
+    r::GeometryDrawData DrawData;
 };
 
 } // namespace kraft

@@ -1,5 +1,4 @@
-#include <containers/kraft_array.h>
-#include <core/kraft_core.h>
+#pragma once
 
 namespace kraft {
 struct Texture;
@@ -24,29 +23,100 @@ struct Pool
     using HandleType = Handle<Type>;
     typedef void (*PoolCleanupFunction)(ConcreteType* GPUResource);
 
-    uint16        PoolSize = 0;
-    uint16        FreeListTop;
-    uint64        AllocatedSizeInBytes = 0;
+    u16           PoolSize = 0;
+    u16           FreeListTop;
+    u64           AllocatedSizeInBytes = 0;
     Type*         AuxiliaryData;
     ConcreteType* Data;
     HandleType*   Handles;
-    uint16*       FreeList;
+    u16*          FreeList;
 
     Array<HandleType> DeletedItems[3] = {};
     uint32            ActiveDeletedItemsArray = 0;
 
-    void Grow(uint16 ElementCount);
-    void Destroy();
-
-    bool  ValidateHandle(HandleType Handle) const;
-    Type* GetAuxiliaryData(HandleType Handle) const
+    void Grow(u16 ElementCount)
     {
-        return ValidateHandle(Handle) ? &this->AuxiliaryData[Handle.Index] : nullptr;
+        // For now we only support enlarging the pool
+        KASSERT(ElementCount > this->PoolSize);
+
+        // Allocate a new buffer and save any old buffer references
+        u64 AuxiliaryDataArraySize = sizeof(Type) * ElementCount;
+        u64 DataArraySize = sizeof(ConcreteType) * ElementCount;
+        u64 HandlesArraySize = sizeof(HandleType) * ElementCount;
+        u64 FreeListArraySize = sizeof(u16) * ElementCount;
+        u64 NewSize = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+        u8* NewBuffer = (u8*)Malloc(NewSize, MEMORY_TAG_RESOURCE_POOL, true);
+
+        u64 OldAuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
+        u64 OldDataArraySize = sizeof(ConcreteType) * this->PoolSize;
+        u64 OldHandlesArraySize = sizeof(HandleType) * this->PoolSize;
+        u64 OldFreeListArraySize = sizeof(u16) * this->PoolSize;
+        u64 OldSize = this->AllocatedSizeInBytes;
+        this->AllocatedSizeInBytes = NewSize;
+
+        u8*           OldBuffer = (u8*)this->AuxiliaryData;
+        Type*         OldAuxiliaryData = (Type*)OldBuffer;
+        ConcreteType* OldData = (ConcreteType*)(OldBuffer + OldAuxiliaryDataArraySize);
+        HandleType*   OldHandles = (HandleType*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize);
+        u16*          OldFreeList = (u16*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize + OldHandlesArraySize);
+
+        this->AuxiliaryData = (Type*)NewBuffer;
+        this->Data = (ConcreteType*)(NewBuffer + AuxiliaryDataArraySize);
+        this->Handles = (HandleType*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize);
+        this->FreeList = (u16*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize + HandlesArraySize);
+
+        // Now if we had any old data, copy it over
+        if (this->PoolSize > 0)
+        {
+            MemCpy(AuxiliaryData, OldAuxiliaryData, OldAuxiliaryDataArraySize);
+            MemCpy(Data, OldData, OldDataArraySize);
+            MemCpy(Handles, OldHandles, OldHandlesArraySize);
+            MemCpy(FreeList, OldFreeList, OldFreeListArraySize);
+
+            Free(OldBuffer, OldSize, MEMORY_TAG_RESOURCE_POOL);
+        }
+
+        // Mark the remaining elements as free
+        for (int i = this->PoolSize; i < ElementCount; i++)
+        {
+            this->FreeList[i] = i;
+        }
+
+        this->PoolSize = ElementCount;
     }
 
-    ConcreteType* Get(HandleType Handle) const
+    void Destroy()
     {
-        return ValidateHandle(Handle) ? &this->Data[Handle.Index] : nullptr;
+        u64 AuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
+        u64 DataArraySize = sizeof(ConcreteType) * this->PoolSize;
+        u64 HandlesArraySize = sizeof(HandleType) * this->PoolSize;
+        u64 FreeListArraySize = sizeof(uint16) * this->PoolSize;
+        u64 Size = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+
+        Free(this->AuxiliaryData, Size, MEMORY_TAG_RESOURCE_POOL);
+    }
+
+    bool ValidateHandle(HandleType Handle) const
+    {
+        KASSERT(Handle.Index < this->PoolSize);
+        if (Handle.Index < this->PoolSize)
+        {
+            // Data has changed?
+            HandleType CurrentHandle = this->Handles[Handle.Index];
+            return CurrentHandle.Generation == Handle.Generation;
+        }
+
+        return false;
+    }
+
+    Type* GetAuxiliaryData(HandleType handle) const
+    {
+        return ValidateHandle(handle) ? &this->AuxiliaryData[handle.Index] : nullptr;
+    }
+
+    ConcreteType* Get(HandleType handle) const
+    {
+        return ValidateHandle(handle) ? &this->Data[handle.Index] : nullptr;
     }
 
     HandleType Insert(Type AuxiliaryData, ConcreteType Data)
@@ -56,7 +126,7 @@ struct Pool
             this->Grow(this->PoolSize * 2);
         }
 
-        uint16      Index = this->FreeList[this->FreeListTop++];
+        u16         Index = this->FreeList[this->FreeListTop++];
         HandleType& Handle = this->Handles[Index];
         Handle.Index = Index;
         Handle.Generation++;
@@ -72,7 +142,7 @@ struct Pool
         return (void*)(&this->Data[Handle.Index]);
     }
 
-    uint64 GetSize() const
+    u64 GetSize() const
     {
         return this->PoolSize;
     }
@@ -82,12 +152,27 @@ struct Pool
         if (!ValidateHandle(Handle))
             return;
 
-        uint16 Index = Handle.Index;
+        u16 Index = Handle.Index;
         this->Handles[Index].Generation = 0; // Invalidate the handle
         this->DeletedItems[this->ActiveDeletedItemsArray].Push(this->Handles[Index]);
     }
 
-    void Delete(HandleType Resource);
+    void Delete(HandleType Resource)
+    {
+        if (Resource.Generation != 0)
+        {
+            KERROR("Deleting a handle with generation > 0 | Index = %d, Generation = %d", Resource.Index, Resource.Generation);
+            return;
+        }
+
+        // this->Data[Resource.Index] = {};
+        // this->AuxiliaryData[Resource.Index] = {};
+
+        KASSERT(this->FreeListTop > 0);
+
+        this->FreeList[this->FreeListTop - 1] = Resource.Index;
+        this->FreeListTop--;
+    }
 
     const Array<HandleType>& GetItemsToDelete()
     {
@@ -118,30 +203,4 @@ struct Pool
     }
 };
 
-} // namespace kraft::renderer
-
-namespace kraft {
-struct Texture;
-}
-
-namespace kraft::r {
-
-struct VulkanTexture;
-struct VulkanTextureSampler;
-struct VulkanBuffer;
-struct VulkanRenderPass;
-struct VulkanCommandBuffer;
-struct VulkanCommandPool;
-struct Buffer;
-struct RenderPass;
-struct CommandBuffer;
-struct CommandPool;
-
-extern template struct Pool<VulkanTexture, Texture>;
-extern template struct Pool<VulkanTextureSampler, TextureSampler>;
-extern template struct Pool<VulkanBuffer, Buffer>;
-extern template struct Pool<VulkanRenderPass, RenderPass>;
-extern template struct Pool<VulkanCommandBuffer, CommandBuffer>;
-extern template struct Pool<VulkanCommandPool, CommandPool>;
-
-} // namespace kraft::renderer
+} // namespace kraft::r

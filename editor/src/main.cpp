@@ -296,14 +296,14 @@ bool Init()
 #if 0
     kraft::Entity Sprite2D = EditorState::Ptr->CurrentWorld->CreateEntity("Sprite2D", WorldRoot);
     Sprite2D.AddComponent<MeshComponent>(
-        kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt"), kraft::GeometrySystem::GetDefault2DGeometry()->InternalID
+        kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_2d.kmt"), kraft::GeometrySystem::GetDefault2DGeometry()->DrawData
     );
     Sprite2D.GetComponent<TransformComponent>().SetScale(50.0f);
 #endif
 
     Entity plane = EditorState::Ptr->CurrentWorld->CreateEntity("plane", WorldRoot);
     auto&  mesh = plane.AddComponent<MeshComponent>();
-    mesh.GeometryID = GeometrySystem::GetDefaultGeometry()->InternalID;
+    mesh.DrawData = GeometrySystem::GetDefaultGeometry()->DrawData;
     mesh.MaterialInstance = MaterialSystem::CreateMaterialFromFile(S("res/materials/plane.kmt"));
     plane.GetComponent<TransformComponent>().SetTransform(Vec3fZero, { DegToRadians(-90.0f), 0.0f, 0.0f }, Vec3f(100.0f));
 
@@ -328,7 +328,7 @@ bool Init()
             {
                 kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
                 MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
-                Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+                Mesh.DrawData = VikingRoom->SubMeshes[i].Geometry->DrawData;
                 Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
 
                 kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
@@ -350,7 +350,7 @@ bool Init()
     {
         kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
-        Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+        Mesh.DrawData = VikingRoom->SubMeshes[i].Geometry->DrawData;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
@@ -366,7 +366,7 @@ bool Init()
     {
         kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(VikingRoom->NodeHierarchy[VikingRoom->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
-        Mesh.GeometryID = VikingRoom->SubMeshes[i].Geometry->InternalID;
+        Mesh.DrawData = VikingRoom->SubMeshes[i].Geometry->DrawData;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
@@ -384,7 +384,7 @@ bool Init()
     {
         kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(Chair->NodeHierarchy[Chair->SubMeshes[i].NodeIdx].Name, VikingRoomMeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
-        Mesh.GeometryID = Chair->SubMeshes[i].Geometry->InternalID;
+        Mesh.DrawData = Chair->SubMeshes[i].Geometry->DrawData;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
 
         kraft::TransformComponent& Transform = TestMesh.GetComponent<TransformComponent>();
@@ -405,7 +405,7 @@ bool Init()
         {
             kraft::MeshT&  SubMesh = RogueSkeleton->SubMeshes[Node.MeshIdx];
             MeshComponent& Mesh = NodeEntity.AddComponent<MeshComponent>();
-            Mesh.GeometryID = SubMesh.Geometry->InternalID;
+            Mesh.DrawData = SubMesh.Geometry->DrawData;
             Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile("res/materials/simple_3d.kmt");
 
             if (SubMesh.Textures.Length > 0)
@@ -436,7 +436,7 @@ bool Init()
     {
         kraft::Entity  TestMesh = EditorState::Ptr->CurrentWorld->CreateEntity(RogueSkeleton->NodeHierarchy[RogueSkeleton->SubMeshes[i].NodeIdx].Name, MeshParent);
         MeshComponent& Mesh = TestMesh.AddComponent<MeshComponent>();
-        Mesh.GeometryID = RogueSkeleton->SubMeshes[i].Geometry->InternalID;
+        Mesh.DrawData = RogueSkeleton->SubMeshes[i].Geometry->DrawData;
         Mesh.MaterialInstance = kraft::MaterialSystem::CreateMaterialFromFile(S("res/materials/simple_3d.kmt"));
 
         if (RogueSkeleton->SubMeshes[i].Textures.Length > 0)
@@ -704,7 +704,7 @@ void Run()
                 kraft::MemCpy((void*)r::ResourceManager->GetBufferData(EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO), (void*)&GlobalShaderData, sizeof(GlobalShaderData));
 
                 kraft::g_Renderer->UseShader(ObjectPickingShader);
-                kraft::g_Renderer->ApplyGlobalShaderProperties(ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::r::Handle<kraft::r::Buffer>::Invalid());
+                kraft::g_Renderer->ApplyGlobalShaderProperties(ObjectPickingShader, EditorState::Ptr->ObjectPickingRenderSurface.GlobalUBO, kraft::r::Handle<kraft::r::Buffer>::Invalid(), kraft::r::Handle<kraft::r::Buffer>::Invalid(), kraft::r::Handle<kraft::r::Buffer>::Invalid());
 
                 kraft::g_Renderer->CmdSetCustomBuffer(ObjectPickingShader, EditorState::Ptr->picking_buffer, 3, 0);
 
@@ -719,7 +719,7 @@ void Run()
                     DummyDrawData.EntityId = (uint32)EntityHandle;
 
                     kraft::g_Renderer->ApplyLocalShaderProperties(ObjectPickingShader, &DummyDrawData);
-                    kraft::g_Renderer->DrawGeometry(Mesh.GeometryID);
+                    kraft::g_Renderer->DrawGeometry(Mesh.DrawData);
                 }
             }
             EditorState::Ptr->ObjectPickingRenderSurface.End();

@@ -1,31 +1,23 @@
 #include "kraft_renderer_frontend.h"
 
-#include <containers/kraft_hashmap.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_allocators.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_time.h>
-#include <renderer/kraft_camera.h>
-#include <renderer/kraft_resource_manager.h>
-#include <renderer/vulkan/kraft_vulkan_backend.h>
-#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
+#include <containers/kraft_containers_includes.h>
+#include <core/kraft_base_includes.h>
+#include <renderer/kraft_renderer_includes.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
 #include <systems/kraft_texture_system.h>
-#include <world/kraft_entity.h>
-#include <world/kraft_world.h>
 
 #include <kraft_types.h>
 
 // TODO (amn): REMOVE
-#include <core/kraft_base_includes.h>
+#include <renderer/kraft_renderer_types.h>
+#include <world/kraft_world_includes.h>
 
-#include <resources/kraft_resource_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
 
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
+#include <platform/kraft_platform_includes.h>
+
+#include <resources/kraft_resource_types.h>
 
 namespace kraft {
 r::RendererFrontend* g_Renderer = nullptr;
@@ -53,6 +45,10 @@ struct RendererFrontendPrivate
     int                current_frame_index = -1;
     ArenaAllocator*    arena;
 
+    Handle<Buffer> vertex_buffer;
+    Handle<Buffer> index_buffer;
+    u32            current_vertex_buffer_offset;
+    u32            current_index_buffer_offset;
     Handle<Buffer> global_ubo_buffer;
     Handle<Buffer> materials_gpu_buffer;
     Handle<Buffer> materials_staging_buffer[3];
@@ -60,6 +56,26 @@ struct RendererFrontendPrivate
 
 void RendererFrontend::Init()
 {
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 256;
+    renderer_data_internal.vertex_buffer = ResourceManager->CreateBuffer({
+        .DebugName = "GlobalVertexBuffer",
+        .Size = vertex_buffer_size,
+        .UsageFlags = BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BUFFER_USAGE_FLAGS_TRANSFER_DST, // | BufferUsageFlags::BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        // .MemoryAllocationFlags = MemoryAllocateFlags::MEMORY_ALLOCATE_DEVICE_ADDRESS,
+    });
+
+    const u64 index_buffer_size = sizeof(u32) * 1024 * 256;
+    renderer_data_internal.index_buffer = ResourceManager->CreateBuffer({
+        .DebugName = "GlobalIndexBuffer",
+        .Size = index_buffer_size,
+        .UsageFlags = BUFFER_USAGE_FLAGS_TRANSFER_DST | BUFFER_USAGE_FLAGS_INDEX_BUFFER,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+    });
+
+    renderer_data_internal.current_vertex_buffer_offset = 0;
+    renderer_data_internal.current_index_buffer_offset = 0;
+
     u64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
     renderer_data_internal.materials_gpu_buffer = ResourceManager->CreateBuffer({
         .Size = MaterialsBufferSize,
@@ -105,13 +121,16 @@ void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geo
     MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)ubo, sizeof(GlobalShaderData));
 
     renderer_data_internal.backend->UseShader(shader, 0);
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(
+        shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+    );
 
-    DummyDrawData.Model = kraft::ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
+    DummyDrawData.Model = ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
     DummyDrawData.MaterialIdx = 0;
     renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
 
-    renderer_data_internal.backend->DrawGeometryData(geometry_id);
+    // TODO (amn): DrawSingle is unused, update to pass GeometryDrawData properly
+    renderer_data_internal.backend->DrawGeometryData({});
 }
 
 void RendererFrontend::Draw(GlobalShaderData* global_ubo)
@@ -129,7 +148,9 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
             continue;
         }
 
-        renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
+        renderer_data_internal.backend->ApplyGlobalShaderProperties(
+            shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+        );
 
         auto& objects = It->second;
         u64   count = objects.Size();
@@ -145,7 +166,7 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
             // DummyDrawData.MousePosition = Surface.RelativeMousePosition;
             DummyDrawData.EntityId = object.EntityId;
             renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
-            renderer_data_internal.backend->DrawGeometryData(object.GeometryId);
+            renderer_data_internal.backend->DrawGeometryData(object.DrawData);
         }
 
         objects.Clear();
@@ -226,7 +247,9 @@ bool RendererFrontend::DrawSurfaces()
                 continue;
             }
 
-            renderer_data_internal.backend->ApplyGlobalShaderProperties(current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer, Handle<Buffer>::Invalid());
+            renderer_data_internal.backend->ApplyGlobalShaderProperties(
+                current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+            );
 
             auto& objects = it->second;
             u64   count = objects.Size();
@@ -243,7 +266,7 @@ bool RendererFrontend::DrawSurfaces()
                 DummyDrawData.EntityId = object.EntityId;
                 renderer_data_internal.backend->ApplyLocalShaderProperties(current_shader, &DummyDrawData);
 
-                renderer_data_internal.backend->DrawGeometryData(object.GeometryId);
+                renderer_data_internal.backend->DrawGeometryData(object.DrawData);
             }
 
             objects.Clear();
@@ -319,14 +342,14 @@ void RendererFrontend::UseShader(const Shader* Shader, u32 variant_index)
     renderer_data_internal.backend->UseShader(Shader, variant_index);
 }
 
-void RendererFrontend::DrawGeometry(uint32 GeometryID)
+void RendererFrontend::DrawGeometry(const GeometryDrawData& draw_data)
 {
-    renderer_data_internal.backend->DrawGeometryData(GeometryID);
+    renderer_data_internal.backend->DrawGeometryData(draw_data);
 }
 
-void RendererFrontend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer)
+void RendererFrontend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer)
 {
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, ubo_buffer, materials_buffer, vertex_buffer);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, ubo_buffer, materials_buffer, vertex_buffer, index_buffer);
 }
 
 void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)
@@ -336,17 +359,50 @@ void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Da
 
 bool RendererFrontend::CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
 {
-    return renderer_data_internal.backend->CreateGeometry(geometry, vertex_count, vertices, vertex_size, index_count, indices, index_size);
+    u32 vertex_buffer_offset = renderer_data_internal.current_vertex_buffer_offset;
+    u32 index_buffer_offset = renderer_data_internal.current_index_buffer_offset;
+
+    renderer_data_internal.current_vertex_buffer_offset += vertex_size * vertex_count;
+    renderer_data_internal.current_index_buffer_offset += index_size * index_count;
+
+    geometry->DrawData.IndexCount = index_count;
+    geometry->DrawData.IndexBufferOffset = index_buffer_offset;
+    geometry->DrawData.VertexOffset = vertex_buffer_offset / vertex_size;
+
+    return renderer_data_internal.backend->CreateGeometry({
+        .VertexBuffer = renderer_data_internal.vertex_buffer,
+        .VertexBufferOffset = vertex_buffer_offset,
+        .VertexCount = vertex_count,
+        .Vertices = vertices,
+        .VertexSize = vertex_size,
+        .IndexBuffer = renderer_data_internal.index_buffer,
+        .IndexBufferOffset = index_buffer_offset,
+        .IndexCount = index_count,
+        .Indices = indices,
+        .IndexSize = index_size,
+    });
 }
 
 bool RendererFrontend::UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
 {
-    return renderer_data_internal.backend->UpdateGeometry(geometry, vertex_count, vertices, vertex_size, index_count, indices, index_size);
-}
+    // Re-upload to the same offsets
+    u32 vertex_buffer_offset = geometry->DrawData.VertexOffset * vertex_size;
+    u32 index_buffer_offset = geometry->DrawData.IndexBufferOffset;
 
-void RendererFrontend::DestroyGeometry(Geometry* Geometry)
-{
-    renderer_data_internal.backend->DestroyGeometry(Geometry);
+    geometry->DrawData.IndexCount = index_count;
+
+    return renderer_data_internal.backend->UpdateGeometry({
+        .VertexBuffer = renderer_data_internal.vertex_buffer,
+        .VertexBufferOffset = vertex_buffer_offset,
+        .VertexCount = vertex_count,
+        .Vertices = vertices,
+        .VertexSize = vertex_size,
+        .IndexBuffer = renderer_data_internal.index_buffer,
+        .IndexBufferOffset = index_buffer_offset,
+        .IndexCount = index_count,
+        .Indices = indices,
+        .IndexSize = index_size,
+    });
 }
 
 RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32 height, bool has_color, bool has_depth, bool depth_sample)
@@ -536,7 +592,6 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         renderer_data_internal.backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
         renderer_data_internal.backend->UpdateGeometry = VulkanRendererBackend::UpdateGeometry;
         renderer_data_internal.backend->DrawGeometryData = VulkanRendererBackend::DrawGeometryData;
-        renderer_data_internal.backend->DestroyGeometry = VulkanRendererBackend::DestroyGeometry;
 
         // Render Passes
         renderer_data_internal.backend->BeginSurface = VulkanRendererBackend::BeginSurface;

@@ -183,8 +183,8 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
     return {
         .ModelMatrix = transform,
         .MaterialInstance = material,
-        .GeometryId = geometry->InternalID,
-        .EntityId = geometry->InternalID,
+        .DrawData = geometry->DrawData,
+        .EntityId = geometry->ID,
     };
 }
 

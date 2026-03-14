@@ -153,7 +153,7 @@ int main(int argc, char** argv)
     r::Renderable background = {
         .ModelMatrix = bg_transform,
         .MaterialInstance = bg_material,
-        .GeometryId = bg_geometry->InternalID,
+        .DrawData = bg_geometry->DrawData,
     };
 
     auto font_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/font.kmt"));
@@ -186,7 +186,7 @@ int main(int argc, char** argv)
     Mat4f         transform = ScaleMatrix(Vec3f{ font_atlas.width, font_atlas.height, 1.f }) * TranslationMatrix(Vec3f{ 1.f, 1.f, 0.f });
     r::Renderable font_bitmap;
     font_bitmap.EntityId = 1;
-    font_bitmap.GeometryId = geometry->InternalID;
+    font_bitmap.DrawData = geometry->DrawData;
     font_bitmap.MaterialInstance = bitmap_material;
     font_bitmap.ModelMatrix = transform;
 
@@ -542,13 +542,13 @@ int main(int argc, char** argv)
                 }
             }
 
-            // g_Renderer->AddRenderable({ .EntityId = 1, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformA });
-            // g_Renderer->AddRenderable({ .EntityId = 2, .GeometryId = geometry->InternalID, .MaterialInstance = font_material, .ModelMatrix = transformB });
+            // g_Renderer->AddRenderable({ .EntityId = 1, .DrawData = geometry->DrawData, .MaterialInstance = font_material, .ModelMatrix = transformA });
+            // g_Renderer->AddRenderable({ .EntityId = 2, .DrawData = geometry->DrawData, .MaterialInstance = font_material, .ModelMatrix = transformB });
             g_Renderer->AddRenderable(background);
             g_Renderer->AddRenderable({
                 .ModelMatrix = transformB,
                 .MaterialInstance = font_material,
-                .GeometryId = active_points_array->geometry->InternalID,
+                .DrawData = active_points_array->geometry->DrawData,
                 .EntityId = 420,
             });
 

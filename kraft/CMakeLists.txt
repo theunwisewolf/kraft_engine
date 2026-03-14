@@ -28,23 +28,6 @@ set(HEADER_FILES
 if (KRAFT_APP_TYPE STREQUAL "GUI")
     list(APPEND HEADER_FILES
         # Renderer
-        src/renderer/kraft_camera.cpp
-        src/renderer/kraft_renderer_frontend.cpp
-        src/renderer/kraft_resource_manager.cpp
-        src/renderer/kraft_resource_pool.cpp
-        src/renderer/vulkan/kraft_vulkan_volk_impl.cpp
-        src/renderer/vulkan/kraft_vulkan_backend.cpp
-        src/renderer/vulkan/kraft_vulkan_device.cpp
-        src/renderer/vulkan/kraft_vulkan_swapchain.cpp
-        src/renderer/vulkan/kraft_vulkan_image.cpp
-        src/renderer/vulkan/kraft_vulkan_renderpass.cpp
-        src/renderer/vulkan/kraft_vulkan_command_buffer.cpp
-        src/renderer/vulkan/kraft_vulkan_framebuffer.cpp
-        src/renderer/vulkan/kraft_vulkan_fence.cpp
-        src/renderer/vulkan/kraft_vulkan_imgui.cpp
-        src/renderer/vulkan/kraft_vulkan_resource_manager.cpp
-        src/renderer/vulkan/kraft_vulkan_helpers.cpp
-
         src/renderer/renderables/kraft_gameobject.cpp
 
         # Systems
@@ -65,11 +48,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
 
         # imgui extensions
         vendor/imgui/extensions/imguizmo/ImGuizmo.cpp
-
-        # World
-        src/world/kraft_world.cpp
-        src/world/kraft_entity.cpp
-        src/world/kraft_components.cpp
     )
 endif()
 

@@ -160,8 +160,8 @@ int main(int argc, char** argv)
                 g_Renderer->AddRenderable({
                     .ModelMatrix = ScaleMatrix(Vec3f{ 1.0f, 1.0f, 1.0f }),
                     .MaterialInstance = gltf_material,
-                    .GeometryId = mesh->SubMeshes[i].Geometry->InternalID,
-                    .EntityId = mesh->SubMeshes[i].Geometry->InternalID,
+                    .DrawData = mesh->SubMeshes[i].Geometry->DrawData,
+                    .EntityId = mesh->SubMeshes[i].Geometry->ID,
                 });
             }
             g_Renderer->EndRenderSurface(shadow_pass_depth_surface);
@@ -184,8 +184,8 @@ int main(int argc, char** argv)
                 g_Renderer->AddRenderable({
                     .ModelMatrix = ScaleMatrix(Vec3f{ 1.0f, 1.0f, 1.0f }),
                     .MaterialInstance = gltf_material,
-                    .GeometryId = mesh->SubMeshes[i].Geometry->InternalID,
-                    .EntityId = mesh->SubMeshes[i].Geometry->InternalID,
+                    .DrawData = mesh->SubMeshes[i].Geometry->DrawData,
+                    .EntityId = mesh->SubMeshes[i].Geometry->ID,
                 });
             }
 

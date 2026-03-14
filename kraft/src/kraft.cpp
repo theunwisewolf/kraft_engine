@@ -1,6 +1,12 @@
 #include "kraft.h"
 
 #include <core/kraft_base_includes.h>
+
+#if defined(KRAFT_GUI_APP)
+#define VOLK_IMPLEMENTATION
+#include <volk/volk.h>
+#endif
+
 #include <platform/kraft_platform_includes.h>
 
 #include <core/kraft_base_includes.cpp>
@@ -13,7 +19,7 @@
 #include <platform/kraft_platform_includes.cpp>
 #include <shaderfx/kraft_shaderfx_includes.cpp>
 
-#include <containers/kraft_array.h>
+#include <containers/kraft_containers_includes.h>
 #include <core/kraft_asserts.h>
 #include <core/kraft_engine.h>
 #include <core/kraft_events.h>
@@ -23,6 +29,18 @@
 #include <platform/kraft_window.h>
 
 #include <kraft_types.h>
+
+#if defined(KRAFT_GUI_APP)
+
+#include <resources/kraft_resource_types.h>
+#include <renderer/kraft_renderer_includes.h>
+#include <world/kraft_world_includes.h>
+#include <shaders/includes/kraft_shader_includes.h>
+
+#include <renderer/kraft_renderer_includes.cpp>
+#include <world/kraft_world_includes.cpp>
+
+#endif
 
 namespace kraft {
 
@@ -89,4 +107,5 @@ void DestroyRenderer(r::RendererFrontend* Instance)
     r::DestroyRendererFrontend(Instance);
 }
 } // namespace kraft
+
 #endif

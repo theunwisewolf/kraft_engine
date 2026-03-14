@@ -106,8 +106,8 @@ void World::Render()
         g_Renderer->AddRenderable(kraft::r::Renderable{
             .ModelMatrix = Transform.ModelMatrix, // GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
             .MaterialInstance = Mesh.MaterialInstance,
-            .GeometryId = Mesh.GeometryID,
-            .EntityId = (uint32)EntityHandle,
+            .DrawData = Mesh.DrawData,
+            .EntityId = (u32)EntityHandle,
         });
     }
 }

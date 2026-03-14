@@ -113,7 +113,6 @@ Geometry* GeometrySystem::AcquireGeometryWithData(GeometryData Data, bool AutoRe
     {
         Reference->ReferenceCount = 0;
         Reference->Geometry.ID = State->MaxGeometriesCount;
-        Reference->Geometry.InternalID = State->MaxGeometriesCount;
 
         KERROR("[GeometrySystem::AcquireGeometryWithData]: Failed to create geometry!");
         return nullptr;
@@ -184,11 +183,8 @@ void GeometrySystem::ReleaseGeometry(u32 ID)
 
 void GeometrySystem::DestroyGeometry(Geometry* Geometry)
 {
-#ifdef KRAFT_GUI_APP
-    g_Renderer->DestroyGeometry(Geometry);
-#endif
     Geometry->ID = State->MaxGeometriesCount;
-    Geometry->InternalID = State->MaxGeometriesCount;
+    Geometry->DrawData = {};
 }
 
 void _createDefaultGeometries()

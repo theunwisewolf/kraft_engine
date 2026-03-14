@@ -1,13 +1,6 @@
 #pragma once
 
-#ifndef VOLK_H_
-#error "Vulkan headers not found. Did you forget to include volk.h before this file?"
-#endif
-
-#include <containers/kraft_array.h>
-#include <core/kraft_base_includes.h>
-#include <renderer/kraft_renderer_types.h>
-#include <shaders/includes/kraft_shader_includes.h>
+#include <volk/volk.h>
 
 #ifndef KRAFT_ENABLE_VK_DYNAMIC_RENDERING
 #define KRAFT_ENABLE_VK_DYNAMIC_RENDERING 1
@@ -20,8 +13,6 @@
     } while (0)
 
 #define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES           3
-#define KRAFT_VULKAN_MAX_GEOMETRIES                 1024
-#define KRAFT_VULKAN_MAX_MATERIALS                  1024
 #define KRAFT_VULKAN_MAX_BINDINGS                   32
 #define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS    3
 #define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS     4
@@ -67,17 +58,6 @@ struct VulkanTexture
 struct VulkanTextureSampler
 {
     VkSampler Sampler;
-};
-
-struct VulkanGeometryData
-{
-    u32 ID;
-    u32 IndexSize;
-    u32 IndexCount;
-    u32 IndexBufferOffset;
-    u32 VertexSize;
-    u32 VertexCount;
-    u32 VertexBufferOffset;
 };
 
 struct VulkanBuffer
@@ -270,20 +250,13 @@ struct VulkanContext
 
     ArenaAllocator* Arena;
 
-    Handle<Buffer>     VertexBuffer;
-    Handle<Buffer>     IndexBuffer;
-    u32                CurrentVertexBufferOffset;
-    u32                CurrentIndexBufferOffset;
-    VulkanGeometryData Geometries[KRAFT_VULKAN_MAX_GEOMETRIES];
-    VulkanMaterialData Materials[KRAFT_VULKAN_MAX_MATERIALS];
+    Handle<Buffer> IndexBuffer;
 
     // Global Data
     VkDescriptorPool       GlobalDescriptorPool;
     VkDescriptorSetLayout  DescriptorSetLayouts[16];
     VkDescriptorSet        GlobalTexturesDescriptorSet;
     u8                     DescriptorSetLayoutsCount = 0;
-    Handle<Buffer>         GlobalUniformBuffer = Handle<Buffer>::Invalid();
-    void*                  GlobalUniformBufferMemory = 0;
     Handle<TextureSampler> DefaultTextureSampler;
 };
 

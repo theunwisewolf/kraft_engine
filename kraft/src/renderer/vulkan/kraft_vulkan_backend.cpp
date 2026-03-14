@@ -1,6 +1,4 @@
-#include "kraft_vulkan_backend.h"
-#include "renderer/kraft_resource_manager.h"
-#include "vulkan/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
 #include <volk/volk.h>
 #include <vulkan/vulkan.h>
@@ -14,26 +12,12 @@
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
 #include <renderer/kraft_resource_pool.inl>
-#include <renderer/vulkan/kraft_vulkan_command_buffer.h>
-#include <renderer/vulkan/kraft_vulkan_device.h>
-#include <renderer/vulkan/kraft_vulkan_fence.h>
-#include <renderer/vulkan/kraft_vulkan_framebuffer.h>
-#include <renderer/vulkan/kraft_vulkan_helpers.h>
-#include <renderer/vulkan/kraft_vulkan_image.h>
-#include <renderer/vulkan/kraft_vulkan_renderpass.h>
-#include <renderer/vulkan/kraft_vulkan_resource_manager.h>
-#include <renderer/vulkan/kraft_vulkan_swapchain.h>
 #include <shaders/includes/kraft_shader_includes.h>
 
 #include <kraft_types.h>
 #include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
 #include <shaderfx/kraft_shaderfx_types.h>
-
-// HACK
-#include <core/kraft_allocators.h>
-#include <core/kraft_thread_context.h>
-#include <core/kraft_strings.h>
 
 namespace kraft::r {
 
@@ -92,11 +76,6 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
     s_Context.AllocationCallbacks = nullptr;
     s_Context.FramebufferWidth = Platform::GetWindow()->Width;
     s_Context.FramebufferHeight = Platform::GetWindow()->Height;
-
-    for (i32 i = 0; i < KRAFT_VULKAN_MAX_GEOMETRIES; i++)
-    {
-        s_Context.Geometries[i].ID = KRAFT_INVALID_ID;
-    }
 
     VkApplicationInfo app_info = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
     app_info.apiVersion = VK_API_VERSION_1_3;
@@ -407,19 +386,6 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         set_allocate_info.pSetLayouts = &s_Context.DescriptorSetLayouts[2];
 
         KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &set_allocate_info, &s_Context.GlobalTexturesDescriptorSet));
-
-        // Create the uniform buffer for data upload
-        u64 extra_memory_flags = s_Context.PhysicalDevice.SupportsDeviceLocalHostVisible ? MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
-        s_Context.GlobalUniformBuffer = ResourceManager->CreateBuffer({
-            .DebugName = "GlobalUniformBuffer",
-            .Size = (u64)math::AlignUp(sizeof(GlobalShaderData), s_Context.PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment),
-            .UsageFlags = BUFFER_USAGE_FLAGS_TRANSFER_DST | BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
-            .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MEMORY_PROPERTY_FLAGS_HOST_COHERENT | extra_memory_flags,
-            .MapMemory = true,
-        });
-
-        // Map the buffer memory
-        s_Context.GlobalUniformBufferMemory = ResourceManager->GetBufferData(s_Context.GlobalUniformBuffer);
     }
 
     // Create vertex and index buffers
@@ -1065,11 +1031,6 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
     }
 }
 
-void VulkanRendererBackend::SetGlobalShaderData(GlobalShaderData* Data)
-{
-    MemCpy(s_Context.GlobalUniformBufferMemory, Data, sizeof(GlobalShaderData));
-}
-
 void VulkanRendererBackend::UseShader(const Shader* Shader, u32 variant_index)
 {
     VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
@@ -1080,12 +1041,13 @@ void VulkanRendererBackend::UseShader(const Shader* Shader, u32 variant_index)
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
-void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer)
+void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer)
 {
+    s_Context.IndexBuffer = index_buffer;
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader*        shader_data = (VulkanShader*)shader->RendererData;
 
-    VkBuffer               gpu_buffer = VulkanResourceManagerApi::GetBuffer(ubo_buffer.IsInvalid() ? s_Context.GlobalUniformBuffer : ubo_buffer)->Handle;
+    VkBuffer               gpu_buffer = VulkanResourceManagerApi::GetBuffer(ubo_buffer)->Handle;
     VkDescriptorBufferInfo global_data_buffer_info = {};
     global_data_buffer_info.buffer = gpu_buffer;
     global_data_buffer_info.offset = 0;
@@ -1130,7 +1092,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<B
         count++;
     }
 
-    VulkanBuffer*          vertex_gpu_buffer = VulkanResourceManagerApi::GetBuffer(vertex_buffer.IsInvalid() ? s_Context.VertexBuffer : vertex_buffer);
+    VulkanBuffer*          vertex_gpu_buffer = VulkanResourceManagerApi::GetBuffer(vertex_buffer);
     VkDescriptorBufferInfo vertex_buffer_info = {};
     if (vertex_gpu_buffer)
     {
@@ -1179,18 +1141,13 @@ void VulkanRendererBackend::UpdateTextures(Handle<Texture>* textures, u64 textur
     }
 }
 
-void VulkanRendererBackend::DrawGeometryData(u32 geometry_id)
+void VulkanRendererBackend::DrawGeometryData(GeometryDrawData draw_data)
 {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
-    VulkanGeometryData   geometry_data = s_Context.Geometries[geometry_id];
-    // VkDeviceSize         offsets[1] = { geometry_data.VertexBufferOffset };
+    VulkanBuffer*        index_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
 
-    VulkanBuffer* vertex_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.VertexBuffer);
-    VulkanBuffer* index_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
-
-    // vkCmdBindVertexBuffers(cmd_buffer->Resource, 0, 1, &vertex_buffer->Handle, offsets);
-    vkCmdBindIndexBuffer(cmd_buffer->Resource, index_buffer->Handle, geometry_data.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cmd_buffer->Resource, geometry_data.IndexCount, 1, 0, geometry_data.VertexBufferOffset / geometry_data.VertexSize, 0);
+    vkCmdBindIndexBuffer(cmd_buffer->Resource, index_buffer->Handle, draw_data.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(cmd_buffer->Resource, draw_data.IndexCount, 1, 0, draw_data.VertexOffset, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u32 dst_buffer_offset, const void* data, u32 size)
@@ -1209,66 +1166,32 @@ static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u
     return true;
 }
 
-bool VulkanRendererBackend::CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
+bool VulkanRendererBackend::CreateGeometry(const GeometryDescription& description)
 {
-    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->ID];
-    geometry->InternalID = geometry->ID;
+    u32 vertex_data_size = description.VertexSize * description.VertexCount;
+    UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
 
-    u32 size = vertex_size * vertex_count;
-    backend_geometry_data->VertexSize = vertex_size;
-    backend_geometry_data->VertexCount = vertex_count;
-    backend_geometry_data->VertexBufferOffset = s_Context.CurrentVertexBufferOffset;
-    s_Context.CurrentVertexBufferOffset += size;
-
-    UploadDataToGPU(&s_Context, s_Context.VertexBuffer, backend_geometry_data->VertexBufferOffset, vertices, size);
-
-    if (indices && index_count > 0)
+    if (description.Indices && description.IndexCount > 0)
     {
-        size = index_size * index_count;
-        backend_geometry_data->IndexSize = index_size;
-        backend_geometry_data->IndexCount = index_count;
-        backend_geometry_data->IndexBufferOffset = s_Context.CurrentIndexBufferOffset;
-        s_Context.CurrentIndexBufferOffset += size;
-
-        UploadDataToGPU(&s_Context, s_Context.IndexBuffer, backend_geometry_data->IndexBufferOffset, indices, size);
+        u32 index_data_size = description.IndexSize * description.IndexCount;
+        UploadDataToGPU(&s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size);
     }
 
     return true;
 }
 
-bool VulkanRendererBackend::UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
+bool VulkanRendererBackend::UpdateGeometry(const GeometryDescription& description)
 {
-    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->ID];
-    KASSERT(geometry);
+    u32 vertex_data_size = description.VertexSize * description.VertexCount;
+    UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
 
-    u32 size = vertex_size * vertex_count;
-    backend_geometry_data->VertexSize = vertex_size;
-    backend_geometry_data->VertexCount = vertex_count;
-
-    UploadDataToGPU(&s_Context, s_Context.VertexBuffer, backend_geometry_data->VertexBufferOffset, vertices, size);
-    if (indices && index_count > 0)
+    if (description.Indices && description.IndexCount > 0)
     {
-        size = index_size * index_count;
-        backend_geometry_data->IndexSize = index_size;
-        backend_geometry_data->IndexCount = index_count;
-
-        UploadDataToGPU(&s_Context, s_Context.IndexBuffer, backend_geometry_data->IndexBufferOffset, indices, size);
+        u32 index_data_size = description.IndexSize * description.IndexCount;
+        UploadDataToGPU(&s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size);
     }
 
     return true;
-}
-
-void VulkanRendererBackend::DestroyGeometry(Geometry* geometry)
-{
-    if (!geometry || geometry->InternalID == KRAFT_INVALID_ID)
-        return;
-
-    vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
-
-    VulkanGeometryData* backend_geometry_data = &s_Context.Geometries[geometry->InternalID];
-
-    MemZero(backend_geometry_data, sizeof(VulkanGeometryData));
-    backend_geometry_data->ID = KRAFT_INVALID_ID;
 }
 
 void VulkanRendererBackend::BeginSurface(RenderSurface* surface)
@@ -1585,23 +1508,6 @@ static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Na
 
 bool createBuffers()
 {
-    const u64 VertexBufferSize = sizeof(Vertex3D) * 1024 * 256;
-    s_Context.VertexBuffer = ResourceManager->CreateBuffer({
-        .DebugName = "GlobalVertexBuffer",
-        .Size = VertexBufferSize,
-        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
-        .UsageFlags = BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BUFFER_USAGE_FLAGS_TRANSFER_DST // | BufferUsageFlags::BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS,
-        // .MemoryAllocationFlags = MemoryAllocateFlags::MEMORY_ALLOCATE_DEVICE_ADDRESS,
-    });
-
-    const u64 IndexBufferSize = sizeof(u32) * 1024 * 256;
-    s_Context.IndexBuffer = ResourceManager->CreateBuffer({
-        .DebugName = "GlobalIndexBuffer",
-        .Size = IndexBufferSize,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_INDEX_BUFFER,
-        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
-    });
-
     return true;
 }
 

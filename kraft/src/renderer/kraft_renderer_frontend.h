@@ -18,6 +18,7 @@ namespace r {
 
 struct RenderSurface;
 struct ShaderEffect;
+struct GeometryDrawData;
 struct RendererBackend;
 struct Renderable;
 struct RenderPass;
@@ -49,12 +50,11 @@ struct RendererFrontend
     void CreateRenderPipeline(Shader* shader);
     void DestroyRenderPipeline(Shader* shader);
     void UseShader(const Shader* shader, u32 variant_index = 0);
-    void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
+    void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer);
     void ApplyLocalShaderProperties(Shader* shader, void* data);
-    void DrawGeometry(u32 id);
+    void DrawGeometry(const GeometryDrawData& draw_data);
     bool CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
     bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
-    void DestroyGeometry(Geometry* geometry);
 
     RenderSurface CreateRenderSurface(String8 name, u32 width, u32 height, bool has_color = true, bool has_depth = false, bool depth_sample = false);
     void          BeginRenderSurface(const RenderSurface& surface);

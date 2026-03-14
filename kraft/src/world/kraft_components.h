@@ -1,11 +1,5 @@
 #pragma once
 
-#include "containers/kraft_array.h"
-#include "core/kraft_string.h"
-#include "core/kraft_string_view.h"
-#include "core/kraft_math.h"
-#include "world/kraft_entity_types.h"
-
 namespace kraft {
 
 struct Material;
@@ -95,11 +89,11 @@ struct MetadataComponent
 
 struct MeshComponent
 {
-    Material* MaterialInstance = nullptr;
-    uint32    GeometryID = -1;
+    Material*           MaterialInstance = nullptr;
+    r::GeometryDrawData DrawData = {};
 
     MeshComponent() = default;
-    MeshComponent(Material* MaterialInstance, uint32 GeometryID) : MaterialInstance(MaterialInstance), GeometryID(GeometryID) {};
+    MeshComponent(Material* MaterialInstance, r::GeometryDrawData DrawData) : MaterialInstance(MaterialInstance), DrawData(DrawData) {};
 };
 
 struct LightComponent
@@ -110,4 +104,4 @@ struct LightComponent
     LightComponent(kraft::Vec4f Color) : LightColor(Color) {};
 };
 
-}
+} // namespace kraft

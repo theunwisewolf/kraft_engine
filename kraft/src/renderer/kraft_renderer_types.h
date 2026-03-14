@@ -100,12 +100,34 @@ struct alignas(16) GlobalShaderData
     };
 };
 
+struct GeometryDrawData
+{
+    u32 IndexCount;
+    u32 IndexBufferOffset; // Byte offset into the index buffer
+    u32 VertexOffset;      // Vertex index offset (VertexBufferOffset / VertexSize)
+};
+
+struct GeometryDescription
+{
+    Handle<Buffer> VertexBuffer;
+    u32            VertexBufferOffset; // Byte offset into the vertex buffer
+    u32            VertexCount;
+    const void*    Vertices;
+    u32            VertexSize;
+
+    Handle<Buffer> IndexBuffer;
+    u32            IndexBufferOffset; // Byte offset into the index buffer
+    u32            IndexCount;
+    const void*    Indices;
+    u32            IndexSize;
+};
+
 struct Renderable
 {
-    Mat4f     ModelMatrix;
-    Material* MaterialInstance;
-    u32       GeometryId;
-    u32       EntityId;
+    Mat4f            ModelMatrix;
+    Material*        MaterialInstance;
+    GeometryDrawData DrawData;
+    u32              EntityId;
 };
 
 struct RenderPacket
@@ -128,17 +150,16 @@ struct RendererBackend
 
     // Shader
     void (*UseShader)(const Shader* Shader, u32 VariantIndex);
-    void (*ApplyGlobalShaderProperties)(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
+    void (*ApplyGlobalShaderProperties)(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    void (*DrawGeometryData)(u32 GeometryID);
-    bool (*CreateGeometry)(Geometry* Geometry, u32 VertexCount, const void* Vertices, u32 VertexSize, u32 IndexCount, const void* Indices, const u32 IndexSize);
-    bool (*UpdateGeometry)(Geometry* Geometry, u32 VertexCount, const void* Vertices, u32 VertexSize, u32 IndexCount, const void* Indices, const u32 IndexSize);
-    void (*DestroyGeometry)(Geometry* Geometry);
+    void (*DrawGeometryData)(GeometryDrawData draw_data);
+    bool (*CreateGeometry)(const GeometryDescription& description);
+    bool (*UpdateGeometry)(const GeometryDescription& description);
 
     // Render Passes
     void (*BeginSurface)(RenderSurface* surface);

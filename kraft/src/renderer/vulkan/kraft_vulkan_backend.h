@@ -18,9 +18,9 @@ struct VulkanContext;
 struct CommandBuffer;
 struct RenderPass;
 struct RenderSurface;
-struct GlobalShaderData;
 struct Buffer;
 struct GPUDevice;
+struct GeometryDescription;
 
 template<typename T>
 struct Handle;
@@ -37,17 +37,15 @@ struct VulkanRendererBackend
     static void CreateRenderPipeline(Shader* shader);
     static void DestroyRenderPipeline(Shader* shader);
 
-    static void SetGlobalShaderData(GlobalShaderData* data);
     static void UseShader(const Shader* shader, u32 variant_index = 0);
-    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer);
+    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer);
     static void ApplyLocalShaderProperties(Shader* shader, void* data);
     static void UpdateTextures(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    static void DrawGeometryData(u32 id);
-    static bool CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
-    static bool UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size);
-    static void DestroyGeometry(Geometry* geometry);
+    static void DrawGeometryData(GeometryDrawData draw_data);
+    static bool CreateGeometry(const GeometryDescription& description);
+    static bool UpdateGeometry(const GeometryDescription& description);
 
     // Render Passes
     static void BeginSurface(RenderSurface* surface);
