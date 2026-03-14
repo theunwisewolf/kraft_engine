@@ -955,12 +955,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         dynamic_state_create_info.dynamicStateCount = sizeof(dynamic_states) / sizeof(dynamic_states[0]);
         pipeline_create_info.pDynamicState = &dynamic_state_create_info;
 
-        // VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-        // vertex_input_state_create_info.pVertexBindingDescriptions = &input_binding_descs[0];
-        // vertex_input_state_create_info.vertexBindingDescriptionCount = (u32)input_binding_count;
-        // vertex_input_state_create_info.pVertexAttributeDescriptions = &attribute_descs[0];
-        // vertex_input_state_create_info.vertexAttributeDescriptionCount = (u32)attribute_count;
-        // pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+        // Vertices are now fetched from a storage buffer
+        VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
         input_assembly_state_create_info.primitiveRestartEnable = VK_FALSE;

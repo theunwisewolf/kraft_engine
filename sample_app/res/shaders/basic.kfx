@@ -76,11 +76,6 @@ Shader Basic
 
         #if defined VERTEX
 
-        // Inputs
-        layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec2 inUV;
-        layout (location = 2) in vec3 inNormal;
-
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
         {
@@ -91,12 +86,13 @@ Shader Basic
 
         void main()
         {
-            outDTO.UV = inUV;
-            // outDTO.Normal = inNormal;
-            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * inNormal; // For non-uniform scale
-            outDTO.FragPosition = vec3(variableState.Model * vec4(inPosition, 1.0));
-            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
-            //gl_Position = vec4(inPosition, 1.0);
+            Vertex3D vertex = vertices[gl_VertexIndex];
+            outDTO.UV = vertex.uv;
+            // outDTO.Normal = vertex.normal;
+            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * vertex.normal; // For non-uniform scale
+            outDTO.FragPosition = vec3(variableState.Model * vec4(vertex.position, 1.0));
+            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(vertex.position, 1.0);
+            //gl_Position = vec4(vertex.position, 1.0);
         }
 
         #endif // VERTEX

@@ -30,7 +30,7 @@ static struct GizmoStateT
     kraft::Vec3f        Snapping;
 } GizmoState = {};
 
-static ImTextureID                             ImSceneTexture;
+static ImTextureID                      ImSceneTexture;
 static kraft::r::Handle<kraft::Texture> active_viewport_texture;
 
 enum ActiveViewportTextureEnum
@@ -394,7 +394,7 @@ void DrawImGuiWidgets(bool refresh)
                     kraft::Entity Entity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity);
 
                     ImGui::SetNextItemAllowOverlap();
-                    ImGui::Text("Selected %s", *Entity.GetComponent<kraft::MetadataComponent>().Name);
+                    ImGui::Text("Selected %S", Entity.GetComponent<kraft::MetadataComponent>().name);
 
                     EditorState::Ptr->SelectedEntity = SelectedEntity;
                     break;

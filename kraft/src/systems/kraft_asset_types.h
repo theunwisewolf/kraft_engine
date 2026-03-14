@@ -39,7 +39,7 @@ struct MeshAsset : public Asset
 
 struct TextureAsset : public Asset
 {
-    Texture Texture;
+    Texture texture;
 };
 
 } // namespace kraft

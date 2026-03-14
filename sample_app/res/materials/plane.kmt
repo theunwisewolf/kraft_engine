@@ -5,5 +5,5 @@ Material Simple3D
     Diffuse         vec4(1.0, 1.0, 1.0, 1.0)
     Specular        vec4(1.0, 1.0, 1.0, 1.0)
     Shininess       f32(32)
-    DiffuseTexture  "res/textures/pixel32x32.png"
+    DiffuseTexture  tex("res/textures/pixel32x32.png")
 }

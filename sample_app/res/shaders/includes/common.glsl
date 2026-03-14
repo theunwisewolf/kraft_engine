@@ -1,3 +1,5 @@
+#extension GL_EXT_scalar_block_layout : require
+
 layout (push_constant) uniform pushConstants
 {
     mat4 Model;
@@ -20,6 +22,18 @@ layout (set = 0, binding = 0) uniform GlobalUniformBuffer
     uint  Pad1;
     uint  Pad2;
 } globalState;
+
+struct Vertex3D
+{
+    vec3 position;
+    vec2 uv;
+    vec3 normal;
+};
+
+layout(scalar, set = 0, binding = 3) readonly buffer VertexData
+{
+    Vertex3D vertices[];
+};
 
 #if defined FRAGMENT
 

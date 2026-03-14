@@ -1,32 +1,22 @@
 #include "core/kraft_math.h"
 
-#include <containers/kraft_array.h>
-#include <containers/kraft_hashmap.h>
-
 #include <kraft.h>
-#include <renderer/kraft_renderer_frontend.h>
-#include <renderer/vulkan/kraft_vulkan_imgui.h>
-#include <systems/kraft_asset_database.h>
-#include <systems/kraft_geometry_system.h>
-#include <systems/kraft_material_system.h>
-#include <systems/kraft_shader_system.h>
 
 #include <core/kraft_base_includes.h>
+#include <containers/kraft_containers_includes.h>
 #include <platform/kraft_platform_includes.h>
 #include <misc/kraft_misc_includes.h>
+#include <renderer/kraft_renderer_includes.h>
+#include <resources/kraft_resource_types.h>
+#include <systems/kraft_systems_includes.h>
 
 #include <kraft_types.h>
-#include <renderer/kraft_renderer_types.h>
-#include <resources/kraft_resource_types.h>
-#include <systems/kraft_asset_types.h>
-#include <renderer/kraft_camera.h>
 
 #include <time.h>
 
 using namespace kraft;
 
 #include "imgui/imgui_renderer.h"
-
 #include "imgui/imgui_renderer.cpp"
 
 struct ApplicationState

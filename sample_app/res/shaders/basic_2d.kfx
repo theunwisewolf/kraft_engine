@@ -71,11 +71,6 @@ Shader Basic2D
 
         #if defined VERTEX
 
-        // Inputs
-        layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec2 inUV;
-        layout (location = 2) in vec4 inColor;
-
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
         {
@@ -84,8 +79,9 @@ Shader Basic2D
 
         void main()
         {
-            outDTO.UV = inUV;
-            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+            Vertex3D vertex = vertices[gl_VertexIndex];
+            outDTO.UV = vertex.uv;
+            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(vertex.position, 1.0);
         }
 
         #endif // VERTEX
