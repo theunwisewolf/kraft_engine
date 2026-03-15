@@ -58,33 +58,89 @@ KRAFT_API bool FileExists(String8 path);
 
 // Very basic for now, just replaces all windows path separators
 // with unix path separators
-KRAFT_API void    CleanPath(const char* path, char* out);
 KRAFT_API String8 CleanPath(ArenaAllocator* arena, String8 path);
 
 // Returns the directory without the filename
-KRAFT_API void    Dirname(const char* path, char* out);
-KRAFT_API void    Dirname(const char* Path, u64 PathLength, char* Out);
 KRAFT_API String8 Dirname(ArenaAllocator* arena, String8 path);
-KRAFT_API char*   Dirname(ArenaAllocator* arena, const char* Path);
-KRAFT_API char*   Dirname(ArenaAllocator* arena, const char* Path, u64 PathLength);
 
 // Returns the filename without the directory
-KRAFT_API void    Basename(const char* path, char* out);
 KRAFT_API String8 Basename(ArenaAllocator* arena, String8 path);
 
 KRAFT_API String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2);
 
+// Converts a relative path to an absolute path
+KRAFT_API String8 AbsolutePath(ArenaAllocator* arena, String8 path);
+
 // outBuffer, if null is allocated & must be freed by the caller
-KRAFT_API bool   ReadAllBytes(FileHandle* handle, uint8** outBuffer, u64* bytesRead = nullptr);
+KRAFT_API bool   ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read = nullptr);
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle);
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path);
-KRAFT_API bool   WriteFile(FileHandle* Handle, const uint8* Buffer, u64 Size);
-KRAFT_API bool   WriteFile(FileHandle* Handle, const kraft::Buffer& Buffer);
+KRAFT_API bool   WriteFile(FileHandle* handle, const u8* buffer, u64 size);
+
+// Returns the last modified time of the file in seconds since epoch
+// Returns 0 if the file doesn't exist or an error occurs
+KRAFT_API u64 GetFileModifiedTime(String8 path);
 
 // Platform dependent APIs
 KRAFT_API u32            GetFileCount(String8 path);
 KRAFT_API Directory      ReadDir(ArenaAllocator* arena, String8 path);
 KRAFT_API FileMMapHandle MMap(const String& Path);
-} // namespace filesystem
+
+//
+// File watcher
+//
+
+enum FileWatchEventType
+{
+    FILE_WATCH_EVENT_MODIFIED,
+    FILE_WATCH_EVENT_CREATED,
+    FILE_WATCH_EVENT_DELETED,
+    FILE_WATCH_EVENT_RENAMED,
+};
+
+struct FileWatchEvent
+{
+    FileWatchEventType type;
+    String8            file_path;
+    String8            directory;
+};
+
+typedef void (*FileWatchCallback)(FileWatchEvent event, void* userdata);
+
+struct FileWatchEntry
+{
+    String8           directory;
+    FileWatchCallback callback;
+    void*             userdata;
+    bool              recursive;
+    void*             platform_data;
+};
+
+#define FILE_WATCHER_MAX_WATCHES 16
+
+struct FileWatcherState
+{
+    ArenaAllocator* arena;
+    FileWatchEntry  watches[FILE_WATCHER_MAX_WATCHES];
+    u32             watch_count;
+};
+
+struct KRAFT_API FileWatcher
+{
+    static bool Init(ArenaAllocator* arena);
+    static void Shutdown();
+
+    // Start watching a directory for changes
+    // Returns the watch index, or -1 on failure
+    static i32 WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata);
+
+    // Stop watching a directory
+    static void UnwatchDirectory(i32 watch_index);
+
+    // Poll for changes and dispatch callbacks
+    static void ProcessChanges();
+};
+
+} // namespace fs
 
 }; // namespace kraft

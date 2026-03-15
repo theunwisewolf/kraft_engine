@@ -55,7 +55,7 @@ static inline VkShaderStageFlagBits ToVulkanShaderStageFlagBits(ShaderStageFlags
     return VkShaderStageFlagBits(0);
 }
 
-static inline VkShaderStageFlags ToVulkanShaderStageFlags(uint64 Flags)
+static inline VkShaderStageFlags ToVulkanShaderStageFlags(u64 Flags)
 {
     VkShaderStageFlags Result = 0;
 
@@ -111,7 +111,7 @@ static inline VkCullModeFlagBits ToVulkanCullModeFlagBits(CullModeFlags::Enum Va
     return Mapping[Value];
 }
 
-static inline VkCullModeFlags ToVulkanCullModeFlags(uint64 Flags)
+static inline VkCullModeFlags ToVulkanCullModeFlags(u64 Flags)
 {
     VkCullModeFlags Result = 0;
 
@@ -147,7 +147,7 @@ static inline VkCompareOp ToVulkanCompareOp(CompareOp::Enum Value)
 //     return Mapping[Value];
 // }
 
-static inline VkImageUsageFlags ToVulkanImageUsageFlags(uint64 Flags)
+static inline VkImageUsageFlags ToVulkanImageUsageFlags(u64 Flags)
 {
     VkImageUsageFlags Result = 0;
 
@@ -239,7 +239,7 @@ static inline VkSampleCountFlagBits ToVulkanSampleCountFlagBits(TextureSampleCou
     return VkSampleCountFlagBits(0);
 }
 
-static inline VkSampleCountFlags ToVulkanSampleCountFlags(uint64 Flags)
+static inline VkSampleCountFlags ToVulkanSampleCountFlags(u64 Flags)
 {
     VkSampleCountFlags Result = 0;
 
@@ -377,7 +377,7 @@ static inline VkCommandPoolCreateFlagBits ToVulkanCommandPoolCreateFlagBits(Comm
     return (VkCommandPoolCreateFlagBits)Flag;
 }
 
-static inline VkCommandPoolCreateFlags ToVulkanCommandPoolCreateFlags(int32 Flags)
+static inline VkCommandPoolCreateFlags ToVulkanCommandPoolCreateFlags(i32 Flags)
 {
     VkCommandPoolCreateFlags Result = 0;
     Result |= (Flags & COMMAND_POOL_CREATE_FLAGS_TRANSIENT_BIT) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT : 0;

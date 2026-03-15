@@ -17,7 +17,7 @@ constexpr size_t KRAFT_STRING_SSO_ALIGNMENT = 16;
 
 namespace kraft {
 
-template<typename ValueType, uint64 InternalBufferSize = 128>
+template<typename ValueType, u64 InternalBufferSize = 128>
 struct
 #ifdef KRAFT_COMPILER_MSVC
     __declspec(align(KRAFT_STRING_SSO_ALIGNMENT))
@@ -26,7 +26,7 @@ struct
 #endif
     KString
 {
-    typedef uint64 SizeType;
+    typedef u64 SizeType;
 
     union BufferUnion
     {
@@ -430,7 +430,7 @@ public:
         return b == a;
     }
 
-    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept
+    KRAFT_INLINE u64 GetLengthInBytes() const noexcept
     {
         return this->Length * sizeof(ValueType);
     }
@@ -499,7 +499,7 @@ typedef String TString;
 
 // static WString CharToWChar(const String& Source)
 // {
-//     uint64  BufferSize = mbstowcs(nullptr, Source.Data(), 0);
+//     u64  BufferSize = mbstowcs(nullptr, Source.Data(), 0);
 //     WString Output(BufferSize, 0);
 //     mbstowcs(Output.Data(), Source.Data(), BufferSize);
 
@@ -508,7 +508,7 @@ typedef String TString;
 
 // static String WCharToChar(const WString& Source)
 // {
-//     uint64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
+//     u64 BufferSize = wcstombs(nullptr, Source.Data(), 0);
 //     String Output(BufferSize, 0);
 //     wcstombs(Output.Data(), Source.Data(), BufferSize);
 
@@ -519,14 +519,14 @@ typedef String TString;
 // static WString MultiByteStringToWideCharString(const String& Source);
 // #endif
 
-KRAFT_INLINE static uint64 StringLength(const char* in)
+KRAFT_INLINE static u64 StringLength(const char* in)
 {
     return strlen(in);
 }
 
-KRAFT_INLINE static uint64 StringLengthClamped(const char* in, uint64 max)
+KRAFT_INLINE static u64 StringLengthClamped(const char* in, u64 max)
 {
-    uint64 length = StringLength(in);
+    u64 length = StringLength(in);
     return length > max ? max : length;
 }
 
@@ -535,7 +535,7 @@ KRAFT_INLINE static char* StringCopy(char* dst, const char* src)
     return strcpy(dst, src);
 }
 
-KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_length_to_cpy)
+KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, u64 src_length_to_cpy)
 {
     return strncpy(dst, src, src_length_to_cpy);
 }
@@ -545,7 +545,7 @@ KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_len
 //     return strcat(dst, src);
 // }
 
-// KRAFT_INLINE static char* StringNConcat(char* dst, const char* src, uint64 src_length_to_cpy)
+// KRAFT_INLINE static char* StringNConcat(char* dst, const char* src, u64 src_length_to_cpy)
 // {
 //     return strncat(dst, src, src_length_to_cpy);
 // }
@@ -555,12 +555,12 @@ KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_len
 //     if (!in)
 //         return in;
 
-//     uint64 length = StringLength(in);
+//     u64 length = StringLength(in);
 //     if (length == 0)
 //         return in;
 
-//     uint64 start = 0;
-//     uint64 end = length - 1;
+//     u64 start = 0;
+//     u64 end = length - 1;
 
 //     while (start < length && isspace(in[start]))
 //         start++;
@@ -607,7 +607,7 @@ KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_len
 // {
 //     // TODO: Deallocate!
 //     wchar_t* Output;
-//     uint64 BufferSize = mbstowcs(nullptr, Source, 0) + 1;
+//     u64 BufferSize = mbstowcs(nullptr, Source, 0) + 1;
 //     Output = (wchar_t*)Malloc(BufferSize * sizeof(wchar_t), MEMORY_TAG_STRING);
 //     mbstowcs(Output, Source, BufferSize);
 
@@ -618,7 +618,7 @@ KRAFT_INLINE static char* StringNCopy(char* dst, const char* src, uint64 src_len
 // {
 //     // TODO: Deallocate!
 //     char* Output;
-//     uint64 BufferSize = wcstombs(nullptr, Source, 0) + 1;
+//     u64 BufferSize = wcstombs(nullptr, Source, 0) + 1;
 //     Output = (char*)Malloc(BufferSize * sizeof(char), MEMORY_TAG_STRING);
 //     wcstombs(Output, Source, BufferSize);
 

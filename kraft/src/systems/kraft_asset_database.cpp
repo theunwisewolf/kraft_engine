@@ -36,7 +36,7 @@ struct AssetDatabaseStateT
     Asset*     Assets;
     u64        assets_count;
     MeshAsset* Meshes;
-    uint16     MeshCount = 0;
+    u16        MeshCount = 0;
 };
 
 static MemoryBlock          AssetDatabaseMemory;
@@ -44,9 +44,9 @@ static AssetDatabaseStateT* AssetDatabaseStatePtr;
 
 void AssetDatabase::Init()
 {
-    const uint64 MaxAssets = 256;
-    const uint64 MaxMeshes = 1024;
-    uint64       MemoryRequirement = sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)) + (MaxMeshes * sizeof(MeshAsset));
+    const u64 MaxAssets = 256;
+    const u64 MaxMeshes = 1024;
+    u64       MemoryRequirement = sizeof(AssetDatabaseStateT) + (MaxAssets * sizeof(Asset)) + (MaxMeshes * sizeof(MeshAsset));
     AssetDatabaseMemory = MallocBlock(MemoryRequirement, MEMORY_TAG_ASSET_DB, true);
     AssetDatabaseStatePtr = (AssetDatabaseStateT*)AssetDatabaseMemory.Data;
     new (AssetDatabaseStatePtr) AssetDatabaseStateT;
@@ -83,9 +83,9 @@ void AssetDatabase::LoadAIMaterialTextures(const MeshAsset& BaseMesh, MeshT& Out
 void AssetDatabase::ProcessAIMesh(MeshAsset& BaseMesh, MeshT& Out, aiMesh* Mesh, const aiScene* Scene)
 {
     Array<Vertex3D> Vertices;
-    Array<uint32>   Indices;
+    Array<u32>      Indices;
 
-    for (uint32 i = 0; i < Mesh->mNumVertices; i++)
+    for (u32 i = 0; i < Mesh->mNumVertices; i++)
     {
         Vertex3D Vertex = {};
 
@@ -143,10 +143,10 @@ void AssetDatabase::ProcessAIMesh(MeshAsset& BaseMesh, MeshT& Out, aiMesh* Mesh,
     this->LoadAIMaterialTextures(BaseMesh, Out, Material, aiTextureType_HEIGHT, TEXTURE_MAP_TYPE_HEIGHT);
 
     kraft::GeometryData Geometry = {};
-    Geometry.IndexCount = (uint32)Indices.Size();
-    Geometry.IndexSize = sizeof(uint32);
+    Geometry.IndexCount = (u32)Indices.Size();
+    Geometry.IndexSize = sizeof(u32);
     Geometry.Indices = Indices.Data();
-    Geometry.VertexCount = (uint32)Vertices.Size();
+    Geometry.VertexCount = (u32)Vertices.Size();
     Geometry.VertexSize = sizeof(Vertex3D);
     Geometry.Vertices = Vertices.Data();
 
@@ -291,7 +291,7 @@ MeshAsset*        AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
             if (ufbx_mesh_part->num_triangles == 0)
                 continue;
 
-            for (uint32 face_idx = 0; face_idx < ufbx_mesh_part->num_faces; face_idx++)
+            for (u32 face_idx = 0; face_idx < ufbx_mesh_part->num_faces; face_idx++)
             {
                 ufbx_face ufbx_face = ufbx_mesh->faces.data[ufbx_mesh_part->face_indices.data[face_idx]];
                 u32       num_triangles = ufbx_triangulate_face(triangle_indices.Data(), max_indices, ufbx_mesh, ufbx_face);
@@ -496,6 +496,7 @@ static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* o
                     case cgltf_attribute_type_position: position_accessor = attribute->data; break;
                     case cgltf_attribute_type_texcoord: uv_accessor = attribute->data; break;
                     case cgltf_attribute_type_normal:   normal_accessor = attribute->data; break;
+                    default:                            break; // We don't care for now
                 }
             }
 

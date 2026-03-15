@@ -73,7 +73,7 @@ struct LexerToken
 {
     TokenType::Enum type;
     String8         text;
-    float64         float_value;
+    f64             float_value;
 
     bool    MatchesKeyword(String8 expected_keyword) const;
     String8 ToString8();

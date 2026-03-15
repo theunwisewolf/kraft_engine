@@ -68,7 +68,7 @@ bool checkQueueSupport(
     VulkanQueueFamilyInfo*            QueueFamilyInfo
 )
 {
-    uint32 QueueFamilyCount = 0;
+    u32 QueueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &QueueFamilyCount, nullptr);
 
     VkQueueFamilyProperties* QueueFamilies = ArenaPushArray(Arena, VkQueueFamilyProperties, QueueFamilyCount);
@@ -77,7 +77,7 @@ bool checkQueueSupport(
     // We want find dedicated queues for transfer and compute
     int minTransferScore = 0xffff;
     int minComputeScore = 0xffff;
-    for (uint32 j = 0; j < QueueFamilyCount; ++j)
+    for (u32 j = 0; j < QueueFamilyCount; ++j)
     {
         VkQueueFamilyProperties queueFamily = QueueFamilies[j];
         int                     transferScore = 0;
@@ -129,7 +129,7 @@ bool checkQueueSupport(
 
     ArenaPop(Arena, sizeof(VkQueueFamilyProperties) * QueueFamilyCount);
 
-    uint32 UnsupportedQueueCount = 0;
+    u32 UnsupportedQueueCount = 0;
     if (Requirements->Graphics && QueueFamilyInfo->GraphicsQueueIndex == -1)
     {
         KDEBUG("Device '%s' does not support a 'graphics' queue.", Properties.deviceName);
@@ -168,7 +168,7 @@ bool checkExtensionsSupport(ArenaAllocator* Arena, VkPhysicalDevice device, VkPh
     if (Requirements->DeviceExtensionsCount == 0)
         return true;
 
-    uint32 AvailableExtensionsCount = 0;
+    u32 AvailableExtensionsCount = 0;
     KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &AvailableExtensionsCount, nullptr));
 
     if (AvailableExtensionsCount == 0)
@@ -187,7 +187,7 @@ bool checkExtensionsSupport(ArenaAllocator* Arena, VkPhysicalDevice device, VkPh
     {
         bool        found = false;
         const char* extensionName = Requirements->DeviceExtensions[j];
-        for (uint32 k = 0; k < AvailableExtensionsCount; ++k)
+        for (u32 k = 0; k < AvailableExtensionsCount; ++k)
         {
             if (strcmp(extensionName, AvailableExtensions[k].extensionName) == 0)
             {
@@ -243,7 +243,7 @@ void VulkanGetSwapchainSupportInfo(ArenaAllocator* Arena, VkPhysicalDevice Physi
     }
 }
 
-VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount)
+VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, u32* outExtensionCount)
 {
     KRAFT_VK_CHECK(vkEnumerateDeviceExtensionProperties(device.Handle, nullptr, outExtensionCount, nullptr));
     if (outExtensionCount == 0)
@@ -260,10 +260,10 @@ VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice d
 
 bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension)
 {
-    uint32                 extensionsCount = 0;
+    u32                    extensionsCount = 0;
     VkExtensionProperties* availableExtensions = VulkanGetAvailableDeviceExtensions(device, &extensionsCount);
 
-    for (uint32 k = 0; k < extensionsCount; ++k)
+    for (u32 k = 0; k < extensionsCount; ++k)
     {
         if (strcmp(extension, availableExtensions[k].extensionName) == 0)
         {
@@ -279,7 +279,7 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
 {
     Context->PhysicalDevice = {};
 
-    uint32 DeviceCount = 0;
+    u32 DeviceCount = 0;
     KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &DeviceCount, nullptr));
     if (DeviceCount <= 0)
     {
@@ -293,7 +293,7 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
     VulkanPhysicalDevice* SuitablePhysicalDevices = ArenaPushArray(Arena, VulkanPhysicalDevice, DeviceCount);
 
     int SuitablePhysicalDevicesCount = 0;
-    for (uint32 i = 0; i < DeviceCount; ++i)
+    for (u32 i = 0; i < DeviceCount; ++i)
     {
         VkPhysicalDevice           PhysicalDevice = PhysicalDevices[i];
         VkPhysicalDeviceProperties Properties = {};
@@ -313,7 +313,7 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &MemoryProperties);
 
         bool SupportsDeviceLocalHostVisible = false;
-        for (uint32 i = 0; i < MemoryProperties.memoryTypeCount; ++i)
+        for (u32 i = 0; i < MemoryProperties.memoryTypeCount; ++i)
         {
             if (((MemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0) &&
                 ((MemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0))
@@ -402,10 +402,10 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         VK_VERSION_PATCH(Context->PhysicalDevice.Properties.apiVersion)
     );
 
-    for (uint32 i = 0; i < Context->PhysicalDevice.MemoryProperties.memoryHeapCount; i++)
+    for (u32 i = 0; i < Context->PhysicalDevice.MemoryProperties.memoryHeapCount; i++)
     {
         VkDeviceSize size = Context->PhysicalDevice.MemoryProperties.memoryHeaps[i].size;
-        float32      sizeInGiB = ((float32)size) / 1024.f / 1024.f / 1024.f;
+        f32          sizeInGiB = ((f32)size) / 1024.f / 1024.f / 1024.f;
 
         if (Context->PhysicalDevice.MemoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
         {
@@ -432,8 +432,8 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     LogicalDevice.PhysicalDevice = Context->PhysicalDevice;
     Context->LogicalDevice = LogicalDevice;
 
-    uint32                Indices[3] = { 0 };
-    uint32                QueueCreateInfoCount = 1; // We need at least 1 queue
+    u32                   Indices[3] = { 0 };
+    u32                   QueueCreateInfoCount = 1; // We need at least 1 queue
     VulkanQueueFamilyInfo FamilyInfo = Context->PhysicalDevice.QueueFamilyInfo;
     Indices[0] = FamilyInfo.GraphicsQueueIndex;
 
@@ -457,9 +457,9 @@ void VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* Context, Vu
     }
 
     VkDeviceQueueCreateInfo* QueueCreateInfos = ArenaPushArray(Arena, VkDeviceQueueCreateInfo, QueueCreateInfoCount);
-    float32                  QueuePriorities = 1.0f;
+    f32                      QueuePriorities = 1.0f;
 
-    for (uint32 i = 0; i < QueueCreateInfoCount; ++i)
+    for (u32 i = 0; i < QueueCreateInfoCount; ++i)
     {
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/html/vkspec.html#VkDeviceQueueCreateInfo
         QueueCreateInfos[i].sType = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
@@ -553,4 +553,4 @@ void VulkanDestroyLogicalDevice(VulkanContext* Context)
     KDEBUG("[VulkanDestroyLogicalDevice]: Destroyed VkDevice");
 }
 
-} // namespace kraft::renderer
+} // namespace kraft::r

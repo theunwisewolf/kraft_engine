@@ -693,7 +693,7 @@ bool ShaderFXParser::ParseDataType(ArenaAllocator* arena, const LexerToken* curr
                 return false;
             }
 
-            out_type->ArraySize = (uint16)next_token.float_value;
+            out_type->ArraySize = (u16)next_token.float_value;
 
             // Move forward
             if (LexerError ErrorCode = Lexer->NextToken(&next_token))
@@ -1546,21 +1546,23 @@ bool ShaderFXParser::ParseVariantBlock(ArenaAllocator* arena, ShaderEffect* effe
 bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
 {
     KASSERT(arena);
-    fs::FileHandle File;
+    fs::FileHandle file;
 
     // Read test
-    if (!fs::OpenFile(path, fs::FILE_OPEN_MODE_READ, true, &File))
+    if (!fs::OpenFile(path, fs::FILE_OPEN_MODE_READ, true, &file))
     {
         KERROR("Failed to read file %S", path);
         return false;
     }
 
-    u64 BinaryBufferSize = fs::GetFileSize(&File) + 1;
-    u8* BinaryBuffer = (u8*)kraft::Malloc(BinaryBufferSize, MEMORY_TAG_FILE_BUF, true);
-    fs::ReadAllBytes(&File, &BinaryBuffer);
-    fs::CloseFile(&File);
+    TempArena scratch = ScratchBegin(&arena, 1);
 
-    Buffer Reader((char*)BinaryBuffer, BinaryBufferSize);
+    u64 binary_buffer_size = fs::GetFileSize(&file) + 1;
+    u8* file_buf = ArenaPushArray(scratch.arena, u8, true);
+    fs::ReadAllBytes(&file, &file_buf);
+    fs::CloseFile(&file);
+
+    Buffer Reader((char*)file_buf, binary_buffer_size);
     effect->name = Reader.ReadString(arena);
     effect->resource_path = Reader.ReadString(arena);
 
@@ -1720,7 +1722,7 @@ bool LoadShaderFX(ArenaAllocator* arena, String8 path, ShaderEffect* effect)
         }
     }
 
-    kraft::Free(BinaryBuffer, BinaryBufferSize, MEMORY_TAG_FILE_BUF);
+    ScratchEnd(scratch);
 
     return true;
 }

@@ -19,9 +19,9 @@ struct Camera
     {
         struct
         {
-            float32 Pitch;
-            float32 Yaw;
-            float32 Roll;
+            f32 Pitch;
+            f32 Yaw;
+            f32 Roll;
         };
 
         Vec3f Euler;
@@ -31,7 +31,7 @@ struct Camera
     Mat4f                ProjectionMatrix; // Computed matrix
     Mat4f                ViewMatrix;       // Computed matrix
     bool                 Dirty = true;
-    float32              FOVRadians = kraft::Radians(45.0f);
+    f32              FOVRadians = kraft::Radians(45.0f);
 
     // The target the camera is supposed to look at
     Vec3f Target;
@@ -49,9 +49,9 @@ struct Camera
     void Reset();
     // void SetPosition(Vec3f position);
     // void SetRotation(Vec3f rotation);
-    void SetOrthographicProjection(uint32 Width, uint32 Height, float32 NearClip, float32 FarClip);
-    void SetPerspectiveProjection(float32 FOVRadians, uint32 Width, uint32 Height, float32 NearClip, float32 FarClip);
-    void SetPerspectiveProjection(float32 FOVRadians, float32 AspectRatio, float32 NearClip, float32 FarClip);
+    void SetOrthographicProjection(u32 Width, u32 Height, f32 NearClip, f32 FarClip);
+    void SetPerspectiveProjection(f32 FOVRadians, u32 Width, u32 Height, f32 NearClip, f32 FarClip);
+    void SetPerspectiveProjection(f32 FOVRadians, f32 AspectRatio, f32 NearClip, f32 FarClip);
 
     KRAFT_INLINE Mat4f GetViewMatrix()
     {

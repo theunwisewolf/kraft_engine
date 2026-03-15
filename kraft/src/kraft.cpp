@@ -33,6 +33,11 @@
 #include <renderer/kraft_renderer_includes.cpp>
 #include <world/kraft_world_includes.cpp>
 
+// Vendor
+#include <imgui/imgui_includes.h>
+
+#include <imgui/imgui_includes.cpp>
+
 #endif
 
 namespace kraft {
@@ -62,7 +67,7 @@ Window* CreateWindow(const WindowOptions& Opts)
     return Platform::CreatePlatformWindow(&Opts);
 }
 
-kraft::Window* CreateWindow(String Title, uint32 Width, uint32 Height)
+kraft::Window* CreateWindow(String Title, u32 Width, u32 Height)
 {
     return CreateWindow({ .Title = Title, .Width = Width, .Height = Height });
 }

@@ -5,7 +5,7 @@
 namespace kraft {
 
 struct EngineConfig;
-enum Keys : uint32;
+enum Keys : u32;
 
 #if defined(KRAFT_GUI_APP)
 struct Window;
@@ -93,13 +93,13 @@ struct KRAFT_API Platform
     static void Shutdown();
 
     // Memory
-    static void* Malloc(uint64 size, bool aligned);
-    static void* Realloc(void* region, uint64_t size, bool aligned);
+    static void* Malloc(u64 size, bool aligned);
+    static void* Realloc(void* region, u64 size, bool aligned);
     static void  Free(void* region);
-    static void* MemZero(void* region, uint64_t size);
-    static void* MemCpy(void* dst, const void* src, uint64 size);
-    static void* MemSet(void* region, int value, uint64_t size);
-    static int   MemCmp(const void* a, const void* b, uint64_t size);
+    static void* MemZero(void* region, u64 size);
+    static void* MemCpy(void* dst, const void* src, u64 size);
+    static void* MemSet(void* region, int value, u64 size);
+    static int   MemCmp(const void* a, const void* b, u64 size);
 
     // Console
     // Foreground colors
@@ -149,19 +149,19 @@ struct KRAFT_API Platform
 
     // Time
     // Returns the unix timestamp in NS
-    static uint64 TimeNowNS();
+    static u64 TimeNowNS();
 
     // Returns the clock time in NS
-    static float64 GetClockTimeNS();
+    static f64 GetClockTimeNS();
 
     // Returns the absolute time in seconds
-    static float64 GetAbsoluteTime();
+    static f64 GetAbsoluteTime();
 
     // Returns the elapsed time in milliseconds
-    static float64 GetElapsedTime();
+    static f64 GetElapsedTime();
 
     // Misc
-    static void        SleepMilliseconds(uint64_t Milliseconds);
+    static void        SleepMilliseconds(u64 Milliseconds);
     static const char* GetKeyName(Keys key);
     static const char* GetEnv(const char* Key);
     static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);

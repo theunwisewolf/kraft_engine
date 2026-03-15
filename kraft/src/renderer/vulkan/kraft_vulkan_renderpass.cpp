@@ -9,7 +9,7 @@
 
 namespace kraft::r {
 
-void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, float32 depth, uint32 stencil, VulkanRenderPass* out, bool SwapchainTarget, const char* DebugName)
+void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, f32 depth, u32 stencil, VulkanRenderPass* out, bool SwapchainTarget, const char* DebugName)
 {
     out->Color = color;
     out->Rect = rect;
@@ -17,7 +17,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     out->Stencil = stencil;
 
     bool                    depthAttachmentRequired = (context->PhysicalDevice.DepthBufferFormat != VK_FORMAT_UNDEFINED);
-    uint32                  attachmentCount = 1;
+    u32                     attachmentCount = 1;
     VkAttachmentDescription attachmentDescriptions[2];
 
     VkAttachmentDescription colorAttachment = {};
@@ -147,7 +147,7 @@ void VulkanCreateRenderPass(VulkanContext* context, Vec4f color, Vec4f rect, flo
     createInfo.pSubpasses = &subpass;
 
     KRAFT_VK_CHECK(vkCreateRenderPass(context->LogicalDevice.Handle, &createInfo, context->AllocationCallbacks, &out->Handle));
-    context->SetObjectName((uint64)out->Handle, VK_OBJECT_TYPE_RENDER_PASS, DebugName);
+    context->SetObjectName((u64)out->Handle, VK_OBJECT_TYPE_RENDER_PASS, DebugName);
 }
 
 void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass* pass, VkFramebuffer frameBuffer, VkSubpassContents contents)
@@ -156,10 +156,10 @@ void VulkanBeginRenderPass(VulkanCommandBuffer* commandBuffer, VulkanRenderPass*
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     info.framebuffer = frameBuffer;
     info.renderPass = pass->Handle;
-    info.renderArea.offset.x = (int32)pass->Rect.x;
-    info.renderArea.offset.y = (int32)pass->Rect.y;
-    info.renderArea.extent.width = (uint32)pass->Rect.z;
-    info.renderArea.extent.height = (uint32)pass->Rect.w;
+    info.renderArea.offset.x = (i32)pass->Rect.x;
+    info.renderArea.offset.y = (i32)pass->Rect.y;
+    info.renderArea.extent.width = (u32)pass->Rect.z;
+    info.renderArea.extent.height = (u32)pass->Rect.w;
 
     VkClearValue clearValues[2];
     clearValues[0].color.float32[0] = pass->Color.r;
@@ -191,4 +191,4 @@ void VulkanDestroyRenderPass(VulkanContext* context, VulkanRenderPass* pass)
     }
 }
 
-}
+} // namespace kraft::r

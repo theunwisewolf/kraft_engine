@@ -33,7 +33,7 @@ struct Shader
     void* RendererData;
 };
 
-enum TextureMapType : uint8
+enum TextureMapType : u8
 {
     TEXTURE_MAP_TYPE_DIFFUSE,
     TEXTURE_MAP_TYPE_SPECULAR,
@@ -89,7 +89,7 @@ struct MaterialProperty
         Vec2f              Vec2fValue;
         f32                f32Value;
         f64                Float64Value;
-        uint8              UInt8Value;
+        u8                 UInt8Value;
         u16                UInt16Value;
         u32                u32Value;
         u64                UInt64Value;

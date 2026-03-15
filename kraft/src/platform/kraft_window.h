@@ -26,8 +26,8 @@ struct KRAFT_API Window
     void       Maximize();
     void       SetCursorMode(CursorMode Mode);
     CursorMode GetCursorMode();
-    void       SetCursorPosition(float64 X, float64 Y);
-    void       GetCursorPosition(float64* X, float64* Y);
+    void       SetCursorPosition(f64 X, f64 Y);
+    void       GetCursorPosition(f64* X, f64* Y);
     void       Destroy();
 
     static void WindowSizeCallback(GLFWwindow* window, int width, int height);
@@ -38,10 +38,10 @@ struct KRAFT_API Window
     static void CursorPositionCallback(GLFWwindow* window, double x, double y);
     static void DragDropCallback(GLFWwindow* window, int count, const char** paths);
 
-    int     Width;
-    int     Height;
-    float32 DPI;
-    char    Title[1024] = { 0 };
+    int  Width;
+    int  Height;
+    f32  DPI;
+    char Title[1024] = { 0 };
 };
 
 } // namespace kraft

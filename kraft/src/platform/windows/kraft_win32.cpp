@@ -257,7 +257,7 @@ void Platform::ConsoleResetFormatting()
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
 }
 
-uint64 Platform::TimeNowNS()
+u64 Platform::TimeNowNS()
 {
     FILETIME       ft;
     ULARGE_INTEGER uli;
@@ -270,31 +270,31 @@ uint64 Platform::TimeNowNS()
 
     // Subtract the difference between 1601 and 1970 in 100-ns ticks:
     //   369 years + 89 leap days = 11644473600 seconds -> 11644473600 * 10^7 = 116444736000000000 (100-ns units)
-    const uint64_t EPOCH_DIFF = 116444736000000000ULL;
+    const u64 EPOCH_DIFF = 116444736000000000ULL;
     uli.QuadPart -= EPOCH_DIFF;
 
     // Now uli.QuadPart is the number of 100-ns ticks since 1970
     // Multiply by 100 to get nanoseconds
-    return (uint64)(uli.QuadPart * 100);
+    return (u64)(uli.QuadPart * 100);
 }
 
-float64 Platform::GetClockTimeNS()
+f64 Platform::GetClockTimeNS()
 {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
 
-    return (float64)(now.QuadPart * 1000000000.0 / s_ClockFrequency.QuadPart);
+    return (f64)(now.QuadPart * 1000000000.0 / s_ClockFrequency.QuadPart);
 }
 
-float64 Platform::GetAbsoluteTime()
+f64 Platform::GetAbsoluteTime()
 {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
 
-    return (float64)((float64)now.QuadPart / (float64)s_ClockFrequency.QuadPart);
+    return (f64)((f64)now.QuadPart / (f64)s_ClockFrequency.QuadPart);
 }
 
-float64 Platform::GetElapsedTime()
+f64 Platform::GetElapsedTime()
 {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
@@ -303,7 +303,7 @@ float64 Platform::GetElapsedTime()
     elapsed.QuadPart = now.QuadPart - s_StartTime.QuadPart;
     elapsed.QuadPart *= 1000; // Convert to ms to preserve precision
 
-    return (float64)((float64)elapsed.QuadPart / (float64)s_ClockFrequency.QuadPart);
+    return (f64)((f64)elapsed.QuadPart / (f64)s_ClockFrequency.QuadPart);
 }
 
 void Platform::SleepMilliseconds(uint64_t Milliseconds)

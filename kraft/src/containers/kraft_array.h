@@ -15,9 +15,9 @@ namespace kraft {
 template<typename ValueType>
 struct Array
 {
-    typedef uint64 SizeType;
+    typedef u64 SizeType;
 
-    ValueType*      InternalBuffer = nullptr;
+    ValueType* InternalBuffer = nullptr;
 
     // Number of elements currently in the buffer
     SizeType Length = 0;
@@ -249,7 +249,7 @@ public:
         return false;
     }
 
-    KRAFT_INLINE uint64 GetLengthInBytes() const noexcept
+    KRAFT_INLINE u64 GetLengthInBytes() const noexcept
     {
         return Length * sizeof(ValueType);
     }
@@ -267,4 +267,4 @@ public:
     }
 };
 
-}
+} // namespace kraft

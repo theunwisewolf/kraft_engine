@@ -17,6 +17,7 @@ namespace kraft {
 
 static void ReleaseShaderInternal(u32 Index);
 static u32  AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u32 size, r::ShaderDataType data_type, r::ShaderUniformScope::Enum scope);
+static void BuildUniformCache(Shader* shader);
 
 static ShaderSystemState* shader_system_state = nullptr;
 
@@ -35,6 +36,7 @@ void ShaderSystem::Init(u32 max_shader_count)
     shader_system_state->current_shader = nullptr;
     shader_system_state->active_variant_name = {};
     shader_system_state->active_variant_index = -1;
+    shader_system_state->watch_index = -1;
 
     // Load the default shader
     // KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx", Handle<RenderPass>::Invalid()));
@@ -92,116 +94,8 @@ Shader* ShaderSystem::AcquireShader(String8 shader_path, bool auto_release)
     reference->ref_count = 1;
     reference->auto_release = auto_release;
 
-    u32 global_resource_bindings_count = 2; // TODO (amn): Don't hardcode
-    reference->shader.UniformCacheMapping = FlatHashMap<u64, u32>();
-    reference->shader.UniformCache = Array<ShaderUniform>();
-
-    const shaderfx::ShaderEffect&      Effect = reference->shader.ShaderEffect;
-    const shaderfx::VariantDefinition& variant0 = Effect.variants[0]; // Use first variant for uniform caching
-    reference->shader.UniformCache.Reserve(global_resource_bindings_count + (variant0.resources != nullptr ? variant0.resources->binding_count : 0) + variant0.contant_buffers->field_count);
+    BuildUniformCache(&reference->shader);
     g_Renderer->CreateRenderPipeline(&reference->shader);
-
-    // Cache the uniforms
-    // The instance uniforms begin after the global data
-
-    // Collect global resources
-    for (int i = 0; i < Effect.global_resource_count; i++)
-    {
-        const auto* resource_bindings = Effect.global_resources[i].bindings;
-        for (int j = 0; j < Effect.global_resources[i].binding_count; j++)
-        {
-            const auto& binding = resource_bindings[j];
-            if (binding.type == r::ResourceType::UniformBuffer)
-            {
-                u32         cursor = 0;
-                const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
-                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
-                {
-                    const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
-
-                    cursor += r::ShaderDataType::SizeOf(field.type);
-                }
-            }
-            else if (binding.type == r::ResourceType::StorageBuffer)
-            {
-                u32         cursor = 0;
-                const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
-                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
-                {
-                    const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
-
-                    cursor += r::ShaderDataType::SizeOf(field.type);
-                }
-            }
-            else if (binding.type == r::ResourceType::Sampler)
-            {
-                // todo (amn)
-            }
-        }
-    }
-
-    // Collect all the local resources
-    for (int i = 0; i < Effect.local_resource_count; i++)
-    {
-        const auto& resource_bindings = Effect.local_resources[i].bindings;
-        for (int j = 0; j < Effect.local_resources[i].binding_count; j++)
-        {
-            const auto& binding = resource_bindings[j];
-            if (binding.type == r::ResourceType::UniformBuffer)
-            {
-                u32         cursor = 0;
-                const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
-                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
-                {
-                    const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
-
-                    cursor += r::ShaderDataType::SizeOf(field.type);
-                }
-            }
-            else if (binding.type == r::ResourceType::StorageBuffer)
-            {
-                u32         cursor = 0;
-                const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
-                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
-                {
-                    const auto& field = buffer_definition.fields[field_idx];
-                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
-                    AddUniform(&reference->shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
-
-                    cursor += r::ShaderDataType::SizeOf(field.type);
-                }
-            }
-            else if (binding.type == r::ResourceType::Sampler)
-            {
-                // todo (amn)
-            }
-        }
-    }
-
-    for (auto it = reference->shader.UniformCacheMapping.begin(); it != reference->shader.UniformCacheMapping.end(); it++)
-    {
-        const auto& uniform = reference->shader.UniformCache[it->second];
-        KDEBUG("%lld = %s Binding %d Offset %d", it->first, r::ShaderDataType::String(uniform.DataType.UnderlyingType), uniform.Location, uniform.Offset);
-    }
-
-    // Cache constant buffers as local uniforms
-    u32 offset = 0;
-    for (u64 i = 0; i < variant0.contant_buffers->field_count; i++)
-    {
-        auto& buffer_def = variant0.contant_buffers->fields[i];
-
-        // Push constants must be aligned to 4 bytes
-        u32 aligned_size = (u32)math::AlignUp(r::ShaderDataType::SizeOf(buffer_def.type), 4);
-        AddUniform(&reference->shader, buffer_def.name, 0, offset, aligned_size, r::ShaderDataType::Invalid(), r::ShaderUniformScope::Local);
-
-        offset += aligned_size;
-    }
 
     return &shader_system_state->shaders[free_index].shader;
 }
@@ -220,6 +114,213 @@ static u32 AddUniform(Shader* shader, String8 name, u32 location, u32 offset, u3
     shader->UniformCache.Push(uniform);
 
     return index;
+}
+
+static void BuildUniformCache(Shader* shader)
+{
+    u32 global_resource_bindings_count = 2; // TODO (amn): Don't hardcode
+    shader->UniformCacheMapping = FlatHashMap<u64, u32>();
+    shader->UniformCache = Array<ShaderUniform>();
+
+    const shaderfx::ShaderEffect&      Effect = shader->ShaderEffect;
+    const shaderfx::VariantDefinition& variant0 = Effect.variants[0];
+    shader->UniformCache.Reserve(global_resource_bindings_count + (variant0.resources != nullptr ? variant0.resources->binding_count : 0) + variant0.contant_buffers->field_count);
+
+    // Collect global resources
+    for (int i = 0; i < Effect.global_resource_count; i++)
+    {
+        const auto* resource_bindings = Effect.global_resources[i].bindings;
+        for (int j = 0; j < Effect.global_resources[i].binding_count; j++)
+        {
+            const auto& binding = resource_bindings[j];
+            if (binding.type == r::ResourceType::UniformBuffer)
+            {
+                u32         cursor = 0;
+                const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
+                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
+                {
+                    const auto& field = buffer_definition.fields[field_idx];
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
+                }
+            }
+            else if (binding.type == r::ResourceType::StorageBuffer)
+            {
+                u32         cursor = 0;
+                const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
+                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
+                {
+                    const auto& field = buffer_definition.fields[field_idx];
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Global);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
+                }
+            }
+        }
+    }
+
+    // Collect local resources
+    for (int i = 0; i < Effect.local_resource_count; i++)
+    {
+        const auto& resource_bindings = Effect.local_resources[i].bindings;
+        for (int j = 0; j < Effect.local_resources[i].binding_count; j++)
+        {
+            const auto& binding = resource_bindings[j];
+            if (binding.type == r::ResourceType::UniformBuffer)
+            {
+                u32         cursor = 0;
+                const auto& buffer_definition = Effect.uniform_buffers[binding.parent_index];
+                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
+                {
+                    const auto& field = buffer_definition.fields[field_idx];
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
+                }
+            }
+            else if (binding.type == r::ResourceType::StorageBuffer)
+            {
+                u32         cursor = 0;
+                const auto& buffer_definition = Effect.storage_buffers[binding.parent_index];
+                for (int field_idx = 0; field_idx < buffer_definition.field_count; field_idx++)
+                {
+                    const auto& field = buffer_definition.fields[field_idx];
+                    cursor = math::AlignUp(cursor, r::ShaderDataType::GetAlignment(field.type));
+                    AddUniform(shader, field.name, field_idx, cursor, r::ShaderDataType::SizeOf(field.type), field.type, r::ShaderUniformScope::Instance);
+                    cursor += r::ShaderDataType::SizeOf(field.type);
+                }
+            }
+        }
+    }
+
+    // Cache constant buffers as local uniforms
+    u32 offset = 0;
+    for (u64 i = 0; i < variant0.contant_buffers->field_count; i++)
+    {
+        auto& buffer_def = variant0.contant_buffers->fields[i];
+        u32   aligned_size = (u32)math::AlignUp(r::ShaderDataType::SizeOf(buffer_def.type), 4);
+        AddUniform(shader, buffer_def.name, 0, offset, aligned_size, r::ShaderDataType::Invalid(), r::ShaderUniformScope::Local);
+        offset += aligned_size;
+    }
+}
+
+bool ShaderSystem::ReloadShader(Shader* shader)
+{
+    if (!shader)
+        return false;
+
+    KINFO("[ShaderSystem::ReloadShader]: Reloading shader '%S'", shader->Path);
+
+    g_Renderer->DestroyRenderPipeline(shader);
+    if (!shaderfx::LoadShaderFX(shader_system_state->arena, shader->Path, &shader->ShaderEffect))
+    {
+        KERROR("[ShaderSystem::ReloadShader]: Failed to reload %S", shader->Path);
+        return false;
+    }
+
+    // Rebuild the uniform cache
+    BuildUniformCache(shader);
+
+    g_Renderer->CreateRenderPipeline(shader);
+
+    KSUCCESS("[ShaderSystem::ReloadShader]: Successfully reloaded '%S'", shader->Path);
+    return true;
+}
+
+void ShaderSystem::ReloadAllShaders()
+{
+    for (u32 i = 0; i < shader_system_state->max_shader_count; i++)
+    {
+        if (shader_system_state->shaders[i].ref_count > 0)
+        {
+            ReloadShader(&shader_system_state->shaders[i].shader);
+        }
+    }
+}
+
+static void OnShaderFileChanged(fs::FileWatchEvent event, void* userdata)
+{
+    if (event.type != fs::FILE_WATCH_EVENT_MODIFIED)
+        return;
+
+    if (!StringEndsWith(event.file_path, String8Raw(".kfx")))
+        return;
+
+    KINFO("[ShaderSystem]: Detected change in '%S', recompiling...", event.file_path);
+
+    TempArena scratch = ScratchBegin(&shader_system_state->arena, 1);
+
+#ifdef KRAFT_PLATFORM_WINDOWS
+    String8 cmd_args = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, event.file_path);
+
+    STARTUPINFOA si = {};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi = {};
+
+    if (!CreateProcessA((const char*)shader_system_state->shader_compiler_path.ptr, (char*)cmd_args.ptr, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+    {
+        KERROR("[ShaderSystem]: Failed to launch shader compiler (error: %d)", GetLastError());
+        ScratchEnd(scratch);
+        return;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD exit_code = 0;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    if (exit_code != 0)
+    {
+        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", event.file_path, exit_code);
+        ScratchEnd(scratch);
+        return;
+    }
+#else
+    String8 cmd = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, event.file_path);
+    int     exit_code = system((const char*)cmd.ptr);
+    if (exit_code != 0)
+    {
+        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", event.file_path, exit_code);
+        ScratchEnd(scratch);
+        return;
+    }
+#endif
+
+    KSUCCESS("[ShaderSystem]: Recompiled '%S'", event.file_path);
+
+    String8 clean_path = fs::CleanPath(scratch.arena, event.file_path);
+    for (u32 i = 0; i < shader_system_state->max_shader_count; i++)
+    {
+        ShaderReference* ref = &shader_system_state->shaders[i];
+        if (ref->ref_count > 0 && StringEndsWith(ref->shader.ShaderEffect.resource_path, clean_path))
+        {
+            ShaderSystem::ReloadShader(&ref->shader);
+        }
+    }
+
+    ScratchEnd(scratch);
+}
+
+void ShaderSystem::EnableHotReload(ArenaAllocator* arena, String8 shader_compiler_path, String8 watch_directory)
+{
+    String8 absolute_path = fs::AbsolutePath(arena, shader_compiler_path);
+    shader_system_state->shader_compiler_path = absolute_path;
+
+    KINFO("Shader Hot-Reload is enabled\nShader compiler: %S", absolute_path);
+
+    fs::FileWatcher::Init(shader_system_state->arena);
+    shader_system_state->watch_index = fs::FileWatcher::WatchDirectory(watch_directory, true, OnShaderFileChanged, nullptr);
+}
+
+void ShaderSystem::ProcessHotReload()
+{
+    if (shader_system_state->watch_index >= 0)
+    {
+        fs::FileWatcher::ProcessChanges();
+    }
 }
 
 static void ReleaseShaderInternal(u32 index)

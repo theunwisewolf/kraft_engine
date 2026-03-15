@@ -27,7 +27,7 @@ FileMMapHandle MMap(const String& Path)
 
     FileMMapHandle Out;
     Out.Handle = FileMapView;
-    Out.Size = (uint64)(::GetFileSize(File, NULL));
+    Out.Size = (u64)(::GetFileSize(File, NULL));
 
     return Out;
 }

@@ -21,10 +21,14 @@ String8 StringCat(ArenaAllocator* arena, String8 a, String8 b);
 // Duplicates a string; The resulting string is null-terminated
 String8 StringCopy(ArenaAllocator* arena, String8 str);
 
-u64 CString8Length(u8* c_str);
+u64 CStringLength(u8* c_str);
 
 String8 String8FromPtrAndLength(u8* ptr, u64 length);
 String8 String8FromCString(char* c_str);
+KRAFT_INLINE String8 String8FromCString(const char* c_str)
+{
+    return String8FromCString((char*)c_str);
+}
 
 // String8 from string literals
 #define String8Raw(str) kraft::String8FromPtrAndLength((u8*)(str), sizeof(str) - 1)

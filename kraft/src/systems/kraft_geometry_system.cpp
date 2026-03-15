@@ -219,7 +219,7 @@ void _createDefaultGeometries()
             },
         };
 
-        uint32 Indices[] = { 0, 1, 2, 2, 3, 0 };
+        u32 Indices[] = { 0, 1, 2, 2, 3, 0 };
 
         Ref->geometry.ID = 1;
         Ref->auto_release = false;

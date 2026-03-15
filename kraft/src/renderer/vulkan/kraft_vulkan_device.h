@@ -14,7 +14,7 @@ struct VulkanPhysicalDevice;
 struct VulkanLogicalDevice;
 struct VulkanPhysicalDeviceRequirements;
 
-VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, uint32* outExtensionCount);
+VkExtensionProperties* VulkanGetAvailableDeviceExtensions(VulkanPhysicalDevice device, u32* outExtensionCount);
 bool                   VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* extension);
 bool                   VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* context, VulkanPhysicalDeviceRequirements* Requirements, VulkanPhysicalDevice* out = 0);
 void                   VulkanCreateLogicalDevice(ArenaAllocator* Arena, VulkanContext* context, VulkanPhysicalDeviceRequirements* Requirements, VulkanLogicalDevice* out = 0);

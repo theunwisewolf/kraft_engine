@@ -1,5 +1,7 @@
 #pragma once
 
+#include <core/kraft_base_includes.h>
+
 namespace kraft {
 
 #define READ_TYPE_RETURN(Type)                                                                                                                                                                         \
@@ -21,7 +23,7 @@ namespace kraft {
 
 struct Buffer
 {
-    using SizeType = uint64;
+    using SizeType = u64;
     using ValueType = char;
 
     ValueType* InternalBuffer = nullptr;
@@ -178,6 +180,9 @@ public:
         Length += (element_size);
     }
 
+    // Reads a "string" from the buffer
+    // The string is allocated on the provided arena
+    // The string is not null terminated
     String8 ReadString(ArenaAllocator* arena)
     {
         String8 result = {};

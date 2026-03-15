@@ -44,7 +44,7 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
     va_end(args);
 
     char filename_buffer[256] = { 0 };
-    fs::Basename(filename, filename_buffer);
+    fs::Basename(scratch.arena, String8FromCString(filename));
 
     // Pad filename
     // int FilenameLength = StringLengthClamped(FilenameBuffer, 255);

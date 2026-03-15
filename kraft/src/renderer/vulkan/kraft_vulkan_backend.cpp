@@ -5,19 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include <containers/kraft_carray.h>
-#include <containers/kraft_hashmap.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
-#include <renderer/kraft_resource_pool.inl>
-#include <shaders/includes/kraft_shader_includes.h>
-
-#include <kraft_types.h>
-#include <renderer/kraft_renderer_types.h>
-#include <resources/kraft_resource_types.h>
-#include <shaderfx/kraft_shaderfx_types.h>
+#include "kraft_includes.h"
 
 namespace kraft::r {
 
@@ -29,7 +17,7 @@ PFN_vkSetDebugUtilsObjectNameEXT KRAFT_vkSetDebugUtilsObjectNameEXT;
 // PFN_vkCmdDebugMarkerInsertEXT vkCmdDebugMarkerInsert;
 static VkBool32 DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
-static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name);
+static void SetObjectName(u64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
 static struct ResourceManager* s_ResourceManager = nullptr;
@@ -203,7 +191,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
 
     s_Context.GraphicsCommandPool = s_ResourceManager->CreateCommandPool({
         .DebugName = "PrimaryGfxCmdPool",
-        .QueueFamilyIndex = (uint32)s_Context.PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
+        .QueueFamilyIndex = (u32)s_Context.PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
         .Flags = COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT,
     });
 
@@ -1013,6 +1001,7 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
 {
     if (Shader->RendererData)
     {
+        vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
         VulkanShader* VulkanShaderData = (VulkanShader*)Shader->RendererData;
 
         for (u32 i = 0; i < VulkanShaderData->PipelineCount; i++)
@@ -1392,7 +1381,7 @@ void VulkanRendererBackend::EndSurface(RenderSurface* surface)
     VulkanSetCommandBufferSubmitted(gpu_cmd_buffer);
 }
 
-void VulkanRendererBackend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, uint32 set_idx, uint32 binding_idx)
+void VulkanRendererBackend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx)
 {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader*        shader_data = (VulkanShader*)shader->RendererData;
@@ -1492,7 +1481,7 @@ DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDe
     return VK_FALSE;
 }
 
-static void SetObjectName(uint64 Object, VkObjectType ObjectType, const char* Name)
+static void SetObjectName(u64 Object, VkObjectType ObjectType, const char* Name)
 {
     VkDebugUtilsObjectNameInfoEXT NameInfo = {};
     NameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;

@@ -19,8 +19,8 @@ String8             Engine::base_path = {};
 static bool WindowResizeListener(EventType Type, void* Sender, void* Listener, EventData event_data)
 {
     EventDataResize data = *(EventDataResize*)(&event_data);
-    uint32          Width = data.width;
-    uint32          Height = data.height;
+    u32             Width = data.width;
+    u32             Height = data.height;
 
     if (Width == 0 && Height == 0)
     {

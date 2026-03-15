@@ -37,7 +37,7 @@ void VulkanResetFence(VulkanContext* context, VulkanFence* fence)
     fence->Signalled = false;
 }
 
-bool VulkanWaitForFence(VulkanContext* context, VulkanFence* fence, uint64 timeoutNS)
+bool VulkanWaitForFence(VulkanContext* context, VulkanFence* fence, u64 timeoutNS)
 {
     if (fence->Signalled)
     {

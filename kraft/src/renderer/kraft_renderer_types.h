@@ -78,22 +78,22 @@ struct alignas(16) GlobalShaderData
     {
         struct alignas(16)
         {
-            Mat4f Projection;
-            Mat4f View;
-            Vec3f GlobalLightPosition;
-            u32   Pad0;
-            Vec4f GlobalLightColor;
-            Vec3f CameraPosition;
-            f32   Time;
-            f32   DeltaTime;
-            f32   Exposure;
-            f32   Saturation;
-            f32   VignetteStrength;
-            f32   VignetteRadius;
-            f32   Contrast;
-            f32   Warmth;
-            f32   ScreenWidth;
-            f32   ScreenHeight;
+            mat4 Projection;
+            mat4 View;
+            vec3 GlobalLightPosition;
+            u32  Pad0;
+            vec4 GlobalLightColor;
+            vec3 CameraPosition;
+            f32  Time;
+            f32  DeltaTime;
+            f32  Exposure;
+            f32  Saturation;
+            f32  VignetteStrength;
+            f32  VignetteRadius;
+            f32  Contrast;
+            f32  Warmth;
+            f32  ScreenWidth;
+            f32  ScreenHeight;
         };
 
         char _[256];
@@ -781,14 +781,14 @@ struct Buffer
 struct BufferView
 {
     Handle<Buffer> GPUBuffer = {};
-    uint8*         Ptr = 0;    // Location of data inside the GPUBuffer
+    u8*            Ptr = 0;    // Location of data inside the GPUBuffer
     u64            Offset = 0; // Offset from the start of the buffer
 };
 
 struct RenderPassSubpass
 {
-    bool         DepthTarget = false;
-    Array<uint8> ColorTargetSlots;
+    bool      DepthTarget = false;
+    Array<u8> ColorTargetSlots;
 };
 
 struct RenderPassLayout
@@ -813,7 +813,7 @@ struct RenderPass
     Array<ColorTarget> ColorTargets;
 };
 
-enum CommandPoolCreateFlags : int32
+enum CommandPoolCreateFlags : i32
 {
     COMMAND_POOL_CREATE_FLAGS_TRANSIENT_BIT = 0x00000001,
     COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT = 0x00000002,
@@ -876,8 +876,8 @@ struct ReadTextureDataDescription
     void*                 OutBuffer = nullptr;
     u32                   OutBufferSize = 0;
     Handle<CommandBuffer> CmdBuffer = Handle<CommandBuffer>::Invalid();
-    int32                 OffsetX = 0;
-    int32                 OffsetY = 0;
+    i32                   OffsetX = 0;
+    i32                   OffsetY = 0;
     u32                   Width = 0;  // if 0, the entire image will be copied to the buffer
     u32                   Height = 0; // if 0, the entire image will be copied to the buffer
 };

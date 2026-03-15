@@ -31,12 +31,12 @@ void Camera::Reset()
 void Camera::SetOrthographicProjection(u32 width, u32 height, f32 near_clip, f32 far_clip)
 {
     this->ProjectionType = CameraProjectionType::Orthographic;
-    this->ProjectionMatrix = kraft::OrthographicMatrix(-float32(width) * 0.5f, float32(width) * 0.5f, -float32(height) * 0.5f, float32(height) * 0.5f, near_clip, far_clip);
+    this->ProjectionMatrix = kraft::OrthographicMatrix(-f32(width) * 0.5f, f32(width) * 0.5f, -f32(height) * 0.5f, f32(height) * 0.5f, near_clip, far_clip);
 }
 
 void Camera::SetPerspectiveProjection(f32 fov_radians, u32 width, u32 height, f32 near_clip, f32 far_clip)
 {
-    this->SetPerspectiveProjection(fov_radians, float32(width) / float32(height), near_clip, far_clip);
+    this->SetPerspectiveProjection(fov_radians, f32(width) / f32(height), near_clip, far_clip);
 }
 
 void Camera::SetPerspectiveProjection(f32 fov_radians, f32 aspect_ratio, f32 near_clip, f32 far_clip)

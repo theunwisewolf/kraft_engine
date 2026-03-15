@@ -13,10 +13,6 @@
 #include <renderer/kraft_renderer_types.h>
 #include <shaderfx/kraft_shaderfx_includes.h>
 
-// #include <core/kraft_base_includes.cpp>
-// #include <platform/kraft_platform_includes.cpp>
-// #include <shaderfx/kraft_shaderfx_includes.cpp>
-
 #define SPIRV_REFLECT_CHECK(x)                                                                                                                                                                         \
     do                                                                                                                                                                                                 \
     {                                                                                                                                                                                                  \
@@ -64,13 +60,16 @@ bool CompileShaderFX(ArenaAllocator* arena, String8 input_path, String8 output_p
     TempArena scratch = ScratchBegin(&arena, 1);
     String8   file_buf = fs::ReadAllBytes(scratch.arena, input_path);
 
+    // Normalize path separators so resource_path is consistent regardless of invocation
+    String8 clean_input_path = fs::CleanPath(arena, input_path);
+
     Lexer lexer;
     lexer.Create(file_buf);
     shaderfx::ShaderFXParser Parser;
     Parser.Verbose = compiler_opts.verbose;
 
     shaderfx::ShaderEffect effect;
-    if (!Parser.Parse(arena, input_path, &lexer, &effect))
+    if (!Parser.Parse(arena, clean_input_path, &lexer, &effect))
     {
         KERROR("Parsing failed\nLine: %d\nColumn: %d\nError: %S", Parser.ErrorLine, Parser.ErrorColumn, Parser.error_str);
         ScratchEnd(scratch);
@@ -474,7 +473,7 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
     fs::FileHandle file;
     if (fs::OpenFile(output_path, fs::FILE_OPEN_MODE_WRITE, true, &file))
     {
-        fs::WriteFile(&file, binary_output);
+        fs::WriteFile(&file, (u8*)binary_output.Data(), binary_output.Length);
         fs::CloseFile(&file);
     }
     else

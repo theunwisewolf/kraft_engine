@@ -5,7 +5,7 @@
 namespace kraft {
 
 // Codes are same as in GLFW3
-enum Keys : uint32
+enum Keys : u32
 {
     /* Printable keys */
     KRAFT_DEFINE_KEYCODE(SPACE, 32),
@@ -185,7 +185,7 @@ struct KRAFT_API InputSystem
     static void ProcessKeyboard(int keycode, bool pressed);
     static void ProcessMouseButton(int button, bool pressed);
     static void ProcessMouseMove(int x, int y);
-    static void ProcessScroll(float64 x, float64 y);
+    static void ProcessScroll(f64 x, f64 y);
 
     KRAFT_INLINE static bool IsKeyDown(Keys key)
     {

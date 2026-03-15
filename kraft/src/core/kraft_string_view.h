@@ -7,13 +7,13 @@
 
 namespace kraft {
 
-template<typename ValueType, uint64 InternalBufferSize>
+template<typename ValueType, u64 InternalBufferSize>
 struct KString;
 
 template<typename ValueType>
 struct KStringView
 {
-    typedef uint64 SizeType;
+    typedef u64 SizeType;
 
     const ValueType* Buffer = 0;
     SizeType         Length = 0;

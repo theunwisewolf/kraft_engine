@@ -48,15 +48,15 @@ KRAFT_API KRAFT_INLINE T Max(T a, T b)
     return a > b ? a : b;
 }
 
-KRAFT_INLINE static uint64 AlignUp(uint64 UnalignedValue, uint64 Alignment)
+KRAFT_INLINE static u64 AlignUp(u64 value, u64 alignment)
 {
-    return ((UnalignedValue + (Alignment - 1)) & ~(Alignment - 1));
+    return ((value + (alignment - 1)) & ~(alignment - 1));
 }
 
 template<typename T>
-KRAFT_INLINE static T Clamp(T Value, T Min, T Max)
+KRAFT_INLINE static T Clamp(T value, T min, T max)
 {
-    return Value < Min ? Min : Value > Max ? Max : Value;
+    return value < min ? min : value > max ? max : value;
 }
 } // namespace math
 
@@ -82,15 +82,15 @@ KRAFT_INLINE static f32 RadiansToDegrees(f32 radians)
 }
 
 // Converts the given angle in degrees to radians
-KRAFT_INLINE static f32 Radians(f32 Degrees)
+KRAFT_INLINE static f32 Radians(f32 degress)
 {
-    return DegToRadians(Degrees);
+    return DegToRadians(degress);
 }
 
 // Converts the given angle in radians to degrees
-KRAFT_INLINE static f32 Degrees(f32 Radians)
+KRAFT_INLINE static f32 Degrees(f32 radians)
 {
-    return RadiansToDegrees(Radians);
+    return RadiansToDegrees(radians);
 }
 
 } // namespace kraft
@@ -463,13 +463,13 @@ BINARY_OPERATOR(&)
 BINARY_OPERATOR(|)
 BINARY_OPERATOR(^)
 
-BINARY_INPLACE_OPERATOR(-=);
-BINARY_INPLACE_OPERATOR(+=);
-BINARY_INPLACE_OPERATOR(*=);
-BINARY_INPLACE_OPERATOR(/=);
-BINARY_INPLACE_OPERATOR(&=);
-BINARY_INPLACE_OPERATOR(|=);
-BINARY_INPLACE_OPERATOR(^=);
+BINARY_INPLACE_OPERATOR(-=)
+BINARY_INPLACE_OPERATOR(+=)
+BINARY_INPLACE_OPERATOR(*=)
+BINARY_INPLACE_OPERATOR(/=)
+BINARY_INPLACE_OPERATOR(&=)
+BINARY_INPLACE_OPERATOR(|=)
+BINARY_INPLACE_OPERATOR(^=)
 
 #undef UNARY_OPERATOR
 #undef BINARY_OPERATOR

@@ -56,7 +56,7 @@ struct TransformComponent
         this->ComputeModelMatrix();
     }
 
-    void SetScale(float32 Scale)
+    void SetScale(f32 Scale)
     {
         this->Scale = kraft::Vec3f{ Scale, Scale, Scale };
         this->ComputeModelMatrix();

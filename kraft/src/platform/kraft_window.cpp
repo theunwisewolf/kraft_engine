@@ -84,7 +84,7 @@ int Window::Init(const WindowOptions* Opts)
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
 
-    uint32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
+    u32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
     StringNCopy(this->Title, *Opts->Title, LengthToCopy);
 
     return 0;
@@ -127,12 +127,12 @@ CursorMode Window::GetCursorMode()
     return CursorMode(glfwGetInputMode(this->PlatformWindowHandle, GLFW_CURSOR));
 }
 
-void Window::SetCursorPosition(float64 X, float64 Y)
+void Window::SetCursorPosition(f64 X, f64 Y)
 {
     glfwSetCursorPos(this->PlatformWindowHandle, (double)X, (double)Y);
 }
 
-void Window::GetCursorPosition(float64* X, float64* Y)
+void Window::GetCursorPosition(f64* X, f64* Y)
 {
     glfwGetCursorPos(this->PlatformWindowHandle, X, Y);
 }
@@ -196,7 +196,7 @@ void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 {
     EventData data;
     data.Int64Value[0] = count;
-    data.Int64Value[1] = (int64)paths;
+    data.Int64Value[1] = (i64)paths;
 
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));
 }

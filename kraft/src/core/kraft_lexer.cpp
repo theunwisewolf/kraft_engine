@@ -189,7 +189,7 @@ LexerError Lexer::ParseNumber(const LexerToken* Token, double* OutNumber)
     // Number formats: 10, -10, 10.10, 000.10
 
     // Consume the sign
-    int32 Sign = 1;
+    i32 Sign = 1;
     if (this->text.ptr[this->position] == '-')
     {
         Sign = -1;
@@ -205,7 +205,7 @@ LexerError Lexer::ParseNumber(const LexerToken* Token, double* OutNumber)
     }
 
     // Consume decimal part
-    int32 Decimal = 0;
+    i32 Decimal = 0;
     if (IsNumber(this->text.ptr[this->position]))
     {
         Decimal = this->text.ptr[this->position] - '0';
@@ -221,8 +221,8 @@ LexerError Lexer::ParseNumber(const LexerToken* Token, double* OutNumber)
     }
 
     // Consume fractional part
-    int32 Fraction = 0;
-    int32 FractionalDivisor = 1;
+    i32 Fraction = 0;
+    i32 FractionalDivisor = 1;
     if (this->text.ptr[this->position] == '.')
     {
         this->position++;

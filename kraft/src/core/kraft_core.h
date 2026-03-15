@@ -43,8 +43,7 @@
 
 // Inlining
 #ifdef KRAFT_DEBUG
-// No inlining in debug mode
-#define KRAFT_INLINE
+#define KRAFT_INLINE inline
 #else
 #if defined(_MSC_VER)
 #define KRAFT_INLINE   __forceinline
@@ -129,26 +128,16 @@
 #include <cstddef>
 #include <cstdint>
 
-typedef double   float64;
 typedef double   f64;
-typedef float    float32;
 typedef float    f32;
-typedef int8_t   int8;
 typedef int8_t   i8;
-typedef int16_t  int16;
 typedef int16_t  i16;
-typedef int      int32;
 typedef int      i32;
-typedef int64_t  int64;
 typedef int64_t  i64;
 typedef uint8_t  byte;
-typedef uint8_t  uint8;
 typedef uint8_t  u8;
-typedef uint16_t uint16;
 typedef uint16_t u16;
-typedef uint32_t uint32;
 typedef uint32_t u32;
-typedef uint64_t uint64;
 typedef uint64_t u64;
 
 struct String8

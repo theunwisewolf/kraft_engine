@@ -222,7 +222,7 @@ bool RendererFrontend::DrawSurfaces()
     global_shader_data.View = RotationMatrixFromEulerAngles(camera_rotation) * TranslationMatrix(camera_position);
     global_shader_data.CameraPosition = this->Camera->Position;
 
-    u64 start = Platform::TimeNowNS();
+    // u64 start = Platform::TimeNowNS();
     for (int i = 0; i < renderer_data_internal.surfaces.Length; i++)
     {
         RenderDataT&   surface_render_data = renderer_data_internal.surfaces[i];
@@ -275,7 +275,7 @@ bool RendererFrontend::DrawSurfaces()
         }
         surface.End();
     }
-    u64 end = kraft::Platform::TimeNowNS();
+    // u64 end = kraft::Platform::TimeNowNS();
 
     // KDEBUG("Render complete in: %f ms", f64(End - Start) / 1000000.0f);
 

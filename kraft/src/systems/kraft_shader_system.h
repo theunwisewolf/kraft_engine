@@ -20,6 +20,7 @@ struct ShaderReference
 {
     u32    ref_count;
     bool   auto_release;
+    u64    source_last_modified_time;
     Shader shader;
 };
 
@@ -36,6 +37,10 @@ struct ShaderSystemState
     // Active variant for surface-driven variant selection
     String8 active_variant_name;
     i32     active_variant_index; // Cached index for the current shader, -1 if not resolved
+
+    // Hot-reload
+    String8 shader_compiler_path;
+    i32     watch_index;
 };
 
 struct ShaderSystem
@@ -45,8 +50,16 @@ struct ShaderSystem
 
     static Shader* AcquireShader(String8 shader_path, bool auto_release = true);
     static bool    ReleaseShader(Shader* shader);
+    static bool    ReloadShader(Shader* shader);
+    static void    ReloadAllShaders();
     static Shader* GetDefaultShader();
     static Shader* GetActiveShader();
+
+    // Shader hot-reloading
+    // shader_compiler_path: path to the KraftShaderCompiler executable
+    // watch_directory: directory containing .kfx shader sources
+    static void EnableHotReload(ArenaAllocator* arena, String8 shader_compiler_path, String8 watch_directory);
+    static void ProcessHotReload();
 
     // Set the active variant name (called by BeginRenderSurface)
     // When set, Bind/BindByID will look up this variant in each shader.

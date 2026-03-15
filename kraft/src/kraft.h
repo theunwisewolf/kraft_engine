@@ -23,7 +23,7 @@ struct WindowOptions;
 struct RendererOptions;
 
 Window* CreateWindow(const WindowOptions& Opts);
-Window* CreateWindow(String Title, uint32 Width, uint32 Height);
+Window* CreateWindow(String Title, u32 Width, u32 Height);
 void    DestroyWindow(Window* Window);
 
 namespace r {
@@ -31,7 +31,7 @@ struct RendererFrontend;
 }
 
 r::RendererFrontend* CreateRenderer(const RendererOptions& Opts);
-void                        DestroyRenderer(r::RendererFrontend* Instance);
+void                 DestroyRenderer(r::RendererFrontend* Instance);
 
 } // namespace kraft
 #endif

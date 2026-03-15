@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/kraft_core.h"
+#include "kraft_includes.h"
 
 // https://jorenjoestar.github.io/post/writing_shader_effect_language_1/
 
@@ -33,6 +33,7 @@ enum ShaderStageFlags : int;
 
 namespace kraft::shaderfx {
 
+struct VertexAttribute;
 struct ShaderEffect;
 struct VertexLayoutDefinition;
 struct ResourceBindingsDefinition;
@@ -41,6 +42,7 @@ struct ConstantBufferDefinition;
 struct UniformBufferDefinition;
 struct RenderStateDefinition;
 struct VariantDefinition;
+struct VertexInputBinding;
 
 struct ShaderFXParser
 {

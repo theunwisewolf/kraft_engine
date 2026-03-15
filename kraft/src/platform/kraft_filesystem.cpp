@@ -1,12 +1,12 @@
 #include "kraft_filesystem.h"
 
 #include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include <core/kraft_allocators.h>
-#include <core/kraft_asserts.h>
-#include <core/kraft_log.h>
-#include <core/kraft_memory.h>
-#include <core/kraft_string.h>
+#include <core/kraft_base_includes.h>
 
 namespace kraft {
 
@@ -78,7 +78,7 @@ void CloseFile(FileHandle* handle)
 
 // outBuffer, if null is allocated
 // outBuffer must be freed by the caller
-bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, u64* bytesRead)
+bool ReadAllBytes(FileHandle* handle, u8** outBuffer, u64* bytesRead)
 {
     if (!handle->Handle)
         return false;
@@ -88,7 +88,7 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, u64* bytesRead)
     rewind(handle->Handle);
 
     if (!*outBuffer)
-        *outBuffer = (uint8*)Malloc(size, MEMORY_TAG_FILE_BUF);
+        *outBuffer = (u8*)Malloc(size, MEMORY_TAG_FILE_BUF);
 
     size_t read = fread(*outBuffer, 1, size, handle->Handle);
 
@@ -107,7 +107,7 @@ bool ReadAllBytes(FileHandle* handle, uint8** outBuffer, u64* bytesRead)
     return true;
 }
 
-KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
+buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
 {
     fseek(handle->Handle, 0, SEEK_END);
     u64 size = ftell(handle->Handle);
@@ -123,7 +123,7 @@ KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
     return output;
 }
 
-KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
+buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
 {
     FileHandle handle = {};
     if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
@@ -137,46 +137,20 @@ KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-bool WriteFile(FileHandle* Handle, const uint8* Buffer, u64 Size)
+bool WriteFile(FileHandle* handle, const u8* buffer, u64 size)
 {
-    if (!Handle->Handle)
+    if (!handle->Handle)
         return false;
 
-    fwrite(Buffer, sizeof(uint8), Size, Handle->Handle);
+    fwrite(buffer, sizeof(u8), size, handle->Handle);
 
     return true;
-}
-
-bool WriteFile(FileHandle* Handle, const Buffer& DataBuffer)
-{
-    if (!Handle->Handle)
-        return false;
-
-    fwrite(*DataBuffer, sizeof(Buffer::ValueType), DataBuffer.Length, Handle->Handle);
-
-    return true;
-}
-
-void CleanPath(const char* path, char* out)
-{
-    u64 Length = StringLength(path);
-    for (int i = 0; i < Length; i++)
-    {
-        if (path[i] == '\\')
-        {
-            out[i] = '/';
-        }
-        else
-        {
-            out[i] = path[i];
-        }
-    }
 }
 
 String8 CleanPath(ArenaAllocator* arena, String8 path)
 {
     String8 result = {};
-    result.ptr = ArenaPushArray(arena, u8, path.count);
+    result.ptr = ArenaPushArray(arena, u8, path.count + 1);
     result.count = path.count;
 
     for (i32 i = 0; i < (i32)path.count; i++)
@@ -191,30 +165,8 @@ String8 CleanPath(ArenaAllocator* arena, String8 path)
         }
     }
 
+    result.ptr[result.count] = 0;
     return result;
-}
-
-void Dirname(const char* Path, char* Out)
-{
-    u64 Length = StringLength(Path);
-    Dirname(Path, Length, Out);
-}
-
-void Dirname(const char* path, u64 path_length, char* out)
-{
-    for (int i = (int)path_length - 1; i >= 0; i--)
-    {
-        if (path[i] == '/' || path[i] == '\\')
-        {
-            StringNCopy(out, path, i);
-            out[i] = 0;
-            return;
-        }
-    }
-
-    // There is no path separator, just copy the original string back
-    StringNCopy(out, path, path_length);
-    out[path_length] = 0;
 }
 
 String8 Dirname(ArenaAllocator* arena, String8 path)
@@ -257,37 +209,6 @@ String8 Dirname(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-char* Dirname(ArenaAllocator* Arena, const String& Path)
-{
-    return Dirname(Arena, Path.Data(), Path.GetLengthInBytes());
-}
-
-char* Dirname(ArenaAllocator* Arena, const char* Path)
-{
-    return Dirname(Arena, Path, StringLength(Path));
-}
-
-KRAFT_API char* Dirname(ArenaAllocator* arena, const char* path, u64 path_length)
-{
-    char* out = ArenaPushArray(arena, char, path_length + 1);
-    Dirname(path, path_length, out);
-
-    return out;
-}
-
-void Basename(const char* path, char* out)
-{
-    u64 Length = StringLength(path);
-    for (int i = (int)Length - 1; i >= 0; i--)
-    {
-        if (path[i] == '/' || path[i] == '\\')
-        {
-            StringNCopy(out, path + i + 1, Length - i + 1);
-            return;
-        }
-    }
-}
-
 String8 Basename(ArenaAllocator* arena, String8 path)
 {
     String8 result = {};
@@ -306,6 +227,25 @@ String8 Basename(ArenaAllocator* arena, String8 path)
     ArenaPop(arena, path.count - result.count);
 
     return result;
+}
+
+u64 GetFileModifiedTime(String8 path)
+{
+#ifdef KRAFT_PLATFORM_WINDOWS
+    struct _stat64 file_stat;
+    if (_stat64((const char*)path.ptr, &file_stat) != 0)
+    {
+        return 0;
+    }
+    return (u64)file_stat.st_mtime;
+#else
+    struct stat file_stat;
+    if (stat((const char*)path.ptr, &file_stat) != 0)
+    {
+        return 0;
+    }
+    return (u64)file_stat.st_mtime;
+#endif
 }
 
 String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
@@ -332,6 +272,241 @@ String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
 
     return result;
 }
+
+String8 AbsolutePath(ArenaAllocator* arena, String8 path)
+{
+#ifdef KRAFT_PLATFORM_WINDOWS
+    char resolved[MAX_PATH];
+    if (_fullpath(resolved, (const char*)path.ptr, MAX_PATH) == nullptr)
+    {
+        KERROR("[FileSystem::AbsolutePath]: Failed to resolve path %S", path);
+        return {};
+    }
+#else
+    char resolved[PATH_MAX];
+    if (realpath((const char*)path.ptr, resolved) == nullptr)
+    {
+        KERROR("[FileSystem::AbsolutePath]: Failed to resolve path %S", path);
+        return {};
+    }
+#endif
+
+    u64     len = StringLength(resolved);
+    String8 result = {};
+    result.ptr = ArenaPushArray(arena, u8, len + 1);
+    result.count = len;
+    MemCpy(result.ptr, resolved, len);
+    result.ptr[len] = 0;
+
+    return result;
+}
+
+} // namespace fs
+
+//
+// File Watcher
+//
+
+namespace fs {
+
+static FileWatcherState* file_watcher_state = nullptr;
+
+bool FileWatcher::Init(ArenaAllocator* arena)
+{
+    file_watcher_state = ArenaPush(arena, FileWatcherState);
+    file_watcher_state->arena = arena;
+    file_watcher_state->watch_count = 0;
+
+    return true;
+}
+
+void FileWatcher::Shutdown()
+{
+    for (u32 i = 0; i < file_watcher_state->watch_count; i++)
+    {
+        UnwatchDirectory(i);
+    }
+
+    file_watcher_state = nullptr;
+}
+
+#if defined(KRAFT_PLATFORM_WINDOWS)
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+
+struct Win32WatchData
+{
+    HANDLE     directory_handle;
+    OVERLAPPED overlapped;
+    u8         buffer[4096];
+    bool       active;
+};
+
+i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata)
+{
+    if (file_watcher_state->watch_count >= FILE_WATCHER_MAX_WATCHES)
+    {
+        KERROR("[FileWatcher]: Max watches reached (%d)", FILE_WATCHER_MAX_WATCHES);
+        return -1;
+    }
+
+    i32             index = file_watcher_state->watch_count;
+    FileWatchEntry* entry = &file_watcher_state->watches[index];
+    Win32WatchData* watch_data = ArenaPush(file_watcher_state->arena, Win32WatchData);
+
+    HANDLE dir_handle =
+        CreateFileA(directory.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+
+    if (dir_handle == INVALID_HANDLE_VALUE)
+    {
+        KERROR("[FileWatcher]: Failed to open directory '%S' (error: %d)", directory, GetLastError());
+        return -1;
+    }
+
+    watch_data->directory_handle = dir_handle;
+    watch_data->active = true;
+    MemZero(&watch_data->overlapped, sizeof(OVERLAPPED));
+
+    BOOL success = ReadDirectoryChangesW(
+        dir_handle,
+        watch_data->buffer,
+        sizeof(watch_data->buffer),
+        recursive ? TRUE : FALSE,
+        FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_CREATION,
+        NULL,
+        &watch_data->overlapped,
+        NULL
+    );
+
+    if (!success)
+    {
+        KERROR("[FileWatcher]: ReadDirectoryChangesW failed (error: %d)", GetLastError());
+        CloseHandle(dir_handle);
+        return -1;
+    }
+
+    entry->directory = directory;
+    entry->callback = callback;
+    entry->userdata = userdata;
+    entry->recursive = recursive;
+    entry->platform_data = watch_data;
+
+    file_watcher_state->watch_count++;
+
+    KINFO("[FileWatcher]: Watching '%S'", directory);
+    return index;
+}
+
+void FileWatcher::UnwatchDirectory(i32 watch_index)
+{
+    if (watch_index < 0 || watch_index >= (i32)file_watcher_state->watch_count)
+        return;
+
+    FileWatchEntry* entry = &file_watcher_state->watches[watch_index];
+    Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
+
+    if (watch_data && watch_data->active)
+    {
+        CancelIo(watch_data->directory_handle);
+        CloseHandle(watch_data->directory_handle);
+        watch_data->active = false;
+    }
+}
+
+void FileWatcher::ProcessChanges()
+{
+    if (!file_watcher_state)
+        return;
+
+    TempArena scratch = ScratchBegin(&file_watcher_state->arena, 1);
+
+    for (u32 i = 0; i < file_watcher_state->watch_count; i++)
+    {
+        FileWatchEntry* entry = &file_watcher_state->watches[i];
+        Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
+        if (!watch_data || !watch_data->active)
+            continue;
+
+        DWORD bytes_transferred = 0;
+        BOOL  result = GetOverlappedResult(watch_data->directory_handle, &watch_data->overlapped, &bytes_transferred, FALSE);
+
+        if (!result || bytes_transferred == 0)
+            continue;
+
+        // Process the notification buffer
+        FILE_NOTIFY_INFORMATION* notify = (FILE_NOTIFY_INFORMATION*)watch_data->buffer;
+        for (;;)
+        {
+            // Convert wide filename to UTF-8
+            int   utf8_len = WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), NULL, 0, NULL, NULL);
+            char* utf8_name = ArenaPushArray(scratch.arena, char, utf8_len + 1);
+            WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), utf8_name, utf8_len, NULL, NULL);
+            utf8_name[utf8_len] = 0;
+
+            String8 relative_path = String8FromPtrAndLength((u8*)utf8_name, utf8_len);
+            String8 full_path = PathJoin(scratch.arena, entry->directory, relative_path);
+
+            FileWatchEventType event_type;
+            switch (notify->Action)
+            {
+                case FILE_ACTION_MODIFIED:         event_type = FILE_WATCH_EVENT_MODIFIED; break;
+                case FILE_ACTION_ADDED:            event_type = FILE_WATCH_EVENT_CREATED; break;
+                case FILE_ACTION_REMOVED:          event_type = FILE_WATCH_EVENT_DELETED; break;
+                case FILE_ACTION_RENAMED_OLD_NAME:
+                case FILE_ACTION_RENAMED_NEW_NAME: event_type = FILE_WATCH_EVENT_RENAMED; break;
+                default:                           event_type = FILE_WATCH_EVENT_MODIFIED; break;
+            }
+
+            FileWatchEvent event = {};
+            event.type = event_type;
+            event.file_path = full_path;
+            event.directory = entry->directory;
+
+            entry->callback(event, entry->userdata);
+
+            if (notify->NextEntryOffset == 0)
+                break;
+
+            notify = (FILE_NOTIFY_INFORMATION*)((u8*)notify + notify->NextEntryOffset);
+        }
+
+        // Re-arm the watch
+        MemZero(&watch_data->overlapped, sizeof(OVERLAPPED));
+        ReadDirectoryChangesW(
+            watch_data->directory_handle,
+            watch_data->buffer,
+            sizeof(watch_data->buffer),
+            entry->recursive ? TRUE : FALSE,
+            FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_CREATION,
+            NULL,
+            &watch_data->overlapped,
+            NULL
+        );
+    }
+
+    ScratchEnd(scratch);
+}
+
+#else
+
+// TODO (amn):
+// Stub implementations for other platforms
+i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata)
+{
+    return -1;
+}
+
+void FileWatcher::UnwatchDirectory(i32 watch_index)
+{}
+
+void FileWatcher::ProcessChanges()
+{}
+
+#endif
+
 } // namespace fs
 
 } // namespace kraft

@@ -245,7 +245,7 @@ struct VulkanContext
 
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
-    void (*SetObjectName)(uint64 Object, VkObjectType ObjectType, const char* Name);
+    void (*SetObjectName)(u64 Object, VkObjectType ObjectType, const char* Name);
 #endif
 
     ArenaAllocator* Arena;

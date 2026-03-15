@@ -32,7 +32,7 @@ struct Pool
     u16*          FreeList;
 
     Array<HandleType> DeletedItems[3] = {};
-    uint32            ActiveDeletedItemsArray = 0;
+    u32               ActiveDeletedItemsArray = 0;
 
     void Grow(u16 ElementCount)
     {
@@ -90,7 +90,7 @@ struct Pool
         u64 AuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
         u64 DataArraySize = sizeof(ConcreteType) * this->PoolSize;
         u64 HandlesArraySize = sizeof(HandleType) * this->PoolSize;
-        u64 FreeListArraySize = sizeof(uint16) * this->PoolSize;
+        u64 FreeListArraySize = sizeof(u16) * this->PoolSize;
         u64 Size = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
 
         Free(this->AuxiliaryData, Size, MEMORY_TAG_RESOURCE_POOL);
@@ -181,7 +181,7 @@ struct Pool
 
     void PrepareDeleteArraysForNextFrame()
     {
-        uint32 N2 = (this->ActiveDeletedItemsArray + 2) % 3;
+        u32 N2 = (this->ActiveDeletedItemsArray + 2) % 3;
         this->DeletedItems[N2].Clear();
 
         this->ActiveDeletedItemsArray = (this->ActiveDeletedItemsArray + 1) % 3;

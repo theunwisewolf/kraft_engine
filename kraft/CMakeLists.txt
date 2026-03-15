@@ -23,18 +23,6 @@ if (KRAFT_APP_TYPE STREQUAL "GUI")
     list(APPEND HEADER_FILES
         # Renderer
         src/renderer/renderables/kraft_gameobject.cpp
-
-        # imgui
-        vendor/imgui/imgui.cpp
-        vendor/imgui/backends/imgui_impl_vulkan.cpp
-        vendor/imgui/backends/imgui_impl_glfw.cpp
-        vendor/imgui/imgui_draw.cpp
-        vendor/imgui/imgui_widgets.cpp
-        vendor/imgui/imgui_tables.cpp
-        vendor/imgui/imgui_demo.cpp
-
-        # imgui extensions
-        vendor/imgui/extensions/imguizmo/ImGuizmo.cpp
     )
 endif()
 

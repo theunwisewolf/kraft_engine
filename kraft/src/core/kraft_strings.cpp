@@ -83,7 +83,7 @@ String8 StringCopy(ArenaAllocator* arena, String8 str)
     return result;
 }
 
-u64 CString8Length(u8* c_str)
+u64 CStringLength(u8* c_str)
 {
     u8* ptr = c_str;
     for (; *ptr != 0; ptr++)
@@ -99,7 +99,7 @@ String8 String8FromPtrAndLength(u8* ptr, u64 length)
 
 String8 String8FromCString(char* c_str)
 {
-    return String8{ .ptr = (u8*)c_str, .count = CString8Length((u8*)c_str) };
+    return String8{ .ptr = (u8*)c_str, .count = CStringLength((u8*)c_str) };
 }
 
 } // namespace kraft

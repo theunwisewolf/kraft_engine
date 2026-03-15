@@ -49,21 +49,21 @@ struct ResourceManager
     void (*DestroyCommandPool)(Handle<CommandPool> Resource) = 0;
 
     // Access apis
-    uint8* (*GetBufferData)(Handle<Buffer> Buffer) = 0;
+    u8* (*GetBufferData)(Handle<Buffer> Buffer) = 0;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame
-    BufferView (*CreateTempBuffer)(uint64 Size) = 0;
+    BufferView (*CreateTempBuffer)(u64 Size) = 0;
 
     // Uploads data from the the `Buffer` to the `Texture`
-    bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, uint64 BufferOffset) = 0;
+    bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, u64 BufferOffset) = 0;
     // Uploads raw buffer data to the GPU
     bool (*UploadBuffer)(const UploadBufferDescription& Description) = 0;
     bool (*ReadTextureData)(const ReadTextureDataDescription& Description) = 0;
 
     Texture* (*GetTextureMetadata)(Handle<Texture> Resource) = 0;
     RenderPass* (*GetRenderPassMetadata)(Handle<RenderPass> Resource) = 0;
-    void (*StartFrame)(uint64 FrameNumber) = 0;
-    void (*EndFrame)(uint64 FrameNumber) = 0;
+    void (*StartFrame)(u64 FrameNumber) = 0;
+    void (*EndFrame)(u64 FrameNumber) = 0;
 
     void                             SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs);
     const PhysicalDeviceFormatSpecs& GetPhysicalDeviceFormatSpecs() const;
@@ -71,4 +71,4 @@ struct ResourceManager
 
 extern struct ResourceManager* ResourceManager;
 
-}; // namespace kraft::renderer
+}; // namespace kraft::r

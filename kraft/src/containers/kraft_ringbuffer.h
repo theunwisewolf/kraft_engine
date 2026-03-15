@@ -11,7 +11,7 @@ using ValueType = int;
 struct RingBuffer
 {
 private:
-    typedef uint64 SizeType;
+    typedef u64 SizeType;
 
     ValueType   *InternalBuffer = nullptr;
 

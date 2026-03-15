@@ -16,7 +16,7 @@ struct ufbx_material;
 
 namespace kraft {
 
-enum TextureMapType : uint8;
+enum TextureMapType : u8;
 
 struct Geometry;
 struct Material;

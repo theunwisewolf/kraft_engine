@@ -93,6 +93,9 @@ int main(int argc, char** argv)
         .MaterialBufferSize = 64,
     });
 
+    // Enable shader hot-reloading
+    ShaderSystem::EnableHotReload(arena, S("../../tools/shader_compiler/bin/KraftShaderCompiler"), S("res/shaders"));
+
     // Window->Maximize();
 
     auto camera = Camera();
@@ -132,6 +135,7 @@ int main(int argc, char** argv)
 
         // Poll events
         Engine::Tick();
+        ShaderSystem::ProcessHotReload();
 
         // We only want to render when the engine is not suspended
         if (!Engine::suspended)

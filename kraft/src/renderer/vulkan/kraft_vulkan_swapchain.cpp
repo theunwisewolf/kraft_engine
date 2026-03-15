@@ -63,7 +63,7 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
     // Choose FIFO as default
     VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
     VkPresentModeKHR preferred_present_mode = enable_vsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_MAILBOX_KHR;
-    for (uint32 i = 0; i < info.PresentModeCount; ++i)
+    for (u32 i = 0; i < info.PresentModeCount; ++i)
     {
         // If Mailbox presentation mode is supported, we want that
         if (info.PresentModes[i] == preferred_present_mode)
@@ -235,7 +235,7 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
 void VulkanDestroySwapchain(VulkanContext* context)
 {
     vkDeviceWaitIdle(context->LogicalDevice.Handle);
-    for (uint32 i = 0; i < context->Swapchain.ImageCount; ++i)
+    for (u32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
         vkDestroyImageView(context->LogicalDevice.Handle, context->Swapchain.ImageViews[i], context->AllocationCallbacks);
         context->Swapchain.ImageViews[i] = 0;
