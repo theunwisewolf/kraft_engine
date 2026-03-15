@@ -11,32 +11,32 @@ const Vec2f Vec2fOne = Vec2f(1);
 const Vec3f Vec3fOne = Vec3f(1);
 const Vec4f Vec4fOne = Vec4f(1);
 
-KRAFT_INLINE f32 Sin(f32 x)
+f32 Sin(f32 x)
 {
     return sinf(x);
 }
 
-KRAFT_INLINE f32 Cos(f32 x)
+f32 Cos(f32 x)
 {
     return cosf(x);
 }
 
-KRAFT_INLINE f32 Tan(f32 x)
+f32 Tan(f32 x)
 {
     return tanf(x);
 }
 
-KRAFT_INLINE f32 Acos(f32 x)
+f32 Acos(f32 x)
 {
     return acosf(x);
 }
 
-KRAFT_INLINE f32 Sqrt(f32 x)
+f32 Sqrt(f32 x)
 {
     return sqrtf(x);
 }
 
-KRAFT_INLINE f32 Abs(f32 x)
+f32 Abs(f32 x)
 {
     return fabsf(x);
 }
