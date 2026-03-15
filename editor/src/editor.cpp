@@ -1,32 +1,26 @@
 #include "editor.h"
 
-#include "world/kraft_entity.h"
-#include <core/kraft_engine.h>
-#include <renderer/kraft_renderer_frontend.h>
-#include <renderer/kraft_resource_manager.h>
-#include <systems/kraft_shader_system.h>
-
-#include <renderer/kraft_renderer_types.h>
+#include "kraft_includes.h"
 
 EditorState* EditorState::Ptr = nullptr;
 
 using namespace kraft;
-using namespace kraft::renderer;
+using namespace kraft::r;
 
 EditorState::EditorState()
 {
     EditorState::Ptr = this;
-    this->RenderSurface = kraft::g_Renderer->CreateRenderSurface("SceneView", 200.0f, 200.0f, true);
-    this->ObjectPickingRenderSurface = kraft::g_Renderer->CreateRenderSurface("ObjectPickingView", 200.0f, 200.0f, true);
+    this->RenderSurface = kraft::g_Renderer->CreateRenderSurface(S("SceneView"), 200.0f, 200.0f, true);
+    this->ObjectPickingRenderSurface = kraft::g_Renderer->CreateRenderSurface(S("ObjectPickingView"), 200.0f, 200.0f, true);
 
     this->RenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
     this->ObjectPickingRenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
 
-    uint64       ExtraMemoryFlags = g_Device->supports_device_local_host_visible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
-    const uint32 picking_buffer_size = 64;
+    u64       ExtraMemoryFlags = g_Device->supports_device_local_host_visible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
+    const u32 picking_buffer_size = 64;
     this->picking_buffer = kraft::r::ResourceManager->CreateBuffer({
         .DebugName = "EditorPickingDataBuffer",
-        .Size = (uint64)math::AlignUp(picking_buffer_size * sizeof(uint32), kraft::g_Device->min_storage_buffer_alignment),
+        .Size = (u64)math::AlignUp(picking_buffer_size * sizeof(u32), kraft::g_Device->min_storage_buffer_alignment),
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | ExtraMemoryFlags,
         .MapMemory = true,

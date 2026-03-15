@@ -150,7 +150,7 @@ void RendererImGui::RemoveTexture(ImTextureID TextureID)
 
 void RendererImGui::RenderWidgets()
 {
-    uint64 Size = Widgets.Length;
+    u64 Size = Widgets.Length;
     for (int i = 0; i < Size; i++)
     {
         Widgets[i].Callback(WidgetsNeedRefresh);
@@ -208,9 +208,9 @@ ImFont* RendererImGui::AddImGuiFont(const kraft::String path)
         return false;
     }
 
-    uint64 size = kraft::fs::GetFileSize(&handle);
-    uint8* buffer = (uint8*)kraft::Malloc(size);
-    bool   result = kraft::fs::ReadAllBytes(&handle, &buffer, &size);
+    u64  size = kraft::fs::GetFileSize(&handle);
+    u8*  buffer = (u8*)kraft::Malloc(size);
+    bool result = kraft::fs::ReadAllBytes(&handle, &buffer, &size);
     if (!result)
     {
         KERROR("AddImGuiFont: Failed to read data from file '%s'", *path);

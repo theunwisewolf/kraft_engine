@@ -53,7 +53,7 @@ static void SetProjection(kraft::CameraProjectionType Type)
     Camera.Dirty = true;
 }
 
-static void UpdateObjectScale(uint32 EntityID)
+static void UpdateObjectScale(u32 EntityID)
 {
     // SimpleObjectState&     Entity = TestSceneState->GetEntityByID(EntityID);
     // const kraft::Camera&   Camera = TestSceneState->SceneCamera;

@@ -19,18 +19,18 @@ struct Shader;
 
 struct ApplicationState
 {
-    float64       LastTime = 0.0f;
+    f64           LastTime = 0.0f;
     char          WindowTitleBuffer[1024];
-    float64       TargetFrameTime = 1 / 144.f;
-    uint64        FrameCount = 0;
-    float64       TimeSinceLastFrame = 0.f;
+    f64           TargetFrameTime = 1 / 144.f;
+    u64           FrameCount = 0;
+    f64           TimeSinceLastFrame = 0.f;
     RendererImGui ImGuiRenderer;
 };
 
 struct EditorCameraSettings
 {
-    int     Flying = 0;
-    float32 Sensitivity = 3.0f;
+    int Flying = 0;
+    f32 Sensitivity = 3.0f;
 };
 
 struct EditorState

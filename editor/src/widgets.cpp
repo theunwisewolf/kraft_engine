@@ -188,7 +188,7 @@ void DrawImGuiWidgets(bool refresh)
         kraft::LightComponent& Light = EditorState::Ptr->GetSelectedEntity().GetComponent<kraft::LightComponent>();
         if (ImGui::ColorEdit4("Light Color", Light.LightColor._data))
         {
-            KDEBUG("Color changed, %d %d", sizeof(float), sizeof(float32));
+            KDEBUG("Color changed, %d %d", sizeof(float), sizeof(f32));
         }
     }
 
@@ -366,7 +366,7 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::SetNextItemAllowOverlap();
         ImGui::Text("Imgui Position: %f, %f", MousePosition.x, MousePosition.y);
 
-        float64 x, y;
+        f64 x, y;
         kraft::Platform::GetWindow()->GetCursorPosition(&x, &y);
         ImGui::SetNextItemAllowOverlap();
         ImGui::Text("GLFW Position: %f, %f", x, y);
@@ -375,22 +375,22 @@ void DrawImGuiWidgets(bool refresh)
         ImGui::Text("Cursor Position: %f, %f", CursorPosition.x, CursorPosition.y);
 
         kraft::Vec2f RelativeMousePosition = kraft::Vec2f(MousePosition.x - CursorPosition.x, MousePosition.y - CursorPosition.y);
-        RelativeMousePosition.x = kraft::math::Clamp(RelativeMousePosition.x, 0.0f, (float32)ViewPortPanelSize.x);
-        RelativeMousePosition.y = ViewPortPanelSize.y - kraft::math::Clamp(RelativeMousePosition.y, 0.0f, (float32)ViewPortPanelSize.y);
+        RelativeMousePosition.x = kraft::math::Clamp(RelativeMousePosition.x, 0.0f, (f32)ViewPortPanelSize.x);
+        RelativeMousePosition.y = ViewPortPanelSize.y - kraft::math::Clamp(RelativeMousePosition.y, 0.0f, (f32)ViewPortPanelSize.y);
         ImGui::SetNextItemAllowOverlap();
         ImGui::Text("Relative Mouse Position: %f, %f", RelativeMousePosition.x, RelativeMousePosition.y);
 
         if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT) && ImGui::IsWindowFocused())
         {
             EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
-            uint32* BufferData = (uint32*)EditorState::Ptr->picking_buffer_memory;
-            uint32  BufferSize = 64;
+            u32* BufferData = (u32*)EditorState::Ptr->picking_buffer_memory;
+            u32  BufferSize = 64;
 
             for (size_t i = 0; i < BufferSize; i++)
             {
                 if (BufferData[i] != 0)
                 {
-                    uint32        SelectedEntity = BufferData[i];
+                    u32           SelectedEntity = BufferData[i];
                     kraft::Entity Entity = EditorState::Ptr->CurrentWorld->GetEntity(SelectedEntity);
 
                     ImGui::SetNextItemAllowOverlap();
@@ -836,12 +836,12 @@ void MaterialEditor()
     ImGui::Text("Material Properties");
     ImGui::Separator();
 
-    kraft::MeshComponent&                  Mesh = SelectedEntity.GetComponent<kraft::MeshComponent>();
-    kraft::Material*                       Material = Mesh.MaterialInstance;
-    kraft::HashMap<kraft::String, uint32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
-    kraft::Array<kraft::ShaderUniform>&    ShaderUniforms = Material->Shader->UniformCache;
-    static auto                            last_texture = kraft::r::Handle<kraft::Texture>::Invalid();
-    static ImTextureID                     last_texture_id = nullptr;
+    kraft::MeshComponent&               Mesh = SelectedEntity.GetComponent<kraft::MeshComponent>();
+    kraft::Material*                    Material = Mesh.MaterialInstance;
+    kraft::HashMap<kraft::String, u32>& ShaderUniformMapping = Material->Shader->UniformCacheMapping;
+    kraft::Array<kraft::ShaderUniform>& ShaderUniforms = Material->Shader->UniformCache;
+    static auto                         last_texture = kraft::r::Handle<kraft::Texture>::Invalid();
+    static ImTextureID                  last_texture_id = nullptr;
 
     for (auto It = Material->Properties.begin(); It != Material->Properties.end(); It++)
     {
