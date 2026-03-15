@@ -5,10 +5,11 @@ Shader ObjectPicking
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 32 vertex
+            Binding     0 48 vertex
             Attribute   float3 Position 0 0 0
             Attribute   float2 UV 0 1 12
             Attribute   float3 Normal 0 2 20
+            Attribute   float4 Tangent 0 3 32
         }
 
         StorageBuffer ObjectPickingBuffer

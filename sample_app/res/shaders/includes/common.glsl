@@ -28,6 +28,7 @@ struct Vertex3D
     vec3 position;
     vec2 uv;
     vec3 normal;
+    vec4 tangent;
 };
 
 layout(scalar, set = 0, binding = 3) readonly buffer VertexData

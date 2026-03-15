@@ -173,10 +173,10 @@ void _createDefaultGeometries()
 {
     GeometryReference* ref = &geometry_system_state->geometries[0];
     r::Vertex3D        vertices[] = {
-        { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 } },
-        { Vec3f(+0.5f, -0.5f, +0.0f), { 1.f, 0.f }, { 0, 0, 0 } },
-        { Vec3f(-0.5f, -0.5f, +0.0f), { 0.f, 0.f }, { 0, 0, 0 } },
-        { Vec3f(-0.5f, +0.5f, +0.0f), { 0.f, 1.f }, { 0, 0, 0 } },
+        { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 }, { 1, 0, 0, 1 } },
+        { Vec3f(+0.5f, -0.5f, +0.0f), { 1.f, 0.f }, { 0, 0, 0 }, { 1, 0, 0, 1 } },
+        { Vec3f(-0.5f, -0.5f, +0.0f), { 0.f, 0.f }, { 0, 0, 0 }, { 1, 0, 0, 1 } },
+        { Vec3f(-0.5f, +0.5f, +0.0f), { 0.f, 1.f }, { 0, 0, 0 }, { 1, 0, 0, 1 } },
     };
 
     u32 indices[] = { 0, 1, 2, 2, 3, 0 };

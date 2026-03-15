@@ -76,9 +76,7 @@ void CloseFile(FileHandle* handle)
     }
 }
 
-// outBuffer, if null is allocated
-// outBuffer must be freed by the caller
-bool ReadAllBytes(FileHandle* handle, u8** outBuffer, u64* bytesRead)
+bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read)
 {
     if (!handle->Handle)
         return false;
@@ -87,21 +85,22 @@ bool ReadAllBytes(FileHandle* handle, u8** outBuffer, u64* bytesRead)
     u64 size = ftell(handle->Handle);
     rewind(handle->Handle);
 
-    if (!*outBuffer)
-        *outBuffer = (u8*)Malloc(size, MEMORY_TAG_FILE_BUF);
+    if (!*out_buffer)
+        *out_buffer = (u8*)Malloc(size, MEMORY_TAG_FILE_BUF);
 
-    size_t read = fread(*outBuffer, 1, size, handle->Handle);
+    size_t read = fread(*out_buffer, 1, size, handle->Handle);
 
     KASSERT(read == size);
+
     // Not all bytes were read
     if (read != size)
     {
         return false;
     }
 
-    if (bytesRead)
+    if (bytes_read)
     {
-        *bytesRead = read;
+        *bytes_read = read;
     }
 
     return true;

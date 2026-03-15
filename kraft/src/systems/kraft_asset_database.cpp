@@ -108,16 +108,19 @@ void AssetDatabase::ProcessAIMesh(MeshAsset& BaseMesh, MeshT& Out, aiMesh* Mesh,
             Vertex.UV.x = Mesh->mTextureCoords[0][i].x;
             Vertex.UV.y = Mesh->mTextureCoords[0][i].y;
 
-            // tangent
-            // vector.x = mesh->mTangents[i].x;
-            // vector.y = mesh->mTangents[i].y;
-            // vector.z = mesh->mTangents[i].z;
-            // vertex.Tangent = vector;
-            // // bitangent
-            // vector.x = mesh->mBitangents[i].x;
-            // vector.y = mesh->mBitangents[i].y;
-            // vector.z = mesh->mBitangents[i].z;
-            // vertex.Bitangent = vector;
+            if (Mesh->HasTangentsAndBitangents())
+            {
+                Vertex.Tangent.x = Mesh->mTangents[i].x;
+                Vertex.Tangent.y = Mesh->mTangents[i].y;
+                Vertex.Tangent.z = Mesh->mTangents[i].z;
+                Vec3f B = { Mesh->mBitangents[i].x, Mesh->mBitangents[i].y, Mesh->mBitangents[i].z };
+                Vec3f computed_B = Cross(Vertex.Normal, Vec3f{ Vertex.Tangent.x, Vertex.Tangent.y, Vertex.Tangent.z });
+                Vertex.Tangent.w = Dot(computed_B, B) < 0.0f ? -1.0f : 1.0f;
+            }
+            else
+            {
+                Vertex.Tangent = Vec4f{ 1.0f, 0.0f, 0.0f, 1.0f };
+            }
         }
         else
         {
@@ -320,7 +323,30 @@ MeshAsset*        AssetDatabase::LoadMesh(ArenaAllocator* arena, String8 path)
                         vertex.UV = kraft::Vec2fZero;
                     }
 
-                    // Vertices.Push(Vertex);
+                    if (ufbx_mesh->vertex_tangent.exists)
+                    {
+                        ufbx_vec3 tangent = ufbx_get_vertex_vec3(&ufbx_mesh->vertex_tangent, index);
+                        vertex.Tangent.x = (float)tangent.x;
+                        vertex.Tangent.y = (float)tangent.y;
+                        vertex.Tangent.z = (float)tangent.z;
+
+                        // Compute bitangent sign: sign = dot(cross(N, T), B)
+                        float sign = 1.0f;
+                        if (ufbx_mesh->vertex_bitangent.exists)
+                        {
+                            ufbx_vec3 bitangent = ufbx_get_vertex_vec3(&ufbx_mesh->vertex_bitangent, index);
+                            Vec3f B = Vec3f((float)bitangent.x, (float)bitangent.y, (float)bitangent.z);
+                            Vec3f T = Vec3f((float)tangent.x, (float)tangent.y, (float)tangent.z);
+                            Vec3f computed_B = Cross(vertex.Normal, T);
+                            sign = Dot(computed_B, B) < 0.0f ? -1.0f : 1.0f;
+                        }
+                        vertex.Tangent.w = sign;
+                    }
+                    else
+                    {
+                        vertex.Tangent = Vec4f{ 1.0f, 0.0f, 0.0f, 1.0f };
+                    }
+
                     num_indices++;
                 }
             }
@@ -487,6 +513,7 @@ static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* o
             cgltf_accessor* position_accessor = NULL;
             cgltf_accessor* uv_accessor = NULL;
             cgltf_accessor* normal_accessor = NULL;
+            cgltf_accessor* tangent_accessor = NULL;
 
             for (cgltf_size attribute_idx = 0; attribute_idx < primitive->attributes_count; attribute_idx++)
             {
@@ -496,7 +523,8 @@ static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* o
                     case cgltf_attribute_type_position: position_accessor = attribute->data; break;
                     case cgltf_attribute_type_texcoord: uv_accessor = attribute->data; break;
                     case cgltf_attribute_type_normal:   normal_accessor = attribute->data; break;
-                    default:                            break; // We don't care for now
+                    case cgltf_attribute_type_tangent:  tangent_accessor = attribute->data; break;
+                    default:                            break;
                 }
             }
 
@@ -518,6 +546,15 @@ static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* o
                 if (normal_accessor)
                 {
                     cgltf_accessor_read_float(normal_accessor, i, vertex->Normal._data, 3);
+                }
+
+                if (tangent_accessor)
+                {
+                    cgltf_accessor_read_float(tangent_accessor, i, vertex->Tangent._data, 4);
+                }
+                else
+                {
+                    vertex->Tangent = Vec4f{ 1.0f, 0.0f, 0.0f, 1.0f };
                 }
             }
 

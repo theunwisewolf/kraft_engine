@@ -1,7 +1,5 @@
 #pragma once
 
-#include "kraft_includes.h"
-
 // https://jorenjoestar.github.io/post/writing_shader_effect_language_1/
 
 // The language grammar is similar to hydrafx with some changes

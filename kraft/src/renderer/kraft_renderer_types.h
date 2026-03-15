@@ -182,6 +182,7 @@ struct Vertex3D
     Vec3f Position;
     Vec2f UV;
     Vec3f Normal;
+    Vec4f Tangent; // xyz = tangent direction, w = bitangent sign
 };
 
 struct ShaderDataType

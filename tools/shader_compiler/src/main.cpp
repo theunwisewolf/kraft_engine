@@ -404,24 +404,24 @@ bool CompileShaderFX(ArenaAllocator* arena, shaderfx::ShaderEffect* shader, Stri
                 KASSERT(spv_reflect_result == SPV_REFLECT_RESULT_SUCCESS);
 
                 // Enumerate and extract shader's input variables
-                uint32_t var_count = 0;
+                u32 var_count = 0;
                 SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, NULL));
 
                 SpvReflectInterfaceVariable** input_vars = ArenaPushArray(arena, SpvReflectInterfaceVariable*, var_count);
                 SPIRV_REFLECT_CHECK(spvReflectEnumerateInputVariables(&module, &var_count, input_vars));
 
-                uint32 descriptor_set_count = 0;
+                u32 descriptor_set_count = 0;
                 SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, NULL));
 
                 SpvReflectDescriptorSet** descriptor_sets = ArenaPushArray(arena, SpvReflectDescriptorSet*, descriptor_set_count);
                 SPIRV_REFLECT_CHECK(spvReflectEnumerateDescriptorSets(&module, &descriptor_set_count, descriptor_sets));
 
-                for (uint32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
+                for (u32 set_idx = 0; set_idx < descriptor_set_count; set_idx++)
                 {
                     SpvReflectDescriptorSet* descriptor_set = descriptor_sets[set_idx];
                     printf("Set = %d Bindings = %d\n", descriptor_set->set, descriptor_set->binding_count);
 
-                    for (uint32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
+                    for (u32 binding_idx = 0; binding_idx < descriptor_set->binding_count; binding_idx++)
                     {
                         SpvReflectDescriptorBinding* binding = descriptor_set->bindings[binding_idx];
                         printf("\tBinding %d '%s' %d Type name: '%s'\n", binding->binding, binding->name, binding->descriptor_type, binding->type_description->type_name, binding->descriptor_type);

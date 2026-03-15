@@ -71,20 +71,26 @@ KRAFT_API String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2);
 // Converts a relative path to an absolute path
 KRAFT_API String8 AbsolutePath(ArenaAllocator* arena, String8 path);
 
-// outBuffer, if null is allocated & must be freed by the caller
-KRAFT_API bool   ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read = nullptr);
+// [DEPRECATED]: Use the one with the arena_allocator
+// out_buffer, if null is allocated and must be freed by the caller
+KRAFT_API bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read = nullptr);
+
+// Reads all data from the given file handle and returns a buffer allocated in the provided arena
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle);
+
+// Reads all data from the file at [`path`] and returns a buffer allocated in the provided arena
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path);
-KRAFT_API bool   WriteFile(FileHandle* handle, const u8* buffer, u64 size);
+
+// Writes the provided [`buffer`] of [`size`] to the file [`handle`]
+KRAFT_API bool WriteFile(FileHandle* handle, const u8* buffer, u64 size);
 
 // Returns the last modified time of the file in seconds since epoch
 // Returns 0 if the file doesn't exist or an error occurs
 KRAFT_API u64 GetFileModifiedTime(String8 path);
 
 // Platform dependent APIs
-KRAFT_API u32            GetFileCount(String8 path);
-KRAFT_API Directory      ReadDir(ArenaAllocator* arena, String8 path);
-KRAFT_API FileMMapHandle MMap(const String& Path);
+KRAFT_API u32       GetFileCount(String8 path);
+KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path);
 
 //
 // File watcher
