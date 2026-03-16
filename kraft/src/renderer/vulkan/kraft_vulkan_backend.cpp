@@ -623,7 +623,7 @@ bool VulkanRendererBackend::EndFrame() {
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = &s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame];
     submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
+    submit_info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.CurrentSwapchainImageIndex];
     submit_info.pWaitDstStageMask = &wait_stage_mask;
 
     KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &submit_info, s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame]->Handle));
@@ -633,7 +633,7 @@ bool VulkanRendererBackend::EndFrame() {
     // Present the swapchain!
     VkPresentInfoKHR present_info = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
+    present_info.pWaitSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.CurrentSwapchainImageIndex];
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &s_Context.Swapchain.Resource;
     present_info.pImageIndices = &s_Context.CurrentSwapchainImageIndex;
