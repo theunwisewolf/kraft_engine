@@ -1,202 +1,177 @@
 #pragma once
 
-namespace kraft {
-struct Texture;
-struct TextureSampler;
-} // namespace kraft
-
 namespace kraft::r {
-template<typename T>
-struct Handle;
+template <typename T> struct Handle;
 }
 
 namespace kraft {
-template<typename T>
-struct Array;
+template <typename T> struct Array;
 }
 
 namespace kraft::r {
 
-template<typename ConcreteType, typename Type>
-struct Pool
-{
+template <typename ConcreteType, typename Type> struct Pool {
     using HandleType = Handle<Type>;
-    typedef void (*PoolCleanupFunction)(ConcreteType* GPUResource);
+    typedef void (*PoolCleanupFunction)(ConcreteType* resource);
 
-    u16           PoolSize = 0;
-    u16           FreeListTop;
-    u64           AllocatedSizeInBytes = 0;
-    Type*         AuxiliaryData;
-    ConcreteType* Data;
-    HandleType*   Handles;
-    u16*          FreeList;
+    u16 pool_size = 0;
+    u16 free_list_top;
+    u64 allocated_size_in_bytes = 0;
+    Type* auxiliary_data;
+    ConcreteType* data;
+    HandleType* handles;
+    u16* free_list;
 
-    Array<HandleType> DeletedItems[3] = {};
-    u32               ActiveDeletedItemsArray = 0;
+    Array<HandleType> deleted_items[3] = {};
+    u32 active_deleted_items_array = 0;
 
-    void Grow(u16 ElementCount)
-    {
+    void Grow(u16 element_count) {
         // For now we only support enlarging the pool
-        KASSERT(ElementCount > this->PoolSize);
+        KASSERT(element_count > this->pool_size);
 
         // Allocate a new buffer and save any old buffer references
-        u64 AuxiliaryDataArraySize = sizeof(Type) * ElementCount;
-        u64 DataArraySize = sizeof(ConcreteType) * ElementCount;
-        u64 HandlesArraySize = sizeof(HandleType) * ElementCount;
-        u64 FreeListArraySize = sizeof(u16) * ElementCount;
-        u64 NewSize = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
-        u8* NewBuffer = (u8*)Malloc(NewSize, MEMORY_TAG_RESOURCE_POOL, true);
+        u64 auxiliary_data_array_size = sizeof(Type) * element_count;
+        u64 data_array_size = sizeof(ConcreteType) * element_count;
+        u64 handles_array_size = sizeof(HandleType) * element_count;
+        u64 free_list_array_size = sizeof(u16) * element_count;
+        u64 new_size = auxiliary_data_array_size + data_array_size + handles_array_size + free_list_array_size;
+        u8* new_buffer = (u8*)Malloc(new_size, MEMORY_TAG_RESOURCE_POOL, true);
 
-        u64 OldAuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
-        u64 OldDataArraySize = sizeof(ConcreteType) * this->PoolSize;
-        u64 OldHandlesArraySize = sizeof(HandleType) * this->PoolSize;
-        u64 OldFreeListArraySize = sizeof(u16) * this->PoolSize;
-        u64 OldSize = this->AllocatedSizeInBytes;
-        this->AllocatedSizeInBytes = NewSize;
+        u64 old_auxiliary_data_array_size = sizeof(Type) * this->pool_size;
+        u64 old_data_array_size = sizeof(ConcreteType) * this->pool_size;
+        u64 old_handles_array_size = sizeof(HandleType) * this->pool_size;
+        u64 old_free_list_array_size = sizeof(u16) * this->pool_size;
+        u64 old_size = this->allocated_size_in_bytes;
+        this->allocated_size_in_bytes = new_size;
 
-        u8*           OldBuffer = (u8*)this->AuxiliaryData;
-        Type*         OldAuxiliaryData = (Type*)OldBuffer;
-        ConcreteType* OldData = (ConcreteType*)(OldBuffer + OldAuxiliaryDataArraySize);
-        HandleType*   OldHandles = (HandleType*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize);
-        u16*          OldFreeList = (u16*)(OldBuffer + OldAuxiliaryDataArraySize + OldDataArraySize + OldHandlesArraySize);
+        u8* old_buffer = (u8*)this->auxiliary_data;
+        Type* old_auxiliary_data = (Type*)old_buffer;
+        ConcreteType* old_data = (ConcreteType*)(old_buffer + old_auxiliary_data_array_size);
+        HandleType* old_handles = (HandleType*)(old_buffer + old_auxiliary_data_array_size + old_data_array_size);
+        u16* old_free_list = (u16*)(old_buffer + old_auxiliary_data_array_size + old_data_array_size + old_handles_array_size);
 
-        this->AuxiliaryData = (Type*)NewBuffer;
-        this->Data = (ConcreteType*)(NewBuffer + AuxiliaryDataArraySize);
-        this->Handles = (HandleType*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize);
-        this->FreeList = (u16*)(NewBuffer + AuxiliaryDataArraySize + DataArraySize + HandlesArraySize);
+        this->auxiliary_data = (Type*)new_buffer;
+        this->data = (ConcreteType*)(new_buffer + auxiliary_data_array_size);
+        this->handles = (HandleType*)(new_buffer + auxiliary_data_array_size + data_array_size);
+        this->free_list = (u16*)(new_buffer + auxiliary_data_array_size + data_array_size + handles_array_size);
 
         // Now if we had any old data, copy it over
-        if (this->PoolSize > 0)
-        {
-            MemCpy(AuxiliaryData, OldAuxiliaryData, OldAuxiliaryDataArraySize);
-            MemCpy(Data, OldData, OldDataArraySize);
-            MemCpy(Handles, OldHandles, OldHandlesArraySize);
-            MemCpy(FreeList, OldFreeList, OldFreeListArraySize);
+        if (this->pool_size > 0) {
+            MemCpy(auxiliary_data, old_auxiliary_data, old_auxiliary_data_array_size);
+            MemCpy(data, old_data, old_data_array_size);
+            MemCpy(handles, old_handles, old_handles_array_size);
+            MemCpy(free_list, old_free_list, old_free_list_array_size);
 
-            Free(OldBuffer, OldSize, MEMORY_TAG_RESOURCE_POOL);
+            Free(old_buffer, old_size, MEMORY_TAG_RESOURCE_POOL);
         }
 
         // Mark the remaining elements as free
-        for (int i = this->PoolSize; i < ElementCount; i++)
-        {
-            this->FreeList[i] = i;
+        for (int i = this->pool_size; i < element_count; i++) {
+            this->free_list[i] = i;
         }
 
-        this->PoolSize = ElementCount;
+        this->pool_size = element_count;
     }
 
-    void Destroy()
-    {
-        u64 AuxiliaryDataArraySize = sizeof(Type) * this->PoolSize;
-        u64 DataArraySize = sizeof(ConcreteType) * this->PoolSize;
-        u64 HandlesArraySize = sizeof(HandleType) * this->PoolSize;
-        u64 FreeListArraySize = sizeof(u16) * this->PoolSize;
-        u64 Size = AuxiliaryDataArraySize + DataArraySize + HandlesArraySize + FreeListArraySize;
+    void Destroy() {
+        u64 auxiliary_data_array_size = sizeof(Type) * this->pool_size;
+        u64 data_array_size = sizeof(ConcreteType) * this->pool_size;
+        u64 handles_array_size = sizeof(HandleType) * this->pool_size;
+        u64 free_list_array_size = sizeof(u16) * this->pool_size;
+        u64 size = auxiliary_data_array_size + data_array_size + handles_array_size + free_list_array_size;
 
-        Free(this->AuxiliaryData, Size, MEMORY_TAG_RESOURCE_POOL);
+        Free(this->auxiliary_data, size, MEMORY_TAG_RESOURCE_POOL);
     }
 
-    bool ValidateHandle(HandleType Handle) const
-    {
-        KASSERT(Handle.Index < this->PoolSize);
-        if (Handle.Index < this->PoolSize)
-        {
+    bool ValidateHandle(HandleType handle) const {
+        KASSERT(handle.index < this->pool_size);
+        if (handle.index < this->pool_size) {
             // Data has changed?
-            HandleType CurrentHandle = this->Handles[Handle.Index];
-            return CurrentHandle.Generation == Handle.Generation;
+            HandleType current_handle = this->handles[handle.index];
+            return current_handle.generation == handle.generation;
         }
 
         return false;
     }
 
-    Type* GetAuxiliaryData(HandleType handle) const
-    {
-        return ValidateHandle(handle) ? &this->AuxiliaryData[handle.Index] : nullptr;
+    Type* GetAuxiliaryData(HandleType handle) const {
+        return ValidateHandle(handle) ? &this->auxiliary_data[handle.index] : nullptr;
     }
 
-    ConcreteType* Get(HandleType handle) const
-    {
-        return ValidateHandle(handle) ? &this->Data[handle.Index] : nullptr;
+    ConcreteType* Get(HandleType handle) const {
+        return ValidateHandle(handle) ? &this->data[handle.index] : nullptr;
     }
 
-    HandleType Insert(Type AuxiliaryData, ConcreteType Data)
-    {
-        if (this->FreeListTop >= this->PoolSize)
-        {
-            this->Grow(this->PoolSize * 2);
+    HandleType Insert(Type auxiliary_data, ConcreteType data) {
+        if (this->free_list_top >= this->pool_size) {
+            this->Grow(this->pool_size * 2);
         }
 
-        u16         Index = this->FreeList[this->FreeListTop++];
-        HandleType& Handle = this->Handles[Index];
-        Handle.Index = Index;
-        Handle.Generation++;
+        u16 index = this->free_list[this->free_list_top++];
+        HandleType& handle = this->handles[index];
+        handle.index = index;
+        handle.generation++;
+        // Skip generation 0 - The sentinel!
+        if (handle.generation == 0)
+            handle.generation = 1;
 
-        this->AuxiliaryData[Handle.Index] = AuxiliaryData;
-        this->Data[Handle.Index] = Data;
+        this->auxiliary_data[handle.index] = auxiliary_data;
+        this->data[handle.index] = data;
 
-        return Handle;
+        return handle;
     }
 
-    void* Allocate(HandleType Handle)
-    {
-        return (void*)(&this->Data[Handle.Index]);
+    void* Allocate(HandleType handle) {
+        return (void*)(&this->data[handle.index]);
     }
 
-    u64 GetSize() const
-    {
-        return this->PoolSize;
+    u64 GetSize() const {
+        return this->pool_size;
     }
 
-    void MarkForDelete(HandleType Handle)
-    {
-        if (!ValidateHandle(Handle))
+    void MarkForDelete(HandleType handle) {
+        if (!ValidateHandle(handle))
             return;
 
-        u16 Index = Handle.Index;
-        this->Handles[Index].Generation = 0; // Invalidate the handle
-        this->DeletedItems[this->ActiveDeletedItemsArray].Push(this->Handles[Index]);
+        u16 index = handle.index;
+        this->handles[index].generation = 0; // Invalidate the handle
+        this->deleted_items[this->active_deleted_items_array].Push(this->handles[index]);
     }
 
-    void Delete(HandleType Resource)
-    {
-        if (Resource.Generation != 0)
-        {
-            KERROR("Deleting a handle with generation > 0 | Index = %d, Generation = %d", Resource.Index, Resource.Generation);
+    void Delete(HandleType handle) {
+        if (handle.generation != 0) {
+            KERROR("Deleting a handle with generation > 0 | Index = %d, Generation = %d", handle.index, handle.generation);
             return;
         }
 
         // this->Data[Resource.Index] = {};
         // this->AuxiliaryData[Resource.Index] = {};
 
-        KASSERT(this->FreeListTop > 0);
+        KASSERT(this->free_list_top > 0);
 
-        this->FreeList[this->FreeListTop - 1] = Resource.Index;
-        this->FreeListTop--;
+        this->free_list[this->free_list_top - 1] = handle.index;
+        this->free_list_top--;
     }
 
-    const Array<HandleType>& GetItemsToDelete()
-    {
-        return this->DeletedItems[(this->ActiveDeletedItemsArray + 2) % 3];
+    const Array<HandleType>& GetItemsToDelete() {
+        return this->deleted_items[(this->active_deleted_items_array + 2) % 3];
     }
 
-    void PrepareDeleteArraysForNextFrame()
-    {
-        u32 N2 = (this->ActiveDeletedItemsArray + 2) % 3;
-        this->DeletedItems[N2].Clear();
+    void PrepareDeleteArraysForNextFrame() {
+        u32 n2 = (this->active_deleted_items_array + 2) % 3;
+        this->deleted_items[n2].Clear();
 
-        this->ActiveDeletedItemsArray = (this->ActiveDeletedItemsArray + 1) % 3;
+        this->active_deleted_items_array = (this->active_deleted_items_array + 1) % 3;
     }
 
     // Removes any resources pending deletion
-    void Cleanup(PoolCleanupFunction Callback)
-    {
-        const auto& ResourcesToDelete = this->GetItemsToDelete();
-        for (int i = 0; i < ResourcesToDelete.Size(); i++)
-        {
-            ConcreteType* Resource = &this->Data[ResourcesToDelete[i].Index];
-            Callback(Resource);
+    void Cleanup(PoolCleanupFunction callback) {
+        const auto& resources_to_delete = this->GetItemsToDelete();
+        for (int i = 0; i < resources_to_delete.Size(); i++) {
+            ConcreteType* resource = &this->data[resources_to_delete[i].index];
+            callback(resource);
 
-            this->Delete(ResourcesToDelete[i]);
+            this->Delete(resources_to_delete[i]);
         }
 
         this->PrepareDeleteArraysForNextFrame();

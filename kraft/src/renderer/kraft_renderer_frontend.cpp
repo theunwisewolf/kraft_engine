@@ -1,7 +1,7 @@
 #include "kraft_renderer_frontend.h"
 
-#include <containers/kraft_containers_includes.h>
 #include <core/kraft_base_includes.h>
+#include <containers/kraft_containers_includes.h>
 #include <renderer/kraft_renderer_includes.h>
 #include <systems/kraft_material_system.h>
 #include <systems/kraft_shader_system.h>
@@ -60,7 +60,8 @@ void RendererFrontend::Init()
     renderer_data_internal.vertex_buffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = vertex_buffer_size,
-        .UsageFlags = BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BUFFER_USAGE_FLAGS_TRANSFER_DST, // | BufferUsageFlags::BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS,
+        .UsageFlags = BUFFER_USAGE_FLAGS_STORAGE_BUFFER |
+                      BUFFER_USAGE_FLAGS_TRANSFER_DST, // | BufferUsageFlags::BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS,
         .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         // .MemoryAllocationFlags = MemoryAllocateFlags::MEMORY_ALLOCATE_DEVICE_ADDRESS,
     });
@@ -79,7 +80,8 @@ void RendererFrontend::Init()
     u64 MaterialsBufferSize = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
     renderer_data_internal.materials_gpu_buffer = ResourceManager->CreateBuffer({
         .Size = MaterialsBufferSize,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
+        .UsageFlags =
+            BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         .SharingMode = SharingMode::Exclusive,
     });
@@ -89,7 +91,8 @@ void RendererFrontend::Init()
         renderer_data_internal.materials_staging_buffer[i] = ResourceManager->CreateBuffer({
             .Size = MaterialsBufferSize,
             .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC,
-            .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
+            .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE |
+                                   MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
             .SharingMode = SharingMode::Exclusive,
             .MapMemory = true,
         });
@@ -98,9 +101,11 @@ void RendererFrontend::Init()
     renderer_data_internal.global_ubo_buffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalUBO",
         .Size = sizeof(GlobalShaderData),
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
-        .MemoryPropertyFlags =
-            MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .UsageFlags =
+            BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST | BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
+        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE |
+                               MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT |
+                               MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         .MapMemory = true,
     });
 }
@@ -108,7 +113,7 @@ void RendererFrontend::Init()
 struct __DrawData
 {
     Mat4f Model;
-    Vec2f MousePosition;
+    vec2  MousePosition;
     u32   EntityId;
     u32   MaterialIdx;
     // u64   vertex_buffer_address;
@@ -118,14 +123,22 @@ void RendererFrontend::DrawSingle(Shader* shader, GlobalShaderData* ubo, u32 geo
 {
     KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
 
-    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)ubo, sizeof(GlobalShaderData));
+    MemCpy(
+        (void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer),
+        (void*)ubo,
+        sizeof(GlobalShaderData)
+    );
 
     renderer_data_internal.backend->UseShader(shader, 0);
     renderer_data_internal.backend->ApplyGlobalShaderProperties(
-        shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+        shader,
+        renderer_data_internal.global_ubo_buffer,
+        renderer_data_internal.materials_gpu_buffer,
+        renderer_data_internal.vertex_buffer,
+        renderer_data_internal.index_buffer
     );
 
-    DummyDrawData.Model = ScaleMatrix(kraft::Vec3f{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
+    DummyDrawData.Model = ScaleMatrix(vec3{ 1920.0f * 1.2f, 945.0f * 1.2f, 1.0f });
     DummyDrawData.MaterialIdx = 0;
     renderer_data_internal.backend->ApplyLocalShaderProperties(shader, &DummyDrawData);
 
@@ -137,7 +150,11 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
 {
     KASSERT(renderer_data_internal.current_frame_index >= 0 && renderer_data_internal.current_frame_index < 3);
 
-    MemCpy((void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer), (void*)global_ubo, sizeof(GlobalShaderData));
+    MemCpy(
+        (void*)ResourceManager->GetBufferData(renderer_data_internal.global_ubo_buffer),
+        (void*)global_ubo,
+        sizeof(GlobalShaderData)
+    );
 
     for (auto It = renderer_data_internal.renderables.begin(); It != renderer_data_internal.renderables.end(); It++)
     {
@@ -149,7 +166,11 @@ void RendererFrontend::Draw(GlobalShaderData* global_ubo)
         }
 
         renderer_data_internal.backend->ApplyGlobalShaderProperties(
-            shader, renderer_data_internal.global_ubo_buffer, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+            shader,
+            renderer_data_internal.global_ubo_buffer,
+            renderer_data_internal.materials_gpu_buffer,
+            renderer_data_internal.vertex_buffer,
+            renderer_data_internal.index_buffer
         );
 
         auto& objects = It->second;
@@ -187,7 +208,9 @@ void RendererFrontend::PrepareFrame()
     renderer_data_internal.current_frame_index = renderer_data_internal.backend->PrepareFrame();
 
     // Upload all the materials
-    u8*  buffer_data = ResourceManager->GetBufferData(renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]);
+    u8* buffer_data = ResourceManager->GetBufferData(
+        renderer_data_internal.materials_staging_buffer[renderer_data_internal.current_frame_index]
+    );
     auto materials = MaterialSystem::GetMaterialsBuffer();
     u64  materials_buffer_size = this->Settings->MaxMaterials * this->Settings->MaterialBufferSize;
 
@@ -217,8 +240,8 @@ bool RendererFrontend::DrawSurfaces()
     GlobalShaderData global_shader_data = {};
     global_shader_data.Projection = this->Camera->ProjectionMatrix;
     // global_shader_data.View = this->Camera->GetViewMatrix();
-    static Vec3f camera_position = Vec3f{ -5.0f, 0.0f, -10.0f };
-    static Vec3f camera_rotation = Vec3f{ 0.0f, 0.0f, 0.0f };
+    static vec3 camera_position = vec3{ -5.0f, 0.0f, -10.0f };
+    static vec3 camera_rotation = vec3{ 0.0f, 0.0f, 0.0f };
     global_shader_data.View = RotationMatrixFromEulerAngles(camera_rotation) * TranslationMatrix(camera_position);
     global_shader_data.CameraPosition = this->Camera->Position;
 
@@ -235,7 +258,11 @@ bool RendererFrontend::DrawSurfaces()
             global_shader_data.GlobalLightPosition = GlobalLight.GetComponent<TransformComponent>().Position;
         }
 
-        MemCpy((void*)ResourceManager->GetBufferData(surface.GlobalUBO), (void*)&global_shader_data, sizeof(global_shader_data));
+        MemCpy(
+            (void*)ResourceManager->GetBufferData(surface.GlobalUBO),
+            (void*)&global_shader_data,
+            sizeof(global_shader_data)
+        );
 
         surface.Begin();
         for (auto it = surface_render_data.Renderables.begin(); it != surface_render_data.Renderables.end(); it++)
@@ -248,7 +275,11 @@ bool RendererFrontend::DrawSurfaces()
             }
 
             renderer_data_internal.backend->ApplyGlobalShaderProperties(
-                current_shader, surface.GlobalUBO, renderer_data_internal.materials_gpu_buffer, renderer_data_internal.vertex_buffer, renderer_data_internal.index_buffer
+                current_shader,
+                surface.GlobalUBO,
+                renderer_data_internal.materials_gpu_buffer,
+                renderer_data_internal.vertex_buffer,
+                renderer_data_internal.index_buffer
             );
 
             auto& objects = it->second;
@@ -313,6 +344,17 @@ bool RendererFrontend::AddRenderable(const Renderable& renderable)
     return true;
 }
 
+bool RendererFrontend::AddRenderable(SpriteBatch* batch)
+{
+    Renderable renderable = {
+        .ModelMatrix = mat4(Identity),
+        .MaterialInstance = batch->material,
+        .DrawData = batch->geometry->DrawData,
+    };
+
+    return g_Renderer->AddRenderable(renderable);
+}
+
 void RendererFrontend::BeginMainRenderpass()
 {
     renderer_data_internal.backend->BeginFrame();
@@ -347,9 +389,17 @@ void RendererFrontend::DrawGeometry(const GeometryDrawData& draw_data)
     renderer_data_internal.backend->DrawGeometryData(draw_data);
 }
 
-void RendererFrontend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer)
+void RendererFrontend::ApplyGlobalShaderProperties(
+    Shader*        shader,
+    Handle<Buffer> ubo_buffer,
+    Handle<Buffer> materials_buffer,
+    Handle<Buffer> vertex_buffer,
+    Handle<Buffer> index_buffer
+)
 {
-    renderer_data_internal.backend->ApplyGlobalShaderProperties(shader, ubo_buffer, materials_buffer, vertex_buffer, index_buffer);
+    renderer_data_internal.backend->ApplyGlobalShaderProperties(
+        shader, ubo_buffer, materials_buffer, vertex_buffer, index_buffer
+    );
 }
 
 void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Data)
@@ -357,7 +407,15 @@ void RendererFrontend::ApplyLocalShaderProperties(Shader* ActiveShader, void* Da
     renderer_data_internal.backend->ApplyLocalShaderProperties(ActiveShader, Data);
 }
 
-bool RendererFrontend::CreateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
+bool RendererFrontend::CreateGeometry(
+    Geometry*   geometry,
+    u32         vertex_count,
+    const void* vertices,
+    u32         vertex_size,
+    u32         index_count,
+    const void* indices,
+    const u32   index_size
+)
 {
     u32 vertex_buffer_offset = renderer_data_internal.current_vertex_buffer_offset;
     u32 index_buffer_offset = renderer_data_internal.current_index_buffer_offset;
@@ -383,7 +441,15 @@ bool RendererFrontend::CreateGeometry(Geometry* geometry, u32 vertex_count, cons
     });
 }
 
-bool RendererFrontend::UpdateGeometry(Geometry* geometry, u32 vertex_count, const void* vertices, u32 vertex_size, u32 index_count, const void* indices, const u32 index_size)
+bool RendererFrontend::UpdateGeometry(
+    Geometry*   geometry,
+    u32         vertex_count,
+    const void* vertices,
+    u32         vertex_size,
+    u32         index_count,
+    const void* indices,
+    const u32   index_size
+)
 {
     // Re-upload to the same offsets
     u32 vertex_buffer_offset = geometry->DrawData.VertexOffset * vertex_size;
@@ -405,7 +471,14 @@ bool RendererFrontend::UpdateGeometry(Geometry* geometry, u32 vertex_count, cons
     });
 }
 
-RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32 height, bool has_color, bool has_depth, bool depth_sample)
+RenderSurface RendererFrontend::CreateRenderSurface(
+    String8 name,
+    u32     width,
+    u32     height,
+    bool    has_color,
+    bool    has_depth,
+    bool    depth_sample
+)
 {
     RenderSurface surface = {
         .DebugName = name,
@@ -432,7 +505,8 @@ RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32
             .DebugName = "ColorPassTexture",
             .Dimensions = { (f32)width, (f32)height, 1, 4 },
             .Format = Format::BGRA8_UNORM,
-            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
+            .Usage = TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT |
+                     TextureUsageFlags::TEXTURE_USAGE_FLAGS_SAMPLED,
         });
 
         description.ColorTargets = {
@@ -481,7 +555,8 @@ RenderSurface RendererFrontend::CreateRenderSurface(String8 name, u32 width, u32
         .DebugName = name.str,
         .Size = sizeof(GlobalShaderData),
         .UsageFlags = BUFFER_USAGE_FLAGS_TRANSFER_DST | BUFFER_USAGE_FLAGS_UNIFORM_BUFFER,
-        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MEMORY_PROPERTY_FLAGS_HOST_COHERENT | MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MEMORY_PROPERTY_FLAGS_HOST_COHERENT |
+                               MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
         .MapMemory = true,
     });
 
@@ -526,7 +601,9 @@ RenderSurface RendererFrontend::ResizeRenderSurface(RenderSurface& surface, u32 
     }
 
     // this->CreateCommandBuffers();
-    surface = this->CreateRenderSurface(surface.DebugName, width, height, surface.DepthPassTexture != Handle<Texture>::Invalid());
+    surface = this->CreateRenderSurface(
+        surface.DebugName, width, height, surface.DepthPassTexture != Handle<Texture>::Invalid()
+    );
     return surface;
 }
 
@@ -571,7 +648,10 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
 
     g_Renderer->Settings = ArenaPush(renderer_data_internal.arena, RendererOptions);
     MemCpy(g_Renderer->Settings, Opts, sizeof(RendererOptions));
-    KASSERTM(g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE, "No renderer backend specified");
+    KASSERTM(
+        g_Renderer->Settings->Backend != RendererBackendType::RENDERER_BACKEND_TYPE_NONE,
+        "No renderer backend specified"
+    );
 
     ResourceManager = CreateVulkanResourceManager(renderer_data_internal.arena);
 
@@ -586,7 +666,8 @@ RendererFrontend* CreateRendererFrontend(const RendererOptions* Opts)
         renderer_data_internal.backend->CreateRenderPipeline = VulkanRendererBackend::CreateRenderPipeline;
         renderer_data_internal.backend->DestroyRenderPipeline = VulkanRendererBackend::DestroyRenderPipeline;
         renderer_data_internal.backend->UseShader = VulkanRendererBackend::UseShader;
-        renderer_data_internal.backend->ApplyGlobalShaderProperties = VulkanRendererBackend::ApplyGlobalShaderProperties;
+        renderer_data_internal.backend->ApplyGlobalShaderProperties =
+            VulkanRendererBackend::ApplyGlobalShaderProperties;
         renderer_data_internal.backend->ApplyLocalShaderProperties = VulkanRendererBackend::ApplyLocalShaderProperties;
         renderer_data_internal.backend->UpdateTextures = VulkanRendererBackend::UpdateTextures;
         renderer_data_internal.backend->CreateGeometry = VulkanRendererBackend::CreateGeometry;
@@ -630,5 +711,139 @@ void DestroyRendererFrontend(RendererFrontend* Instance)
     DestroyVulkanResourceManager(ResourceManager);
     DestroyArena(renderer_data_internal.arena);
 }
+
+SpriteBatch* CreateSpriteBatch(ArenaAllocator* arena, u16 batch_size)
+{
+    u32          vertex_count = batch_size * 4;
+    u32          index_count = batch_size * 6;
+    SpriteBatch* batch = ArenaPush(arena, SpriteBatch);
+    batch->vertices = ArenaPushArray(arena, Vertex2D, vertex_count);
+    batch->indices = ArenaPushArray(arena, u32, index_count);
+
+    // We will write the indices once
+    for (u16 i = 0; i < batch_size; i++)
+    {
+        u32 base = i * 4;
+        batch->indices[i * 6 + 0] = base + 0;
+        batch->indices[i * 6 + 1] = base + 1;
+        batch->indices[i * 6 + 2] = base + 2;
+        batch->indices[i * 6 + 3] = base + 2;
+        batch->indices[i * 6 + 4] = base + 3;
+        batch->indices[i * 6 + 5] = base + 0;
+    }
+
+    // Now upload everythang!
+    batch->geometry = GeometrySystem::AcquireGeometryWithData({
+        .VertexCount = vertex_count,
+        .IndexCount = index_count,
+        .VertexSize = sizeof(Vertex2D),
+        .IndexSize = sizeof(u32),
+        .Vertices = batch->vertices,
+        .Indices = batch->indices,
+    });
+    batch->quad_count = 0;
+    batch->max_quad_count = batch_size;
+
+    return batch;
+}
+
+void BeginSpriteBatch(SpriteBatch* batch, Material* material)
+{
+    batch->material = material;
+    batch->quad_count = 0;
+}
+
+bool DrawQuad(SpriteBatch* batch, vec2 position, vec2 size, vec2 uv_min, vec2 uv_max, vec4 color)
+{
+    if (batch->quad_count == batch->max_quad_count)
+    {
+        KWARN("[SpriteBatch::DrawQuad]: Batch is already full");
+        return false;
+    }
+
+    batch->vertices[batch->quad_count * 4 + 0] = Vertex2D{
+        .Position = { position.x + size.x, position.y + size.y },
+        .UV = { uv_max.x, uv_max.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 1] = Vertex2D{
+        .Position = { position.x + size.x, position.y },
+        .UV = { uv_max.x, uv_min.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 2] = Vertex2D{
+        .Position = { position.x, position.y },
+        .UV = { uv_min.x, uv_min.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 3] = Vertex2D{
+        .Position = { position.x, position.y + size.y },
+        .UV = { uv_min.x, uv_max.y },
+        .Color = color,
+    };
+
+    batch->quad_count += 1;
+
+    return true;
+}
+
+bool DrawQuad(SpriteBatch* batch, vec2 p0, vec2 p1, vec2 p2, vec2 p3, vec2 uv_min, vec2 uv_max, vec4 color)
+{
+    if (batch->quad_count == batch->max_quad_count)
+    {
+        KWARN("[SpriteBatch::DrawQuad]: Batch is already full");
+        return false;
+    }
+
+    batch->vertices[batch->quad_count * 4 + 0] = Vertex2D{
+        .Position = p0,
+        .UV = { uv_max.x, uv_max.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 1] = Vertex2D{
+        .Position = p1,
+        .UV = { uv_max.x, uv_min.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 2] = Vertex2D{
+        .Position = p2,
+        .UV = { uv_min.x, uv_min.y },
+        .Color = color,
+    };
+
+    batch->vertices[batch->quad_count * 4 + 3] = Vertex2D{
+        .Position = p3,
+        .UV = { uv_min.x, uv_max.y },
+        .Color = color,
+    };
+
+    batch->quad_count += 1;
+
+    return true;
+}
+
+void EndSpriteBatch(SpriteBatch* batch)
+{
+    g_Renderer->UpdateGeometry(
+        batch->geometry,
+        batch->quad_count * 4,
+        batch->vertices,
+        sizeof(Vertex2D),
+        0,
+        nullptr, // We don't want to update indices again
+        sizeof(u32)
+    );
+
+    batch->geometry->DrawData.IndexCount = batch->quad_count * 6;
+}
+
+//
+// SpriteBatch
+//
 
 } // namespace kraft::r

@@ -23,49 +23,49 @@ struct VulkanCommandPool;
 
 struct TempMemoryBlock
 {
-    BufferView       Block;
-    TempMemoryBlock* Next;
-    TempMemoryBlock* Prev;
+    BufferView       block;
+    TempMemoryBlock* next;
+    TempMemoryBlock* prev;
 };
 
 struct VulkanTempMemoryBlockAllocator
 {
-    u64              CurrentFreeOffset = u64(-1); // Offset of the memory that is current free
-    u64              BlockSize = 0;               // Size of each "block" to allocate
-    u64              AllocationCount = 0;         // Number of allocations
-    TempMemoryBlock* CurrentBlock = nullptr;      // Current Memory block
+    u64              current_free_offset = u64(-1); // Offset of the memory that is current free
+    u64              block_size = 0;                // Size of each "block" to allocate
+    u64              allocation_count = 0;          // Number of allocations
+    TempMemoryBlock* current_block = nullptr;       // Current Memory block
 
-    void Initialize(ArenaAllocator* Arena, u64 BlockSize);
+    void Initialize(ArenaAllocator* arena, u64 block_size);
     void Destroy();
     void Clear();
 
-    BufferView Allocate(ArenaAllocator* Arena, u64 Size, u64 Alignment);
-    BufferView AllocateGPUMemory(ArenaAllocator* Arena);
+    BufferView Allocate(ArenaAllocator* arena, u64 size, u64 alignment);
+    BufferView AllocateGPUMemory(ArenaAllocator* arena);
 };
 
 struct VulkanResourceManagerState
 {
-    ArenaAllocator*                            Arena;
-    Pool<VulkanTexture, Texture>               TexturePool;
-    Pool<VulkanTextureSampler, TextureSampler> TextureSamplerPool;
-    Pool<VulkanBuffer, Buffer>                 BufferPool;
+    ArenaAllocator*                            arena;
+    Pool<VulkanTexture, Texture>               texture_pool;
+    Pool<VulkanTextureSampler, TextureSampler> texture_sampler_pool;
+    Pool<VulkanBuffer, Buffer>                 buffer_pool;
     Pool<VulkanRenderPass, RenderPass>         RenderPassPool;
-    Pool<VulkanCommandBuffer, CommandBuffer>   CmdBufferPool;
-    Pool<VulkanCommandPool, CommandPool>       CmdPoolPool;
-    VulkanTempMemoryBlockAllocator*            TempGPUAllocator = nullptr;
+    Pool<VulkanCommandBuffer, CommandBuffer>   cmd_buffer_pool;
+    Pool<VulkanCommandPool, CommandPool>       cmd_pool_pool;
+    VulkanTempMemoryBlockAllocator*            temp_gpu_allocator = nullptr;
 };
 
 struct VulkanResourceManagerApi
 {
-    static VulkanTexture*        GetTexture(Handle<Texture> Resource);
-    static VulkanTextureSampler* GetTextureSampler(Handle<TextureSampler> Resource);
-    static VulkanBuffer*         GetBuffer(Handle<Buffer> Resource);
-    static VulkanRenderPass*     GetRenderPass(Handle<RenderPass> Resource);
-    static VulkanCommandBuffer*  GetCommandBuffer(Handle<CommandBuffer> Resource);
-    static VulkanCommandPool*    GetCommandPool(Handle<CommandPool> Resource);
+    static VulkanTexture*        GetTexture(Handle<Texture> handle);
+    static VulkanTextureSampler* GetTextureSampler(Handle<TextureSampler> handle);
+    static VulkanBuffer*         GetBuffer(Handle<Buffer> handle);
+    static VulkanRenderPass*     GetRenderPass(Handle<RenderPass> handle);
+    static VulkanCommandBuffer*  GetCommandBuffer(Handle<CommandBuffer> handle);
+    static VulkanCommandPool*    GetCommandPool(Handle<CommandPool> handle);
 };
 
-struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena);
-void                    DestroyVulkanResourceManager(struct ResourceManager* ResourceManager);
+struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena);
+void                    DestroyVulkanResourceManager(struct ResourceManager* resource_manager);
 
 } // namespace kraft::r

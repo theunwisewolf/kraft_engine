@@ -26,7 +26,11 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
 
     // Query swapchain support info once more to get the most updated values
     // in case of window resize
-    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo.SurfaceCapabilities));
+    KRAFT_VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+        context->PhysicalDevice.Handle,
+        context->Surface,
+        &context->PhysicalDevice.SwapchainSupportInfo.SurfaceCapabilities
+    ));
     // VulkanGetSwapchainSupportInfo(context->PhysicalDevice.Handle, context->Surface, &context->PhysicalDevice.SwapchainSupportInfo);
 
     // Find a suitable image format
@@ -44,7 +48,9 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
         for (u32 i = 0; i < info.FormatCount; ++i)
         {
             VkSurfaceFormatKHR surface_format = info.Formats[i];
-            if ((surface_format.format == VK_FORMAT_R8G8B8A8_UNORM /*|| surface_format.format == VK_FORMAT_B8G8R8A8_UNORM*/) && surface_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            if ((surface_format.format ==
+                 VK_FORMAT_R8G8B8A8_UNORM /*|| surface_format.format == VK_FORMAT_B8G8R8A8_UNORM*/) &&
+                surface_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 context->Swapchain.ImageFormat = surface_format;
                 found = true;
@@ -90,7 +96,8 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
     context->FramebufferHeight = extent.height;
 
     context->Swapchain.ImageCount = info.SurfaceCapabilities.minImageCount + 1;
-    if (info.SurfaceCapabilities.maxImageCount > 0 && context->Swapchain.ImageCount > info.SurfaceCapabilities.maxImageCount)
+    if (info.SurfaceCapabilities.maxImageCount > 0 &&
+        context->Swapchain.ImageCount > info.SurfaceCapabilities.maxImageCount)
     {
         context->Swapchain.ImageCount = info.SurfaceCapabilities.maxImageCount;
     }
@@ -112,9 +119,11 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
     swapchain_create_info.clipped = VK_TRUE;
     swapchain_create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    const u32 queue_family_indices[2] = { (u32)context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex, (u32)context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
+    const u32 queue_family_indices[2] = { (u32)context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex,
+                                          (u32)context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex };
 
-    if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex != context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
+    if (context->PhysicalDevice.QueueFamilyInfo.GraphicsQueueIndex !=
+        context->PhysicalDevice.QueueFamilyInfo.PresentQueueIndex)
     {
         swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         swapchain_create_info.queueFamilyIndexCount = 2;
@@ -125,15 +134,27 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
         swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    KRAFT_VK_CHECK(vkCreateSwapchainKHR(context->LogicalDevice.Handle, &swapchain_create_info, context->AllocationCallbacks, &context->Swapchain.Resource));
+    KRAFT_VK_CHECK(vkCreateSwapchainKHR(
+        context->LogicalDevice.Handle,
+        &swapchain_create_info,
+        context->AllocationCallbacks,
+        &context->Swapchain.Resource
+    ));
 
     context->Swapchain.ImageCount = 0;
-    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, 0));
+    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(
+        context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, 0
+    ));
     // TODO: Need a "renderer config" to actually set the required/max swapchain images
     context->Swapchain.ImageCount = (context->Swapchain.ImageCount > 3 ? 3 : context->Swapchain.ImageCount);
 
     // Grab the images from the swapchain
-    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, &context->Swapchain.ImageCount, context->Swapchain.Images));
+    KRAFT_VK_CHECK(vkGetSwapchainImagesKHR(
+        context->LogicalDevice.Handle,
+        context->Swapchain.Resource,
+        &context->Swapchain.ImageCount,
+        context->Swapchain.Images
+    ));
 
     // Create Image views
     for (u32 i = 0; i < context->Swapchain.ImageCount; ++i)
@@ -148,7 +169,9 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
         info.subresourceRange.baseArrayLayer = 0;
         info.subresourceRange.layerCount = 1;
 
-        KRAFT_VK_CHECK(vkCreateImageView(context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->Swapchain.ImageViews[i]));
+        KRAFT_VK_CHECK(vkCreateImageView(
+            context->LogicalDevice.Handle, &info, context->AllocationCallbacks, &context->Swapchain.ImageViews[i]
+        ));
     }
 
     // Convert depth format
@@ -172,7 +195,8 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
     // Figure out the sample count and create the required targets
     {
         u8                 requested = context->Options->MSAASamples;
-        VkSampleCountFlags supported = context->PhysicalDevice.Properties.limits.framebufferColorSampleCounts & context->PhysicalDevice.Properties.limits.framebufferDepthSampleCounts;
+        VkSampleCountFlags supported = context->PhysicalDevice.Properties.limits.framebufferColorSampleCounts &
+                                       context->PhysicalDevice.Properties.limits.framebufferDepthSampleCounts;
 
         VkSampleCountFlagBits msaa = VK_SAMPLE_COUNT_1_BIT;
         if (requested >= 8 && (supported & VK_SAMPLE_COUNT_8_BIT))
@@ -197,7 +221,8 @@ void VulkanCreateSwapchain(VulkanContext* context, u32 width, u32 height, bool e
                 .DebugName = "MSAA-Color",
                 .Dimensions = { (f32)extent.width, (f32)extent.height, 1, 4 },
                 .Format = Format::RGBA8_UNORM,
-                .Usage = (u64)(TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT | TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT),
+                .Usage = (u64)(TextureUsageFlags::TEXTURE_USAGE_FLAGS_COLOR_ATTACHMENT |
+                               TextureUsageFlags::TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT),
                 .SampleCount = sample_count,
             });
 
@@ -237,7 +262,9 @@ void VulkanDestroySwapchain(VulkanContext* context)
     vkDeviceWaitIdle(context->LogicalDevice.Handle);
     for (u32 i = 0; i < context->Swapchain.ImageCount; ++i)
     {
-        vkDestroyImageView(context->LogicalDevice.Handle, context->Swapchain.ImageViews[i], context->AllocationCallbacks);
+        vkDestroyImageView(
+            context->LogicalDevice.Handle, context->Swapchain.ImageViews[i], context->AllocationCallbacks
+        );
         context->Swapchain.ImageViews[i] = 0;
     }
 
@@ -252,9 +279,22 @@ void VulkanRecreateSwapchain(VulkanContext* context)
     VulkanCreateSwapchain(context, context->FramebufferWidth, context->FramebufferHeight, context->Options->VSync);
 }
 
-bool VulkanAcquireNextImageIndex(VulkanContext* context, u64 timeout_nanoseconds, VkSemaphore image_available_semaphore, VkFence fence, u32* out)
+bool VulkanAcquireNextImageIndex(
+    VulkanContext* context,
+    u64            timeout_nanoseconds,
+    VkSemaphore    image_available_semaphore,
+    VkFence        fence,
+    u32*           out
+)
 {
-    VkResult result = vkAcquireNextImageKHR(context->LogicalDevice.Handle, context->Swapchain.Resource, timeout_nanoseconds, image_available_semaphore, fence, out);
+    VkResult result = vkAcquireNextImageKHR(
+        context->LogicalDevice.Handle,
+        context->Swapchain.Resource,
+        timeout_nanoseconds,
+        image_available_semaphore,
+        fence,
+        out
+    );
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         VulkanRecreateSwapchain(context);

@@ -1,22 +1,13 @@
 #include <volk/volk.h>
 
-#include "kraft_vulkan_resource_manager.h"
-
-#include <renderer/kraft_resource_pool.inl>
-
-#include <resources/kraft_resource_types.h>
-
-#include "kraft_vulkan_includes.h"
+#include "kraft_includes.h"
 
 namespace kraft::r {
 
-static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 type_filter, u32 property_flags)
-{
-    for (u32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i)
-    {
+static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 type_filter, u32 property_flags) {
+    for (u32 i = 0; i < device.MemoryProperties.memoryTypeCount; ++i) {
         VkMemoryType type = device.MemoryProperties.memoryTypes[i];
-        if (type_filter & (1 << i) && (type.propertyFlags & property_flags) == property_flags)
-        {
+        if (type_filter & (1 << i) && (type.propertyFlags & property_flags) == property_flags) {
             return i;
         }
     }
@@ -24,22 +15,19 @@ static i32 FindMemoryIndex(VulkanPhysicalDevice device, u32 type_filter, u32 pro
     return -1;
 }
 
-static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, i32 type_filter, VkMemoryPropertyFlags property_flags, VkMemoryAllocateFlags allocate_flags, VkDeviceMemory* out)
-{
+static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, i32 type_filter, VkMemoryPropertyFlags property_flags, VkMemoryAllocateFlags allocate_flags, VkDeviceMemory* out) {
     i32 memory_type_index = FindMemoryIndex(context->PhysicalDevice, type_filter, property_flags);
-    if (memory_type_index == -1)
-    {
+    if (memory_type_index == -1) {
         KERROR("[VulkanAllocateMemory]: Failed to find suitable memoryType");
         return false;
     }
 
-    VkMemoryAllocateInfo info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+    VkMemoryAllocateInfo info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     info.allocationSize = size;
     info.memoryTypeIndex = memory_type_index;
 
-    if (allocate_flags)
-    {
-        VkMemoryAllocateFlagsInfo flags_info = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO };
+    if (allocate_flags) {
+        VkMemoryAllocateFlagsInfo flags_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
         flags_info.flags = allocate_flags;
         info.pNext = &flags_info;
     }
@@ -50,95 +38,83 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, i32 
     return true;
 }
 
-void VulkanTempMemoryBlockAllocator::Initialize(ArenaAllocator* Arena, u64 BlockSize)
-{
-    this->BlockSize = BlockSize;
+void VulkanTempMemoryBlockAllocator::Initialize(ArenaAllocator* arena, u64 block_size) {
+    this->block_size = block_size;
 }
 
-void VulkanTempMemoryBlockAllocator::Destroy()
-{}
+void VulkanTempMemoryBlockAllocator::Destroy() {}
 
-void VulkanTempMemoryBlockAllocator::Clear()
-{
-    if (CurrentBlock)
-        while (CurrentBlock->Prev)
-            CurrentBlock = CurrentBlock->Prev;
+void VulkanTempMemoryBlockAllocator::Clear() {
+    if (current_block)
+        while (current_block->prev)
+            current_block = current_block->prev;
 
-    CurrentFreeOffset = 0;
-    AllocationCount = 0;
+    current_free_offset = 0;
+    allocation_count = 0;
 }
 
-BufferView VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* Arena, u64 Size, u64 Alignment)
-{
-    if (!CurrentBlock)
-    {
-        CurrentBlock = ArenaPush(Arena, TempMemoryBlock);
-        CurrentBlock->Block = AllocateGPUMemory(Arena);
+BufferView VulkanTempMemoryBlockAllocator::Allocate(ArenaAllocator* arena, u64 size, u64 alignment) {
+    if (!current_block) {
+        current_block = ArenaPush(arena, TempMemoryBlock);
+        current_block->block = AllocateGPUMemory(arena);
     }
 
-    KASSERT(Size <= this->BlockSize);
-    u64 Offset = kraft::math::AlignUp(this->CurrentFreeOffset, Alignment);
-    this->CurrentFreeOffset = Offset + Size;
+    KASSERT(size <= this->block_size);
+    u64 offset = kraft::math::AlignUp(this->current_free_offset, alignment);
+    this->current_free_offset = offset + size;
 
     // We cannot fit the incoming request into this block, allocate a new block
-    if (this->CurrentFreeOffset > this->BlockSize)
-    {
+    if (this->current_free_offset > this->block_size) {
         // Are there any previously allocated blocks ahead of this block?
-        if (!CurrentBlock->Next)
-        {
-            TempMemoryBlock* NewBlock = ArenaPush(Arena, TempMemoryBlock);
-            NewBlock->Prev = CurrentBlock;
-            CurrentBlock->Next = NewBlock;
-            CurrentBlock = NewBlock;
-            CurrentBlock->Block = AllocateGPUMemory(Arena);
+        if (!current_block->next) {
+            TempMemoryBlock* new_block = ArenaPush(arena, TempMemoryBlock);
+            new_block->prev = current_block;
+            current_block->next = new_block;
+            current_block = new_block;
+            current_block->block = AllocateGPUMemory(arena);
         }
 
-        Offset = 0;
-        this->CurrentFreeOffset = Size;
+        offset = 0;
+        this->current_free_offset = size;
     }
 
-    KASSERT(this->CurrentBlock->Block.GPUBuffer);
+    KASSERT(this->current_block->block.GPUBuffer);
 
-    this->AllocationCount++;
+    this->allocation_count++;
     return {
-        .GPUBuffer = CurrentBlock->Block.GPUBuffer,
-        .Ptr = CurrentBlock->Block.Ptr + Offset,
-        .Offset = Offset,
+        .GPUBuffer = current_block->block.GPUBuffer,
+        .Ptr = current_block->block.Ptr + offset,
+        .Offset = offset,
     };
 }
 
-BufferView VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* Arena)
-{
-    Handle<Buffer> Buf = ResourceManager->CreateBuffer({
+BufferView VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* arena) {
+    Handle<Buffer> buf = ResourceManager->CreateBuffer({
         .DebugName = "VkTempMemoryBlockAllocator",
-        .Size = BlockSize,
+        .Size = block_size,
         .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
         .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
         .MapMemory = true,
     });
 
-    KASSERT(Buf != Handle<Buffer>::Invalid());
+    KASSERT(buf != Handle<Buffer>::Invalid());
 
     return BufferView{
-        .GPUBuffer = Buf,
-        .Ptr = ResourceManager->GetBufferData(Buf),
+        .GPUBuffer = buf,
+        .Ptr = ResourceManager->GetBufferData(buf),
     };
 }
 
-static VkImageAspectFlags GetImageAspectMask(Format::Enum Type)
-{
-    if (Type == Format::RGB8_UNORM || Type == Format::RGBA8_UNORM || Type == Format::BGRA8_UNORM || Type == Format::BGR8_UNORM || Type == Format::R32_SFLOAT)
-    {
+static VkImageAspectFlags GetImageAspectMask(Format::Enum type) {
+    if (type == Format::RGB8_UNORM || type == Format::RGBA8_UNORM || type == Format::BGRA8_UNORM || type == Format::BGR8_UNORM || type == Format::R32_SFLOAT) {
         return VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
-    if (Type == Format::D16_UNORM || Type == Format::D32_SFLOAT)
-    {
+    if (type == Format::D16_UNORM || type == Format::D32_SFLOAT) {
         return VK_IMAGE_ASPECT_DEPTH_BIT;
     }
 
-    if (Type >= Format::D16_UNORM_S8_UINT)
-    {
+    if (type >= Format::D16_UNORM_S8_UINT) {
         return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
     }
 
@@ -147,64 +123,56 @@ static VkImageAspectFlags GetImageAspectMask(Format::Enum Type)
 
 static VulkanResourceManagerState* state = nullptr;
 
-static void Clear()
-{
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
+static void Clear() {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
 
     // We don't have to check if the handle to any resource is invalid here in any of the cleanup code
     // because vk___ functions don't do anything if the passed handle is "NULL"
 
-    for (int i = 0; i < state->RenderPassPool.GetSize(); i++)
-    {
-        VulkanRenderPass& RenderPass = state->RenderPassPool.Data[i];
-        vkDeviceWaitIdle(Device);
+    for (int i = 0; i < state->RenderPassPool.GetSize(); i++) {
+        VulkanRenderPass& RenderPass = state->RenderPassPool.data[i];
+        vkDeviceWaitIdle(device);
 
-        vkDestroyFramebuffer(Device, RenderPass.Framebuffer.Handle, Context->AllocationCallbacks);
-        vkDestroyRenderPass(Device, RenderPass.Handle, Context->AllocationCallbacks);
+        vkDestroyFramebuffer(device, RenderPass.Framebuffer.Handle, context->AllocationCallbacks);
+        vkDestroyRenderPass(device, RenderPass.Handle, context->AllocationCallbacks);
 
         RenderPass.Framebuffer.Handle = 0;
         RenderPass.Handle = 0;
     }
 
-    for (int i = 0; i < state->TexturePool.GetSize(); i++)
-    {
-        VulkanTexture& Texture = state->TexturePool.Data[i];
-        if (Texture.View)
-        {
-            vkDestroyImageView(Device, Texture.View, Context->AllocationCallbacks);
-            Texture.View = 0;
+    for (int i = 0; i < state->texture_pool.GetSize(); i++) {
+        VulkanTexture& texture = state->texture_pool.data[i];
+        if (texture.View) {
+            vkDestroyImageView(device, texture.View, context->AllocationCallbacks);
+            texture.View = 0;
         }
 
-        if (Texture.Memory)
-        {
-            vkFreeMemory(Device, Texture.Memory, Context->AllocationCallbacks);
-            Texture.Memory = 0;
+        if (texture.Memory) {
+            vkFreeMemory(device, texture.Memory, context->AllocationCallbacks);
+            texture.Memory = 0;
         }
 
-        if (Texture.Image)
-        {
-            vkDestroyImage(Device, Texture.Image, Context->AllocationCallbacks);
-            Texture.Image = 0;
+        if (texture.Image) {
+            vkDestroyImage(device, texture.Image, context->AllocationCallbacks);
+            texture.Image = 0;
         }
     }
 
-    for (int i = 0; i < state->TextureSamplerPool.GetSize(); i++)
-    {
-        VulkanTextureSampler& TextureSampler = state->TextureSamplerPool.Data[i];
+    for (int i = 0; i < state->texture_sampler_pool.GetSize(); i++) {
+        VulkanTextureSampler& sampler = state->texture_sampler_pool.data[i];
 
-        vkDestroySampler(Device, TextureSampler.Sampler, Context->AllocationCallbacks);
-        TextureSampler.Sampler = 0;
+        vkDestroySampler(device, sampler.Sampler, context->AllocationCallbacks);
+        sampler.Sampler = 0;
     }
 
-    for (int i = 0; i < state->BufferPool.GetSize(); i++)
-    {
-        VulkanBuffer& Buffer = state->BufferPool.Data[i];
-        vkFreeMemory(Device, Buffer.Memory, Context->AllocationCallbacks);
-        vkDestroyBuffer(Device, Buffer.Handle, Context->AllocationCallbacks);
+    for (int i = 0; i < state->buffer_pool.GetSize(); i++) {
+        VulkanBuffer& buffer = state->buffer_pool.data[i];
+        vkFreeMemory(device, buffer.Memory, context->AllocationCallbacks);
+        vkDestroyBuffer(device, buffer.Handle, context->AllocationCallbacks);
 
-        Buffer.Memory = 0;
-        Buffer.Handle = 0;
+        buffer.Memory = 0;
+        buffer.Handle = 0;
     }
 
     // We don't have to release command buffers individually, we can just delete the pool they were allocated from
@@ -213,36 +181,33 @@ static void Clear()
     //     CommandBuffer&       CmdBufferMetadata = state->CmdBufferPool.AuxiliaryData[i];
     //     VulkanCommandBuffer& CmdBuffer = state->CmdBufferPool.Data[i];
 
-    //     vkFreeCommandBuffers(Device, CmdBuffer.Pool, 1, &CmdBuffer.Resource);
+    //     vkFreeCommandBuffers(device, CmdBuffer.Pool, 1, &CmdBuffer.Resource);
     //     CmdBuffer.Resource = 0;
     //     CmdBuffer.Pool = 0;
     //     CmdBuffer.State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
     // }
 
-    for (int i = 0; i < state->CmdPoolPool.GetSize(); i++)
-    {
-        VulkanCommandPool& CmdPool = state->CmdPoolPool.Data[i];
-        vkDestroyCommandPool(Device, CmdPool.Resource, Context->AllocationCallbacks);
-        CmdPool.Resource = 0;
+    for (int i = 0; i < state->cmd_pool_pool.GetSize(); i++) {
+        VulkanCommandPool& cmd_pool = state->cmd_pool_pool.data[i];
+        vkDestroyCommandPool(device, cmd_pool.Resource, context->AllocationCallbacks);
+        cmd_pool.Resource = 0;
     }
 }
 
-static Handle<Texture> CreateTexture(const TextureDescription& description)
-{
+static Handle<Texture> CreateTexture(const TextureDescription& description) {
     KASSERT(description.Dimensions.x > 0 && description.Dimensions.y > 0 && description.Dimensions.z > 0 && description.Dimensions.w > 0);
 
     VulkanContext* context = VulkanRendererBackend::Context();
-    VkDevice       device = context->LogicalDevice.Handle;
-    VulkanTexture  output = {};
+    VkDevice device = context->LogicalDevice.Handle;
+    VulkanTexture output = {};
 
     // Create a VkImage
-    if (description.Tiling == TextureTiling::Linear)
-    {
+    if (description.Tiling == TextureTiling::Linear) {
         KASSERT(description.Type == TextureType::Type2D);
         // TODO: Depth format restrictions check
     }
 
-    VkImageCreateInfo create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    VkImageCreateInfo create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     create_info.imageType = ToVulkanImageType(description.Type);
     create_info.format = ToVulkanFormat(description.Format);
     create_info.extent.width = (u32)description.Dimensions.x;
@@ -257,41 +222,41 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
     create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     // If we have a depth format, ensure it is supported by the physical device
-    if (description.Format >= Format::D16_UNORM && create_info.format != context->PhysicalDevice.DepthBufferFormat)
-    {
+    if (description.Format >= Format::D16_UNORM && create_info.format != context->PhysicalDevice.DepthBufferFormat) {
         VkImageFormatProperties format_properties;
-        VkResult                result = vkGetPhysicalDeviceImageFormatProperties(
+        VkResult result = vkGetPhysicalDeviceImageFormatProperties(
             context->PhysicalDevice.Handle, create_info.format, create_info.imageType, create_info.tiling, create_info.usage, create_info.flags, &format_properties
         );
-        if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
-        {
-            KWARN("Supplied image format: %s is not supported by the GPU; Falling back to default depth buffer format.", Format::String(description.Format));
+        if (result == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+            KWARN(
+                "Supplied image format: %s is not supported by the GPU; Falling back to default "
+                "depth buffer format.",
+                Format::String(description.Format)
+            );
             create_info.format = context->PhysicalDevice.DepthBufferFormat;
         }
     }
 
     // Ensure the image format is supported
-    VkResult Result = vkCreateImage(device, &create_info, context->AllocationCallbacks, &output.Image);
-    if (Result != VK_SUCCESS)
-    {
+    VkResult result = vkCreateImage(device, &create_info, context->AllocationCallbacks, &output.Image);
+    if (result != VK_SUCCESS) {
         return Handle<Texture>::Invalid();
     }
 
-    context->SetObjectName((u64)output.Image, VK_OBJECT_TYPE_IMAGE, description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(output.Image, VK_OBJECT_TYPE_IMAGE, description.DebugName);
 
-    VkMemoryRequirements memory_requirements;
+    VkMemoryRequirements memory_requirements = {};
     vkGetImageMemoryRequirements(device, output.Image, &memory_requirements);
-    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &output.Memory))
-    {
+    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &output.Memory)) {
         return Handle<Texture>::Invalid();
     }
 
-    context->SetObjectName((u64)output.Memory, VK_OBJECT_TYPE_DEVICE_MEMORY, description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(output.Memory, VK_OBJECT_TYPE_DEVICE_MEMORY, description.DebugName);
 
     KRAFT_VK_CHECK(vkBindImageMemory(device, output.Image, output.Memory, 0));
 
     // Now create the image view
-    VkImageViewCreateInfo view_create_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    VkImageViewCreateInfo view_create_info = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view_create_info.image = output.Image;
     view_create_info.viewType = description.Type == TextureType::Type2D ? VK_IMAGE_VIEW_TYPE_2D : (description.Type == TextureType::Type1D ? VK_IMAGE_VIEW_TYPE_1D : VK_IMAGE_VIEW_TYPE_3D);
     view_create_info.format = create_info.format;
@@ -306,9 +271,9 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
     // ImageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
 
     KRAFT_VK_CHECK(vkCreateImageView(device, &view_create_info, context->AllocationCallbacks, &output.View));
-    context->SetObjectName((u64)output.View, VK_OBJECT_TYPE_IMAGE_VIEW, description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(output.View, VK_OBJECT_TYPE_IMAGE_VIEW, description.DebugName);
 
-    Texture Metadata = {
+    Texture metadata = {
         .Width = description.Dimensions.x,
         .Height = description.Dimensions.y,
         .Channels = (u8)description.Dimensions.w,
@@ -316,122 +281,110 @@ static Handle<Texture> CreateTexture(const TextureDescription& description)
         .SampleCount = description.SampleCount,
     };
 
-    StringCopy(Metadata.DebugName, description.DebugName);
+    StringCopy(metadata.DebugName, description.DebugName);
 
-    return state->TexturePool.Insert(Metadata, output);
+    return state->texture_pool.Insert(metadata, output);
 }
 
-static Handle<TextureSampler> CreateTextureSampler(const TextureSamplerDescription& Description)
-{
-    VulkanContext*       Context = VulkanRendererBackend::Context();
-    VkDevice             Device = Context->LogicalDevice.Handle;
-    VulkanTextureSampler Output = {};
+static Handle<TextureSampler> CreateTextureSampler(const TextureSamplerDescription& description) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+    VulkanTextureSampler output = {};
 
-    VkSamplerCreateInfo SamplerInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    SamplerInfo.magFilter = ToVulkanFilter(Description.MagFilter);
-    SamplerInfo.minFilter = ToVulkanFilter(Description.MinFilter);
-    SamplerInfo.addressModeU = ToVulkanSamplerAddressMode(Description.WrapModeU);
-    SamplerInfo.addressModeV = ToVulkanSamplerAddressMode(Description.WrapModeV);
-    SamplerInfo.addressModeW = ToVulkanSamplerAddressMode(Description.WrapModeW);
-    SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    SamplerInfo.compareEnable = Description.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
-    SamplerInfo.compareOp = ToVulkanCompareOp(Description.Compare);
-    SamplerInfo.mipmapMode = ToVulkanSamplerMipMapMode(Description.MipMapMode);
-    SamplerInfo.maxAnisotropy = Description.AnisotropyEnabled ? 16.0f : 1.0f;
-    SamplerInfo.anisotropyEnable = Description.AnisotropyEnabled;
-    SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+    VkSamplerCreateInfo info = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    info.magFilter = ToVulkanFilter(description.MagFilter);
+    info.minFilter = ToVulkanFilter(description.MinFilter);
+    info.addressModeU = ToVulkanSamplerAddressMode(description.WrapModeU);
+    info.addressModeV = ToVulkanSamplerAddressMode(description.WrapModeV);
+    info.addressModeW = ToVulkanSamplerAddressMode(description.WrapModeW);
+    info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    info.compareEnable = description.Compare > CompareOp::Never ? VK_TRUE : VK_FALSE;
+    info.compareOp = ToVulkanCompareOp(description.Compare);
+    info.mipmapMode = ToVulkanSamplerMipMapMode(description.MipMapMode);
+    info.maxAnisotropy = description.AnisotropyEnabled ? 16.0f : 1.0f;
+    info.anisotropyEnable = description.AnisotropyEnabled;
+    info.unnormalizedCoordinates = VK_FALSE;
 
-    KRAFT_VK_CHECK(vkCreateSampler(Device, &SamplerInfo, Context->AllocationCallbacks, &Output.Sampler));
-    Context->SetObjectName((u64)Output.Sampler, VK_OBJECT_TYPE_SAMPLER, Description.DebugName);
+    KRAFT_VK_CHECK(vkCreateSampler(device, &info, context->AllocationCallbacks, &output.Sampler));
+    KRAFT_RENDERER_SET_OBJECT_NAME(output.Sampler, VK_OBJECT_TYPE_SAMPLER, description.DebugName);
 
-    TextureSampler Metadata{};
+    TextureSampler metadata{};
 
-    return state->TextureSamplerPool.Insert(Metadata, Output);
+    return state->texture_sampler_pool.Insert(metadata, output);
 }
 
-static Handle<Buffer> CreateBuffer(const BufferDescription& Description)
-{
-    VulkanContext*        context = VulkanRendererBackend::Context();
-    VkDevice              device = context->LogicalDevice.Handle;
-    VulkanBuffer          output = {};
-    VkMemoryPropertyFlags memory_properties = ToVulkanMemoryPropertyFlags(Description.MemoryPropertyFlags);
-    VkMemoryAllocateFlags allocate_flags = ToVulkanMemoryAllocateFlags(Description.MemoryAllocationFlags);
-    u64                   actual_size = Description.Size; // TODO: Fix
+static Handle<Buffer> CreateBuffer(const BufferDescription& description) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+    VulkanBuffer output = {};
+    VkMemoryPropertyFlags memory_properties = ToVulkanMemoryPropertyFlags(description.MemoryPropertyFlags);
+    VkMemoryAllocateFlags allocate_flags = ToVulkanMemoryAllocateFlags(description.MemoryAllocationFlags);
+    u64 actual_size = description.Size; // TODO: Fix
 
-    if (Description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER)
-    {
+    if (description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER) {
         actual_size = math::AlignUp(actual_size, context->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment);
-    }
-    else if (Description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER)
-    {
+    } else if (description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_STORAGE_BUFFER) {
         actual_size = math::AlignUp(actual_size, context->PhysicalDevice.Properties.limits.minStorageBufferOffsetAlignment);
     }
 
-    VkBufferCreateInfo create_info = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    VkBufferCreateInfo create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     create_info.size = actual_size;
-    create_info.sharingMode = ToVulkanSharingMode(Description.SharingMode);
-    create_info.usage = ToVulkanBufferUsage(Description.UsageFlags);
+    create_info.sharingMode = ToVulkanSharingMode(description.SharingMode);
+    create_info.usage = ToVulkanBufferUsage(description.UsageFlags);
 
     KRAFT_VK_CHECK(vkCreateBuffer(device, &create_info, context->AllocationCallbacks, &output.Handle));
-    context->SetObjectName((u64)output.Handle, VK_OBJECT_TYPE_BUFFER, Description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(output.Handle, VK_OBJECT_TYPE_BUFFER, description.DebugName);
 
     VkMemoryRequirements memory_requirements;
     vkGetBufferMemoryRequirements(device, output.Handle, &memory_requirements);
 
-    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, memory_properties, allocate_flags, &output.Memory))
-    {
+    if (!VulkanAllocateMemory(context, memory_requirements.size, memory_requirements.memoryTypeBits, memory_properties, allocate_flags, &output.Memory)) {
         return Handle<Buffer>::Invalid();
     }
 
-    if (Description.BindMemory)
-    {
+    if (description.BindMemory) {
         KRAFT_VK_CHECK(vkBindBufferMemory(device, output.Handle, output.Memory, 0));
     }
 
     // Get the device address if this buffer is to be used as a raw pointer in shaders
-    if (Description.MemoryPropertyFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS)
-    {
-        VkBufferDeviceAddressInfo addr_info = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+    if (description.MemoryPropertyFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS) {
+        VkBufferDeviceAddressInfo addr_info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
         addr_info.buffer = output.Handle;
         output.device_address = vkGetBufferDeviceAddress(device, &addr_info);
     }
 
     void* ptr = nullptr;
-    if (Description.MapMemory)
-    {
+    if (description.MapMemory) {
         vkMapMemory(device, output.Memory, 0, VK_WHOLE_SIZE, 0, &ptr);
     }
 
-    return state->BufferPool.Insert({ .Size = actual_size, .Ptr = ptr }, output);
+    return state->buffer_pool.Insert({.Size = actual_size, .Ptr = ptr}, output);
 }
 
-static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& description)
-{
+static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& description) {
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
     return Handle<RenderPass>::Invalid();
 #endif
 
     VulkanContext* context = VulkanRendererBackend::Context();
-    VkDevice       device = context->LogicalDevice.Handle;
+    VkDevice device = context->LogicalDevice.Handle;
 
-    VkSubpassDescription    subpasses[8];
-    u32                     subpasses_index = 0;
-    VkAttachmentReference   depth_attachment_ref;
-    VkAttachmentReference   color_attachment_refs[31] = {};
-    u32                     attachment_refs_index = 0;
+    VkSubpassDescription subpasses[8];
+    u32 subpasses_index = 0;
+    VkAttachmentReference depth_attachment_ref;
+    VkAttachmentReference color_attachment_refs[31] = {};
+    u32 attachment_refs_index = 0;
     VkAttachmentDescription attachments[31 + 1] = {};
-    VkImageView             framebuffer_image_views[31 + 1] = {};
-    u32                     attachments_index = 0;
+    VkImageView framebuffer_image_views[31 + 1] = {};
+    u32 attachments_index = 0;
 
     bool has_depth_target = false;
-    for (i32 i = 0; i < description.Layout.Subpasses.Size(); i++)
-    {
+    for (i32 i = 0; i < description.Layout.Subpasses.Size(); i++) {
         const RenderPassSubpass& subpass = description.Layout.Subpasses[i];
         subpasses[subpasses_index] = {};
         subpasses[subpasses_index].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-        if (subpass.DepthTarget)
-        {
+        if (subpass.DepthTarget) {
             has_depth_target = true;
             depth_attachment_ref.attachment = (u32)description.ColorTargets.Size(); // Depth attachment will always be at the end
             depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -439,12 +392,10 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
             subpasses[subpasses_index].pDepthStencilAttachment = &depth_attachment_ref;
         }
 
-        if (subpass.ColorTargetSlots.Size() > 0)
-        {
+        if (subpass.ColorTargetSlots.Size() > 0) {
             subpasses[subpasses_index].colorAttachmentCount = (u32)subpass.ColorTargetSlots.Size();
             subpasses[subpasses_index].pColorAttachments = color_attachment_refs + attachment_refs_index;
-            for (int j = 0; j < subpass.ColorTargetSlots.Size(); j++)
-            {
+            for (int j = 0; j < subpass.ColorTargetSlots.Size(); j++) {
                 color_attachment_refs[attachment_refs_index].attachment = subpass.ColorTargetSlots[j];
                 color_attachment_refs[attachment_refs_index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
@@ -456,11 +407,10 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
     }
 
     // Create color attachments
-    for (i32 i = 0; i < description.ColorTargets.Size(); i++)
-    {
+    for (i32 i = 0; i < description.ColorTargets.Size(); i++) {
         const ColorTarget& target = description.ColorTargets[i];
-        Texture*           texture = state->TexturePool.GetAuxiliaryData(target.Texture);
-        VulkanTexture*     vk_texture = state->TexturePool.Get(target.Texture);
+        Texture* texture = state->texture_pool.GetAuxiliaryData(target.Texture);
+        VulkanTexture* vk_texture = state->texture_pool.Get(target.Texture);
 
         attachments[attachments_index] = {};
         attachments[attachments_index].format = ToVulkanFormat(texture->TextureFormat);
@@ -475,10 +425,9 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
         attachments_index++;
     }
 
-    if (has_depth_target)
-    {
-        Texture*       depth_texture = state->TexturePool.GetAuxiliaryData(description.DepthTarget.Texture);
-        VulkanTexture* vk_depth_texture = state->TexturePool.Get(description.DepthTarget.Texture);
+    if (has_depth_target) {
+        Texture* depth_texture = state->texture_pool.GetAuxiliaryData(description.DepthTarget.Texture);
+        VulkanTexture* vk_depth_texture = state->texture_pool.Get(description.DepthTarget.Texture);
 
         attachments[attachments_index] = {};
         attachments[attachments_index].format = ToVulkanFormat(depth_texture->TextureFormat);
@@ -517,7 +466,7 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
     dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-    VkRenderPassCreateInfo create_info = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+    VkRenderPassCreateInfo create_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
     create_info.attachmentCount = attachments_index;
     create_info.pAttachments = attachments;
     create_info.dependencyCount = 2;
@@ -527,11 +476,11 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
 
     VulkanRenderPass out_render_pass;
     KRAFT_VK_CHECK(vkCreateRenderPass(device, &create_info, context->AllocationCallbacks, &out_render_pass.Handle));
-    context->SetObjectName((u64)out_render_pass.Handle, VK_OBJECT_TYPE_RENDER_PASS, description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(out_render_pass.Handle, VK_OBJECT_TYPE_RENDER_PASS, description.DebugName);
 
     out_render_pass.Framebuffer.AttachmentCount = attachments_index;
 
-    VkFramebufferCreateInfo info = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    VkFramebufferCreateInfo info = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     info.attachmentCount = attachments_index;
     info.pAttachments = framebuffer_image_views;
     info.width = (u32)description.Dimensions.x;
@@ -540,7 +489,7 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
     info.layers = 1;
 
     KRAFT_VK_CHECK(vkCreateFramebuffer(device, &info, context->AllocationCallbacks, &out_render_pass.Framebuffer.Handle));
-    context->SetObjectName((u64)out_render_pass.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(out_render_pass.Framebuffer.Handle, VK_OBJECT_TYPE_FRAMEBUFFER, description.DebugName);
 
     return state->RenderPassPool.Insert(
         {
@@ -552,447 +501,409 @@ static Handle<RenderPass> CreateRenderPass(const RenderPassDescription& descript
     );
 }
 
-static Handle<CommandBuffer> CreateCommandBuffer(const CommandBufferDescription& Description)
-{
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
+static Handle<CommandBuffer> CreateCommandBuffer(const CommandBufferDescription& description) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
 
     // If no command pool is specified, use the default one
-    VulkanCommandPool* CmdPool;
-    if (Description.CommandPool)
-    {
-        CmdPool = state->CmdPoolPool.Get(Description.CommandPool);
-    }
-    else
-    {
-        CmdPool = state->CmdPoolPool.Get(Context->GraphicsCommandPool);
+    VulkanCommandPool* cmd_pool = {};
+    if (description.CommandPool) {
+        cmd_pool = state->cmd_pool_pool.Get(description.CommandPool);
+    } else {
+        cmd_pool = state->cmd_pool_pool.Get(context->GraphicsCommandPool);
     }
 
-    VkCommandBufferAllocateInfo AllocateInfo = {};
-    AllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    AllocateInfo.commandPool = CmdPool->Resource;
-    AllocateInfo.level = Description.Primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-    AllocateInfo.commandBufferCount = 1;
+    VkCommandBufferAllocateInfo allocate_info = {};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = cmd_pool->Resource;
+    allocate_info.level = description.Primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    allocate_info.commandBufferCount = 1;
 
-    VulkanCommandBuffer Out;
-    KRAFT_VK_CHECK(vkAllocateCommandBuffers(Device, &AllocateInfo, &Out.Resource));
-    Out.State = VULKAN_COMMAND_BUFFER_STATE_READY;
-    Out.Pool = CmdPool->Resource;
+    VulkanCommandBuffer out = {};
+    KRAFT_VK_CHECK(vkAllocateCommandBuffers(device, &allocate_info, &out.Resource));
+    out.State = VULKAN_COMMAND_BUFFER_STATE_READY;
+    out.Pool = cmd_pool->Resource;
 
-    Context->SetObjectName((u64)Out.Resource, VK_OBJECT_TYPE_COMMAND_BUFFER, Description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(out.Resource, VK_OBJECT_TYPE_COMMAND_BUFFER, description.DebugName);
 
-    if (Description.Begin)
-    {
-        VulkanBeginCommandBuffer(&Out, Description.SingleUse, Description.RenderPassContinue, Description.SimultaneousUse);
+    if (description.Begin) {
+        VulkanBeginCommandBuffer(&out, description.SingleUse, description.RenderPassContinue, description.SimultaneousUse);
     }
 
-    return state->CmdBufferPool.Insert(
-        {
-            .Pool = Description.CommandPool,
-        },
-        Out
-    );
+    return state->cmd_buffer_pool.Insert({.Pool = description.CommandPool}, out);
 }
 
-static Handle<CommandPool> CreateCommandPool(const CommandPoolDescription& Description)
-{
-    VulkanContext*    Context = VulkanRendererBackend::Context();
-    VkDevice          Device = Context->LogicalDevice.Handle;
-    VulkanCommandPool Out;
+static Handle<CommandPool> CreateCommandPool(const CommandPoolDescription& description) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+    VulkanCommandPool out = {};
 
-    VkCommandPoolCreateInfo Info = {};
-    Info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    Info.queueFamilyIndex = Description.QueueFamilyIndex;
-    Info.flags = ToVulkanCommandPoolCreateFlags(Description.Flags);
+    VkCommandPoolCreateInfo info = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    info.queueFamilyIndex = description.QueueFamilyIndex;
+    info.flags = ToVulkanCommandPoolCreateFlags(description.Flags);
 
-    KRAFT_VK_CHECK(vkCreateCommandPool(Device, &Info, Context->AllocationCallbacks, &Out.Resource));
+    KRAFT_VK_CHECK(vkCreateCommandPool(device, &info, context->AllocationCallbacks, &out.Resource));
 
-    Context->SetObjectName((u64)Out.Resource, VK_OBJECT_TYPE_COMMAND_POOL, Description.DebugName);
+    KRAFT_RENDERER_SET_OBJECT_NAME(out.Resource, VK_OBJECT_TYPE_COMMAND_POOL, description.DebugName);
 
-    return state->CmdPoolPool.Insert({}, Out);
+    return state->cmd_pool_pool.Insert({}, out);
 }
 
-static void DestroyTexture(Handle<Texture> Resource)
-{
-    state->TexturePool.MarkForDelete(Resource);
+static void DestroyTexture(Handle<Texture> handle) {
+    state->texture_pool.MarkForDelete(handle);
 }
 
-static void DestroyBuffer(Handle<Buffer> Resource)
-{
-    state->BufferPool.MarkForDelete(Resource);
+static void DestroyBuffer(Handle<Buffer> handle) {
+    state->buffer_pool.MarkForDelete(handle);
 }
 
-static void DestroyRenderPass(Handle<RenderPass> Resource)
-{
-    state->RenderPassPool.MarkForDelete(Resource);
+static void DestroyRenderPass(Handle<RenderPass> handle) {
+    state->RenderPassPool.MarkForDelete(handle);
 }
 
-static void DestroyCommandBuffer(Handle<CommandBuffer> Resource)
-{
+static void DestroyTextureSampler(Handle<TextureSampler> handle) {
+    state->texture_sampler_pool.MarkForDelete(handle);
+}
+
+static void DestroyCommandBuffer(Handle<CommandBuffer> handle) {
     // TODO: Should single-use command buffers be destroyed immediately?
-    state->CmdBufferPool.MarkForDelete(Resource);
+    state->cmd_buffer_pool.MarkForDelete(handle);
 }
 
-static void DestroyCommandPool(Handle<CommandPool> Resource)
-{
-    state->CmdPoolPool.MarkForDelete(Resource);
+static void DestroyCommandPool(Handle<CommandPool> handle) {
+    state->cmd_pool_pool.MarkForDelete(handle);
 }
 
-static u8* GetBufferData(Handle<Buffer> BufferHandle)
-{
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
-    Buffer*        Buffer = state->BufferPool.GetAuxiliaryData(BufferHandle);
-    VulkanBuffer*  GPUBuffer = state->BufferPool.Get(BufferHandle);
+static u8* GetBufferData(Handle<Buffer> handle) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+    Buffer* buffer = state->buffer_pool.GetAuxiliaryData(handle);
+    VulkanBuffer* gpu_buffer = state->buffer_pool.Get(handle);
 
     // Map the buffer first if it not mapped yet
-    if (!Buffer->Ptr)
-    {
-        KRAFT_VK_CHECK(vkMapMemory(Device, GPUBuffer->Memory, 0, VK_WHOLE_SIZE, 0, &Buffer->Ptr));
+    if (!buffer->Ptr) {
+        KRAFT_VK_CHECK(vkMapMemory(device, gpu_buffer->Memory, 0, VK_WHOLE_SIZE, 0, &buffer->Ptr));
     }
 
-    return (u8*)Buffer->Ptr;
+    return (u8*)buffer->Ptr;
 }
 
-static BufferView CreateTempBuffer(u64 Size)
-{
-    return state->TempGPUAllocator->Allocate(state->Arena, Size, 128);
+static BufferView CreateTempBuffer(u64 size) {
+    return state->temp_gpu_allocator->Allocate(state->arena, size, 128);
 }
 
-static bool UploadTexture(Handle<Texture> Resource, Handle<Buffer> BufferHandle, u64 BufferOffset)
-{
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    Texture*       TextureMetadata = state->TexturePool.GetAuxiliaryData(Resource);
-    KASSERT(TextureMetadata);
+static bool UploadTexture(Handle<Texture> texture, Handle<Buffer> buffer, u64 buffer_offset) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    Texture* metadata = state->texture_pool.GetAuxiliaryData(texture);
+    KASSERT(metadata);
 
-    VulkanTexture* GPUTexture = state->TexturePool.Get(Resource);
-    KASSERT(GPUTexture);
+    VulkanTexture* gpu_texture = state->texture_pool.Get(texture);
+    KASSERT(gpu_texture);
 
-    VulkanBuffer* GPUBuffer = state->BufferPool.Get(BufferHandle);
-    KASSERT(GPUBuffer);
+    VulkanBuffer* gpu_buffer = state->buffer_pool.Get(buffer);
+    KASSERT(gpu_buffer);
 
     // Allocate a single use command buffer
-    Handle<CommandBuffer> TempCmdBuffer = CreateCommandBuffer({
-        .CommandPool = Context->GraphicsCommandPool,
+    Handle<CommandBuffer> temp_cmd_buffer = CreateCommandBuffer({
+        .CommandPool = context->GraphicsCommandPool,
         .Primary = true,
         .Begin = true,
         .SingleUse = true,
     });
 
-    VulkanCommandBuffer* VkTempCmdBuffer = state->CmdBufferPool.Get(TempCmdBuffer);
+    VulkanCommandBuffer* gpu_temp_cmd_buffer = state->cmd_buffer_pool.Get(temp_cmd_buffer);
 
     // Default image layout is undefined, so make it transfer dst optimal
     // This will change the image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-    VulkanTransitionImageLayout(Context, VkTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VulkanTransitionImageLayout(context, gpu_temp_cmd_buffer, gpu_texture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // Copy the image pixels from the staging buffer to the image using the temp command buffer
-    VkBufferImageCopy Region = {};
-    Region.bufferOffset = BufferOffset;
-    Region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    Region.imageSubresource.baseArrayLayer = 0;
-    Region.imageSubresource.layerCount = 1;
-    Region.imageSubresource.mipLevel = 0;
+    VkBufferImageCopy region = {};
+    region.bufferOffset = buffer_offset;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageSubresource.mipLevel = 0;
 
-    Region.imageExtent.width = (u32)TextureMetadata->Width;
-    Region.imageExtent.height = (u32)TextureMetadata->Height;
-    Region.imageExtent.depth = 1;
+    region.imageExtent.width = (u32)metadata->Width;
+    region.imageExtent.height = (u32)metadata->Height;
+    region.imageExtent.depth = 1;
 
-    vkCmdCopyBufferToImage(VkTempCmdBuffer->Resource, GPUBuffer->Handle, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
+    vkCmdCopyBufferToImage(gpu_temp_cmd_buffer->Resource, gpu_buffer->Handle, gpu_texture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
     // Transition the layout from VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     // so the image turns into a suitable format for the shader to read
-    VulkanTransitionImageLayout(Context, VkTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VulkanTransitionImageLayout(context, gpu_temp_cmd_buffer, gpu_texture->Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // End our temp command buffer
-    VulkanEndAndSubmitSingleUseCommandBuffer(Context, VkTempCmdBuffer->Pool, VkTempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
-    DestroyCommandBuffer(TempCmdBuffer);
+    VulkanEndAndSubmitSingleUseCommandBuffer(context, gpu_temp_cmd_buffer->Pool, gpu_temp_cmd_buffer, context->LogicalDevice.GraphicsQueue);
+    DestroyCommandBuffer(temp_cmd_buffer);
 
     return true;
 }
 
-static bool UploadBuffer(const UploadBufferDescription& Description)
-{
-    VulkanBuffer* Src = state->BufferPool.Get(Description.SrcBuffer);
-    if (!Src)
-    {
+static bool UploadBuffer(const UploadBufferDescription& description) {
+    VulkanBuffer* src = state->buffer_pool.Get(description.SrcBuffer);
+    if (!src) {
         return false;
     }
 
-    VulkanBuffer* Dst = state->BufferPool.Get(Description.DstBuffer);
-    if (!Dst)
-    {
+    VulkanBuffer* dst = state->buffer_pool.Get(description.DstBuffer);
+    if (!dst) {
         return false;
     }
 
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VkDevice       Device = Context->LogicalDevice.Handle;
-    vkDeviceWaitIdle(Device);
+    VulkanContext* context = VulkanRendererBackend::Context();
 
     // Allocate a single use command buffer
-    Handle<CommandBuffer> TempCmdBuffer = CreateCommandBuffer({
-        .CommandPool = Context->GraphicsCommandPool,
+    Handle<CommandBuffer> temp_cmd_buf = CreateCommandBuffer({
+        .CommandPool = context->GraphicsCommandPool,
         .Primary = true,
         .Begin = true,
         .SingleUse = true,
     });
 
-    VulkanCommandBuffer* VkTempCmdBuffer = state->CmdBufferPool.Get(TempCmdBuffer);
+    VulkanCommandBuffer* gpu_temp_cmd_buf = state->cmd_buffer_pool.Get(temp_cmd_buf);
 
-    VkBufferCopy BufferCopyInfo = {};
-    BufferCopyInfo.size = Description.SrcSize;
-    BufferCopyInfo.srcOffset = Description.SrcOffset;
-    BufferCopyInfo.dstOffset = Description.DstOffset;
+    VkBufferCopy buffer_copy_info = {};
+    buffer_copy_info.size = description.SrcSize;
+    buffer_copy_info.srcOffset = description.SrcOffset;
+    buffer_copy_info.dstOffset = description.DstOffset;
 
-    vkCmdCopyBuffer(VkTempCmdBuffer->Resource, Src->Handle, Dst->Handle, 1, &BufferCopyInfo);
-    VulkanEndAndSubmitSingleUseCommandBuffer(Context, VkTempCmdBuffer->Pool, VkTempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
-    DestroyCommandBuffer(TempCmdBuffer);
+    vkCmdCopyBuffer(gpu_temp_cmd_buf->Resource, src->Handle, dst->Handle, 1, &buffer_copy_info);
+    VulkanEndAndSubmitSingleUseCommandBuffer(context, gpu_temp_cmd_buf->Pool, gpu_temp_cmd_buf, context->LogicalDevice.GraphicsQueue);
+    DestroyCommandBuffer(temp_cmd_buf);
 
     return true;
 }
 
-static bool ReadTextureData(const ReadTextureDataDescription& Description)
-{
-    KASSERT(Description.SrcTexture.IsInvalid() == false);
-    KASSERT(Description.OutBuffer);
+static bool ReadTextureData(const ReadTextureDataDescription& description) {
+    KASSERT(description.SrcTexture.IsInvalid() == false);
+    KASSERT(description.OutBuffer);
 
-    Texture*   TextureMetadata = state->TexturePool.GetAuxiliaryData(Description.SrcTexture);
-    u32        WidthToRead = Description.Width == 0 ? (u32)TextureMetadata->Width : (u32)Description.Width;
-    u32        HeightToRead = Description.Height == 0 ? (u32)TextureMetadata->Height : (u32)Description.Height;
-    u32        StagingBufferSize = WidthToRead * HeightToRead * 4;
-    BufferView StagingBuffer = CreateTempBuffer(StagingBufferSize);
+    Texture* metadata = state->texture_pool.GetAuxiliaryData(description.SrcTexture);
+    u32 width_to_read = description.Width == 0 ? (u32)metadata->Width : (u32)description.Width;
+    u32 height_to_read = description.Height == 0 ? (u32)metadata->Height : (u32)description.Height;
+    u32 staging_buffer_size = width_to_read * height_to_read * 4;
+    BufferView staging_buffer = CreateTempBuffer(staging_buffer_size);
 
-    if (Description.OutBufferSize < StagingBufferSize)
-    {
+    if (description.OutBufferSize < staging_buffer_size) {
         return false;
     }
 
-    VulkanContext* Context = VulkanRendererBackend::Context();
-    VulkanTexture* GPUTexture = state->TexturePool.Get(Description.SrcTexture);
-    VulkanBuffer*  GPUBuffer = state->BufferPool.Get(StagingBuffer.GPUBuffer);
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VulkanTexture* gpu_texture = state->texture_pool.Get(description.SrcTexture);
+    VulkanBuffer* gpu_buffer = state->buffer_pool.Get(staging_buffer.GPUBuffer);
 
-    Handle<CommandBuffer> TempCmdBuffer = Description.CmdBuffer;
-    VulkanCommandBuffer*  GPUTempCmdBuffer;
-    if (Description.CmdBuffer)
-    {
-        GPUTempCmdBuffer = state->CmdBufferPool.Get(Description.CmdBuffer);
-    }
-    else
-    {
+    Handle<CommandBuffer> temp_cmd_buf = description.CmdBuffer;
+    VulkanCommandBuffer* gpu_temp_cmd_buf;
+    if (description.CmdBuffer) {
+        gpu_temp_cmd_buf = state->cmd_buffer_pool.Get(description.CmdBuffer);
+    } else {
         // Allocate a single use command buffer
-        TempCmdBuffer = CreateCommandBuffer({
-            .CommandPool = Context->GraphicsCommandPool,
+        temp_cmd_buf = CreateCommandBuffer({
+            .CommandPool = context->GraphicsCommandPool,
             .Primary = true,
             .Begin = true,
             .SingleUse = true,
         });
 
-        GPUTempCmdBuffer = state->CmdBufferPool.Get(TempCmdBuffer);
+        gpu_temp_cmd_buf = state->cmd_buffer_pool.Get(temp_cmd_buf);
     }
 
     // We are going to copy the image to a buffer, so convert it to a "Transfer optimal" format
-    VulkanTransitionImageLayout(Context, GPUTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    VulkanTransitionImageLayout(context, gpu_temp_cmd_buf, gpu_texture->Image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-    KASSERT(TextureMetadata);
-    VkBufferImageCopy Region = { 
-        .bufferOffset = StagingBuffer.Offset,
+    KASSERT(metadata);
+    VkBufferImageCopy region = {
+        .bufferOffset = staging_buffer.Offset,
         .bufferRowLength = 0,
         .bufferImageHeight = 0,
-        .imageSubresource = {
-            .aspectMask = GetImageAspectMask(TextureMetadata->TextureFormat),
-            .mipLevel = 0,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-        .imageOffset = {
-            .x = Description.OffsetX,
-            .y = Description.OffsetY,
-        },
-        .imageExtent = {
-            .width = WidthToRead,
-            .height = HeightToRead,
-            .depth = 1,
-        },
+        .imageSubresource =
+            {
+                .aspectMask = GetImageAspectMask(metadata->TextureFormat),
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+        .imageOffset =
+            {
+                .x = description.OffsetX,
+                .y = description.OffsetY,
+            },
+        .imageExtent =
+            {
+                .width = width_to_read,
+                .height = height_to_read,
+                .depth = 1,
+            },
     };
 
-    vkCmdCopyImageToBuffer(GPUTempCmdBuffer->Resource, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, GPUBuffer->Handle, 1, &Region);
+    vkCmdCopyImageToBuffer(gpu_temp_cmd_buf->Resource, gpu_texture->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, gpu_buffer->Handle, 1, &region);
 
     // Transition the image back to a "shader friendly" layout
-    VulkanTransitionImageLayout(Context, GPUTempCmdBuffer, GPUTexture->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VulkanTransitionImageLayout(context, gpu_temp_cmd_buf, gpu_texture->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    VulkanEndAndSubmitSingleUseCommandBuffer(Context, GPUTempCmdBuffer->Pool, GPUTempCmdBuffer, Context->LogicalDevice.GraphicsQueue);
-    DestroyCommandBuffer(TempCmdBuffer);
+    VulkanEndAndSubmitSingleUseCommandBuffer(context, gpu_temp_cmd_buf->Pool, gpu_temp_cmd_buf, context->LogicalDevice.GraphicsQueue);
+    DestroyCommandBuffer(temp_cmd_buf);
 
-    MemCpy(Description.OutBuffer, StagingBuffer.Ptr, StagingBufferSize);
+    MemCpy(description.OutBuffer, staging_buffer.Ptr, staging_buffer_size);
 
     return true;
 }
 
-static Texture* GetTextureMetadata(Handle<Texture> Resource)
-{
-    return state->TexturePool.GetAuxiliaryData(Resource);
+static Texture* GetTextureMetadata(Handle<Texture> handle) {
+    return state->texture_pool.GetAuxiliaryData(handle);
 }
 
-static RenderPass* GetRenderPassMetadata(Handle<RenderPass> Resource)
-{
-    return state->RenderPassPool.GetAuxiliaryData(Resource);
+static RenderPass* GetRenderPassMetadata(Handle<RenderPass> handle) {
+    return state->RenderPassPool.GetAuxiliaryData(handle);
 }
 
-static void StartFrame(u64 FrameNumber)
-{}
+static void StartFrame(u64 frame_number) {}
 
-static void EndFrame(u64 FrameNumber)
-{
+static void EndFrame(u64 frame_number) {
     // Render passes will be destroyed first because they may be referencing images
-    state->RenderPassPool.Cleanup([](VulkanRenderPass* RenderPass) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
-        vkDeviceWaitIdle(Device);
+    state->RenderPassPool.Cleanup([](VulkanRenderPass* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
+        vkDeviceWaitIdle(device);
 
-        vkDestroyFramebuffer(Device, RenderPass->Framebuffer.Handle, Context->AllocationCallbacks);
-        vkDestroyRenderPass(Device, RenderPass->Handle, Context->AllocationCallbacks);
+        vkDestroyFramebuffer(device, resource->Framebuffer.Handle, context->AllocationCallbacks);
+        vkDestroyRenderPass(device, resource->Handle, context->AllocationCallbacks);
 
-        RenderPass->Framebuffer.Handle = 0;
-        RenderPass->Handle = 0;
+        resource->Framebuffer.Handle = 0;
+        resource->Handle = 0;
     });
 
-    state->TexturePool.Cleanup([](VulkanTexture* Texture) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
+    state->texture_pool.Cleanup([](VulkanTexture* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
 
-        if (Texture->View)
-        {
-            vkDestroyImageView(Device, Texture->View, Context->AllocationCallbacks);
-            Texture->View = 0;
+        if (resource->View) {
+            vkDestroyImageView(device, resource->View, context->AllocationCallbacks);
+            resource->View = 0;
         }
 
-        if (Texture->Memory)
-        {
-            vkFreeMemory(Device, Texture->Memory, Context->AllocationCallbacks);
-            Texture->Memory = 0;
+        if (resource->Memory) {
+            vkFreeMemory(device, resource->Memory, context->AllocationCallbacks);
+            resource->Memory = 0;
         }
 
-        if (Texture->Image)
-        {
-            vkDestroyImage(Device, Texture->Image, Context->AllocationCallbacks);
-            Texture->Image = 0;
+        if (resource->Image) {
+            vkDestroyImage(device, resource->Image, context->AllocationCallbacks);
+            resource->Image = 0;
         }
     });
 
-    state->TextureSamplerPool.Cleanup([](VulkanTextureSampler* TextureSampler) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
-        vkDestroySampler(Device, TextureSampler->Sampler, Context->AllocationCallbacks);
-        TextureSampler->Sampler = 0;
+    state->texture_sampler_pool.Cleanup([](VulkanTextureSampler* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
+        vkDestroySampler(device, resource->Sampler, context->AllocationCallbacks);
+        resource->Sampler = 0;
     });
 
-    state->BufferPool.Cleanup([](VulkanBuffer* GPUResource) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
+    state->buffer_pool.Cleanup([](VulkanBuffer* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
 
-        vkFreeMemory(Device, GPUResource->Memory, Context->AllocationCallbacks);
-        vkDestroyBuffer(Device, GPUResource->Handle, Context->AllocationCallbacks);
+        vkFreeMemory(device, resource->Memory, context->AllocationCallbacks);
+        vkDestroyBuffer(device, resource->Handle, context->AllocationCallbacks);
 
-        GPUResource->Memory = 0;
-        GPUResource->Handle = 0;
+        resource->Memory = 0;
+        resource->Handle = 0;
     });
 
-    state->CmdBufferPool.Cleanup([](VulkanCommandBuffer* GPUResource) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
-        VkCommandPool  CmdPool = GPUResource->Pool;
+    state->cmd_buffer_pool.Cleanup([](VulkanCommandBuffer* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
+        VkCommandPool cmd_pool = resource->Pool;
 
-        vkFreeCommandBuffers(Device, CmdPool, 1, &GPUResource->Resource);
-        GPUResource->Resource = 0;
-        GPUResource->State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
+        vkFreeCommandBuffers(device, cmd_pool, 1, &resource->Resource);
+        resource->Resource = 0;
+        resource->State = VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
     });
 
-    state->CmdPoolPool.Cleanup([](VulkanCommandPool* GPUResource) {
-        VulkanContext* Context = VulkanRendererBackend::Context();
-        VkDevice       Device = Context->LogicalDevice.Handle;
+    state->cmd_pool_pool.Cleanup([](VulkanCommandPool* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
 
-        vkDestroyCommandPool(Device, GPUResource->Resource, Context->AllocationCallbacks);
-        GPUResource->Resource = 0;
+        vkDestroyCommandPool(device, resource->Resource, context->AllocationCallbacks);
+        resource->Resource = 0;
     });
 
-    state->TempGPUAllocator->Clear();
+    state->temp_gpu_allocator->Clear();
 }
 
-VulkanTexture* VulkanResourceManagerApi::GetTexture(Handle<Texture> Resource)
-{
-    return state->TexturePool.Get(Resource);
+VulkanTexture* VulkanResourceManagerApi::GetTexture(Handle<Texture> handle) {
+    return state->texture_pool.Get(handle);
 }
 
-VulkanTextureSampler* VulkanResourceManagerApi::GetTextureSampler(Handle<TextureSampler> Resource)
-{
-    return state->TextureSamplerPool.Get(Resource);
+VulkanTextureSampler* VulkanResourceManagerApi::GetTextureSampler(Handle<TextureSampler> handle) {
+    return state->texture_sampler_pool.Get(handle);
 }
 
-VulkanBuffer* VulkanResourceManagerApi::GetBuffer(Handle<Buffer> Resource)
-{
-    return state->BufferPool.Get(Resource);
+VulkanBuffer* VulkanResourceManagerApi::GetBuffer(Handle<Buffer> handle) {
+    return state->buffer_pool.Get(handle);
 }
 
-VulkanRenderPass* VulkanResourceManagerApi::GetRenderPass(Handle<RenderPass> Resource)
-{
-    return state->RenderPassPool.Get(Resource);
+VulkanRenderPass* VulkanResourceManagerApi::GetRenderPass(Handle<RenderPass> handle) {
+    return state->RenderPassPool.Get(handle);
 }
 
-VulkanCommandBuffer* VulkanResourceManagerApi::GetCommandBuffer(Handle<CommandBuffer> Resource)
-{
-    return state->CmdBufferPool.Get(Resource);
+VulkanCommandBuffer* VulkanResourceManagerApi::GetCommandBuffer(Handle<CommandBuffer> handle) {
+    return state->cmd_buffer_pool.Get(handle);
 }
 
-VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(Handle<CommandPool> Resource)
-{
-    return state->CmdPoolPool.Get(Resource);
+VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(Handle<CommandPool> handle) {
+    return state->cmd_pool_pool.Get(handle);
 }
 
-struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* Arena)
-{
-    state = ArenaPush(Arena, VulkanResourceManagerState);
-    state->Arena = Arena;
-    state->TexturePool.Grow(KRAFT_RENDERER__MAX_GLOBAL_TEXTURES);
-    state->TextureSamplerPool.Grow(4);
-    state->BufferPool.Grow(1024);
+struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
+    state = ArenaPush(arena, VulkanResourceManagerState);
+    state->arena = arena;
+    state->texture_pool.Grow(KRAFT_RENDERER__MAX_GLOBAL_TEXTURES);
+    state->texture_sampler_pool.Grow(4);
+    state->buffer_pool.Grow(1024);
     state->RenderPassPool.Grow(16);
-    state->CmdBufferPool.Grow(16);
-    state->CmdPoolPool.Grow(1);
-    state->TempGPUAllocator = ArenaPush(Arena, VulkanTempMemoryBlockAllocator);
-    state->TempGPUAllocator->Initialize(Arena, KRAFT_SIZE_MB(128));
+    state->cmd_buffer_pool.Grow(16);
+    state->cmd_pool_pool.Grow(1);
+    state->temp_gpu_allocator = ArenaPush(arena, VulkanTempMemoryBlockAllocator);
+    state->temp_gpu_allocator->Initialize(arena, KRAFT_SIZE_MB(128));
 
-    struct ResourceManager* Api = ArenaPush(Arena, struct ResourceManager);
-    Api->Clear = Clear;
-    Api->CreateTexture = CreateTexture;
-    Api->CreateTextureSampler = CreateTextureSampler;
-    Api->CreateBuffer = CreateBuffer;
-    Api->CreateRenderPass = CreateRenderPass;
-    Api->CreateCommandBuffer = CreateCommandBuffer;
-    Api->CreateCommandPool = CreateCommandPool;
-    Api->DestroyTexture = DestroyTexture;
-    Api->DestroyBuffer = DestroyBuffer;
-    Api->DestroyRenderPass = DestroyRenderPass;
-    Api->DestroyCommandBuffer = DestroyCommandBuffer;
-    Api->DestroyCommandPool = DestroyCommandPool;
-    Api->GetBufferData = GetBufferData;
-    Api->CreateTempBuffer = CreateTempBuffer;
-    Api->UploadTexture = UploadTexture;
-    Api->UploadBuffer = UploadBuffer;
-    Api->ReadTextureData = ReadTextureData;
-    Api->GetTextureMetadata = GetTextureMetadata;
-    Api->GetRenderPassMetadata = GetRenderPassMetadata;
-    Api->StartFrame = StartFrame;
-    Api->EndFrame = EndFrame;
+    struct ResourceManager* api = ArenaPush(arena, struct ResourceManager);
+    api->Clear = Clear;
+    api->CreateTexture = CreateTexture;
+    api->CreateTextureSampler = CreateTextureSampler;
+    api->CreateBuffer = CreateBuffer;
+    api->CreateRenderPass = CreateRenderPass;
+    api->CreateCommandBuffer = CreateCommandBuffer;
+    api->CreateCommandPool = CreateCommandPool;
+    api->DestroyTexture = DestroyTexture;
+    api->DestroyTextureSampler = DestroyTextureSampler;
+    api->DestroyBuffer = DestroyBuffer;
+    api->DestroyRenderPass = DestroyRenderPass;
+    api->DestroyCommandBuffer = DestroyCommandBuffer;
+    api->DestroyCommandPool = DestroyCommandPool;
+    api->GetBufferData = GetBufferData;
+    api->CreateTempBuffer = CreateTempBuffer;
+    api->UploadTexture = UploadTexture;
+    api->UploadBuffer = UploadBuffer;
+    api->ReadTextureData = ReadTextureData;
+    api->GetTextureMetadata = GetTextureMetadata;
+    api->GetRenderPassMetadata = GetRenderPassMetadata;
+    api->StartFrame = StartFrame;
+    api->EndFrame = EndFrame;
 
-    return Api;
+    return api;
 }
 
-void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager)
-{
-    state->CmdPoolPool.Destroy();
-    state->CmdBufferPool.Destroy();
+void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager) {
+    state->cmd_pool_pool.Destroy();
+    state->cmd_buffer_pool.Destroy();
     state->RenderPassPool.Destroy();
-    state->BufferPool.Destroy();
-    state->TexturePool.Destroy();
-    state->TextureSamplerPool.Destroy();
+    state->buffer_pool.Destroy();
+    state->texture_pool.Destroy();
+    state->texture_sampler_pool.Destroy();
 }
 } // namespace kraft::r

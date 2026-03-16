@@ -66,7 +66,8 @@ FontAtlas LoadFontAtlas(ArenaAllocator* arena, u8* font_data, u64 font_data_size
     atlas.font_scale = stbtt_ScaleForPixelHeight(&font, font_size);
     atlas.ascent = (f32)ascent;
     atlas.descent = (f32)descent;
-    atlas.bitmap = TextureSystem::AcquireTextureWithData(String8Raw("bitmap"), packed_bitmap, atlas.width, atlas.height, 1);
+    atlas.bitmap =
+        TextureSystem::AcquireTextureWithData(String8Raw("bitmap"), packed_bitmap, atlas.width, atlas.height, 1);
 
     ScratchEnd(scratch);
     return atlas;
@@ -103,13 +104,14 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
         f32 kern_advance = 0.f;
         if ((i + 1) < text.count)
         {
-            kern_advance = atlas->font_scale * stbtt_GetCodepointKernAdvance(&atlas->stb_font_info, text.ptr[i], text.ptr[i + 1]);
+            kern_advance =
+                atlas->font_scale * stbtt_GetCodepointKernAdvance(&atlas->stb_font_info, text.ptr[i], text.ptr[i + 1]);
         }
 
         // top-right
         vertices[4 * i + 0] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     cursor_x + glyph.baseline_xoff_1,
                     cursor_y - glyph.baseline_yoff_0,
                     0.f,
@@ -121,7 +123,7 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
         // bottom-right
         vertices[4 * i + 1] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     cursor_x + glyph.baseline_xoff_1,
                     cursor_y - glyph.baseline_yoff_1,
                     0.f,
@@ -133,7 +135,7 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
         // bottom-left
         vertices[4 * i + 2] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     cursor_x + glyph.baseline_xoff_0,
                     cursor_y - glyph.baseline_yoff_1,
                     0.f,
@@ -145,7 +147,7 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
         // top-left
         vertices[4 * i + 3] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     cursor_x + glyph.baseline_xoff_0,
                     cursor_y - glyph.baseline_yoff_0,
                     0.f,

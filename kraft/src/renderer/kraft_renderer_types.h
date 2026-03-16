@@ -27,16 +27,16 @@ template<typename T>
 struct Handle
 {
 private:
-    u16 Index;
-    u16 Generation;
+    u16 index;
+    u16 generation;
 
     template<typename U, typename V>
     friend struct Pool;
-    Handle(u16 index, u16 generation) : Index(index), Generation(generation)
+    Handle(u16 index, u16 generation) : index(index), generation(generation)
     {}
 
 public:
-    Handle() : Index(0), Generation(0xffff)
+    Handle() : index(0), generation(0xffff)
     {}
 
     static Handle Invalid()
@@ -46,27 +46,27 @@ public:
 
     bool IsInvalid() const
     {
-        return this->Generation == 0xffff;
+        return this->generation == 0xffff;
     }
 
     explicit operator bool() const
     {
-        return this->Generation != 0xffff;
+        return this->generation != 0xffff;
     }
 
     bool operator==(const Handle<T> other)
     {
-        return other.Generation == Generation && other.Index == Index;
+        return other.generation == generation && other.index == index;
     }
 
     bool operator!=(const Handle<T> other)
     {
-        return other.Generation != Generation || other.Index != Index;
+        return other.generation != generation || other.index != index;
     }
 
     u16 GetIndex() const
     {
-        return Index;
+        return index;
     }
 };
 
@@ -172,7 +172,7 @@ struct RendererBackend
 
 struct Vertex2D
 {
-    Vec3f Position;
+    Vec2f Position;
     Vec2f UV;
     Vec4f Color;
 };

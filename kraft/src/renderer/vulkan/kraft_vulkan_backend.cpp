@@ -15,9 +15,14 @@ PFN_vkSetDebugUtilsObjectNameEXT KRAFT_vkSetDebugUtilsObjectNameEXT;
 // PFN_vkCmdDebugMarkerBeginEXT vkCmdDebugMarkerBegin;
 // PFN_vkCmdDebugMarkerEndEXT vkCmdDebugMarkerEnd;
 // PFN_vkCmdDebugMarkerInsertEXT vkCmdDebugMarkerInsert;
-static VkBool32 DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT types, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
+static VkBool32 DebugUtilsMessenger(
+    VkDebugUtilsMessageSeverityFlagBitsEXT      severity,
+    VkDebugUtilsMessageTypeFlagsEXT             types,
+    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+    void*                                       user_data
+);
 
-static void SetObjectName(u64 Object, VkObjectType ObjectType, const char* Name);
+static void SetObjectName(u64 object, VkObjectType type, const char* name);
 #endif
 
 static struct ResourceManager* s_ResourceManager = nullptr;
@@ -148,21 +153,33 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
 #ifdef KRAFT_RENDERER_DEBUG
     {
         // Setup vulkan debug callback messenger
-        u32 log_level = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+        u32 log_level = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
+                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
 
-        VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info = { VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
+        VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info = {
+            VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
+        };
         debug_utils_messenger_create_info.messageSeverity = log_level;
-        debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debug_utils_messenger_create_info.pfnUserCallback = DebugUtilsMessenger;
         debug_utils_messenger_create_info.pUserData = 0;
 
-        PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(s_Context.Instance, "vkCreateDebugUtilsMessengerEXT");
+        PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT
+        )vkGetInstanceProcAddr(s_Context.Instance, "vkCreateDebugUtilsMessengerEXT");
         KRAFT_ASSERT_MESSAGE(func, "Failed to get function address for vkCreateDebugUtilsMessengerEXT");
 
-        KRAFT_VK_CHECK(func(s_Context.Instance, &debug_utils_messenger_create_info, s_Context.AllocationCallbacks, &s_Context.DebugMessenger));
+        KRAFT_VK_CHECK(func(
+            s_Context.Instance,
+            &debug_utils_messenger_create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.DebugMessenger
+        ));
     }
 
-    KRAFT_vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(s_Context.Instance, "vkSetDebugUtilsObjectNameEXT");
+    KRAFT_vkSetDebugUtilsObjectNameEXT =
+        (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(s_Context.Instance, "vkSetDebugUtilsObjectNameEXT");
     s_Context.SetObjectName = SetObjectName;
 #endif
 
@@ -182,7 +199,9 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
     requirements.DeviceExtensions[1] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 
     GLFWwindow* window = Platform::GetWindow()->PlatformWindowHandle;
-    KRAFT_VK_CHECK(glfwCreateWindowSurface(s_Context.Instance, window, s_Context.AllocationCallbacks, &s_Context.Surface));
+    KRAFT_VK_CHECK(
+        glfwCreateWindowSurface(s_Context.Instance, window, s_Context.AllocationCallbacks, &s_Context.Surface)
+    );
 
     KSUCCESS("[VulkanRendererBackend::Init]: Successfully created VkSurface");
 
@@ -226,13 +245,22 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
     // Create all rendering resources
     //
 
-    VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, s_Context.Options->VSync);
+    VulkanCreateSwapchain(
+        &s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, s_Context.Options->VSync
+    );
 
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
 
 #else
     VulkanCreateRenderPass(
-        &s_Context, { 0.10f, 0.10f, 0.10f, 1.0f }, { 0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight }, 1.0f, 0, &s_Context.MainRenderPass, true, "MainRenderPass"
+        &s_Context,
+        { 0.10f, 0.10f, 0.10f, 1.0f },
+        { 0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight },
+        1.0f,
+        0,
+        &s_Context.MainRenderPass,
+        true,
+        "MainRenderPass"
     );
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
 #endif
@@ -246,8 +274,18 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
     for (u32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
         VkSemaphoreCreateInfo create_info = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        vkCreateSemaphore(s_Context.LogicalDevice.Handle, &create_info, s_Context.AllocationCallbacks, &s_Context.ImageAvailableSemaphores[i]);
-        vkCreateSemaphore(s_Context.LogicalDevice.Handle, &create_info, s_Context.AllocationCallbacks, &s_Context.RenderCompleteSemaphores[i]);
+        vkCreateSemaphore(
+            s_Context.LogicalDevice.Handle,
+            &create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.ImageAvailableSemaphores[i]
+        );
+        vkCreateSemaphore(
+            s_Context.LogicalDevice.Handle,
+            &create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.RenderCompleteSemaphores[i]
+        );
 
         VulkanCreateFence(&s_Context, true, &s_Context.WaitFences[i]);
         s_Context.InFlightImageToFenceMap[i] = &s_Context.WaitFences[i];
@@ -280,7 +318,12 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         descriptor_pool_create_info.pPoolSizes = &pool_sizes[0];
         descriptor_pool_create_info.maxSets = global_pool_size * sizeof(pool_sizes) / sizeof(pool_sizes[0]);
 
-        vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &descriptor_pool_create_info, s_Context.AllocationCallbacks, &s_Context.GlobalDescriptorPool);
+        vkCreateDescriptorPool(
+            s_Context.LogicalDevice.Handle,
+            &descriptor_pool_create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.GlobalDescriptorPool
+        );
 
         // Descriptor sets
         VkDescriptorSetLayoutBinding global_data_layout_bindings[4] = {};
@@ -313,13 +356,18 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         global_data_layout_bindings[3].pImmutableSamplers = 0;
         global_data_layout_bindings[3].stageFlags = VK_SHADER_STAGE_ALL;
 
-        VkDescriptorSetLayoutCreateInfo global_data_layout_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        VkDescriptorSetLayoutCreateInfo global_data_layout_create_info = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+        };
         global_data_layout_create_info.bindingCount = KRAFT_C_ARRAY_SIZE(global_data_layout_bindings);
         global_data_layout_create_info.pBindings = &global_data_layout_bindings[0];
         global_data_layout_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
-            s_Context.LogicalDevice.Handle, &global_data_layout_create_info, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
+            s_Context.LogicalDevice.Handle,
+            &global_data_layout_create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
         ));
 
         // Set 1: This Set is unused
@@ -330,12 +378,17 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         __unused_set_layout_binding.pImmutableSamplers = 0;
         __unused_set_layout_binding.stageFlags = VK_SHADER_STAGE_ALL;
 
-        VkDescriptorSetLayoutCreateInfo __unused_set_layout_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        VkDescriptorSetLayoutCreateInfo __unused_set_layout_create_info = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+        };
         __unused_set_layout_create_info.bindingCount = 1;
         __unused_set_layout_create_info.pBindings = &__unused_set_layout_binding;
 
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
-            s_Context.LogicalDevice.Handle, &__unused_set_layout_create_info, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
+            s_Context.LogicalDevice.Handle,
+            &__unused_set_layout_create_info,
+            s_Context.AllocationCallbacks,
+            &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
         ));
 
         // Set 2: Textures
@@ -347,23 +400,34 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         texture_data_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         texture_data_layout_binding.pImmutableSamplers = 0;
 
-        VkDescriptorBindingFlags binding_flags = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
-        VkDescriptorSetLayoutBindingFlagsCreateInfo set_binding_flags = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+        VkDescriptorBindingFlags binding_flags = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
+                                                 VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                                                 VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+        VkDescriptorSetLayoutBindingFlagsCreateInfo set_binding_flags = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO
+        };
         set_binding_flags.bindingCount = 1;
         set_binding_flags.pBindingFlags = &binding_flags;
 
-        VkDescriptorSetLayoutCreateInfo TextureSetLayoutCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        VkDescriptorSetLayoutCreateInfo TextureSetLayoutCreateInfo = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+        };
         TextureSetLayoutCreateInfo.bindingCount = 1;
         TextureSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         TextureSetLayoutCreateInfo.pBindings = &texture_data_layout_binding;
         TextureSetLayoutCreateInfo.pNext = &set_binding_flags;
 
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
-            s_Context.LogicalDevice.Handle, &TextureSetLayoutCreateInfo, s_Context.AllocationCallbacks, &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
+            s_Context.LogicalDevice.Handle,
+            &TextureSetLayoutCreateInfo,
+            s_Context.AllocationCallbacks,
+            &s_Context.DescriptorSetLayouts[s_Context.DescriptorSetLayoutsCount++]
         ));
 
         u32                                                texture_count = KRAFT_RENDERER__MAX_GLOBAL_TEXTURES;
-        VkDescriptorSetVariableDescriptorCountAllocateInfo set_allocate_count_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO };
+        VkDescriptorSetVariableDescriptorCountAllocateInfo set_allocate_count_info = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
+        };
         set_allocate_count_info.descriptorSetCount = 1;
         set_allocate_count_info.pDescriptorCounts = &texture_count;
 
@@ -373,7 +437,9 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         set_allocate_info.descriptorSetCount = 1;
         set_allocate_info.pSetLayouts = &s_Context.DescriptorSetLayouts[2];
 
-        KRAFT_VK_CHECK(vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &set_allocate_info, &s_Context.GlobalTexturesDescriptorSet));
+        KRAFT_VK_CHECK(vkAllocateDescriptorSets(
+            s_Context.LogicalDevice.Handle, &set_allocate_info, &s_Context.GlobalTexturesDescriptorSet
+        ));
     }
 
     // Create vertex and index buffers
@@ -393,19 +459,27 @@ bool VulkanRendererBackend::Shutdown()
     vkDeviceWaitIdle(s_Context.LogicalDevice.Handle);
     s_ResourceManager->Clear();
 
-    vkDestroyDescriptorPool(s_Context.LogicalDevice.Handle, s_Context.GlobalDescriptorPool, s_Context.AllocationCallbacks);
+    vkDestroyDescriptorPool(
+        s_Context.LogicalDevice.Handle, s_Context.GlobalDescriptorPool, s_Context.AllocationCallbacks
+    );
 
     for (u32 i = 0; i < s_Context.DescriptorSetLayoutsCount; i++)
     {
-        vkDestroyDescriptorSetLayout(s_Context.LogicalDevice.Handle, s_Context.DescriptorSetLayouts[i], s_Context.AllocationCallbacks);
+        vkDestroyDescriptorSetLayout(
+            s_Context.LogicalDevice.Handle, s_Context.DescriptorSetLayouts[i], s_Context.AllocationCallbacks
+        );
     }
 
     for (u32 i = 0; i < s_Context.Swapchain.ImageCount; ++i)
     {
-        vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.ImageAvailableSemaphores[i], s_Context.AllocationCallbacks);
+        vkDestroySemaphore(
+            s_Context.LogicalDevice.Handle, s_Context.ImageAvailableSemaphores[i], s_Context.AllocationCallbacks
+        );
         s_Context.ImageAvailableSemaphores[i] = 0;
 
-        vkDestroySemaphore(s_Context.LogicalDevice.Handle, s_Context.RenderCompleteSemaphores[i], s_Context.AllocationCallbacks);
+        vkDestroySemaphore(
+            s_Context.LogicalDevice.Handle, s_Context.RenderCompleteSemaphores[i], s_Context.AllocationCallbacks
+        );
         s_Context.RenderCompleteSemaphores[i] = 0;
 
         VulkanDestroyFence(&s_Context, &s_Context.WaitFences[i]);
@@ -452,7 +526,13 @@ i32 VulkanRendererBackend::PrepareFrame()
     VulkanResetFence(&s_Context, fence);
 
     // Acquire the next image
-    if (!VulkanAcquireNextImageIndex(&s_Context, UINT64_MAX, s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame], 0, &s_Context.CurrentSwapchainImageIndex))
+    if (!VulkanAcquireNextImageIndex(
+            &s_Context,
+            UINT64_MAX,
+            s_Context.ImageAvailableSemaphores[s_Context.Swapchain.CurrentFrame],
+            0,
+            &s_Context.CurrentSwapchainImageIndex
+        ))
     {
         return -1;
     }
@@ -539,7 +619,8 @@ bool VulkanRendererBackend::BeginFrame()
     if (msaa_enabled)
     {
         // Render to MSAA image, resolve to swapchain
-        color_attachment_info.imageView = VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.MSAAColorAttachment)->View;
+        color_attachment_info.imageView =
+            VulkanResourceManagerApi::GetTexture(s_Context.Swapchain.MSAAColorAttachment)->View;
         color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // MSAA image doesn't need to be stored
@@ -574,13 +655,19 @@ bool VulkanRendererBackend::BeginFrame()
 
     vkCmdBeginRendering(gpu_cmd_buffer->Resource, &rendering_info);
 #else
-    VulkanBeginRenderPass(gpu_cmd_buffer, &s_Context.MainRenderPass, s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle, VK_SUBPASS_CONTENTS_INLINE);
+    VulkanBeginRenderPass(
+        gpu_cmd_buffer,
+        &s_Context.MainRenderPass,
+        s_Context.Swapchain.Framebuffers[s_Context.CurrentSwapchainImageIndex].Handle,
+        VK_SUBPASS_CONTENTS_INLINE
+    );
 
     s_Context.MainRenderPass.Rect.z = (f32)s_Context.FramebufferWidth;
     s_Context.MainRenderPass.Rect.w = (f32)s_Context.FramebufferHeight;
 #endif
 
-    VulkanRendererBackendState.BuffersToSubmit[VulkanRendererBackendState.BuffersToSubmitNum] = gpu_cmd_buffer->Resource;
+    VulkanRendererBackendState.BuffersToSubmit[VulkanRendererBackendState.BuffersToSubmitNum] =
+        gpu_cmd_buffer->Resource;
     VulkanRendererBackendState.BuffersToSubmitNum++;
 
     VkViewport viewport = {};
@@ -642,7 +729,12 @@ bool VulkanRendererBackend::EndFrame()
     submit_info.pSignalSemaphores = &s_Context.RenderCompleteSemaphores[s_Context.Swapchain.CurrentFrame];
     submit_info.pWaitDstStageMask = &wait_stage_mask;
 
-    KRAFT_VK_CHECK(vkQueueSubmit(s_Context.LogicalDevice.GraphicsQueue, 1, &submit_info, s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame]->Handle));
+    KRAFT_VK_CHECK(vkQueueSubmit(
+        s_Context.LogicalDevice.GraphicsQueue,
+        1,
+        &submit_info,
+        s_Context.InFlightImageToFenceMap[s_Context.Swapchain.CurrentFrame]->Handle
+    ));
 
     VulkanSetCommandBufferSubmitted(gpu_cmd_buffer);
 
@@ -659,7 +751,8 @@ bool VulkanRendererBackend::EndFrame()
     // Common case
     if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
     {
-        s_Context.Swapchain.CurrentFrame = (s_Context.Swapchain.CurrentFrame + 1) % s_Context.Swapchain.MaxFramesInFlight;
+        s_Context.Swapchain.CurrentFrame =
+            (s_Context.Swapchain.CurrentFrame + 1) % s_Context.Swapchain.MaxFramesInFlight;
     }
     else if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -696,7 +789,9 @@ void VulkanRendererBackend::OnResize(int width, int height)
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
 
 #else
-    s_Context.MainRenderPass.Rect = { 0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight };
+    s_Context.MainRenderPass.Rect = {
+        0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight
+    };
     createFramebuffers(&s_Context.Swapchain, &s_Context.MainRenderPass);
 #endif
 }
@@ -720,8 +815,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
     VulkanShader* internal_shader_data = (VulkanShader*)Malloc(sizeof(VulkanShader), MEMORY_TAG_RENDERER, true);
 
     // Collect bindings into sets
-    shaderfx::ResourceBinding bindings_by_set[KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER][KRAFT_VULKAN_MAX_BINDINGS_PER_SET] = {};
-    u32                       max_set_number = 0;
+    shaderfx::ResourceBinding bindings_by_set[KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER]
+                                             [KRAFT_VULKAN_MAX_BINDINGS_PER_SET] = {};
+    u32 max_set_number = 0;
     for (u32 i = 0; i < effect.global_resource_count; i++)
     {
         for (u32 j = 0; j < effect.global_resources[i].binding_count; j++)
@@ -748,8 +844,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
 
     for (u32 set = KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS; set <= max_set_number; set++)
     {
-        VkDescriptorSetLayoutBinding* bindings = ArenaPushArray(scratch.arena, VkDescriptorSetLayoutBinding, KRAFT_VULKAN_MAX_BINDINGS);
-        u32                           binding_count = 0;
+        VkDescriptorSetLayoutBinding* bindings =
+            ArenaPushArray(scratch.arena, VkDescriptorSetLayoutBinding, KRAFT_VULKAN_MAX_BINDINGS);
+        u32 binding_count = 0;
         for (u32 binding_idx = 0; binding_idx < 16; binding_idx++)
         {
             const shaderfx::ResourceBinding& binding = bindings_by_set[set][binding_idx];
@@ -765,22 +862,33 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
             }
         }
 
-        VkDescriptorSetLayoutCreateInfo descriptor_create_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        VkDescriptorSetLayoutCreateInfo descriptor_create_info = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+        };
         descriptor_create_info.bindingCount = binding_count;
         descriptor_create_info.pBindings = &bindings[0];
 
         KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(
-            s_Context.LogicalDevice.Handle, &descriptor_create_info, s_Context.AllocationCallbacks, &internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)]
+            s_Context.LogicalDevice.Handle,
+            &descriptor_create_info,
+            s_Context.AllocationCallbacks,
+            &internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)]
         ));
 
         VkDescriptorSetAllocateInfo set_allocate_info = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
         set_allocate_info.descriptorPool = s_Context.GlobalDescriptorPool;
         set_allocate_info.descriptorSetCount = 1;
-        set_allocate_info.pSetLayouts = &internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
+        set_allocate_info.pSetLayouts =
+            &internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
 
-        vkAllocateDescriptorSets(s_Context.LogicalDevice.Handle, &set_allocate_info, &internal_shader_data->descriptor_sets[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)]);
+        vkAllocateDescriptorSets(
+            s_Context.LogicalDevice.Handle,
+            &set_allocate_info,
+            &internal_shader_data->descriptor_sets[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)]
+        );
 
-        descriptor_set_layouts[set] = internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
+        descriptor_set_layouts[set] =
+            internal_shader_data->descriptor_set_layouts[set - (KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS - 1)];
         layouts_count = set + 1;
     }
 
@@ -797,16 +905,20 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
     layout_create_info.pPushConstantRanges = &push_constant_range;
 
     VkPipelineLayout pipeline_layout;
-    KRAFT_VK_CHECK(vkCreatePipelineLayout(s_Context.LogicalDevice.Handle, &layout_create_info, s_Context.AllocationCallbacks, &pipeline_layout));
+    KRAFT_VK_CHECK(vkCreatePipelineLayout(
+        s_Context.LogicalDevice.Handle, &layout_create_info, s_Context.AllocationCallbacks, &pipeline_layout
+    ));
     KASSERT(pipeline_layout);
 
     String8 shader_effect_name = effect.name;
     String8 debug_pipeline_layout_name = StringCat(scratch.arena, shader_effect_name, String8Raw("PipelineLayout"));
-    s_Context.SetObjectName((u64)pipeline_layout, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (const char*)debug_pipeline_layout_name.ptr);
+
+    KRAFT_RENDERER_SET_OBJECT_NAME(pipeline_layout, VK_OBJECT_TYPE_PIPELINE_LAYOUT, debug_pipeline_layout_name.str);
 
     internal_shader_data->PipelineLayout = pipeline_layout;
     internal_shader_data->PipelineCount = effect.variant_count;
-    internal_shader_data->Pipelines = (VkPipeline*)Malloc(sizeof(VkPipeline) * effect.variant_count, MEMORY_TAG_RENDERER, true);
+    internal_shader_data->Pipelines =
+        (VkPipeline*)Malloc(sizeof(VkPipeline) * effect.variant_count, MEMORY_TAG_RENDERER, true);
 
     // Create a pipeline for every shader variant specified
     for (u32 v = 0; v < effect.variant_count; v++)
@@ -816,8 +928,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
 
         // Shader stages
         u32                              shader_stage_count = variant.shader_stage_count;
-        VkPipelineShaderStageCreateInfo* pipeline_shader_stage_create_infos = ArenaPushArray(scratch.arena, VkPipelineShaderStageCreateInfo, shader_stage_count);
-        VkShaderModule*                  shader_modules = ArenaPushArray(scratch.arena, VkShaderModule, shader_stage_count);
+        VkPipelineShaderStageCreateInfo* pipeline_shader_stage_create_infos =
+            ArenaPushArray(scratch.arena, VkPipelineShaderStageCreateInfo, shader_stage_count);
+        VkShaderModule* shader_modules = ArenaPushArray(scratch.arena, VkShaderModule, shader_stage_count);
 
         for (int j = 0; j < shader_stage_count; j++)
         {
@@ -828,7 +941,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
             info.pCode = (u32*)shader_def.code_fragment.code.ptr;
 
             VkShaderModule shader_module;
-            KRAFT_VK_CHECK(vkCreateShaderModule(s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &shader_module));
+            KRAFT_VK_CHECK(vkCreateShaderModule(
+                s_Context.LogicalDevice.Handle, &info, s_Context.AllocationCallbacks, &shader_module
+            ));
             KASSERT(shader_module);
 
             VkPipelineShaderStageCreateInfo shader_stage_info = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
@@ -873,7 +988,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         raster_state_create_info.depthClampEnable = VK_FALSE;
         raster_state_create_info.rasterizerDiscardEnable = VK_FALSE;
         raster_state_create_info.polygonMode = ToVulkanPolygonMode(variant.render_state->polygon_mode);
-        raster_state_create_info.lineWidth = s_Context.PhysicalDevice.Features.wideLines ? variant.render_state->line_width : 1.0f;
+        raster_state_create_info.lineWidth =
+            s_Context.PhysicalDevice.Features.wideLines ? variant.render_state->line_width : 1.0f;
         raster_state_create_info.cullMode = ToVulkanCullModeFlagBits(variant.render_state->cull_mode);
         raster_state_create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         raster_state_create_info.depthBiasEnable = VK_FALSE;
@@ -894,7 +1010,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
 
         VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info = {};
         depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depth_stencil_state_create_info.depthTestEnable = variant.render_state->z_test_op > CompareOp::Never ? VK_TRUE : VK_FALSE;
+        depth_stencil_state_create_info.depthTestEnable =
+            variant.render_state->z_test_op > CompareOp::Never ? VK_TRUE : VK_FALSE;
         depth_stencil_state_create_info.depthWriteEnable = variant.render_state->z_write_enable;
         depth_stencil_state_create_info.depthCompareOp = ToVulkanCompareOp(variant.render_state->z_test_op);
         depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
@@ -912,14 +1029,21 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
             color_blend_attachment_state.blendEnable = variant.render_state->blend_enable;
             if (variant.render_state->blend_enable)
             {
-                color_blend_attachment_state.srcColorBlendFactor = ToVulkanBlendFactor(variant.render_state->blend_mode.src_color_blend_factor);
-                color_blend_attachment_state.dstColorBlendFactor = ToVulkanBlendFactor(variant.render_state->blend_mode.dst_color_blend_factor);
-                color_blend_attachment_state.colorBlendOp = ToVulkanBlendOp(variant.render_state->blend_mode.color_blend_op);
-                color_blend_attachment_state.srcAlphaBlendFactor = ToVulkanBlendFactor(variant.render_state->blend_mode.src_alpha_blend_factor);
-                color_blend_attachment_state.dstAlphaBlendFactor = ToVulkanBlendFactor(variant.render_state->blend_mode.dst_alpha_blend_factor);
-                color_blend_attachment_state.alphaBlendOp = ToVulkanBlendOp(variant.render_state->blend_mode.alpha_blend_op);
+                color_blend_attachment_state.srcColorBlendFactor =
+                    ToVulkanBlendFactor(variant.render_state->blend_mode.src_color_blend_factor);
+                color_blend_attachment_state.dstColorBlendFactor =
+                    ToVulkanBlendFactor(variant.render_state->blend_mode.dst_color_blend_factor);
+                color_blend_attachment_state.colorBlendOp =
+                    ToVulkanBlendOp(variant.render_state->blend_mode.color_blend_op);
+                color_blend_attachment_state.srcAlphaBlendFactor =
+                    ToVulkanBlendFactor(variant.render_state->blend_mode.src_alpha_blend_factor);
+                color_blend_attachment_state.dstAlphaBlendFactor =
+                    ToVulkanBlendFactor(variant.render_state->blend_mode.dst_alpha_blend_factor);
+                color_blend_attachment_state.alphaBlendOp =
+                    ToVulkanBlendOp(variant.render_state->blend_mode.alpha_blend_op);
             }
-            color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+            color_blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
             color_blend_state_create_info.attachmentCount = 1;
             color_blend_state_create_info.pAttachments = &color_blend_attachment_state;
         }
@@ -944,10 +1068,14 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         pipeline_create_info.pDynamicState = &dynamic_state_create_info;
 
         // Vertices are now fetched from a storage buffer
-        VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info = {
+            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+        };
         pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
 
-        VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+        VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info = {
+            VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+        };
         input_assembly_state_create_info.primitiveRestartEnable = VK_FALSE;
         input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
@@ -963,7 +1091,8 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         VkPipelineRenderingCreateInfo rendering_create_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
         rendering_create_info.colorAttachmentCount = variant.has_color_output ? 1 : 0;
         rendering_create_info.pColorAttachmentFormats = variant.has_color_output ? &color_format : nullptr;
-        rendering_create_info.depthAttachmentFormat = variant.has_depth_output ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_UNDEFINED;
+        rendering_create_info.depthAttachmentFormat =
+            variant.has_depth_output ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_UNDEFINED;
         pipeline_create_info.pNext = &rendering_create_info;
         pipeline_create_info.renderPass = NULL;
 #else
@@ -975,13 +1104,20 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader)
         pipeline_create_info.basePipelineIndex = -1;
 
         VkPipeline pipeline;
-        KRAFT_VK_CHECK(vkCreateGraphicsPipelines(s_Context.LogicalDevice.Handle, VK_NULL_HANDLE, 1, &pipeline_create_info, s_Context.AllocationCallbacks, &pipeline));
+        KRAFT_VK_CHECK(vkCreateGraphicsPipelines(
+            s_Context.LogicalDevice.Handle,
+            VK_NULL_HANDLE,
+            1,
+            &pipeline_create_info,
+            s_Context.AllocationCallbacks,
+            &pipeline
+        ));
         KASSERT(pipeline);
 
         String8 debug_pipeline_name = StringCat(scratch.arena, shader_effect_name, String8Raw("_"));
         debug_pipeline_name = StringCat(scratch.arena, debug_pipeline_name, variant.name);
         debug_pipeline_name = StringCat(scratch.arena, debug_pipeline_name, String8Raw("Pipeline"));
-        s_Context.SetObjectName((u64)pipeline, VK_OBJECT_TYPE_PIPELINE, (const char*)debug_pipeline_name.ptr);
+        KRAFT_RENDERER_SET_OBJECT_NAME(pipeline, VK_OBJECT_TYPE_PIPELINE, debug_pipeline_name.str);
 
         internal_shader_data->Pipelines[v] = pipeline;
 
@@ -1006,10 +1142,14 @@ void VulkanRendererBackend::DestroyRenderPipeline(Shader* Shader)
 
         for (u32 i = 0; i < VulkanShaderData->PipelineCount; i++)
         {
-            vkDestroyPipeline(s_Context.LogicalDevice.Handle, VulkanShaderData->Pipelines[i], s_Context.AllocationCallbacks);
+            vkDestroyPipeline(
+                s_Context.LogicalDevice.Handle, VulkanShaderData->Pipelines[i], s_Context.AllocationCallbacks
+            );
         }
 
-        vkDestroyPipelineLayout(s_Context.LogicalDevice.Handle, VulkanShaderData->PipelineLayout, s_Context.AllocationCallbacks);
+        vkDestroyPipelineLayout(
+            s_Context.LogicalDevice.Handle, VulkanShaderData->PipelineLayout, s_Context.AllocationCallbacks
+        );
 
         Free(VulkanShaderData->Pipelines, sizeof(VkPipeline) * VulkanShaderData->PipelineCount, MEMORY_TAG_RENDERER);
         Free(Shader->RendererData, sizeof(VulkanShader), MEMORY_TAG_RENDERER);
@@ -1027,7 +1167,13 @@ void VulkanRendererBackend::UseShader(const Shader* Shader, u32 variant_index)
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
-void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer)
+void VulkanRendererBackend::ApplyGlobalShaderProperties(
+    Shader*        shader,
+    Handle<Buffer> ubo_buffer,
+    Handle<Buffer> materials_buffer,
+    Handle<Buffer> vertex_buffer,
+    Handle<Buffer> index_buffer
+)
 {
     s_Context.IndexBuffer = index_buffer;
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
@@ -1094,8 +1240,24 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<B
         count++;
     }
 
-    vkCmdPushDescriptorSetKHR(cmd_buffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, 0, count, &descriptor_write_info[0]);
-    vkCmdBindDescriptorSets(cmd_buffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, 2, 1, &s_Context.GlobalTexturesDescriptorSet, 0, nullptr);
+    vkCmdPushDescriptorSetKHR(
+        cmd_buffer->Resource,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        shader_data->PipelineLayout,
+        0,
+        count,
+        &descriptor_write_info[0]
+    );
+    vkCmdBindDescriptorSets(
+        cmd_buffer->Resource,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        shader_data->PipelineLayout,
+        2,
+        1,
+        &s_Context.GlobalTexturesDescriptorSet,
+        0,
+        nullptr
+    );
 }
 
 void VulkanRendererBackend::ApplyLocalShaderProperties(Shader* shader, void* data)
@@ -1136,7 +1298,8 @@ void VulkanRendererBackend::DrawGeometryData(GeometryDrawData draw_data)
     vkCmdDrawIndexed(cmd_buffer->Resource, draw_data.IndexCount, 1, 0, draw_data.VertexOffset, 0);
 }
 
-static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u32 dst_buffer_offset, const void* data, u32 size)
+static bool
+UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u32 dst_buffer_offset, const void* data, u32 size)
 {
     BufferView staging_buffer = ResourceManager->CreateTempBuffer(size);
     MemCpy(staging_buffer.Ptr, data, size);
@@ -1155,12 +1318,16 @@ static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u
 bool VulkanRendererBackend::CreateGeometry(const GeometryDescription& description)
 {
     u32 vertex_data_size = description.VertexSize * description.VertexCount;
-    UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
+    UploadDataToGPU(
+        &s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size
+    );
 
     if (description.Indices && description.IndexCount > 0)
     {
         u32 index_data_size = description.IndexSize * description.IndexCount;
-        UploadDataToGPU(&s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size);
+        UploadDataToGPU(
+            &s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size
+        );
     }
 
     return true;
@@ -1169,12 +1336,16 @@ bool VulkanRendererBackend::CreateGeometry(const GeometryDescription& descriptio
 bool VulkanRendererBackend::UpdateGeometry(const GeometryDescription& description)
 {
     u32 vertex_data_size = description.VertexSize * description.VertexCount;
-    UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
+    UploadDataToGPU(
+        &s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size
+    );
 
     if (description.Indices && description.IndexCount > 0)
     {
         u32 index_data_size = description.IndexSize * description.IndexCount;
-        UploadDataToGPU(&s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size);
+        UploadDataToGPU(
+            &s_Context, description.IndexBuffer, description.IndexBufferOffset, description.Indices, index_data_size
+        );
     }
 
     return true;
@@ -1310,7 +1481,8 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface)
 
     vkCmdSetScissor(gpu_cmd_buffer->Resource, 0, 1, &scissor);
 
-    VulkanRendererBackendState.BuffersToSubmit[VulkanRendererBackendState.BuffersToSubmitNum] = gpu_cmd_buffer->Resource;
+    VulkanRendererBackendState.BuffersToSubmit[VulkanRendererBackendState.BuffersToSubmitNum] =
+        gpu_cmd_buffer->Resource;
     VulkanRendererBackendState.BuffersToSubmitNum++;
 }
 
@@ -1446,8 +1618,12 @@ static void imageBarrier(VkImage image, VkDependencyFlags dependency_flags, Vulk
 // }
 
 #ifdef KRAFT_RENDERER_DEBUG
-static VkBool32
-DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+static VkBool32 DebugUtilsMessenger(
+    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT             messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void*                                       pUserData
+)
 {
     switch (messageSeverity)
     {
@@ -1540,7 +1716,15 @@ void createFramebuffers(VulkanSwapchain* swapchain, VulkanRenderPass* render_pas
         }
 
         attachments[0] = swapchain->ImageViews[i];
-        VulkanCreateFramebuffer(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, render_pass, attachments, KRAFT_C_ARRAY_SIZE(attachments), &swapchain->Framebuffers[i]);
+        VulkanCreateFramebuffer(
+            &s_Context,
+            s_Context.FramebufferWidth,
+            s_Context.FramebufferHeight,
+            render_pass,
+            attachments,
+            KRAFT_C_ARRAY_SIZE(attachments),
+            &swapchain->Framebuffers[i]
+        );
     }
 }
 

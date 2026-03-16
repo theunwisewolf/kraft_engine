@@ -171,6 +171,7 @@ void GeometrySystem::DestroyGeometry(Geometry* geometry)
 
 void _createDefaultGeometries()
 {
+    return;
     GeometryReference* ref = &geometry_system_state->geometries[0];
     r::Vertex3D        vertices[] = {
         { Vec3f(+0.5f, +0.5f, +0.0f), { 1.f, 1.f }, { 0, 0, 0 }, { 1, 0, 0, 1 } },

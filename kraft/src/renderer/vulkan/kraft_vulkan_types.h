@@ -6,18 +6,26 @@
 #define KRAFT_ENABLE_VK_DYNAMIC_RENDERING 1
 #endif
 
-#define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
-    do                                                                                                                                                                                                 \
-    {                                                                                                                                                                                                  \
-        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                                                                                         \
+#define KRAFT_VK_CHECK(expression)                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                         \
     } while (0)
 
-#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES           3
-#define KRAFT_VULKAN_MAX_BINDINGS                   32
-#define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS    3
-#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS     4
-#define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
-#define KRAFT_VULKAN_MAX_BINDINGS_PER_SET           16
+#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES        3
+#define KRAFT_VULKAN_MAX_BINDINGS                32
+#define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS 3
+#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS  4
+#define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER                                                                    \
+    KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
+#define KRAFT_VULKAN_MAX_BINDINGS_PER_SET 16
+
+#ifdef KRAFT_RENDERER_DEBUG
+#define KRAFT_RENDERER_SET_OBJECT_NAME(object, type, name)                                                             \
+    kraft::r::VulkanRendererBackend::Context()->SetObjectName((u64)object, type, name)
+#else
+#define KRAFT_RENDERER_SET_OBJECT_NAME(object, type, name)
+#endif
 
 namespace kraft {
 struct ArenaAllocator;

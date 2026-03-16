@@ -8,6 +8,14 @@
 
 #include <core/kraft_base_includes.h>
 
+#if defined(KRAFT_PLATFORM_WINDOWS)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include "Windows.h"
+#undef WIN32_LEAN_AND_MEAN
+#endif
+
 namespace kraft {
 
 namespace fs {
@@ -41,9 +49,19 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
     }
 
 #if UNICODE && defined(KRAFT_PLATFORM_WINDOWS)
-    WString WideStringPath = MultiByteStringToWideCharString(path.ptr);
-    WString WideStringMode = MultiByteStringToWideCharString(mode_string);
-    result->Handle = _wfopen(*WideStringPath, *WideStringMode);
+    TempArena scratch = ScratchBegin(0, 0);
+
+    int      character_count = MultiByteToWideChar(CP_UTF8, 0, path.str, -1, NULL, 0);
+    wchar_t* path_wide = ArenaPushArray(scratch.arena, wchar_t, character_count);
+    KASSERT(MultiByteToWideChar(CP_UTF8, 0, path.str, -1, path_wide, character_count));
+
+    character_count = MultiByteToWideChar(CP_UTF8, 0, mode_string, -1, NULL, 0);
+    wchar_t* mode_wide = ArenaPushArray(scratch.arena, wchar_t, character_count);
+    KASSERT(MultiByteToWideChar(CP_UTF8, 0, mode_string, -1, mode_wide, character_count));
+
+    result->Handle = _wfopen(path_wide, mode_wide);
+
+    ScratchEnd(scratch);
 #else
     result->Handle = fopen((char*)path.ptr, mode_string);
 #endif
@@ -290,7 +308,7 @@ String8 AbsolutePath(ArenaAllocator* arena, String8 path)
     }
 #endif
 
-    u64     len = StringLength(resolved);
+    u64     len = CStringLength((u8*)resolved);
     String8 result = {};
     result.ptr = ArenaPushArray(arena, u8, len + 1);
     result.count = len;
