@@ -49,7 +49,7 @@ struct VulkanResourceManagerState
     Pool<VulkanTexture, Texture>               texture_pool;
     Pool<VulkanTextureSampler, TextureSampler> texture_sampler_pool;
     Pool<VulkanBuffer, Buffer>                 buffer_pool;
-    Pool<VulkanRenderPass, RenderPass>         RenderPassPool;
+    Pool<VulkanRenderPass, RenderPass>         render_pass_pool;
     Pool<VulkanCommandBuffer, CommandBuffer>   cmd_buffer_pool;
     Pool<VulkanCommandPool, CommandPool>       cmd_pool_pool;
     VulkanTempMemoryBlockAllocator*            temp_gpu_allocator = nullptr;
@@ -63,6 +63,9 @@ struct VulkanResourceManagerApi
     static VulkanRenderPass*     GetRenderPass(Handle<RenderPass> handle);
     static VulkanCommandBuffer*  GetCommandBuffer(Handle<CommandBuffer> handle);
     static VulkanCommandPool*    GetCommandPool(Handle<CommandPool> handle);
+
+    // Returns the number of active samplers and fills out_samplers with their VkSampler handles
+    static u32 GetActiveSamplers(VkSampler* out_samplers, u32 max_count);
 };
 
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena);

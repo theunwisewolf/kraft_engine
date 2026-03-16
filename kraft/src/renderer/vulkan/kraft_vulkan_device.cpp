@@ -275,25 +275,25 @@ bool VulkanDeviceSupportsExtension(VulkanPhysicalDevice device, const char* exte
     return false;
 }
 
-bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, VulkanPhysicalDeviceRequirements* Requirements, VulkanPhysicalDevice* out)
+bool VulkanSelectPhysicalDevice(ArenaAllocator* arena, VulkanContext* Context, VulkanPhysicalDeviceRequirements* Requirements, VulkanPhysicalDevice* out)
 {
     Context->PhysicalDevice = {};
 
-    u32 DeviceCount = 0;
-    KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &DeviceCount, nullptr));
-    if (DeviceCount <= 0)
+    u32 device_count = 0;
+    KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &device_count, nullptr));
+    if (device_count <= 0)
     {
         KERROR("[VulkanSelectPhysicalDevice]: No vulkan capable physical devices found!");
         return false;
     }
 
-    VkPhysicalDevice* PhysicalDevices = ArenaPushArray(Arena, VkPhysicalDevice, DeviceCount);
-    KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &DeviceCount, PhysicalDevices));
+    VkPhysicalDevice* PhysicalDevices = ArenaPushArray(arena, VkPhysicalDevice, device_count);
+    KRAFT_VK_CHECK(vkEnumeratePhysicalDevices(Context->Instance, &device_count, PhysicalDevices));
 
-    VulkanPhysicalDevice* SuitablePhysicalDevices = ArenaPushArray(Arena, VulkanPhysicalDevice, DeviceCount);
+    VulkanPhysicalDevice* SuitablePhysicalDevices = ArenaPushArray(arena, VulkanPhysicalDevice, device_count);
 
-    int SuitablePhysicalDevicesCount = 0;
-    for (u32 i = 0; i < DeviceCount; ++i)
+    int suitable_physical_devices_count = 0;
+    for (u32 i = 0; i < device_count; ++i)
     {
         VkPhysicalDevice           PhysicalDevice = PhysicalDevices[i];
         VkPhysicalDeviceProperties Properties = {};
@@ -328,12 +328,12 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         QueueFamilyInfo.ComputeQueueIndex = -1;
         QueueFamilyInfo.TransferQueueIndex = -1;
 
-        if (!checkQueueSupport(Arena, PhysicalDevice, Properties, Context->Surface, Requirements, &QueueFamilyInfo))
+        if (!checkQueueSupport(arena, PhysicalDevice, Properties, Context->Surface, Requirements, &QueueFamilyInfo))
         {
             continue;
         }
 
-        if (!checkExtensionsSupport(Arena, PhysicalDevice, Properties, Requirements))
+        if (!checkExtensionsSupport(arena, PhysicalDevice, Properties, Requirements))
         {
             continue;
         }
@@ -345,7 +345,7 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         }
 
         VulkanSwapchainSupportInfo SwapchainSupportInfo = {};
-        VulkanGetSwapchainSupportInfo(Arena, PhysicalDevice, Context->Surface, &SwapchainSupportInfo);
+        VulkanGetSwapchainSupportInfo(arena, PhysicalDevice, Context->Surface, &SwapchainSupportInfo);
         if (!checkSwapchainSupport(Properties, SwapchainSupportInfo))
         {
             continue;
@@ -361,10 +361,10 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
         OutPhysicalDevice.SwapchainSupportInfo = SwapchainSupportInfo;
         OutPhysicalDevice.SupportsDeviceLocalHostVisible = SupportsDeviceLocalHostVisible;
 
-        SuitablePhysicalDevices[SuitablePhysicalDevicesCount++] = OutPhysicalDevice;
+        SuitablePhysicalDevices[suitable_physical_devices_count++] = OutPhysicalDevice;
     }
 
-    if (SuitablePhysicalDevicesCount == 0)
+    if (suitable_physical_devices_count == 0)
     {
         KERROR("[VulkanSelectPhysicalDevice]: Failed to find a suitable physical device!");
         return false;
@@ -372,7 +372,7 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
 
     // Try to pick a discrete gpu, if possible
     Context->PhysicalDevice = SuitablePhysicalDevices[0];
-    for (int i = 1; i < SuitablePhysicalDevicesCount; i++)
+    for (int i = 1; i < suitable_physical_devices_count; i++)
     {
         if (SuitablePhysicalDevices[i].Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         {
@@ -420,8 +420,8 @@ bool VulkanSelectPhysicalDevice(ArenaAllocator* Arena, VulkanContext* Context, V
     if (out)
         *out = Context->PhysicalDevice;
 
-    ArenaPop(Arena, sizeof(VkPhysicalDevice) * DeviceCount);
-    ArenaPop(Arena, sizeof(VulkanPhysicalDevice) * DeviceCount);
+    ArenaPop(arena, sizeof(VkPhysicalDevice) * device_count);
+    ArenaPop(arena, sizeof(VulkanPhysicalDevice) * device_count);
 
     return true;
 }

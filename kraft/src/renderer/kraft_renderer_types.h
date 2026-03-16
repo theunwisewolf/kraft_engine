@@ -68,6 +68,11 @@ public:
     {
         return index;
     }
+
+    u16 GetGeneration() const
+    {
+        return generation;
+    }
 };
 
 struct ShaderEffect;

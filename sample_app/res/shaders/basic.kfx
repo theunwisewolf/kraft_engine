@@ -111,7 +111,7 @@ Shader Basic
         void main() 
         {
             MeshMaterial Material = Materials[variableState.MaterialIdx];
-            outColor = vec4(texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).rgb, 1.0);
+            outColor = vec4(SampleTexture(Material.DiffuseTexture, inDTO.UV).rgb, 1.0);
         }
 
         #endif // FRAGMENT

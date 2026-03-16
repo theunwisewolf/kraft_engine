@@ -13,25 +13,24 @@
 namespace kraft {
 
 namespace TokenType {
-enum Enum : u32
-{
+enum Enum : u32 {
     TOKEN_TYPE_UNKNOWN,
 
     // Symbols
-    TOKEN_TYPE_OPEN_PARENTHESIS,    // (
-    TOKEN_TYPE_CLOSE_PARENTHESIS,   // )
-    TOKEN_TYPE_OPEN_BRACE,          // {
-    TOKEN_TYPE_CLOSE_BRACE,         // }
-    TOKEN_TYPE_OPEN_BRACKET,        // [
-    TOKEN_TYPE_CLOSE_BRACKET,       // ]
-    TOKEN_TYPE_OPEN_ANGLE_BRACKET,  // <
+    TOKEN_TYPE_OPEN_PARENTHESIS, // (
+    TOKEN_TYPE_CLOSE_PARENTHESIS, // )
+    TOKEN_TYPE_OPEN_BRACE, // {
+    TOKEN_TYPE_CLOSE_BRACE, // }
+    TOKEN_TYPE_OPEN_BRACKET, // [
+    TOKEN_TYPE_CLOSE_BRACKET, // ]
+    TOKEN_TYPE_OPEN_ANGLE_BRACKET, // <
     TOKEN_TYPE_CLOSE_ANGLE_BRACKET, // >
-    TOKEN_TYPE_EQUALS,              // =
-    TOKEN_TYPE_HASH,                // #
-    TOKEN_TYPE_COMMA,               // ,
-    TOKEN_TYPE_COLON,               // :
-    TOKEN_TYPE_SEMICOLON,           // ;
-    TOKEN_TYPE_ASTERISK,            // *
+    TOKEN_TYPE_EQUALS, // =
+    TOKEN_TYPE_HASH, // #
+    TOKEN_TYPE_COMMA, // ,
+    TOKEN_TYPE_COLON, // :
+    TOKEN_TYPE_SEMICOLON, // ;
+    TOKEN_TYPE_ASTERISK, // *
 
     TOKEN_TYPE_STRING,
     TOKEN_TYPE_IDENTIFIER,
@@ -63,25 +62,22 @@ static String8 strings[] = {
     String8Raw("TOKEN_TYPE_END_OF_STREAM"),
 };
 
-static String8 String(Enum value)
-{
+static String8 String(Enum value) {
     return (value < Enum::TOKEN_TYPE_COUNT ? strings[(int)value] : String8Raw("Unknown"));
 }
 } // namespace TokenType
 
-struct LexerToken
-{
+struct LexerToken {
     TokenType::Enum type;
-    String8         text;
-    f64             float_value;
+    String8 text;
+    f64 float_value;
 
-    bool    MatchesKeyword(String8 expected_keyword) const;
+    bool MatchesKeyword(String8 expected_keyword) const;
     String8 ToString8();
 };
 
-struct LexerNamedToken
-{
-    String8    key;
+struct LexerNamedToken {
+    String8 key;
     LexerToken value;
 };
 
@@ -93,8 +89,7 @@ namespace TokenType {
 enum Enum : u32;
 }
 
-enum LexerError
-{
+enum LexerError {
     LEXER_ERROR_NONE,
     LEXER_ERROR_UNEXPECTED_EOF,
     LEXER_ERROR_UNTERMINATED_COMMENT,
@@ -102,8 +97,7 @@ enum LexerError
     LEXER_ERROR_UNEXPECTED_CHARACTER,
 };
 
-struct Lexer
-{
+struct Lexer {
     // Input text
     String8 text;
 
@@ -126,26 +120,21 @@ struct Lexer
     LexerError ParseNumber(const LexerToken* token, f64* out_number);
     LexerError ConsumeWhitespaces();
 
-    KRAFT_INLINE bool ReachedEOF()
-    {
+    KRAFT_INLINE bool ReachedEOF() {
         return (position == text.count);
     }
 
-    KRAFT_INLINE u64 BytesLeft()
-    {
+    KRAFT_INLINE u64 BytesLeft() {
         return (text.count - position);
     }
 
-    KRAFT_INLINE void Advance()
-    {
+    KRAFT_INLINE void Advance() {
         this->position++;
     }
 
     // Moves the cursor to this position
-    KRAFT_INLINE LexerError MoveCursorTo(u64 position)
-    {
-        if (this->position >= text.count)
-        {
+    KRAFT_INLINE LexerError MoveCursorTo(u64 position) {
+        if (this->position >= text.count) {
             return LexerError::LEXER_ERROR_UNEXPECTED_EOF;
         }
 
@@ -161,29 +150,27 @@ struct Lexer
     // Check if the token is of the given type
     bool EqualsToken(LexerToken* token, TokenType::Enum expected_type);
 
+    LexerToken Peek();
+
     // Check the current token for errors
     bool CheckToken(const LexerToken* token, TokenType::Enum expected_type);
 
     // Checks if the provided token matches the expected keyword
     bool ExpectKeyword(const LexerToken* token, String8 expected_keyword);
 
-    KRAFT_INLINE bool IsNewLine(char c)
-    {
+    KRAFT_INLINE bool IsNewLine(char c) {
         return (c == '\n' || c == '\r');
     }
 
-    KRAFT_INLINE bool IsSpace(char c)
-    {
+    KRAFT_INLINE bool IsSpace(char c) {
         return (c == ' ' || c == '\t' || c == '\v' || c == '\f' || IsNewLine(c));
     }
 
-    KRAFT_INLINE bool IsAlpha(char c)
-    {
+    KRAFT_INLINE bool IsAlpha(char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
-    KRAFT_INLINE bool IsNumber(char c)
-    {
+    KRAFT_INLINE bool IsNumber(char c) {
         return (c >= '0' && c <= '9');
     }
 };

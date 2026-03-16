@@ -23,19 +23,20 @@ struct Material;
 struct Texture;
 struct MeshAsset;
 struct TextureAsset;
+struct SpriteAtlasAsset;
 struct ArenaAllocator;
 
 namespace r {
-template<typename T>
-struct Handle;
+template <typename T> struct Handle;
 }
 
-KRAFT_API struct AssetDatabase
-{
-    static void          Init();
-    static void          Shutdown();
-    static MeshAsset*    LoadMesh(ArenaAllocator* arena, String8 path);
+KRAFT_API struct AssetDatabase {
+    static void Init();
+    static void Shutdown();
+    static MeshAsset* LoadMesh(ArenaAllocator* arena, String8 path);
     static TextureAsset* LoadTexture(ArenaAllocator* arena, String8 path);
+    static SpriteAtlasAsset* LoadSpriteAtlas(ArenaAllocator* arena, String8 path);
+    static SpriteAtlasAsset** GetLoadedSpriteAtlases(u32* out_count);
 
 private:
 #if USE_ASSIMP
@@ -45,4 +46,4 @@ private:
 #endif
 };
 
-}
+} // namespace kraft

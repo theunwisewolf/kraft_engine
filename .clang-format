@@ -1,48 +1,48 @@
-﻿---
-BasedOnStyle: Mozilla
-AlignConsecutiveMacros: 'true'
-AlignConsecutiveDeclarations: 'true'
-AlignOperands: true
-AlignAfterOpenBracket: BlockIndent
-AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: None
-AccessModifierOffset: -4
-# BreakTemplateDeclarations: Leave
-# AlwaysBreakTemplateDeclarations: 'false'
-ContinuationIndentWidth: 4
+---
+BasedOnStyle: LLVM
 ColumnLimit: 200
-IndentWidth: '4'
-SortIncludes: 'false'
-TabWidth: '4'
+IndentWidth: 4
+TabWidth: 4
 UseTab: Never
-ReflowComments: false
-BreakBeforeBraces: Custom
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+
+# Braces always on same line (rustfmt style)
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
 AllowShortEnumsOnASingleLine: true
-AllowShortCaseExpressionOnASingleLine: 'true'
+AllowShortCaseExpressionOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: false
 AlignConsecutiveShortCaseStatements:
   Enabled: true
   AcrossEmptyLines: true
   AcrossComments: true
   AlignCaseColons: false
-BraceWrapping:
-  AfterCaseLabel:        true
-  AfterClass:            true
-  AfterControlStatement: true
-  AfterEnum:             true
-  AfterFunction:         true
-  AfterNamespace:        false
-  AfterObjCDeclaration:  true
-  AfterStruct:           true
-  AfterUnion:            true
-  AfterExternBlock:      true
-  BeforeCatch:           true
-  BeforeElse:            true
-  IndentBraces:          false
-  SplitEmptyFunction:    false
-  SplitEmptyRecord:      false
-  SplitEmptyNamespace:   false
+
+# No alignment gymnastics
+AlignConsecutiveMacros: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+AlignOperands: true
+AlignAfterOpenBracket: BlockIndent
+AlignTrailingComments: false
+
+# Arguments/parameters - one per line when they don't all fit
+BinPackArguments: false
+BinPackParameters: false
 PackConstructorInitializers: CurrentLine
+
+# Braced initializer lists - keep structured/nested style
+Cpp11BracedListStyle: true
+
+# Misc
+SortIncludes: false
+ReflowComments: false
 FixNamespaceComments: true
+PointerAlignment: Left
+SpaceAfterCStyleCast: false
+SpacesInParentheses: false
 ...

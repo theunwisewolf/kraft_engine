@@ -5,7 +5,7 @@
 
 #define KRAFT_MATERIAL_NAME_MAX_LENGTH 256
 #define KRAFT_GEOMETRY_NAME_MAX_LENGTH 256
-#define KRAFT_MATERIAL_MAX_INSTANCES   128
+#define KRAFT_MATERIAL_MAX_INSTANCES 128
 
 namespace kraft {
 
@@ -13,64 +13,58 @@ typedef u32 ResourceID;
 
 struct Material;
 
-struct ShaderUniform
-{
-    u32                         Location;
-    u32                         Offset;
-    u32                         Stride;
-    r::ShaderDataType           DataType;
+struct ShaderUniform {
+    u32 Location;
+    u32 Offset;
+    u32 Stride;
+    r::ShaderDataType DataType;
     r::ShaderUniformScope::Enum Scope;
 };
 
-struct Shader
-{
-    ResourceID             ID;
-    String8                Path;
+struct Shader {
+    ResourceID ID;
+    String8 Path;
     shaderfx::ShaderEffect ShaderEffect;
-    Array<ShaderUniform>   UniformCache;
-    FlatHashMap<u64, u32>  UniformCacheMapping;
+    Array<ShaderUniform> UniformCache;
+    FlatHashMap<u64, u32> UniformCacheMapping;
 
     void* RendererData;
 };
 
-enum TextureMapType : u8
-{
+enum TextureMapType : u8 {
     TEXTURE_MAP_TYPE_DIFFUSE,
     TEXTURE_MAP_TYPE_SPECULAR,
     TEXTURE_MAP_TYPE_NORMAL,
     TEXTURE_MAP_TYPE_HEIGHT,
 };
 
-struct Texture
-{
-    u32                        ID;
-    f32                        Width;
-    f32                        Height;
-    u8                         Channels;
-    r::Format::Enum            TextureFormat;
+struct Texture {
+    u32 ID;
+    f32 Width;
+    f32 Height;
+    u8 Channels;
+    r::Format::Enum TextureFormat;
     r::TextureSampleCountFlags SampleCount;
-    TextureMapType             Type;
+    TextureMapType Type;
 
     char DebugName[255];
 };
 
-struct TextureSampler
-{};
+struct TextureSampler {
+    r::TextureSamplerDescription description;
+};
 
 #define MATERIAL_PROPERTY_SET(Type)                                                                                                                                                                    \
-    KRAFT_INLINE void Set(Type Val)                                                                                                                                                                    \
-    {                                                                                                                                                                                                  \
+    KRAFT_INLINE void Set(Type Val) {                                                                                                                                                                  \
         MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
     }
 #define MATERIAL_PROPERTY_CONSTRUCTOR(Type)                                                                                                                                                            \
-    KRAFT_INLINE MaterialProperty(u32 Index, Type Val)                                                                                                                                                 \
-    {                                                                                                                                                                                                  \
+    KRAFT_INLINE MaterialProperty(u32 Index, Type Val) {                                                                                                                                               \
         this->UniformIndex = Index;                                                                                                                                                                    \
         MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
     }
 #define MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                                                                               \
-    KRAFT_INLINE MaterialProperty* operator=(Type Val)                                                                                                                                                 \
-    {                                                                                                                                                                                                  \
+    KRAFT_INLINE MaterialProperty* operator=(Type Val) {                                                                                                                                               \
         MemCpy(this->Memory, (void*)&Val, sizeof(Type));                                                                                                                                               \
         return this;                                                                                                                                                                                   \
     }
@@ -79,20 +73,18 @@ struct TextureSampler
     MATERIAL_PROPERTY_OPERATOR(Type)                                                                                                                                                                   \
     MATERIAL_PROPERTY_SET(Type)
 
-struct MaterialProperty
-{
-    union
-    {
-        Mat4f              Mat4fValue;
-        Vec4f              Vec4fValue;
-        Vec3f              Vec3fValue;
-        Vec2f              Vec2fValue;
-        f32                f32Value;
-        f64                Float64Value;
-        u8                 UInt8Value;
-        u16                UInt16Value;
-        u32                u32Value;
-        u64                UInt64Value;
+struct MaterialProperty {
+    union {
+        Mat4f Mat4fValue;
+        Vec4f Vec4fValue;
+        Vec3f Vec3fValue;
+        Vec2f Vec2fValue;
+        f32 f32Value;
+        f64 Float64Value;
+        u8 UInt8Value;
+        u16 UInt16Value;
+        u32 u32Value;
+        u64 UInt64Value;
         r::Handle<Texture> TextureValue;
 
         char Memory[128];
@@ -101,9 +93,9 @@ struct MaterialProperty
     // Index of the uniform in the shader uniform cache
     u16 UniformIndex;
     u16 Size = 0;
+    u8  SamplerIndex = 0; // Index into global sampler array (packed into upper 4 bits of texture ID)
 
-    MaterialProperty()
-    {
+    MaterialProperty() {
         MemSet(Memory, 0, sizeof(Memory));
     }
 
@@ -119,9 +111,7 @@ struct MaterialProperty
     MATERIAL_PROPERTY_SETTERS(u64);
     MATERIAL_PROPERTY_SETTERS(r::Handle<Texture>);
 
-    template<typename T>
-    T Get() const
-    {
+    template <typename T> T Get() const {
         return *((T*)(&Memory[0]));
     }
 };
@@ -131,20 +121,18 @@ struct MaterialProperty
 #undef MATERIAL_PROPERTY_OPERATOR
 #undef MATERIAL_PROPERTY_SETTERS
 
-struct Material
-{
-    ResourceID                         ID;
-    String8                            Name;
-    String8                            AssetPath;
+struct Material {
+    ResourceID ID;
+    String8 Name;
+    String8 AssetPath;
     FlatHashMap<u64, MaterialProperty> Properties;
 
     // Reference to the underlying shader
     Shader* Shader;
 };
 
-struct Geometry
-{
-    ResourceID          ID;
+struct Geometry {
+    ResourceID ID;
     r::GeometryDrawData DrawData;
 };
 

@@ -7,4 +7,7 @@
 #include "renderer/kraft_renderer_includes.h"
 #include "shaderfx/kraft_shaderfx_includes.h"
 #include "systems/kraft_systems_includes.h"
+
+#if defined(KRAFT_GUI_APP)
 #include "world/kraft_world_includes.h"
+#endif

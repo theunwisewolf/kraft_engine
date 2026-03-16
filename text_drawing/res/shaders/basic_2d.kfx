@@ -109,7 +109,7 @@ Shader Basic2D
             // outColor = effect(iResolution.xyz, gl_FragCoord.xy);
             // outColor = vec4(inDTO.UV.x, inDTO.UV.y, 1.0, 1.0);
             MeshMaterial Material = Materials[variableState.MaterialIdx];
-            outColor = Material.DiffuseColor * texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV);
+            outColor = Material.DiffuseColor * SampleTexture(Material.DiffuseTexture, inDTO.UV);
             // outColor = Material.DiffuseColor;
         }
 

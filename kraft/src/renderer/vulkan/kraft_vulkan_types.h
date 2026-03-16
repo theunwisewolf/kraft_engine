@@ -6,23 +6,24 @@
 #define KRAFT_ENABLE_VK_DYNAMIC_RENDERING 1
 #endif
 
-#define KRAFT_VK_CHECK(expression)                                                                                     \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                         \
+#define KRAFT_VK_CHECK(expression)                                                                                                                                                                     \
+    do {                                                                                                                                                                                               \
+        KRAFT_ASSERT(expression == VK_SUCCESS)                                                                                                                                                         \
     } while (0)
 
-#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES        3
-#define KRAFT_VULKAN_MAX_BINDINGS                32
+#define KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES 3
+#define KRAFT_VULKAN_MAX_BINDINGS 32
 #define KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS 3
-#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS  4
-#define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER                                                                    \
-    KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
+#define KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS 4
+#define KRAFT_VULKAN_MAX_DESCRIPTOR_SETS_PER_SHADER KRAFT_VULKAN_NUM_INBUILT_DESCRIPTOR_SETS + KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS
 #define KRAFT_VULKAN_MAX_BINDINGS_PER_SET 16
 
+// We use the first 4-bits of the texture id to figure out the sampler index
+// So the max samplers allowed are 2^4
+#define KRAFT_VULKAN_MAX_SAMPLERS_ALLOWED 16
+
 #ifdef KRAFT_RENDERER_DEBUG
-#define KRAFT_RENDERER_SET_OBJECT_NAME(object, type, name)                                                             \
-    kraft::r::VulkanRendererBackend::Context()->SetObjectName((u64)object, type, name)
+#define KRAFT_RENDERER_SET_OBJECT_NAME(object, type, name) kraft::r::VulkanRendererBackend::Context()->SetObjectName((u64)object, type, name)
 #else
 #define KRAFT_RENDERER_SET_OBJECT_NAME(object, type, name)
 #endif
@@ -35,15 +36,13 @@ namespace kraft::r {
 
 class VulkanResourceManager;
 
-struct VulkanDescriptorState
-{
+struct VulkanDescriptorState {
     u8 Generations[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
 };
 
-struct VulkanMaterialData
-{
-    u64                   InstanceUBOOffset;
-    VkDescriptorSet       LocalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+struct VulkanMaterialData {
+    u64 InstanceUBOOffset;
+    VkDescriptorSet LocalDescriptorSets[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
     VulkanDescriptorState DescriptorStates[KRAFT_VULKAN_MAX_BINDINGS];
 };
 
@@ -51,66 +50,58 @@ struct VulkanMaterialData
 // Resources
 //
 
-struct VulkanTexture
-{
-    u32            Width;
-    u32            Height;
-    VkImage        Image;
-    VkImageView    View;
+struct VulkanTexture {
+    u32 Width;
+    u32 Height;
+    VkImage Image;
+    VkImageView View;
     VkDeviceMemory Memory;
 
-    VulkanTexture() : Width(0), Height(0), Image(0), View(0), Memory(0)
-    {}
+    VulkanTexture() : Width(0), Height(0), Image(0), View(0), Memory(0) {}
 };
 
-struct VulkanTextureSampler
-{
+struct VulkanTextureSampler {
     VkSampler Sampler;
 };
 
-struct VulkanBuffer
-{
-    VkBuffer              Handle;
-    u64                   Size;
-    VkDeviceMemory        Memory;
-    VkBufferUsageFlags    UsageFlags;
-    bool                  IsLocked;
-    i32                   MemoryIndex;
+struct VulkanBuffer {
+    VkBuffer Handle;
+    u64 Size;
+    VkDeviceMemory Memory;
+    VkBufferUsageFlags UsageFlags;
+    bool IsLocked;
+    i32 MemoryIndex;
     VkMemoryPropertyFlags MemoryPropertyFlags;
-    VkDeviceAddress       device_address = 0; // Only set if buffer usage was BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS
+    VkDeviceAddress device_address = 0; // Only set if buffer usage was BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS
 };
 
 //
 // End resources
 //
 
-struct VulkanPipeline
-{
+struct VulkanPipeline {
     VkPipelineLayout Layout;
-    VkPipeline       Handle;
+    VkPipeline Handle;
 };
 
-struct VulkanPipelineDescription
-{
+struct VulkanPipelineDescription {
     VkVertexInputAttributeDescription* Attributes;
-    u32                                AttributeCount;
-    VkDescriptorSetLayout*             DescriptorSetLayouts;
-    u32                                DescriptorSetLayoutCount;
-    VkPipelineShaderStageCreateInfo*   ShaderStages;
-    u32                                ShaderStageCount;
-    VkViewport                         Viewport;
-    VkRect2D                           Scissor;
-    bool                               IsWireframe;
+    u32 AttributeCount;
+    VkDescriptorSetLayout* DescriptorSetLayouts;
+    u32 DescriptorSetLayoutCount;
+    VkPipelineShaderStageCreateInfo* ShaderStages;
+    u32 ShaderStageCount;
+    VkViewport Viewport;
+    VkRect2D Scissor;
+    bool IsWireframe;
 };
 
-struct VulkanFence
-{
+struct VulkanFence {
     VkFence Handle;
-    bool    Signalled;
+    bool Signalled;
 };
 
-enum VulkanCommandBufferState
-{
+enum VulkanCommandBufferState {
     VULKAN_COMMAND_BUFFER_STATE_NOT_ALLOCATED,
     VULKAN_COMMAND_BUFFER_STATE_READY,
     VULKAN_COMMAND_BUFFER_STATE_RECORDING,
@@ -119,20 +110,17 @@ enum VulkanCommandBufferState
     VULKAN_COMMAND_BUFFER_STATE_SUBMITTED,
 };
 
-struct VulkanCommandBuffer
-{
-    VkCommandBuffer          Resource;
-    VkCommandPool            Pool;
+struct VulkanCommandBuffer {
+    VkCommandBuffer Resource;
+    VkCommandPool Pool;
     VulkanCommandBufferState State;
 };
 
-struct VulkanCommandPool
-{
+struct VulkanCommandPool {
     VkCommandPool Resource;
 };
 
-enum VulkanRenderPassState
-{
+enum VulkanRenderPassState {
     VULKAN_RENDER_PASS_STATE_NOT_ALLOCATED,
     VULKAN_RENDER_PASS_STATE_READY,
     VULKAN_RENDER_PASS_STATE_RECORDING,
@@ -141,103 +129,95 @@ enum VulkanRenderPassState
     VULKAN_RENDER_PASS_STATE_SUBMITTED,
 };
 
-struct VulkanFramebuffer
-{
+struct VulkanFramebuffer {
     VkFramebuffer Handle;
-    u32           Width;
-    u32           Height;
-    u32           AttachmentCount;
-    VkImageView*  Attachments;
+    u32 Width;
+    u32 Height;
+    u32 AttachmentCount;
+    VkImageView* Attachments;
 };
 
-struct VulkanRenderPass
-{
-    VkRenderPass          Handle;
-    Vec4f                 Rect;
-    Vec4f                 Color;
-    f32                   Depth;
-    u32                   Stencil;
+struct VulkanRenderPass {
+    VkRenderPass Handle;
+    Vec4f Rect;
+    Vec4f Color;
+    f32 Depth;
+    u32 Stencil;
     VulkanRenderPassState State;
-    VulkanFramebuffer     Framebuffer;
+    VulkanFramebuffer Framebuffer;
 };
 
-struct VulkanQueueFamilyInfo
-{
+struct VulkanQueueFamilyInfo {
     i32 GraphicsQueueIndex;
     i32 ComputeQueueIndex;
     i32 TransferQueueIndex;
     i32 PresentQueueIndex;
 };
 
-struct VulkanSwapchainSupportInfo
-{
-    u32                      FormatCount;
-    u32                      PresentModeCount;
+struct VulkanSwapchainSupportInfo {
+    u32 FormatCount;
+    u32 PresentModeCount;
     VkSurfaceCapabilitiesKHR SurfaceCapabilities;
-    VkSurfaceFormatKHR*      Formats;
-    VkPresentModeKHR*        PresentModes;
+    VkSurfaceFormatKHR* Formats;
+    VkPresentModeKHR* PresentModes;
 };
 
-struct VulkanPhysicalDevice
-{
-    VkPhysicalDevice                 Handle;
-    VkPhysicalDeviceProperties       Properties;
-    VkPhysicalDeviceFeatures         Features;
+struct VulkanPhysicalDevice {
+    VkPhysicalDevice Handle;
+    VkPhysicalDeviceProperties Properties;
+    VkPhysicalDeviceFeatures Features;
     VkPhysicalDeviceMemoryProperties MemoryProperties;
-    VulkanQueueFamilyInfo            QueueFamilyInfo;
-    VulkanSwapchainSupportInfo       SwapchainSupportInfo;
-    VkFormat                         DepthBufferFormat;
-    bool                             SupportsDeviceLocalHostVisible;
+    VulkanQueueFamilyInfo QueueFamilyInfo;
+    VulkanSwapchainSupportInfo SwapchainSupportInfo;
+    VkFormat DepthBufferFormat;
+    bool SupportsDeviceLocalHostVisible;
 };
 
-struct VulkanLogicalDevice
-{
+struct VulkanLogicalDevice {
     VulkanPhysicalDevice PhysicalDevice;
-    VkDevice             Handle;
-    VkQueue              GraphicsQueue;
-    VkQueue              ComputeQueue;
-    VkQueue              TransferQueue;
-    VkQueue              PresentQueue;
+    VkDevice Handle;
+    VkQueue GraphicsQueue;
+    VkQueue ComputeQueue;
+    VkQueue TransferQueue;
+    VkQueue PresentQueue;
 };
 
-struct VulkanSwapchain
-{
-    VkSwapchainKHR     Resource;
+struct VulkanSwapchain {
+    VkSwapchainKHR Resource;
     VkSurfaceFormatKHR ImageFormat;
-    VkImage            Images[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-    VkImageView        ImageViews[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
-    u8                 CurrentFrame;
-    u8                 MaxFramesInFlight;
-    u32                ImageCount;
+    VkImage Images[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    VkImageView ImageViews[KRAFT_VULKAN_MAX_SWAPCHAIN_IMAGES];
+    u8 CurrentFrame;
+    u8 MaxFramesInFlight;
+    u32 ImageCount;
     VulkanFramebuffer* Framebuffers;
 
     // Depending on the MSAASampleCount, this will either be MSAA or 1-Sample
     Handle<Texture> DepthAttachment;
 
     // MSAA render targets
-    Handle<Texture>       MSAAColorAttachment;
+    Handle<Texture> MSAAColorAttachment;
     VkSampleCountFlagBits MSAASampleCount = VK_SAMPLE_COUNT_1_BIT;
 };
 
-struct VulkanContext
-{
-    RendererOptions*       Options;
-    VkInstance             Instance;
+struct VulkanContext {
+    RendererOptions* Options;
+    VkInstance Instance;
     VkAllocationCallbacks* AllocationCallbacks;
-    VulkanPhysicalDevice   PhysicalDevice;
-    VulkanLogicalDevice    LogicalDevice;
-    VkSurfaceKHR           Surface;
-    u32                    FramebufferWidth;
-    u32                    FramebufferHeight;
-    VulkanSwapchain        Swapchain;
+    VulkanPhysicalDevice PhysicalDevice;
+    VulkanLogicalDevice LogicalDevice;
+    VkSurfaceKHR Surface;
+    u32 FramebufferWidth;
+    u32 FramebufferHeight;
+    VulkanSwapchain Swapchain;
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
 #else
     VulkanRenderPass MainRenderPass;
 #endif
-    Handle<CommandPool>   GraphicsCommandPool;
+    Handle<CommandPool> GraphicsCommandPool;
     Handle<CommandBuffer> GraphicsCommandBuffers[3];
     Handle<CommandBuffer> ActiveCommandBuffer;
-    VulkanFence*          WaitFences;
+    VulkanFence* WaitFences;
     // VkCommandPool          GraphicsCommandPool;
     // If everything was perfect, this mapping below would not be needed
     // but, what I saw happening was on an M1 Mac, vkAcquireNextImageKHR
@@ -247,9 +227,9 @@ struct VulkanContext
     // just wait on the acquired image's corresponding fence. This works
     // both on Mac and Windows. Maybe I am doing something wrong.
     VulkanFence** InFlightImageToFenceMap;
-    VkSemaphore*  ImageAvailableSemaphores;
-    VkSemaphore*  RenderCompleteSemaphores;
-    u32           CurrentSwapchainImageIndex;
+    VkSemaphore* ImageAvailableSemaphores;
+    VkSemaphore* RenderCompleteSemaphores;
+    u32 CurrentSwapchainImageIndex;
 
 #ifdef KRAFT_RENDERER_DEBUG
     VkDebugUtilsMessengerEXT DebugMessenger;
@@ -261,46 +241,43 @@ struct VulkanContext
     Handle<Buffer> IndexBuffer;
 
     // Global Data
-    VkDescriptorPool       GlobalDescriptorPool;
-    VkDescriptorSetLayout  DescriptorSetLayouts[16];
-    VkDescriptorSet        GlobalTexturesDescriptorSet;
-    u8                     DescriptorSetLayoutsCount = 0;
+    VkDescriptorPool GlobalDescriptorPool;
+    VkDescriptorSetLayout DescriptorSetLayouts[16];
+    VkDescriptorSet GlobalTexturesDescriptorSet;
+    u8 DescriptorSetLayoutsCount = 0;
     Handle<TextureSampler> DefaultTextureSampler;
 };
 
-struct VulkanPhysicalDeviceRequirements
-{
-    bool         Graphics;
-    bool         Present;
-    bool         Transfer;
-    bool         Compute;
-    bool         DiscreteGPU;
-    bool         DepthBuffer;
-    u16          DeviceExtensionsCount;
+struct VulkanPhysicalDeviceRequirements {
+    bool Graphics;
+    bool Present;
+    bool Transfer;
+    bool Compute;
+    bool DiscreteGPU;
+    bool DepthBuffer;
+    u16 DeviceExtensionsCount;
     const char** DeviceExtensions;
 };
 
-struct VulkanShader
-{
-    VkPipelineLayout      PipelineLayout;
+struct VulkanShader {
+    VkPipelineLayout PipelineLayout;
     VkDescriptorSetLayout descriptor_set_layouts[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
-    VkDescriptorSet       descriptor_sets[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
+    VkDescriptorSet descriptor_sets[KRAFT_VULKAN_NUM_CUSTOM_DESCRIPTOR_SETS];
 
-    u32         PipelineCount;
+    u32 PipelineCount;
     VkPipeline* Pipelines; // One per variant
 };
 
-struct VulkanImageBarrierDescription
-{
+struct VulkanImageBarrierDescription {
     VkPipelineStageFlags2 src_stage_mask;
     VkPipelineStageFlags2 dst_stage_mask;
-    VkAccessFlags2        src_access_mask;
-    VkAccessFlags2        dst_access_mask;
-    VkImageLayout         old_layout;
-    VkImageLayout         new_layout;
-    VkImageAspectFlags    aspect_mask;
-    u32                   base_mip_level;
-    u32                   level_count;
+    VkAccessFlags2 src_access_mask;
+    VkAccessFlags2 dst_access_mask;
+    VkImageLayout old_layout;
+    VkImageLayout new_layout;
+    VkImageAspectFlags aspect_mask;
+    u32 base_mip_level;
+    u32 level_count;
 };
 
 } // namespace kraft::r

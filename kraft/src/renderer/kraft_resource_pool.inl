@@ -126,7 +126,22 @@ template <typename ConcreteType, typename Type> struct Pool {
     }
 
     u64 GetSize() const {
+        return this->free_list_top;
+    }
+
+    u64 GetCapacity() const {
         return this->pool_size;
+    }
+
+    // Iterates over all alive entries in the pool
+    // Callback signature: void(u16 index, ConcreteType* resource, Type* metadata)
+    template <typename Fn>
+    void ForEach(Fn callback) {
+        for (u16 i = 0; i < this->pool_size; i++) {
+            if (this->handles[i].generation != 0) {
+                callback(i, &this->data[i], &this->auxiliary_data[i]);
+            }
+        }
     }
 
     void MarkForDelete(HandleType handle) {

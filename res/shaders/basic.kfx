@@ -137,7 +137,7 @@ Shader Basic
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), Material.Shininess);
             vec3 specular = globalState.LightColor.xyz * (spec * Material.Specular.xyz);
 
-            outColor = vec4(ambient + diffuse + specular, 1.0) * vec4(texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV).rgb, 1.0);
+            outColor = vec4(ambient + diffuse + specular, 1.0) * vec4(SampleTexture(Material.DiffuseTexture, inDTO.UV).rgb, 1.0);
             // outColor = vec4(ambient + diffuse + specular, 1.0) * texture(DiffuseSampler, inDTO.UV);
             // outColor = vec4(Material.Diffuse.x, 0.0, 0.0, 1.0);
         }

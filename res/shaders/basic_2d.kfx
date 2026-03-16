@@ -98,7 +98,7 @@ Shader Basic2D
         void main() 
         {
             MeshMaterial Material = Materials[variableState.MaterialIdx];
-            outColor = Material.DiffuseColor * texture(sampler2D(Textures[nonuniformEXT(Material.DiffuseTexture)], TextureSampler), inDTO.UV);
+            outColor = Material.DiffuseColor * SampleTexture(Material.DiffuseTexture, inDTO.UV);
             // outColor = Material.DiffuseColor;
         }
 

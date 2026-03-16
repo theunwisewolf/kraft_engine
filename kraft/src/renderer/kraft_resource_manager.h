@@ -9,8 +9,7 @@ struct TextureSampler;
 
 namespace kraft::r {
 
-template<typename T>
-struct Handle;
+template <typename T> struct Handle;
 struct Buffer;
 struct ShaderEffect;
 struct RenderPass;
@@ -27,8 +26,7 @@ struct RenderPassDescription;
 struct CommandBufferDescription;
 struct CommandPoolDescription;
 
-struct ResourceManager
-{
+struct ResourceManager {
     void (*Clear)();
 
     // Creation apis
@@ -42,7 +40,8 @@ struct ResourceManager
 
     // Destruction apis
     void (*DestroyTexture)(Handle<Texture> Resource) = 0;
-    void (*DestroyTextureSampler)(Handle<TextureSampler> Resource) = 0;
+    // We don't want to allow sampler deletion
+    // void (*DestroyTextureSampler)(Handle<TextureSampler> Resource) = 0;
     void (*DestroyBuffer)(Handle<Buffer> Resource) = 0;
     void (*DestroyRenderPass)(Handle<RenderPass> Resource) = 0;
     void (*DestroyCommandBuffer)(Handle<CommandBuffer> Resource);
@@ -65,7 +64,7 @@ struct ResourceManager
     void (*StartFrame)(u64 FrameNumber) = 0;
     void (*EndFrame)(u64 FrameNumber) = 0;
 
-    void                             SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs);
+    void SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs);
     const PhysicalDeviceFormatSpecs& GetPhysicalDeviceFormatSpecs() const;
 };
 
