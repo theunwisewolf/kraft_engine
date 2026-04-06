@@ -441,6 +441,21 @@ static MeshAsset* LoadGLTFMesh(ArenaAllocator* arena, String8 path, MeshAsset* o
     // cgltf_result result = cgltf_parse_file(&options, path.str, &data);
 
     if (result != cgltf_result_success) {
+        const char* error_strings[] = {
+            "cgltf_result_success",
+            "cgltf_result_data_too_short",
+            "cgltf_result_unknown_format",
+            "cgltf_result_invalid_json",
+            "cgltf_result_invalid_gltf",
+            "cgltf_result_invalid_options",
+            "cgltf_result_file_not_found",
+            "cgltf_result_io_error",
+            "cgltf_result_out_of_memory",
+            "cgltf_result_legacy_gltf",
+            "cgltf_result_max_enum"
+        };
+
+        KERROR("Failed to load GLTF model! Error Code = %s", error_strings[result]);
         ScratchEnd(scratch);
         return nullptr;
     }

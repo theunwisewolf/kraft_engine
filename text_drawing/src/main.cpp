@@ -1,69 +1,209 @@
-#include <containers/kraft_array.h>
-#include <containers/kraft_hashmap.h>
-#include <core/kraft_core.h>
-#include <core/kraft_events.h>
-#include <core/kraft_input.h>
-#include <core/kraft_log.h>
 #include <kraft.h>
-#include <platform/kraft_filesystem.h>
-#include <platform/kraft_platform.h>
-#include <platform/kraft_window.h>
-#include <renderer/kraft_renderer_frontend.h>
-#include <renderer/vulkan/kraft_vulkan_imgui.h>
-#include <systems/kraft_asset_database.h>
-#include <systems/kraft_geometry_system.h>
-#include <systems/kraft_material_system.h>
-#include <systems/kraft_shader_system.h>
-#include <systems/kraft_texture_system.h>
 
 #include <core/kraft_base_includes.h>
+#include <platform/kraft_platform_includes.h>
+#include <containers/kraft_containers_includes.h>
+#include <renderer/kraft_renderer_includes.h>
+#include <resources/kraft_resource_types.h>
+#include <systems/kraft_systems_includes.h>
+
+#include <misc/kraft_misc_includes.h>
 
 #include <kraft_types.h>
-#include <renderer/kraft_renderer_types.h>
 #include <resources/kraft_resource_types.h>
-#include <systems/kraft_asset_types.h>
+#include <renderer/kraft_slug_text_renderer.h>
 
 #include <time.h>
 
 using namespace kraft;
 
 #include "imgui/imgui_renderer.h"
-
 #include "imgui/imgui_renderer.cpp"
 
-#include <renderer/kraft_renderer_includes.h>
-#include <renderer/kraft_renderer_includes.cpp>
+struct AppFrameStats {
+    u64 frame_id;
+    bool rendered_frame;
+    bool engine_suspended;
+    f64 total_ms;
+    f64 delta_time_ms;
+    f64 scratch_begin_ms;
+    f64 engine_tick_ms;
+    f64 engine_time_update_ms;
+    f64 engine_input_update_ms;
+    f64 engine_poll_events_ms;
+    f64 render_block_ms;
+    f64 renderer_prepare_frame_ms;
+    f64 renderer_begin_main_renderpass_ms;
+    f64 scene_build_ms;
+    f64 scene_surface_begin_ms;
+    f64 scene_non_slug_update_ms;
+    f64 scene_non_slug_submit_ms;
+    f64 scene_static_slug_total_ms;
+    f64 scene_static_slug_render_text_ms;
+    f64 scene_static_slug_submit_ms;
+    f64 scene_dynamic_slug_total_ms;
+    f64 scene_dynamic_slug_render_text_ms;
+    f64 scene_dynamic_slug_submit_ms;
+    f64 scene_surface_end_ms;
+    f64 imgui_total_ms;
+    f64 imgui_begin_frame_ms;
+    f64 imgui_build_ui_ms;
+    f64 imgui_end_frame_ms;
+    f64 renderer_end_main_renderpass_ms;
+    f64 imgui_platform_windows_ms;
+    f64 title_update_ms;
+    f64 scratch_end_ms;
+};
 
-struct ApplicationState
-{
-    char          title_buffer[1024];
-    float64       last_time;
-    float64       time_since_last_frame;
+struct AppStats {
+    AppFrameStats current_frame;
+    AppFrameStats last_completed_frame;
+    u64 frame_counter;
+};
+
+struct ApplicationState {
+    char title_buffer[1024];
+    f64 last_time;
+    f64 time_since_last_frame;
     RendererImGui imgui_renderer;
-    u32           frame_count;
+    u32 frame_count;
+    AppStats stats;
 } app_state;
 
-struct UIParams
-{
+struct UIParams {
     u32 window_flags;
 };
 
-struct GameState
-{
+struct GameState {
     ArenaAllocator* arena;
-    UIParams        ui_params;
-    Mat4f           projection_matrix;
+    UIParams ui_params;
+    Mat4f projection_matrix;
 };
 
-void DrawGameUI(GameState* state)
-{
+const char* static_character_array[] = {
+    // A-Z
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z",
+    // a-z
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+    // 0-9
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    // Punctuation & symbols
+    "!",
+    "\"",
+    "#",
+    "$",
+    "%",
+    "&",
+    "'",
+    "(",
+    ")",
+    "*",
+    "+",
+    ",",
+    "-",
+    ".",
+    "/",
+    ":",
+    ";",
+    "<",
+    "=",
+    ">",
+    "?",
+    "@",
+    "[",
+    "\\",
+    "]",
+    "^",
+    "_",
+    "`",
+    "{",
+    "|",
+    "}",
+    "~"
+};
+
+static constexpr u64 CHAR_ARRAY_SIZE = sizeof(static_character_array) / sizeof(static_character_array[0]);
+
+static String8 GetStaticRandomText(ArenaAllocator* arena, u16 length, u32 seed) {
+    u8* buf = ArenaPushArray(arena, u8, length + 1);
+
+    if (seed)
+        srand(seed);
+    for (u16 i = 0; i < length; i++) {
+        buf[i] = static_character_array[rand() % CHAR_ARRAY_SIZE][0];
+    }
+
+    buf[length] = '\0';
+
+    return {buf, length};
+}
+
+void DrawGameUI(GameState* state) {
     TempArena scratch = ScratchBegin(&state->arena, 1);
     ScratchEnd(scratch);
 }
 
-static bool OnWindowResize(EventType type, void* sender, void* listener, EventData event_data)
-{
-    GameState*      game_state = (GameState*)listener;
+static bool OnWindowResize(EventType type, void* sender, void* listener, EventData event_data) {
+    GameState* game_state = (GameState*)listener;
     EventDataResize data = *(EventDataResize*)(&event_data);
     game_state->projection_matrix = OrthographicMatrix(-(float)data.width * 0.5f, (float)data.width * 0.5f, -(float)data.height * 0.5f, (float)data.height * 0.5f, -1.0f, 1.0f);
 
@@ -71,35 +211,258 @@ static bool OnWindowResize(EventType type, void* sender, void* listener, EventDa
     return false;
 }
 
-static bool OnKeyPress(EventType type, void* sender, void* listener, EventData event_data)
-{
+static bool OnKeyPress(EventType type, void* sender, void* listener, EventData event_data) {
     GameState* game_state = (GameState*)listener;
-    if (event_data.Int32Value[0] == Keys::KEY_B)
-    {
+    if (event_data.Int32Value[0] == Keys::KEY_B) {
         game_state->ui_params.window_flags ^= ImGuiWindowFlags_NoBackground;
     }
 
     return false;
 }
 
-f32 lerp(f32 a, f32 b, f32 amount)
-{
+f32 lerp(f32 a, f32 b, f32 amount) {
     return a + (b - a) * amount;
 };
 
-struct Transform
-{
+struct Transform {
     Vec2f position;
     Vec2f scale;
 };
 
-Mat4f MatrixFromTransform(Transform transform)
-{
-    return ScaleMatrix(Vec3f{ transform.scale.x, transform.scale.y, 1.0f }) * TranslationMatrix(Vec3f{ transform.position.x, transform.position.y, 0.0f });
+Mat4f MatrixFromTransform(Transform transform) {
+    return ScaleMatrix(Vec3f{transform.scale.x, transform.scale.y, 1.0f}) * TranslationMatrix(Vec3f{transform.position.x, transform.position.y, 0.0f});
 }
 
-int main(int argc, char** argv)
-{
+static void BeginAppStatsFrame(AppStats* stats) {
+    if (stats->current_frame.frame_id != 0) {
+        stats->last_completed_frame = stats->current_frame;
+
+        if (stats->current_frame.frame_id % 120 == 0) {
+            const AppFrameStats& s = stats->current_frame;
+            KINFO("=== App Frame Stats (frame %llu) ===", s.frame_id);
+            KINFO("  Total: %.3f ms | DeltaTime: %.3f ms", s.total_ms, s.delta_time_ms);
+            KINFO(
+                "  ScratchBegin: %.3f | EngineTick: %.3f | RenderBlock: %.3f | TitleUpdate: %.3f | ScratchEnd: %.3f",
+                s.scratch_begin_ms,
+                s.engine_tick_ms,
+                s.render_block_ms,
+                s.title_update_ms,
+                s.scratch_end_ms
+            );
+            KINFO("  Engine: time=%.3f input=%.3f poll=%.3f", s.engine_time_update_ms, s.engine_input_update_ms, s.engine_poll_events_ms);
+            KINFO("  Renderer: prepare=%.3f beginPass=%.3f endPass=%.3f", s.renderer_prepare_frame_ms, s.renderer_begin_main_renderpass_ms, s.renderer_end_main_renderpass_ms);
+            KINFO("  SceneBuild: %.3f ms", s.scene_build_ms);
+            KINFO("    SurfaceBegin: %.3f", s.scene_surface_begin_ms);
+            KINFO("    NonSlug: update=%.3f submit=%.3f", s.scene_non_slug_update_ms, s.scene_non_slug_submit_ms);
+            KINFO("    StaticSlugGrid: total=%.3f renderText=%.3f submit=%.3f", s.scene_static_slug_total_ms, s.scene_static_slug_render_text_ms, s.scene_static_slug_submit_ms);
+            KINFO("    DynamicSlug: total=%.3f renderText=%.3f submit=%.3f", s.scene_dynamic_slug_total_ms, s.scene_dynamic_slug_render_text_ms, s.scene_dynamic_slug_submit_ms);
+            KINFO("    SurfaceEnd: %.3f", s.scene_surface_end_ms);
+            KINFO(
+                "  ImGui: total=%.3f begin=%.3f build=%.3f end=%.3f platformWin=%.3f", s.imgui_total_ms, s.imgui_begin_frame_ms, s.imgui_build_ui_ms, s.imgui_end_frame_ms, s.imgui_platform_windows_ms
+            );
+            KINFO("===================================");
+            fflush(stdout);
+        }
+    }
+
+    stats->current_frame = {};
+    stats->current_frame.frame_id = ++stats->frame_counter;
+}
+
+static void DrawTimingStatLine(const char* label, f64 value_ms) {
+    ImGui::Text("%s: %.3f ms", label, value_ms);
+}
+
+static void DrawByteStatLine(const char* label, u64 bytes) {
+    ImGui::Text("%s: %.2f KiB (%llu bytes)", label, bytes / 1024.0, (unsigned long long)bytes);
+}
+
+static f64 ClampNonNegativeMs(f64 value_ms) {
+    return value_ms > 0.0 ? value_ms : 0.0;
+}
+
+static void DrawUploadStatsTree(const char* label, const r::RendererUploadStats& stats) {
+    if (ImGui::TreeNode(label)) {
+        DrawTimingStatLine("Total", stats.total_ms);
+        ImGui::Text("Calls: %u", stats.call_count);
+        ImGui::Text("Blocks Uploaded: %u", stats.block_count);
+        ImGui::Text("Touched Blocks: %u", stats.touched_block_count);
+        DrawByteStatLine("Bytes Uploaded", stats.bytes_uploaded);
+        DrawByteStatLine("Bytes Used", stats.bytes_used);
+        ImGui::TreePop();
+    }
+}
+
+static void DrawAppFrameStatsTree(const char* label, const AppFrameStats& stats) {
+    if (stats.frame_id == 0) {
+        ImGui::Text("%s: waiting for first completed frame", label);
+        return;
+    }
+
+    if (ImGui::TreeNode(label)) {
+        f64 top_level_known_ms = stats.scratch_begin_ms + stats.engine_tick_ms + stats.render_block_ms + stats.title_update_ms + stats.scratch_end_ms;
+        f64 render_known_ms = stats.renderer_prepare_frame_ms + stats.renderer_begin_main_renderpass_ms + stats.scene_build_ms + stats.imgui_total_ms + stats.renderer_end_main_renderpass_ms +
+                              stats.imgui_platform_windows_ms;
+        f64 engine_known_ms = stats.engine_time_update_ms + stats.engine_input_update_ms + stats.engine_poll_events_ms;
+        f64 scene_known_ms = stats.scene_surface_begin_ms + stats.scene_non_slug_update_ms + stats.scene_non_slug_submit_ms + stats.scene_static_slug_total_ms + stats.scene_dynamic_slug_total_ms +
+                             stats.scene_surface_end_ms;
+        f64 static_slug_known_ms = stats.scene_static_slug_render_text_ms + stats.scene_static_slug_submit_ms;
+        f64 dynamic_slug_known_ms = stats.scene_dynamic_slug_render_text_ms + stats.scene_dynamic_slug_submit_ms;
+        f64 imgui_known_ms = stats.imgui_begin_frame_ms + stats.imgui_build_ui_ms + stats.imgui_end_frame_ms;
+
+        ImGui::Text("Frame: %llu", (unsigned long long)stats.frame_id);
+        DrawTimingStatLine("App Frame Total", stats.total_ms);
+        DrawTimingStatLine("Delta Time", stats.delta_time_ms);
+        ImGui::Text("Rendered Frame: %s", stats.rendered_frame ? "true" : "false");
+        ImGui::Text("Engine Suspended: %s", stats.engine_suspended ? "true" : "false");
+        DrawTimingStatLine("ScratchBegin", stats.scratch_begin_ms);
+
+        if (ImGui::TreeNode("Engine::Tick")) {
+            DrawTimingStatLine("Total", stats.engine_tick_ms);
+            DrawTimingStatLine("Time::Update", stats.engine_time_update_ms);
+            DrawTimingStatLine("InputSystem::Update", stats.engine_input_update_ms);
+            DrawTimingStatLine("Platform::PollEvents", stats.engine_poll_events_ms);
+            DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.engine_tick_ms - engine_known_ms));
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Render Block")) {
+            DrawTimingStatLine("Total", stats.render_block_ms);
+            DrawTimingStatLine("PrepareFrame", stats.renderer_prepare_frame_ms);
+            DrawTimingStatLine("BeginMainRenderpass", stats.renderer_begin_main_renderpass_ms);
+            DrawTimingStatLine("EndMainRenderpass", stats.renderer_end_main_renderpass_ms);
+            DrawTimingStatLine("ImGui Platform Windows", stats.imgui_platform_windows_ms);
+
+            if (ImGui::TreeNode("Scene Build + Submit")) {
+                DrawTimingStatLine("Total", stats.scene_build_ms);
+                DrawTimingStatLine("Surface Begin", stats.scene_surface_begin_ms);
+                DrawTimingStatLine("Non-Slug Update", stats.scene_non_slug_update_ms);
+                DrawTimingStatLine("Non-Slug Submit", stats.scene_non_slug_submit_ms);
+
+                if (ImGui::TreeNode("Static Slug Grid")) {
+                    DrawTimingStatLine("Total", stats.scene_static_slug_total_ms);
+                    DrawTimingStatLine("SlugRenderText", stats.scene_static_slug_render_text_ms);
+                    DrawTimingStatLine("Submit", stats.scene_static_slug_submit_ms);
+                    DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.scene_static_slug_total_ms - static_slug_known_ms));
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Dynamic Slug Text")) {
+                    DrawTimingStatLine("Total", stats.scene_dynamic_slug_total_ms);
+                    DrawTimingStatLine("SlugRenderText", stats.scene_dynamic_slug_render_text_ms);
+                    DrawTimingStatLine("Submit", stats.scene_dynamic_slug_submit_ms);
+                    DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.scene_dynamic_slug_total_ms - dynamic_slug_known_ms));
+                    ImGui::TreePop();
+                }
+
+                DrawTimingStatLine("Surface End", stats.scene_surface_end_ms);
+                DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.scene_build_ms - scene_known_ms));
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("ImGui")) {
+                DrawTimingStatLine("Total", stats.imgui_total_ms);
+                DrawTimingStatLine("BeginFrame", stats.imgui_begin_frame_ms);
+                DrawTimingStatLine("Build UI", stats.imgui_build_ui_ms);
+                DrawTimingStatLine("EndFrame", stats.imgui_end_frame_ms);
+                DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.imgui_total_ms - imgui_known_ms));
+                ImGui::TreePop();
+            }
+
+            DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.render_block_ms - render_known_ms));
+            ImGui::TreePop();
+        }
+
+        DrawTimingStatLine("Title Update", stats.title_update_ms);
+        DrawTimingStatLine("ScratchEnd", stats.scratch_end_ms);
+        DrawTimingStatLine("Unaccounted", ClampNonNegativeMs(stats.total_ms - top_level_known_ms));
+        ImGui::TreePop();
+    }
+}
+
+static void DrawRendererFrameStatsTree(const char* label, const r::RendererFrameStats& stats) {
+    if (stats.frame_id == 0) {
+        ImGui::Text("%s: waiting for first completed frame", label);
+        return;
+    }
+
+    if (ImGui::TreeNode(label)) {
+        ImGui::Text("Frame: %llu", (unsigned long long)stats.frame_id);
+        DrawTimingStatLine("Renderer Total", stats.total_ms);
+
+        if (ImGui::TreeNode("PrepareFrame")) {
+            DrawTimingStatLine("Total", stats.prepare_frame.total_ms);
+            DrawTimingStatLine("ResourceManager::EndFrame", stats.prepare_frame.resource_end_frame_ms);
+            DrawTimingStatLine("Backend PrepareFrame", stats.prepare_frame.backend_prepare_frame_ms);
+            DrawTimingStatLine("Material Staging MemCpy", stats.prepare_frame.material_stage_memcpy_ms);
+            DrawTimingStatLine("Material Upload", stats.prepare_frame.material_upload_ms);
+            DrawTimingStatLine("Texture Updates", stats.prepare_frame.texture_update_ms);
+            DrawTimingStatLine("Allocator Reset", stats.prepare_frame.allocator_reset_ms);
+            ImGui::Text("Materials Uploaded: %s", stats.prepare_frame.materials_uploaded ? "true" : "false");
+            ImGui::Text("Dirty Textures: %u", stats.prepare_frame.dirty_texture_count);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Dynamic Geometry")) {
+            DrawTimingStatLine("Allocation Total", stats.dynamic_geometry.allocation_total_ms);
+            DrawTimingStatLine("Upload Total", stats.dynamic_geometry.upload_total_ms);
+            ImGui::Text("Allocations: %u", stats.dynamic_geometry.allocation_count);
+            DrawByteStatLine("Vertex Bytes Requested", stats.dynamic_geometry.vertex_bytes_requested);
+            DrawByteStatLine("Index Bytes Requested", stats.dynamic_geometry.index_bytes_requested);
+            DrawUploadStatsTree("Vertex Uploads", stats.dynamic_geometry.vertex_upload);
+            DrawUploadStatsTree("Index Uploads", stats.dynamic_geometry.index_upload);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Surfaces")) {
+            DrawTimingStatLine("Begin Total", stats.surfaces.begin_total_ms);
+            DrawTimingStatLine("Submit Total", stats.surfaces.submit_total_ms);
+            DrawTimingStatLine("End Total", stats.surfaces.end_total_ms);
+            DrawTimingStatLine("BeginSurface", stats.surfaces.begin_surface_ms);
+            DrawTimingStatLine("EndSurface", stats.surfaces.end_surface_ms);
+            DrawTimingStatLine("Global UBO Copy", stats.surfaces.global_ubo_copy_ms);
+            DrawTimingStatLine("SetActiveVariant", stats.surfaces.set_active_variant_ms);
+            DrawTimingStatLine("Sort", stats.surfaces.sort_ms);
+            DrawTimingStatLine("Initial Shader Bind", stats.surfaces.initial_shader_bind_ms);
+            DrawTimingStatLine("Apply Global Properties", stats.surfaces.global_properties_ms);
+            DrawTimingStatLine("Pipeline Switches", stats.surfaces.pipeline_switch_ms);
+            DrawTimingStatLine("Bind Custom BindGroup", stats.surfaces.custom_bind_group_ms);
+            DrawTimingStatLine("Apply Local Properties", stats.surfaces.local_properties_ms);
+            DrawTimingStatLine("DrawGeometry", stats.surfaces.draw_geometry_ms);
+            DrawTimingStatLine("ResetActiveVariant", stats.surfaces.reset_active_variant_ms);
+            ImGui::Text("Begin Count: %u", stats.surfaces.begin_count);
+            ImGui::Text("Submit Count: %u", stats.surfaces.submit_count);
+            ImGui::Text("End Count: %u", stats.surfaces.end_count);
+            ImGui::Text("Draw Calls: %u", stats.surfaces.draw_call_count);
+            ImGui::Text("Pipeline Binds: %u", stats.surfaces.pipeline_bind_count);
+            ImGui::Text("Global Property Binds: %u", stats.surfaces.global_properties_count);
+            ImGui::Text("Custom BindGroup Binds: %u", stats.surfaces.custom_bind_group_bind_count);
+            ImGui::Text("Local Property Binds: %u", stats.surfaces.local_properties_count);
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("SlugRenderText")) {
+            DrawTimingStatLine("Total", stats.slug_text.total_ms);
+            DrawTimingStatLine("Build Geometry", stats.slug_text.build_geometry_ms);
+            DrawTimingStatLine("Allocate Dynamic Geometry", stats.slug_text.allocate_dynamic_geometry_ms);
+            DrawTimingStatLine("Vertex MemCpy", stats.slug_text.vertex_memcpy_ms);
+            DrawTimingStatLine("Index MemCpy", stats.slug_text.index_memcpy_ms);
+            DrawTimingStatLine("Material Update", stats.slug_text.material_update_ms);
+            ImGui::Text("Calls: %u", stats.slug_text.call_count);
+            ImGui::Text("Quads: %u", stats.slug_text.quad_count);
+            DrawByteStatLine("Input Text Bytes", stats.slug_text.text_byte_count);
+            DrawByteStatLine("Generated Vertex Bytes", stats.slug_text.vertex_bytes_generated);
+            DrawByteStatLine("Generated Index Bytes", stats.slug_text.index_bytes_generated);
+            ImGui::TreePop();
+        }
+
+        DrawTimingStatLine("BeginMainRenderpass", stats.begin_main_renderpass_ms);
+        DrawTimingStatLine("EndMainRenderpass", stats.end_main_renderpass_ms);
+        ImGui::TreePop();
+    }
+}
+
+int main(int argc, char** argv) {
     ThreadContext* thread_context = CreateThreadContext();
     SetCurrentThreadContext(thread_context);
 
@@ -112,7 +475,7 @@ int main(int argc, char** argv)
     GameState* game_state = ArenaPush(arena, GameState);
     game_state->arena = arena;
 
-    bool         imgui_demo_window = true;
+    bool imgui_demo_window = true;
     EngineConfig config = {
         .argc = argc,
         .argv = argv,
@@ -125,7 +488,7 @@ int main(int argc, char** argv)
     EventSystem::Listen(EVENT_TYPE_KEY_UP, game_state, OnKeyPress);
 
     // auto Window = CreateWindow("SampleApp", 1280, 768);
-    auto window = CreateWindow({ .Title = "TextDrawing", .Width = 1280, .Height = 768, .StartMaximized = true });
+    auto window = CreateWindow({.Title = "TextDrawing", .Width = 1280, .Height = 768, .StartMaximized = true});
     auto _ = CreateRenderer({
         .Backend = RENDERER_BACKEND_TYPE_VULKAN,
         .MaterialBufferSize = 32,
@@ -137,19 +500,28 @@ int main(int argc, char** argv)
 
     // Load the font
     const int size = 32;
-    // auto      hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Hack-Regular.ttf"));
-    auto      hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Bangers-Regular.ttf"));
+    auto hack_regular = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Hack-Regular.ttf"));
     KASSERT(hack_regular.ptr);
 
-    auto iga_ninja = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Bangers-Regular.ttf"));
-    KASSERT(iga_ninja.ptr);
+    auto bangers = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/Bangers-Regular.ttf"));
+    KASSERT(bangers.ptr);
+
+    auto noto_sans = fs::ReadAllBytes(game_state->arena, String8Raw("res/fonts/NotoSans-Regular.ttf"));
+    KASSERT(noto_sans.ptr);
 
     r::FontAtlas font_atlas = r::LoadFontAtlas(arena, hack_regular.ptr, hack_regular.count, 32.0f);
-    r::FontAtlas logo_font_atlas = r::LoadFontAtlas(arena, iga_ninja.ptr, iga_ninja.count, 64.0f);
+    r::FontAtlas logo_font_atlas = r::LoadFontAtlas(arena, bangers.ptr, bangers.count, 64.0f);
 
-    auto          bg_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"));
-    auto          bg_geometry = GeometrySystem::GetDefault2DGeometry();
-    Mat4f         bg_transform = ScaleMatrix(Vec3f{ 2560.0f, 1080.0f, 1.f }) * TranslationMatrix(Vec3f{ 0.f, 0.f, 0.f });
+    // Load slug font (vector-based text rendering)
+    r::SlugFont slug_font = r::LoadSlugFont(arena, hack_regular.ptr, hack_regular.count);
+    r::SlugFont noto_sans_font = r::LoadSlugFont(arena, noto_sans.ptr, noto_sans.count);
+
+    auto slug_material = MaterialSystem::CreateMaterialFromFile(S("res/materials/slug_font.kmt"));
+    KASSERT(slug_material);
+
+    auto bg_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"));
+    auto bg_geometry = GeometrySystem::GetDefault2DGeometry();
+    Mat4f bg_transform = ScaleMatrix(Vec3f{2560.0f, 1080.0f, 1.f}) * TranslationMatrix(Vec3f{0.f, 0.f, 0.f});
     r::Renderable background = {
         .ModelMatrix = bg_transform,
         .MaterialInstance = bg_material,
@@ -182,21 +554,18 @@ int main(int argc, char** argv)
 
     auto bitmap_material = MaterialSystem::CreateMaterialFromFile(String8Raw("res/materials/simple_2d.kmt"));
     MaterialSystem::SetTexture(bitmap_material, String8Raw("DiffuseTexture"), font_atlas.bitmap);
-    auto          geometry = GeometrySystem::GetDefault2DGeometry();
-    Mat4f         transform = ScaleMatrix(Vec3f{ font_atlas.width, font_atlas.height, 1.f }) * TranslationMatrix(Vec3f{ 1.f, 1.f, 0.f });
+    auto geometry = GeometrySystem::GetDefault2DGeometry();
+    Mat4f transform = ScaleMatrix(Vec3f{font_atlas.width, font_atlas.height, 1.f}) * TranslationMatrix(Vec3f{1.f, 1.f, 0.f});
     r::Renderable font_bitmap;
     font_bitmap.EntityId = 1;
     font_bitmap.DrawData = geometry->DrawData;
     font_bitmap.MaterialInstance = bitmap_material;
     font_bitmap.ModelMatrix = transform;
 
-    r::GlobalShaderData global_data = {};
     game_state->projection_matrix = OrthographicMatrix(-(f32)window->Width * 0.5f, (f32)window->Width * 0.5f, -(f32)window->Height * 0.5f, (f32)window->Height * 0.5f, -1.0f, 1.0f);
-    // game_state->projection_matrix = PerspectiveMatrix(DegToRadians(45.0f), (float)Window->Width / (float)Window->Height, 0.1f, 1000.f);
-    global_data.View = Mat4f(Identity);
 
-    Mat4f transformA = ScaleMatrix(Vec3f{ size, -size, 1.f }) * TranslationMatrix(Vec3f{ -size / 2.f, 0.f, 0.f });
-    Mat4f transformB = ScaleMatrix(Vec3f{ 1, 1, 1.f }) * TranslationMatrix(Vec3f{ 0.0f, 0.0f, 0.f });
+    Mat4f transformA = ScaleMatrix(Vec3f{size, -size, 1.f}) * TranslationMatrix(Vec3f{-size / 2.f, 0.f, 0.f});
+    Mat4f transformB = ScaleMatrix(Vec3f{1, 1, 1.f}) * TranslationMatrix(Vec3f{0.0f, 0.0f, 0.f});
 
     // String8 text = String8Raw("/-/");
     String8 text = String8Raw("KICK  ");
@@ -251,12 +620,11 @@ int main(int argc, char** argv)
         Vec2f(41.26289367675781f, 144.10255432128906f),    Vec2f(18.662063598632812f, 144.67457580566406f),
     };
 
-    struct PointsArray
-    {
-        Vec2f*       points;
-        u32          num_points;
+    struct PointsArray {
+        Vec2f* points;
+        u32 num_points;
         GeometryData geometry_data;
-        Geometry*    geometry;
+        Geometry* geometry;
     };
 
     PointsArray points1_array = {
@@ -269,78 +637,72 @@ int main(int argc, char** argv)
         .num_points = KRAFT_C_ARRAY_SIZE(controller_icon_path),
     };
 
-    u32          max_points = math::Max(KRAFT_C_ARRAY_SIZE(play_icon_path), KRAFT_C_ARRAY_SIZE(controller_icon_path));
+    u32 max_points = math::Max(KRAFT_C_ARRAY_SIZE(play_icon_path), KRAFT_C_ARRAY_SIZE(controller_icon_path));
     r::Vertex2D* vertices = ArenaPushArray(arena, r::Vertex2D, 4 * max_points);
-    u32*         indices = ArenaPushArray(arena, u32, 6 * max_points);
+    u32* indices = ArenaPushArray(arena, u32, 6 * max_points);
 
     PointsArray* active_points_array = &points1_array;
-    Vec4f        color = KRAFT_HEX(0xe74c3c);
+    Vec4f color = KRAFT_HEX(0xe74c3c);
 
-    struct CharacterState
-    {
+    struct CharacterState {
         Vec2f current_position;
-        u32   current_point_index;
-        f32   progress;
+        u32 current_point_index;
+        f32 progress;
     } character_states[1024];
 
-    for (u32 i = 0; i < max_points; i++)
-    {
+    for (u32 i = 0; i < max_points; i++) {
         char character = text.ptr[i % text.count];
 
-        u32          char_index = character - font_atlas.start_character;
+        u32 char_index = character - font_atlas.start_character;
         r::FontGlyph glyph = font_atlas.glyphs[char_index];
         // stbtt_packedchar   packed_char = packed_characters[char_index];
         // stbtt_aligned_quad aligned_quad = aligned_quads[char_index];
 
         float offset_x = active_points_array->points[i].x;
         float offset_y = active_points_array->points[i].y;
-        character_states[i] = { { offset_x, offset_y }, i, 0.0f };
+        character_states[i] = {{offset_x, offset_y}, i, 0.0f};
 
         // top-right
         vertices[4 * i + 0] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     offset_x + glyph.baseline_xoff_1,
                     offset_y - glyph.baseline_yoff_0,
-                    0.f,
                 },
-            .UV = { glyph.u1, glyph.v0 },
+            .UV = {glyph.u1, glyph.v0},
             .Color = color,
         };
 
         // bottom-right
         vertices[4 * i + 1] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     offset_x + glyph.baseline_xoff_1,
                     offset_y - glyph.baseline_yoff_1,
-                    0.f,
                 },
-            .UV = { glyph.u1, glyph.v1 },
+            .UV = {glyph.u1, glyph.v1},
             .Color = color,
         };
 
         // bottom-left
         vertices[4 * i + 2] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     offset_x + glyph.baseline_xoff_0,
                     offset_y - glyph.baseline_yoff_1,
-                    0.f,
                 },
-            .UV = { glyph.u0, glyph.v1 },
+            .UV = {glyph.u0, glyph.v1},
             .Color = color,
         };
 
         // top-left
         vertices[4 * i + 3] = r::Vertex2D{
             .Position =
-                Vec3f{
+                vec2{
                     offset_x + glyph.baseline_xoff_0,
                     offset_y - glyph.baseline_yoff_0,
-                    0.f,
                 },
-            .UV = { glyph.u0, glyph.v0 },
+            .UV = {glyph.u0, glyph.v0},
             .Color = color,
         };
 
@@ -414,16 +776,25 @@ int main(int argc, char** argv)
         KRAFT_HEX(0x95a5a6)
     );
 
-    Vec4f     logo_color = KRAFT_HEX(0xf1c40f);
-    Transform logo_transform = Transform{ .scale = { 1.0f, 1.0f }, .position = { -100.0f, 0.0, 0.0f } };
-    auto      logo_text = r::RenderText(logo_text_material, &logo_font_atlas, S("sidekicks"), MatrixFromTransform(logo_transform), logo_color);
+    Vec4f logo_color = KRAFT_HEX(0xf1c40f);
+    Transform logo_transform = Transform{
+        .position = {-100.0f, 0.0, 0.0f},
+        .scale = {1.0f, 1.0f},
+    };
+    auto logo_text = r::RenderText(logo_text_material, &logo_font_atlas, S("sidekicks"), MatrixFromTransform(logo_transform), logo_color);
 
     bool play_selected = true;
 
     srand(time(NULL));
-    while (Engine::running)
-    {
+    while (Engine::running) {
+        static i32 seed = 0;
+        BeginAppStatsFrame(&app_state.stats);
+        AppFrameStats& app_frame_stats = app_state.stats.current_frame;
+        KRAFT_TIMING_STATS_BEGIN(app_frame_total_timer);
+
+        KRAFT_TIMING_STATS_BEGIN(scratch_begin_timer);
         TempArena scratch = ScratchBegin(&game_state->arena, 1);
+        KRAFT_TIMING_STATS_ACCUM(scratch_begin_timer, app_frame_stats.scratch_begin_ms);
         app_state.frame_count++;
 
         f64 frame_start_time = Platform::GetAbsoluteTime();
@@ -431,23 +802,44 @@ int main(int argc, char** argv)
         Time::delta_time = delta_time;
         app_state.time_since_last_frame += delta_time;
         app_state.last_time = frame_start_time;
+        app_frame_stats.delta_time_ms = delta_time * 1000.0;
 
         // Poll events
+        KRAFT_TIMING_STATS_BEGIN(engine_tick_timer);
         Engine::Tick();
+        KRAFT_TIMING_STATS_ACCUM(engine_tick_timer, app_frame_stats.engine_tick_ms);
+        const EngineTickStats& engine_tick_stats = Engine::GetStats().current_tick;
+        app_frame_stats.engine_time_update_ms = engine_tick_stats.time_update_ms;
+        app_frame_stats.engine_input_update_ms = engine_tick_stats.input_update_ms;
+        app_frame_stats.engine_poll_events_ms = engine_tick_stats.poll_events_ms;
+        app_frame_stats.engine_suspended = Engine::suspended;
 
         // We only want to render when the engine is not suspended
-        if (!Engine::suspended)
-        {
+        if (!Engine::suspended) {
+            app_frame_stats.rendered_frame = true;
+            KRAFT_TIMING_STATS_BEGIN(render_block_timer);
+
+            KRAFT_TIMING_STATS_BEGIN(renderer_prepare_frame_timer);
             g_Renderer->PrepareFrame();
+            KRAFT_TIMING_STATS_ACCUM(renderer_prepare_frame_timer, app_frame_stats.renderer_prepare_frame_ms);
+
+            KRAFT_TIMING_STATS_BEGIN(renderer_begin_main_renderpass_timer);
             g_Renderer->BeginMainRenderpass();
+            KRAFT_TIMING_STATS_ACCUM(renderer_begin_main_renderpass_timer, app_frame_stats.renderer_begin_main_renderpass_ms);
 
-            // Draw stuff here!
-            global_data.Projection = game_state->projection_matrix;
+            KRAFT_TIMING_STATS_BEGIN(scene_build_timer);
+            r::RenderSurface* main_surface = g_Renderer->GetMainSurface();
+            r::GlobalShaderData global_data = {};
+            global_data.ViewProjection = mat4(Identity) * game_state->projection_matrix;
             global_data.CameraPosition.r = Time::elapsed_time;
+            KRAFT_TIMING_STATS_BEGIN(scene_surface_begin_timer);
+            main_surface->Begin(scratch.arena, global_data);
+            KRAFT_TIMING_STATS_ACCUM(scene_surface_begin_timer, app_frame_stats.scene_surface_begin_ms);
 
+            KRAFT_TIMING_STATS_BEGIN(scene_non_slug_update_timer);
             // f32 y = Sin(Time::elapsed_time);
             // KDEBUG("y = %f", y);
-            transformA = ScaleMatrix(Vec3f{ size, -size, 1.f }) * TranslationMatrix(Vec3f{ -size / 2.f, Sin(Time::elapsed_time * 2.0f) * 100.0f, 0.f });
+            transformA = ScaleMatrix(Vec3f{size, -size, 1.f}) * TranslationMatrix(Vec3f{-size / 2.f, Sin(Time::elapsed_time * 2.0f) * 100.0f, 0.f});
             // transformB = ScaleMatrix(Vec3f{ size, -size, 1.f }) * TranslationMatrix(Vec3f{ size / 2.f, Sin(Time::elapsed_time * 2.f + 100.0f) * 100.0f, 0.f });
             // transformB = ScaleMatrix(Vec3f{ 1.0f, 1.f, 1.f });
 
@@ -468,49 +860,43 @@ int main(int argc, char** argv)
             GeometrySystem::UpdateGeometry(geometry_custom, geometry_data);
 #else
             f32 progress = Time::delta_time * animation_speed;
-            for (u32 i = 0; i < active_points_array->num_points; i++)
-            {
+            for (u32 i = 0; i < active_points_array->num_points; i++) {
                 char character = text.ptr[i % text.count];
 
-                u32          char_index = character - font_atlas.start_character;
+                u32 char_index = character - font_atlas.start_character;
                 r::FontGlyph glyph = font_atlas.glyphs[char_index];
                 // stbtt_packedchar packed_char = packed_characters[char_index];
 
                 // CharacterState character_state = character_states[i];
                 character_states[i].progress += progress;
-                if (character_states[i].progress >= 1.0f)
-                {
+                if (character_states[i].progress >= 1.0f) {
                     character_states[i].current_point_index = (character_states[i].current_point_index + 1) % active_points_array->num_points;
                     Vec2f point = active_points_array->points[character_states[i].current_point_index];
-                    character_states[i].current_position = { point.x, point.y };
+                    character_states[i].current_position = {point.x, point.y};
                     character_states[i].progress = 0.0f;
                 }
 
                 u32 next_point_index = (character_states[i].current_point_index + 1) % active_points_array->num_points;
                 // Vec2f current_point = active_points_array->points[character_states[i].current_point_index];
                 Vec2f next_point = active_points_array->points[next_point_index];
-                f32   offset_x = lerp(character_states[i].current_position.x, next_point.x, character_states[i].progress);
-                f32   offset_y = lerp(character_states[i].current_position.y, next_point.y, character_states[i].progress);
+                f32 offset_x = lerp(character_states[i].current_position.x, next_point.x, character_states[i].progress);
+                f32 offset_y = lerp(character_states[i].current_position.y, next_point.y, character_states[i].progress);
 
-                vertices[4 * i + 0].Position = Vec3f{
+                vertices[4 * i + 0].Position = vec2{
                     offset_x + glyph.baseline_xoff_1,
                     offset_y - glyph.baseline_yoff_0,
-                    0.f,
                 };
-                vertices[4 * i + 1].Position = Vec3f{
+                vertices[4 * i + 1].Position = vec2{
                     offset_x + glyph.baseline_xoff_1,
                     offset_y - glyph.baseline_yoff_1,
-                    0.f,
                 };
-                vertices[4 * i + 2].Position = Vec3f{
+                vertices[4 * i + 2].Position = vec2{
                     offset_x + glyph.baseline_xoff_0,
                     offset_y - glyph.baseline_yoff_1,
-                    0.f,
                 };
-                vertices[4 * i + 3].Position = Vec3f{
+                vertices[4 * i + 3].Position = vec2{
                     offset_x + glyph.baseline_xoff_0,
                     offset_y - glyph.baseline_yoff_0,
-                    0.f,
                 };
             }
 
@@ -519,49 +905,113 @@ int main(int argc, char** argv)
             GeometrySystem::UpdateGeometry(active_points_array->geometry, active_points_array->geometry_data);
 #endif
 
-            if ((!InputSystem::IsKeyDown(Keys::KEY_RIGHT) && InputSystem::WasKeyDown(Keys::KEY_RIGHT)) || (!InputSystem::IsKeyDown(Keys::KEY_LEFT) && InputSystem::WasKeyDown(Keys::KEY_LEFT)))
-            {
-                if (play_selected)
-                {
+            if ((!InputSystem::IsKeyDown(Keys::KEY_RIGHT) && InputSystem::WasKeyDown(Keys::KEY_RIGHT)) || (!InputSystem::IsKeyDown(Keys::KEY_LEFT) && InputSystem::WasKeyDown(Keys::KEY_LEFT))) {
+                if (play_selected) {
                     play_selected = false;
                     play_button_text.MaterialInstance = unselected_text_material;
                     settings_button_text.MaterialInstance = selected_text_material;
                     active_points_array = &points2_array;
-                }
-                else
-                {
+                } else {
                     play_selected = true;
                     play_button_text.MaterialInstance = selected_text_material;
                     settings_button_text.MaterialInstance = unselected_text_material;
                     active_points_array = &points1_array;
                 }
 
-                for (u32 i = 0; i < KRAFT_C_ARRAY_SIZE(character_states); i++)
-                {
+                for (u32 i = 0; i < KRAFT_C_ARRAY_SIZE(character_states); i++) {
                     character_states[i].progress = 0.1f;
                 }
             }
+            KRAFT_TIMING_STATS_ACCUM(scene_non_slug_update_timer, app_frame_stats.scene_non_slug_update_ms);
 
-            // g_Renderer->AddRenderable({ .EntityId = 1, .DrawData = geometry->DrawData, .MaterialInstance = font_material, .ModelMatrix = transformA });
-            // g_Renderer->AddRenderable({ .EntityId = 2, .DrawData = geometry->DrawData, .MaterialInstance = font_material, .ModelMatrix = transformB });
-            g_Renderer->AddRenderable(background);
-            g_Renderer->AddRenderable({
+            KRAFT_TIMING_STATS_BEGIN(scene_non_slug_submit_timer);
+            main_surface->Submit(background);
+            main_surface->Submit({
                 .ModelMatrix = transformB,
                 .MaterialInstance = font_material,
                 .DrawData = active_points_array->geometry->DrawData,
                 .EntityId = 420,
             });
 
-            g_Renderer->AddRenderable(play_button_text);
-            g_Renderer->AddRenderable(settings_button_text);
-            g_Renderer->AddRenderable(logo_text);
+            main_surface->Submit(play_button_text);
+            main_surface->Submit(settings_button_text);
+            main_surface->Submit(logo_text);
+            KRAFT_TIMING_STATS_ACCUM(scene_non_slug_submit_timer, app_frame_stats.scene_non_slug_submit_ms);
 
-            // g_Renderer->AddRenderable(font_bitmap);
-            // g_Renderer->Draw(bg_material->Shader, &global_data, geometry->InternalID);
-            g_Renderer->Draw(&global_data);
+            // Slug text (vector-based rendering with custom bind group)
+            static i32 rows = 26;
+            static i32 cols = 80;
+            static f32 slug_font_size = 16.0f;
+            static vec2 slug_position = {-window->Width / 2.0f, -window->Height / 2.0f};
+
+            {
+
+                KRAFT_TIMING_STATS_BEGIN(scene_static_slug_total_timer);
+                for (i32 x = 0; x < rows; x++) {
+                    for (i32 y = 0; y < cols; y++) {
+                        u32 x_padding = x * 100.0f;
+                        u32 y_padding = y * (slug_font_size + 4.0f);
+                        auto transform = TranslationMatrix(Vec3f{slug_position.x + x_padding, slug_position.y + y_padding, 0.0f});
+                        KRAFT_TIMING_STATS_BEGIN(slug_render_text_timer);
+                        auto slug_text = r::SlugRenderText(slug_material, &noto_sans_font, GetStaticRandomText(scratch.arena, 11, seed + x + y), transform, KRAFT_HEX(0x2ecc71), slug_font_size);
+                        KRAFT_TIMING_STATS_ACCUM(slug_render_text_timer, app_frame_stats.scene_static_slug_render_text_ms);
+                        KRAFT_TIMING_STATS_BEGIN(slug_submit_timer);
+                        main_surface->Submit(slug_text);
+                        KRAFT_TIMING_STATS_ACCUM(slug_submit_timer, app_frame_stats.scene_static_slug_submit_ms);
+                    }
+                }
+                KRAFT_TIMING_STATS_ACCUM(scene_static_slug_total_timer, app_frame_stats.scene_static_slug_total_ms);
+                static u64 raw_log_counter = 0;
+                if (++raw_log_counter % 120 == 0) {
+                    fflush(stdout);
+                }
+
+                // Dynamic slug text - changes every frame
+                KRAFT_TIMING_STATS_BEGIN(scene_dynamic_slug_total_timer);
+                int frame_val = (int)(Time::elapsed_time * 2.0f);
+                const char* phrases[] = {"Frame ", "Time: ", "Slug! ", "BDA!! ", "Hello ", "Kraft "};
+                int phrase_idx = frame_val % KRAFT_C_ARRAY_SIZE(phrases);
+
+                // Format a string with the frame counter
+                String8 dynamic_str = StringFormat(scratch.arena, "%s%d", phrases[phrase_idx], (int)(Time::elapsed_time * 10.0f));
+
+                KRAFT_TIMING_STATS_BEGIN(scene_dynamic_slug_render_text_timer);
+                auto slug_dynamic1 = r::SlugRenderText(slug_material, &slug_font, dynamic_str, TranslationMatrix(Vec3f{-300.0f, 100.0f, 0.0f}), KRAFT_HEX(0xe74c3c), 48.0f);
+                KRAFT_TIMING_STATS_ACCUM(scene_dynamic_slug_render_text_timer, app_frame_stats.scene_dynamic_slug_render_text_ms);
+                if (slug_dynamic1.DrawData.IndexCount > 0) {
+                    KRAFT_TIMING_STATS_BEGIN(scene_dynamic_slug_submit_timer);
+                    main_surface->Submit(slug_dynamic1);
+                    KRAFT_TIMING_STATS_ACCUM(scene_dynamic_slug_submit_timer, app_frame_stats.scene_dynamic_slug_submit_ms);
+                }
+
+                // Second dynamic text - bouncing with sin wave
+                f32 bounce_y = Sin(Time::elapsed_time * 3.0f) * 50.0f;
+                String8 dynamic_str2 = StringFormat(scratch.arena, "FPS: %d", app_state.frame_count);
+
+                KRAFT_TIMING_STATS_BEGIN(scene_dynamic_slug_render_text_timer2);
+                auto slug_dynamic2 = r::SlugRenderText(slug_material, &slug_font, dynamic_str2, TranslationMatrix(Vec3f{-300.0f, -100.0f + bounce_y, 0.0f}), KRAFT_HEX(0x3498db), 40.0f);
+                KRAFT_TIMING_STATS_ACCUM(scene_dynamic_slug_render_text_timer2, app_frame_stats.scene_dynamic_slug_render_text_ms);
+                if (slug_dynamic2.DrawData.IndexCount > 0) {
+                    KRAFT_TIMING_STATS_BEGIN(scene_dynamic_slug_submit_timer2);
+                    main_surface->Submit(slug_dynamic2);
+                    KRAFT_TIMING_STATS_ACCUM(scene_dynamic_slug_submit_timer2, app_frame_stats.scene_dynamic_slug_submit_ms);
+                }
+                KRAFT_TIMING_STATS_ACCUM(scene_dynamic_slug_total_timer, app_frame_stats.scene_dynamic_slug_total_ms);
+            }
+
+            KRAFT_TIMING_STATS_BEGIN(scene_surface_end_timer);
+            main_surface->End();
+            KRAFT_TIMING_STATS_ACCUM(scene_surface_end_timer, app_frame_stats.scene_surface_end_ms);
+            KRAFT_TIMING_STATS_ACCUM(scene_build_timer, app_frame_stats.scene_build_ms);
 
             // Draw ImGui
+            KRAFT_TIMING_STATS_BEGIN(imgui_total_timer);
+
+            KRAFT_TIMING_STATS_BEGIN(imgui_begin_frame_timer);
             app_state.imgui_renderer.BeginFrame();
+            KRAFT_TIMING_STATS_ACCUM(imgui_begin_frame_timer, app_frame_stats.imgui_begin_frame_ms);
+
+            KRAFT_TIMING_STATS_BEGIN(imgui_build_ui_timer);
             ImGui::ShowDemoWindow(&imgui_demo_window);
             DrawGameUI(game_state);
 
@@ -570,69 +1020,88 @@ int main(int argc, char** argv)
             // ImGui::DragFloat("Wave speed", &wave_speed);
             ImGui::DragFloat("Animation Speed", &animation_speed);
 
-            static Vec2f scale = { 1.0f, 1.0f };
-            static Vec2f position = { -270.0f, -270.0f };
-            if (ImGui::DragFloat2("Position", position._data))
-            {
-                transformB = ScaleMatrix(Vec3f{ scale.x, scale.y, 1.f }) * TranslationMatrix(Vec3f{ position.x, position.y, 0.f });
+            static Vec2f scale = {1.0f, 1.0f};
+            static Vec2f position = {-270.0f, -270.0f};
+            if (ImGui::DragFloat2("Position", position._data)) {
+                transformB = ScaleMatrix(Vec3f{scale.x, scale.y, 1.f}) * TranslationMatrix(Vec3f{position.x, position.y, 0.f});
             }
 
-            if (ImGui::DragFloat2("Scale", scale._data))
-            {
-                transformB = ScaleMatrix(Vec3f{ scale.x, scale.y, 1.f }) * TranslationMatrix(Vec3f{ position.x, position.y, 0.f });
+            if (ImGui::DragFloat2("Scale", scale._data)) {
+                transformB = ScaleMatrix(Vec3f{scale.x, scale.y, 1.f}) * TranslationMatrix(Vec3f{position.x, position.y, 0.f});
             }
 
-            if (ImGui::Button("Switch Path"))
-            {
-                if (active_points_array == &points1_array)
-                {
+            if (ImGui::Button("Switch Path")) {
+                if (active_points_array == &points1_array) {
                     active_points_array = &points2_array;
-                }
-                else
-                {
+                } else {
                     active_points_array = &points1_array;
                 }
 
-                for (u32 i = 0; i < KRAFT_C_ARRAY_SIZE(character_states); i++)
-                {
+                for (u32 i = 0; i < KRAFT_C_ARRAY_SIZE(character_states); i++) {
                     // character_states[i].current_point_index = i;
                     character_states[i].progress = 0.1f;
                 }
             }
 
-            if (ImGui::ColorEdit4("Logo Color", logo_color._data))
-            {
+            if (ImGui::ColorEdit4("Logo Color", logo_color._data)) {
                 MaterialSystem::SetProperty(logo_text_material, S("DiffuseColor"), logo_color);
             }
 
-            if (ImGui::DragFloat2("Logo Position", logo_transform.position._data))
-            {
+            if (ImGui::DragFloat2("Logo Position", logo_transform.position._data)) {
                 logo_text.ModelMatrix = MatrixFromTransform(logo_transform);
             }
 
-            if (ImGui::DragFloat2("Logo Scale", logo_transform.scale._data))
-            {
+            if (ImGui::DragFloat2("Logo Scale", logo_transform.scale._data)) {
                 logo_text.ModelMatrix = MatrixFromTransform(logo_transform);
             }
+
+            if (ImGui::DragFloat2("Slug Matrix Position", slug_position._data)) {}
+            if (ImGui::DragInt("Slug Matrix Rows", &rows)) {}
+            if (ImGui::DragInt("Slug Matrix Cols", &cols)) {}
 
             ImGui::End();
 
-            app_state.imgui_renderer.EndFrame();
+            ImGui::Begin("Render Stats");
+            DrawAppFrameStatsTree("App Current Frame", app_state.stats.current_frame);
+            DrawAppFrameStatsTree("App Last Completed Frame", app_state.stats.last_completed_frame);
+            const r::RendererStats& render_stats = g_Renderer->GetStats();
+            DrawRendererFrameStatsTree("Renderer Current Frame", render_stats.current_frame);
+            DrawRendererFrameStatsTree("Renderer Last Completed Frame", render_stats.last_completed_frame);
+            ImGui::End();
+            KRAFT_TIMING_STATS_ACCUM(imgui_build_ui_timer, app_frame_stats.imgui_build_ui_ms);
 
+            KRAFT_TIMING_STATS_BEGIN(imgui_end_frame_timer);
+            app_state.imgui_renderer.EndFrame();
+            KRAFT_TIMING_STATS_ACCUM(imgui_end_frame_timer, app_frame_stats.imgui_end_frame_ms);
+            KRAFT_TIMING_STATS_ACCUM(imgui_total_timer, app_frame_stats.imgui_total_ms);
+
+            KRAFT_TIMING_STATS_BEGIN(renderer_end_main_renderpass_timer);
             g_Renderer->EndMainRenderpass();
+            KRAFT_TIMING_STATS_ACCUM(renderer_end_main_renderpass_timer, app_frame_stats.renderer_end_main_renderpass_ms);
+
+            KRAFT_TIMING_STATS_BEGIN(imgui_platform_windows_timer);
             app_state.imgui_renderer.EndFrameUpdatePlatformWindows();
+            KRAFT_TIMING_STATS_ACCUM(imgui_platform_windows_timer, app_frame_stats.imgui_platform_windows_ms);
+
+            KRAFT_TIMING_STATS_ACCUM(render_block_timer, app_frame_stats.render_block_ms);
         }
 
-        if (app_state.time_since_last_frame >= 1.f)
-        {
+        if (app_state.time_since_last_frame >= 1.f) {
+            KRAFT_TIMING_STATS_BEGIN(title_update_timer);
             String8 window_title = StringFormat(scratch.arena, "TextDrawing | FrameTime: %.2f ms | %d fps", delta_time * 1000.f, app_state.frame_count);
             window->SetWindowTitle(window_title.str);
 
             app_state.time_since_last_frame = 0.f;
             app_state.frame_count = 0;
+            KRAFT_TIMING_STATS_ACCUM(title_update_timer, app_frame_stats.title_update_ms);
+
+            seed = rand();
         }
 
+        KRAFT_TIMING_STATS_BEGIN(scratch_end_timer);
         ScratchEnd(scratch);
+        KRAFT_TIMING_STATS_ACCUM(scratch_end_timer, app_frame_stats.scratch_end_ms);
+        KRAFT_TIMING_STATS_SET(app_frame_total_timer, app_frame_stats.total_ms);
     }
 
     // DestroyRenderer(Renderer);

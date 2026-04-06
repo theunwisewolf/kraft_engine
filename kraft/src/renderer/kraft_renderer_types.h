@@ -21,131 +21,168 @@ struct RenderPass;
 struct CommandBuffer;
 struct Buffer;
 struct RenderSurface;
+struct BindGroup;
 
 // Templated only for type-safety
-template<typename T>
-struct Handle
-{
+template <typename T> struct Handle {
 private:
     u16 index;
     u16 generation;
 
-    template<typename U, typename V>
-    friend struct Pool;
-    Handle(u16 index, u16 generation) : index(index), generation(generation)
-    {}
+    template <typename U, typename V> friend struct Pool;
+    Handle(u16 index, u16 generation) : index(index), generation(generation) {}
 
 public:
-    Handle() : index(0), generation(0xffff)
-    {}
+    Handle() : index(0), generation(0xffff) {}
 
-    static Handle Invalid()
-    {
+    static Handle Invalid() {
         return Handle(0, 0xffff);
     }
 
-    bool IsInvalid() const
-    {
+    bool IsInvalid() const {
         return this->generation == 0xffff;
     }
 
-    explicit operator bool() const
-    {
+    explicit operator bool() const {
         return this->generation != 0xffff;
     }
 
-    bool operator==(const Handle<T> other)
-    {
+    bool operator==(const Handle<T> other) const {
         return other.generation == generation && other.index == index;
     }
 
-    bool operator!=(const Handle<T> other)
-    {
+    bool operator!=(const Handle<T> other) const {
         return other.generation != generation || other.index != index;
     }
 
-    u16 GetIndex() const
-    {
+    u16 GetIndex() const {
         return index;
     }
 
-    u16 GetGeneration() const
-    {
+    u16 GetGeneration() const {
         return generation;
     }
 };
 
 struct ShaderEffect;
 
-struct alignas(16) GlobalShaderData
-{
-    union
-    {
-        struct alignas(16)
-        {
-            mat4 Projection;
-            mat4 View;
-            vec3 GlobalLightPosition;
-            u32  Pad0;
-            vec4 GlobalLightColor;
-            vec3 CameraPosition;
-            f32  Time;
-            f32  DeltaTime;
-            f32  Exposure;
-            f32  Saturation;
-            f32  VignetteStrength;
-            f32  VignetteRadius;
-            f32  Contrast;
-            f32  Warmth;
-            f32  ScreenWidth;
-            f32  ScreenHeight;
+enum RenderQueue {
+    RENDER_QUEUE_BACKGROUND = 0,
+    RENDER_QUEUE_OPAQUE = 1000,
+    RENDER_QUEUE_TRANSPARENT = 2000,
+    RENDER_QUEUE_OVERLAY = 3000,
+};
+
+// Per-draw constants — pushed via vkCmdPushConstants (128 bytes max)
+struct DrawConstants {
+    mat4 model; // 64 bytes
+    vec2 mouse_position; //  8 bytes
+    u32 entity_id; //  4 bytes
+    u32 material_idx; //  4 bytes
+    u64 vertex_address; //  8 bytes — BDA pointer to this draw's vertex data
+
+    // Pad to 128 bytes
+    u8 _pad[40];
+};
+
+struct Draw {
+    u64 sort_key;
+    Handle<Buffer> index_buffer;
+    DrawConstants* draw_constants;
+    Handle<BindGroup> custom_bind_group;
+    u32 index_offset;
+    u32 index_count;
+    u16 pipeline_id;
+};
+
+struct alignas(16) GlobalShaderData {
+    union {
+        struct alignas(16) {
+            mat4 ViewProjection; // 64
+            mat4 LightViewProjection; // 64
+            vec3 GlobalLightPosition; // 12
+            f32 Time; // 4
+            vec4 GlobalLightColor; // 16
+            vec3 CameraPosition; // 12
+            f32 DeltaTime; // 4
+            f32 Exposure; // 4
+            f32 Saturation; // 4
+            f32 VignetteStrength; // 4
+            f32 VignetteRadius; // 4
+            f32 Contrast; // 4
+            f32 Warmth; // 4
+            f32 ScreenWidth; // 4
+            f32 ScreenHeight; // 4
         };
 
         char _[256];
     };
 };
 
-struct GeometryDrawData
-{
+struct GeometryDrawData {
     u32 IndexCount;
     u32 IndexBufferOffset; // Byte offset into the index buffer
-    u32 VertexOffset;      // Vertex index offset (VertexBufferOffset / VertexSize)
+    u32 VertexByteOffset; // Byte offset into the vertex buffer — baked into BDA pointer
 };
 
-struct GeometryDescription
-{
+struct GeometryDescription {
     Handle<Buffer> VertexBuffer;
-    u32            VertexBufferOffset; // Byte offset into the vertex buffer
-    u32            VertexCount;
-    const void*    Vertices;
-    u32            VertexSize;
+    u32 VertexBufferOffset; // Byte offset into the vertex buffer
+    u32 VertexCount;
+    const void* Vertices;
+    u32 VertexSize;
 
     Handle<Buffer> IndexBuffer;
-    u32            IndexBufferOffset; // Byte offset into the index buffer
-    u32            IndexCount;
-    const void*    Indices;
-    u32            IndexSize;
+    u32 IndexBufferOffset; // Byte offset into the index buffer
+    u32 IndexCount;
+    const void* Indices;
+    u32 IndexSize;
 };
 
-struct Renderable
-{
-    Mat4f            ModelMatrix;
-    Material*        MaterialInstance;
+struct Renderable {
+    Mat4f ModelMatrix;
+    Material* MaterialInstance;
     GeometryDrawData DrawData;
-    u32              EntityId;
+    u32 EntityId;
+    Handle<BindGroup> CustomBindGroup;
+    // Optional: override the global static vertex/index buffers.
+    // Set these when submitting dynamic geometry (e.g. text, particles).
+    // When invalid (default), Submit uses the global static SSBO/index buffer.
+    Handle<Buffer> VertexBuffer;
+    Handle<Buffer> IndexBuffer;
 };
 
-struct RenderPacket
-{
+// Returned by RendererFrontend::AllocateDynamicGeometry.
+// Write your vertex/index data to vertex_ptr/index_ptr (CPU-mapped GPU memory).
+// CPU pointers are valid until end of frame. No free needed.
+struct DynamicGeometryAllocation {
+    Handle<Buffer> vertex_buffer;
+    Handle<Buffer> index_buffer;
+    u32 vertex_byte_offset; // byte offset where this allocation starts in the vertex buffer
+    u32 index_byte_offset; // byte offset where this allocation starts in the index buffer
+    void* vertex_ptr; // CPU pointer — write your vertices here
+    void* index_ptr; // CPU pointer — write your indices here
+    u32 vertex_count;
+    u32 index_count;
+    u32 vertex_stride;
+
+    GeometryDrawData AsDrawData() const {
+        return {
+            .IndexCount = index_count,
+            .IndexBufferOffset = index_byte_offset,
+            .VertexByteOffset = vertex_byte_offset,
+        };
+    }
+};
+
+struct RenderPacket {
     Mat4f ProjectionMatrix;
     Mat4f ViewMatrix;
 };
 
-struct DeviceInfoT
-{};
+struct DeviceInfoT {};
 
-struct RendererBackend
-{
+struct RendererBackend {
     bool (*Init)(ArenaAllocator* Arena, RendererOptions* Config);
     bool (*Shutdown)();
     int (*PrepareFrame)();
@@ -155,14 +192,14 @@ struct RendererBackend
 
     // Shader
     void (*UseShader)(const Shader* Shader, u32 VariantIndex);
-    void (*ApplyGlobalShaderProperties)(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer);
+    void (*ApplyGlobalShaderProperties)(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer);
     void (*ApplyLocalShaderProperties)(Shader* ActiveShader, void* Data);
     void (*CreateRenderPipeline)(Shader* Shader);
     void (*DestroyRenderPipeline)(Shader* Shader);
     void (*UpdateTextures)(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    void (*DrawGeometryData)(GeometryDrawData draw_data);
+    void (*DrawGeometryData)(GeometryDrawData draw_data, Handle<Buffer> index_buffer);
     bool (*CreateGeometry)(const GeometryDescription& description);
     bool (*UpdateGeometry)(const GeometryDescription& description);
 
@@ -171,180 +208,146 @@ struct RendererBackend
     void (*EndSurface)(RenderSurface* surface);
 
     void (*CmdSetCustomBuffer)(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
+    void (*BindBindGroup)(Shader* shader, Handle<BindGroup> bind_group);
 
     DeviceInfoT DeviceInfo;
 };
 
-struct Vertex2D
-{
+struct Vertex2D {
     Vec2f Position;
     Vec2f UV;
     Vec4f Color;
 };
 
-struct Vertex3D
-{
+struct Vertex3D {
     Vec3f Position;
     Vec2f UV;
     Vec3f Normal;
     Vec4f Tangent; // xyz = tangent direction, w = bitangent sign
 };
 
-struct ShaderDataType
-{
-    enum Enum : u8
-    {
-        Float,
-        Float2,
-        Float3,
-        Float4,
-        Mat4,
-        Byte,
-        Byte4N,
-        UByte,
-        UByte4N,
-        Short2,
-        Short2N,
-        Short4,
-        Short4N,
-        UInt,
-        UInt2,
-        UInt4,
-        TextureID,
-        Count
-    } UnderlyingType;
+struct ShaderDataType {
+    enum Enum : u8 { Float, Float2, Float3, Float4, Mat4, Byte, Byte4N, UByte, UByte4N, Short2, Short2N, Short4, Short4N, UInt, UInt2, UInt4, TextureID, Count } UnderlyingType;
 
-    u16                ArraySize = 1;
-    static const char* String(Enum Value)
-    {
-        static const char* Strings[] = { "Float",  "Float2",  "Float3", "Float4",  "Mat4", "Byte",  "Byte4N", "UByte",     "UByte4N",
-                                         "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4",  "TextureID", "Count" };
+    u16 ArraySize = 1;
+    static const char* String(Enum Value) {
+        static const char* Strings[] = {
+            "Float", "Float2", "Float3", "Float4", "Mat4", "Byte", "Byte4N", "UByte", "UByte4N", "Short2", "Short2N", "Short4", "Short4N", "UInt", "UInt2", "UInt4", "TextureID", "Count"
+        };
         return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
     }
 
-    static u64 SizeOf(ShaderDataType Value)
-    {
-        switch (Value.UnderlyingType)
-        {
-            case Float:     return 1 * sizeof(f32) * Value.ArraySize;
-            case Float2:    return 2 * sizeof(f32) * Value.ArraySize;
-            case Float3:    return 3 * sizeof(f32) * Value.ArraySize;
-            case Float4:    return 4 * sizeof(f32) * Value.ArraySize;
-            case Mat4:      return 16 * sizeof(f32) * Value.ArraySize;
-            case Byte:      return 1 * sizeof(byte) * Value.ArraySize;
-            case Byte4N:    return 4 * sizeof(byte) * Value.ArraySize;
-            case UByte:     return 4 * sizeof(byte) * Value.ArraySize;
-            case UByte4N:   return 4 * sizeof(byte) * Value.ArraySize;
-            case Short2:    return 2 * sizeof(i16) * Value.ArraySize;
-            case Short2N:   return 2 * sizeof(i16) * Value.ArraySize;
-            case Short4:    return 4 * sizeof(i16) * Value.ArraySize;
-            case Short4N:   return 4 * sizeof(i16) * Value.ArraySize;
-            case UInt:      return 1 * sizeof(u32) * Value.ArraySize;
-            case UInt2:     return 2 * sizeof(u32) * Value.ArraySize;
-            case UInt4:     return 4 * sizeof(u32) * Value.ArraySize;
-            case TextureID: return sizeof(u32);
-            case Count:     return 0;
+    static u64 SizeOf(ShaderDataType Value) {
+        switch (Value.UnderlyingType) {
+        case Float:     return 1 * sizeof(f32) * Value.ArraySize;
+        case Float2:    return 2 * sizeof(f32) * Value.ArraySize;
+        case Float3:    return 3 * sizeof(f32) * Value.ArraySize;
+        case Float4:    return 4 * sizeof(f32) * Value.ArraySize;
+        case Mat4:      return 16 * sizeof(f32) * Value.ArraySize;
+        case Byte:      return 1 * sizeof(byte) * Value.ArraySize;
+        case Byte4N:    return 4 * sizeof(byte) * Value.ArraySize;
+        case UByte:     return 4 * sizeof(byte) * Value.ArraySize;
+        case UByte4N:   return 4 * sizeof(byte) * Value.ArraySize;
+        case Short2:    return 2 * sizeof(i16) * Value.ArraySize;
+        case Short2N:   return 2 * sizeof(i16) * Value.ArraySize;
+        case Short4:    return 4 * sizeof(i16) * Value.ArraySize;
+        case Short4N:   return 4 * sizeof(i16) * Value.ArraySize;
+        case UInt:      return 1 * sizeof(u32) * Value.ArraySize;
+        case UInt2:     return 2 * sizeof(u32) * Value.ArraySize;
+        case UInt4:     return 4 * sizeof(u32) * Value.ArraySize;
+        case TextureID: return sizeof(u32);
+        case Count:     return 0;
         }
 
         return 0;
     }
 
-    static u64 GetAlignment(ShaderDataType Value)
-    {
-        switch (Value.UnderlyingType)
-        {
-            case Float:     return 4;
-            case Float2:    return 8;
-            case Float3:    return 16;
-            case Float4:    return 16;
-            case Mat4:      return 16;
-            case Byte:      return 1;
-            case Byte4N:    return 4;
-            case UByte:     return 1;
-            case UByte4N:   return 4;
-            case Short2:    return 4;
-            case Short2N:   return 4;
-            case Short4:    return 8;
-            case Short4N:   return 8;
-            case UInt:      return 4;
-            case UInt2:     return 8;
-            case UInt4:     return 16;
-            case TextureID: return 4;
-            case Count:     return 1;
+    static u64 GetAlignment(ShaderDataType Value) {
+        switch (Value.UnderlyingType) {
+        case Float:     return 4;
+        case Float2:    return 8;
+        case Float3:    return 16;
+        case Float4:    return 16;
+        case Mat4:      return 16;
+        case Byte:      return 1;
+        case Byte4N:    return 4;
+        case UByte:     return 1;
+        case UByte4N:   return 4;
+        case Short2:    return 4;
+        case Short2N:   return 4;
+        case Short4:    return 8;
+        case Short4N:   return 8;
+        case UInt:      return 4;
+        case UInt2:     return 8;
+        case UInt4:     return 16;
+        case TextureID: return 4;
+        case Count:     return 1;
         }
 
         return 0;
     }
 
-    KRAFT_INLINE static ShaderDataType WithType(ShaderDataType::Enum Type)
-    {
+    KRAFT_INLINE static ShaderDataType WithType(ShaderDataType::Enum Type) {
         return ShaderDataType{
             .UnderlyingType = Type,
             .ArraySize = 1,
         };
     }
 
-    KRAFT_INLINE static ShaderDataType Invalid()
-    {
+    KRAFT_INLINE static ShaderDataType Invalid() {
         return ShaderDataType{
             .UnderlyingType = Count,
             .ArraySize = 0,
         };
     }
 
-    KRAFT_INLINE bool IsInvalid()
-    {
+    KRAFT_INLINE bool IsInvalid() {
         return this->UnderlyingType == Count;
     }
 
-    KRAFT_INLINE bool operator==(const ShaderDataType Other)
-    {
+    KRAFT_INLINE bool operator==(const ShaderDataType Other) {
         return this->UnderlyingType == Other.UnderlyingType && this->ArraySize == Other.ArraySize;
     }
 };
 
 namespace VertexInputRate {
-enum Enum
-{
-    PerVertex,
-    PerInstance,
-    Count
+enum Enum { PerVertex, PerInstance, Count };
+
+static const char* Strings[] = {
+    "PerVertex",
+    "PerInstance",
+    "Count",
 };
 
-static const char* Strings[] = { "PerVertex", "PerInstance", "Count" };
-
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 } // namespace VertexInputRate
 
 namespace ResourceType {
-enum Enum
-{
+enum Enum {
     Sampler,
     UniformBuffer,
     StorageBuffer,
     ConstantBuffer,
-    Count
+    Count,
 };
 
-static const char* Strings[] = { "Sampler", "UniformBuffer", "StorageBuffer", "ConstantBuffer", "Count" };
+static const char* Strings[] = {
+    "Sampler",
+    "UniformBuffer",
+    "StorageBuffer",
+    "ConstantBuffer",
+    "Count",
+};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 } // namespace ResourceType
 
 namespace PolygonMode {
-enum Enum
-{
-    Fill,
-    Line,
-    Point,
-    Count
-};
+enum Enum { Fill, Line, Point, Count };
 
 static String8 strings[] = {
     String8Raw("Fill"),
@@ -352,15 +355,13 @@ static String8 strings[] = {
     String8Raw("Point"),
 };
 
-static String8 String(Enum value)
-{
+static String8 String(Enum value) {
     return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace PolygonMode
 
 namespace CompareOp {
-enum Enum
-{
+enum Enum {
     Never,
     Less,
     Equal,
@@ -373,99 +374,83 @@ enum Enum
 };
 
 static String8 strings[] = {
-    String8Raw("Never"),    String8Raw("Less"),           String8Raw("Equal"),  String8Raw("LessOrEqual"), String8Raw("Greater"),
-    String8Raw("NotEqual"), String8Raw("GreaterOrEqual"), String8Raw("Always"), String8Raw("Count"),
+    String8Raw("Never"),
+    String8Raw("Less"),
+    String8Raw("Equal"),
+    String8Raw("LessOrEqual"),
+    String8Raw("Greater"),
+    String8Raw("NotEqual"),
+    String8Raw("GreaterOrEqual"),
+    String8Raw("Always"),
+    String8Raw("Count"),
 };
 
-static String8 String(Enum value)
-{
+static String8 String(Enum value) {
     return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace CompareOp
 
 namespace BlendFactor {
-enum Enum : int
-{
-    Zero,
-    One,
-    SrcColor,
-    OneMinusSrcColor,
-    DstColor,
-    OneMinusDstColor,
-    SrcAlpha,
-    OneMinusSrcAlpha,
-    DstAlpha,
-    OneMinusDstAlpha,
-    Count
-};
+enum Enum : int { Zero, One, SrcColor, OneMinusSrcColor, DstColor, OneMinusDstColor, SrcAlpha, OneMinusSrcAlpha, DstAlpha, OneMinusDstAlpha, Count };
 
 static String8 strings[] = {
-    String8Raw("Zero"),     String8Raw("One"),
-    String8Raw("SrcColor"), String8Raw("OneMinusSrcColor"),
-    String8Raw("DstColor"), String8Raw("OneMinusDstColor"),
-    String8Raw("SrcAlpha"), String8Raw("OneMinusSrcAlpha"),
-    String8Raw("DstAlpha"), String8Raw("OneMinusDstAlpha"),
+    String8Raw("Zero"),
+    String8Raw("One"),
+    String8Raw("SrcColor"),
+    String8Raw("OneMinusSrcColor"),
+    String8Raw("DstColor"),
+    String8Raw("OneMinusDstColor"),
+    String8Raw("SrcAlpha"),
+    String8Raw("OneMinusSrcAlpha"),
+    String8Raw("DstAlpha"),
+    String8Raw("OneMinusDstAlpha"),
     String8Raw("Count"),
 };
 
-static String8 String(Enum value)
-{
+static String8 String(Enum value) {
     return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace BlendFactor
 
 namespace BlendOp {
-enum Enum : int
-{
-    Add,
-    Subtract,
-    ReverseSubtract,
-    Min,
-    Max,
-    Count
-};
+enum Enum : int { Add, Subtract, ReverseSubtract, Min, Max, Count };
 
 static String8 strings[] = {
-    String8Raw("Add"), String8Raw("Subtract"), String8Raw("ReverseSubtract"), String8Raw("Min"), String8Raw("Max"), String8Raw("Count"),
+    String8Raw("Add"),
+    String8Raw("Subtract"),
+    String8Raw("ReverseSubtract"),
+    String8Raw("Min"),
+    String8Raw("Max"),
+    String8Raw("Count"),
 };
 
-static String8 String(Enum value)
-{
+static String8 String(Enum value) {
     return (value < Enum::Count ? strings[(int)value] : String8Raw("Unsupported"));
 }
 } // namespace BlendOp
 
-struct BlendState
-{
+struct BlendState {
     BlendFactor::Enum src_color_blend_factor;
     BlendFactor::Enum dst_color_blend_factor;
-    BlendOp::Enum     color_blend_op;
+    BlendOp::Enum color_blend_op;
 
     BlendFactor::Enum src_alpha_blend_factor;
     BlendFactor::Enum dst_alpha_blend_factor;
-    BlendOp::Enum     alpha_blend_op;
+    BlendOp::Enum alpha_blend_op;
 };
 
 namespace ShaderUniformScope {
-enum Enum
-{
-    Global,
-    Instance,
-    Local,
-    Count
-};
+enum Enum { Global, Instance, Local, Count };
 
-static const char* Strings[] = { "Global", "Instance", "Local", "Count" };
+static const char* Strings[] = {"Global", "Instance", "Local", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace ShaderUniformScope
 
 namespace Format {
-enum Enum
-{
+enum Enum {
     // Color Formats
     RED,
     R32_SFLOAT,
@@ -482,117 +467,77 @@ enum Enum
     Count
 };
 
-static const char* Strings[] = { "RED",       "R32_SFLOAT", "RGBA8_UNORM",       "RGB8_UNORM",        "BGRA8_UNORM",        "BGR8_UNORM",
-                                 "D16_UNORM", "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT", "Count" };
+static const char* Strings[] = {
+    "RED", "R32_SFLOAT", "RGBA8_UNORM", "RGB8_UNORM", "BGRA8_UNORM", "BGR8_UNORM", "D16_UNORM", "D32_SFLOAT", "D16_UNORM_S8_UINT", "D24_UNORM_S8_UINT", "D32_SFLOAT_S8_UINT", "Count"
+};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace Format
 
 namespace TextureTiling {
-enum Enum
-{
-    Optimal,
-    Linear,
-    Count
-};
+enum Enum { Optimal, Linear, Count };
 
-static const char* Strings[] = { "Optimal", "Linear", "Count" };
+static const char* Strings[] = {"Optimal", "Linear", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureTiling
 
 namespace TextureType {
-enum Enum
-{
-    Type1D,
-    Type2D,
-    Type3D,
-    Count
-};
+enum Enum { Type1D, Type2D, Type3D, Count };
 
-static const char* Strings[] = { "Type1D", "Type2D", "Type3D", "Count" };
+static const char* Strings[] = {"Type1D", "Type2D", "Type3D", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureType
 
 namespace TextureFilter {
-enum Enum
-{
-    Nearest,
-    Linear,
-    Count
-};
+enum Enum { Nearest, Linear, Count };
 
-static const char* Strings[] = { "Nearest", "Linear", "Count" };
+static const char* Strings[] = {"Nearest", "Linear", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureFilter
 
 namespace TextureWrapMode {
-enum Enum
-{
-    Repeat,
-    MirroredRepeat,
-    ClampToEdge,
-    ClampToBorder,
-    Count
-};
+enum Enum { Repeat, MirroredRepeat, ClampToEdge, ClampToBorder, Count };
 
-static const char* Strings[] = { "Repeat", "MirroredRepeat", "ClampToEdge", "ClampToBorder", "Count" };
+static const char* Strings[] = {"Repeat", "MirroredRepeat", "ClampToEdge", "ClampToBorder", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureWrapMode
 
 namespace TextureMipMapMode {
-enum Enum
-{
-    Nearest,
-    Linear,
-    Count
-};
+enum Enum { Nearest, Linear, Count };
 
-static const char* Strings[] = { "Nearest", "Linear", "Count" };
+static const char* Strings[] = {"Nearest", "Linear", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureMipMapMode
 
 namespace SharingMode {
-enum Enum
-{
-    Exclusive,
-    Concurrent,
-    Count
-};
+enum Enum { Exclusive, Concurrent, Count };
 
-static const char* Strings[] = { "Exclusive", "Concurrent", "Count" };
+static const char* Strings[] = {"Exclusive", "Concurrent", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 } // namespace SharingMode
 
 namespace CullModeFlags {
-enum Enum
-{
+enum Enum {
     None,
     Front,
     Back,
@@ -600,16 +545,14 @@ enum Enum
     Count,
 };
 
-static const char* Strings[] = { "None", "Front", "Back", "BackAndFront", "Count" };
+static const char* Strings[] = {"None", "Front", "Back", "BackAndFront", "Count"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 } // namespace CullModeFlags
 
-enum TextureUsageFlags
-{
+enum TextureUsageFlags {
     TEXTURE_USAGE_FLAGS_TRANSFER_SRC = 1 << 0,
     TEXTURE_USAGE_FLAGS_TRANSFER_DST = 1 << 1,
     TEXTURE_USAGE_FLAGS_SAMPLED = 1 << 2,
@@ -619,8 +562,7 @@ enum TextureUsageFlags
     TEXTURE_USAGE_FLAGS_TRANSIENT_ATTACHMENT = 1 << 6,
 };
 
-enum TextureSampleCountFlags
-{
+enum TextureSampleCountFlags {
     TEXTURE_SAMPLE_COUNT_FLAGS_1 = 1 << 0,
     TEXTURE_SAMPLE_COUNT_FLAGS_2 = 1 << 1,
     TEXTURE_SAMPLE_COUNT_FLAGS_4 = 1 << 2,
@@ -630,8 +572,7 @@ enum TextureSampleCountFlags
     TEXTURE_SAMPLE_COUNT_FLAGS_64 = 1 << 6,
 };
 
-enum BufferUsageFlags
-{
+enum BufferUsageFlags {
     BUFFER_USAGE_FLAGS_TRANSFER_SRC = 1 << 0,
     BUFFER_USAGE_FLAGS_TRANSFER_DST = 1 << 1,
     BUFFER_USAGE_FLAGS_UNIFORM_TEXEL_BUFFER = 1 << 2,
@@ -644,8 +585,7 @@ enum BufferUsageFlags
     BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS = 1 << 9,
 };
 
-enum MemoryPropertyFlags
-{
+enum MemoryPropertyFlags {
     MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL = 1 << 0,
     MEMORY_PROPERTY_FLAGS_HOST_VISIBLE = 1 << 1,
     MEMORY_PROPERTY_FLAGS_HOST_COHERENT = 1 << 2,
@@ -653,198 +593,159 @@ enum MemoryPropertyFlags
 };
 
 // Same as defined in Vulkan
-enum MemoryAllocateFlags
-{
+enum MemoryAllocateFlags {
     MEMORY_ALLOCATE_DEVICE_ADDRESS = 0x00000002,
 };
 
-enum ShaderStageFlags : int
-{
+enum ShaderStageFlags : int {
     SHADER_STAGE_FLAGS_VERTEX = 1 << 0,
     SHADER_STAGE_FLAGS_GEOMETRY = 1 << 1,
     SHADER_STAGE_FLAGS_FRAGMENT = 1 << 2,
     SHADER_STAGE_FLAGS_COMPUTE = 1 << 3,
+    SHADER_STAGE_FLAGS_ALL = 1 << 4,
 };
 
 namespace LoadOp {
-enum Enum
-{
-    Load,
-    Clear,
-    DontCare,
-    Count
-};
-static const char* Strings[] = { "Load", "Clear", "DontCare" };
-static const char* String(Enum Value)
-{
+enum Enum { Load, Clear, DontCare, Count };
+static const char* Strings[] = {"Load", "Clear", "DontCare"};
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace LoadOp
 
 namespace StoreOp {
-enum Enum
-{
-    Store,
-    DontCare,
-    Count
-};
-static const char* Strings[] = { "Store", "DontCare" };
-static const char* String(Enum Value)
-{
+enum Enum { Store, DontCare, Count };
+static const char* Strings[] = {"Store", "DontCare"};
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace StoreOp
 
 namespace TextureLayout {
-enum Enum
-{
-    Undefined,
-    RenderTarget,
-    DepthStencil,
-    PresentationTarget,
-    Sampled,
-    Count
-};
+enum Enum { Undefined, RenderTarget, DepthStencil, PresentationTarget, Sampled, Count };
 
-static const char* Strings[] = { "Undefined", "RenderTarget", "DepthStencil", "PresentationTarget", "Sampled" };
+static const char* Strings[] = {"Undefined", "RenderTarget", "DepthStencil", "PresentationTarget", "Sampled"};
 
-static const char* String(Enum Value)
-{
+static const char* String(Enum Value) {
     return (Value < Enum::Count ? Strings[(int)Value] : "Unsupported");
 }
 }; // namespace TextureLayout
 
-struct DepthTarget
-{
-    Handle<Texture>     Texture;
-    LoadOp::Enum        LoadOperation = LoadOp::Clear;
-    StoreOp::Enum       StoreOperation = StoreOp::Store;
-    LoadOp::Enum        StencilLoadOperation = LoadOp::Clear;
-    StoreOp::Enum       StencilStoreOperation = StoreOp::Store;
+struct DepthTarget {
+    Handle<Texture> Texture;
+    LoadOp::Enum LoadOperation = LoadOp::Clear;
+    StoreOp::Enum StoreOperation = StoreOp::Store;
+    LoadOp::Enum StencilLoadOperation = LoadOp::Clear;
+    StoreOp::Enum StencilStoreOperation = StoreOp::Store;
     TextureLayout::Enum NextUsage = TextureLayout::DepthStencil;
-    f32                 Depth = 1.0f;
-    u32                 Stencil = 0;
+    f32 Depth = 1.0f;
+    u32 Stencil = 0;
 };
 
-struct ColorTarget
-{
-    Handle<Texture>     Texture;
-    LoadOp::Enum        LoadOperation = LoadOp::Clear;
-    StoreOp::Enum       StoreOperation = StoreOp::Store;
+struct ColorTarget {
+    Handle<Texture> Texture;
+    LoadOp::Enum LoadOperation = LoadOp::Clear;
+    StoreOp::Enum StoreOperation = StoreOp::Store;
     TextureLayout::Enum NextUsage = TextureLayout::RenderTarget;
-    Vec4f               ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+    Vec4f ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
-struct TextureSamplerDescription
-{
+struct TextureSamplerDescription {
     const char* DebugName = "";
 
-    TextureFilter::Enum     MinFilter = TextureFilter::Linear;
-    TextureFilter::Enum     MagFilter = TextureFilter::Linear;
-    TextureWrapMode::Enum   WrapModeU = TextureWrapMode::Repeat;
-    TextureWrapMode::Enum   WrapModeV = TextureWrapMode::Repeat;
-    TextureWrapMode::Enum   WrapModeW = TextureWrapMode::Repeat;
+    TextureFilter::Enum MinFilter = TextureFilter::Linear;
+    TextureFilter::Enum MagFilter = TextureFilter::Linear;
+    TextureWrapMode::Enum WrapModeU = TextureWrapMode::Repeat;
+    TextureWrapMode::Enum WrapModeV = TextureWrapMode::Repeat;
+    TextureWrapMode::Enum WrapModeW = TextureWrapMode::Repeat;
     TextureMipMapMode::Enum MipMapMode = TextureMipMapMode::Linear;
-    CompareOp::Enum         Compare = CompareOp::Never;
-    bool                    AnisotropyEnabled = true;
+    CompareOp::Enum Compare = CompareOp::Never;
+    bool AnisotropyEnabled = true;
 };
 
-struct TextureDescription
-{
+struct TextureDescription {
     const char* DebugName = "";
 
-    Vec4f                   Dimensions;
-    Format::Enum            Format;
-    u64                     Usage;
-    TextureTiling::Enum     Tiling = TextureTiling::Optimal;
-    TextureType::Enum       Type = TextureType::Type2D;
+    Vec4f Dimensions;
+    Format::Enum Format;
+    u64 Usage;
+    TextureTiling::Enum Tiling = TextureTiling::Optimal;
+    TextureType::Enum Type = TextureType::Type2D;
     TextureSampleCountFlags SampleCount = TEXTURE_SAMPLE_COUNT_FLAGS_1;
-    u32                     MipLevels = 1;
-    SharingMode::Enum       SharingMode = SharingMode::Exclusive;
+    u32 MipLevels = 1;
+    SharingMode::Enum SharingMode = SharingMode::Exclusive;
 };
 
-struct BufferDescription
-{
+struct BufferDescription {
     const char* DebugName;
 
-    u64               Size;
-    u64               UsageFlags;
-    u64               MemoryPropertyFlags;
-    u64               MemoryAllocationFlags;
+    u64 Size;
+    u64 UsageFlags;
+    u64 MemoryPropertyFlags;
+    u64 MemoryAllocationFlags;
     SharingMode::Enum SharingMode = SharingMode::Exclusive;
-    bool              BindMemory = true;
-    bool              MapMemory = false;
+    bool BindMemory = true;
+    bool MapMemory = false;
 };
 
-struct Buffer
-{
-    u64   Size = 0;
+struct Buffer {
+    u64 Size = 0;
     void* Ptr = nullptr;
 
     // TODO (amn): Figure out what other fields we need here
 };
 
-struct BufferView
-{
+struct BufferView {
     Handle<Buffer> GPUBuffer = {};
-    u8*            Ptr = 0;    // Location of data inside the GPUBuffer
-    u64            Offset = 0; // Offset from the start of the buffer
+    u8* Ptr = 0; // Location of data inside the GPUBuffer
+    u64 Offset = 0; // Offset from the start of the buffer
 };
 
-struct RenderPassSubpass
-{
-    bool      DepthTarget = false;
+struct RenderPassSubpass {
+    bool DepthTarget = false;
     Array<u8> ColorTargetSlots;
 };
 
-struct RenderPassLayout
-{
+struct RenderPassLayout {
     Array<RenderPassSubpass> Subpasses;
 };
 
-struct RenderPassDescription
-{
+struct RenderPassDescription {
     const char* DebugName;
 
-    Vec4f              Dimensions;
+    Vec4f Dimensions;
     Array<ColorTarget> ColorTargets;
-    DepthTarget        DepthTarget;
-    RenderPassLayout   Layout;
+    DepthTarget DepthTarget;
+    RenderPassLayout Layout;
 };
 
-struct RenderPass
-{
-    Vec4f              Dimensions;
-    DepthTarget        DepthTarget;
+struct RenderPass {
+    Vec4f Dimensions;
+    DepthTarget DepthTarget;
     Array<ColorTarget> ColorTargets;
 };
 
-enum CommandPoolCreateFlags : i32
-{
+enum CommandPoolCreateFlags : i32 {
     COMMAND_POOL_CREATE_FLAGS_TRANSIENT_BIT = 0x00000001,
     COMMAND_POOL_CREATE_FLAGS_RESET_COMMAND_BUFFER_BIT = 0x00000002,
     COMMAND_POOL_CREATE_FLAGS_PROTECTED_BIT = 0x00000004,
 };
 
-struct CommandPool
-{};
+struct CommandPool {};
 
-struct CommandPoolDescription
-{
+struct CommandPoolDescription {
     const char* DebugName;
 
-    u32                    QueueFamilyIndex;
+    u32 QueueFamilyIndex;
     CommandPoolCreateFlags Flags;
 };
 
-struct CommandBuffer
-{
+struct CommandBuffer {
     /// The GPU command pool this CmdBuffer was allocated from
     Handle<CommandPool> Pool;
 };
 
-struct CommandBufferDescription
-{
+struct CommandBufferDescription {
     const char* DebugName;
 
     /// The GPU command pool to allocate this CmdBuffer from
@@ -867,62 +768,92 @@ struct CommandBufferDescription
     bool SimultaneousUse = false;
 };
 
-struct UploadBufferDescription
-{
+struct UploadBufferDescription {
     Handle<Buffer> DstBuffer;
     Handle<Buffer> SrcBuffer;
-    u64            SrcSize;
-    u64            DstOffset = 0;
-    u64            SrcOffset = 0;
+    u64 SrcSize;
+    u64 DstOffset = 0;
+    u64 SrcOffset = 0;
 };
 
-struct ReadTextureDataDescription
-{
-    Handle<Texture>       SrcTexture = Handle<Texture>::Invalid();
-    void*                 OutBuffer = nullptr;
-    u32                   OutBufferSize = 0;
+struct ReadTextureDataDescription {
+    Handle<Texture> SrcTexture = Handle<Texture>::Invalid();
+    void* OutBuffer = nullptr;
+    u32 OutBufferSize = 0;
     Handle<CommandBuffer> CmdBuffer = Handle<CommandBuffer>::Invalid();
-    i32                   OffsetX = 0;
-    i32                   OffsetY = 0;
-    u32                   Width = 0;  // if 0, the entire image will be copied to the buffer
-    u32                   Height = 0; // if 0, the entire image will be copied to the buffer
+    i32 OffsetX = 0;
+    i32 OffsetY = 0;
+    u32 Width = 0; // if 0, the entire image will be copied to the buffer
+    u32 Height = 0; // if 0, the entire image will be copied to the buffer
 };
 
-struct PhysicalDeviceFormatSpecs
-{
+struct PhysicalDeviceFormatSpecs {
     Format::Enum SwapchainFormat;
     Format::Enum DepthBufferFormat;
 };
 
-struct GPUDevice
-{
-    u64  min_uniform_buffer_alignment;
-    u64  min_storage_buffer_alignment;
+struct GPUDevice {
+    u64 min_uniform_buffer_alignment;
+    u64 min_storage_buffer_alignment;
     bool supports_device_local_host_visible;
 };
 
-struct RenderSurface
-{
-    String8               DebugName;
-    String8               VariantName; // Shader variant to use when rendering to this surface
-    u32                   Width;
-    u32                   Height;
-    Handle<CommandBuffer> CmdBuffers[3];
-    Handle<RenderPass>    RenderPass;
-    Handle<Texture>       ColorPassTexture;
-    Handle<Texture>       DepthPassTexture;
+struct RenderSurface {
+    ArenaAllocator* frame_arena;
+    u16 draw_sequence;
+    Draw* draws = 0;
+    u32 draw_count = 0;
+    u32 max_draw_count = 0;
+    bool is_swapchain = false;
+
+    String8 debug_name;
+    String8 variant_name; // Shader variant to use when rendering to this surface
+    u32 width;
+    u32 height;
+    Handle<CommandBuffer> cmd_buffers[3];
+
+#if !KRAFT_ENABLE_VK_DYNAMIC_RENDERING
+    Handle<RenderPass> render_pass;
+#endif
+
+    Handle<Texture> color_pass;
+    Handle<Texture> depth_pass;
     // Sampler to use for sampling color and depth textures
-    Handle<TextureSampler> TextureSampler;
-    Handle<Buffer>         GlobalUBO;
-    World*                 World;
-    GlobalShaderData       global_shader_data;
+    Handle<TextureSampler> texture_sampler;
+    Handle<Buffer> global_ubo;
 
     // Mouse position relative to the surface
     // Used in global data
-    kraft::Vec2f RelativeMousePosition;
+    vec2 relative_mouse_position;
 
-    void Begin();
+    void Begin(ArenaAllocator* frame_arena, const GlobalShaderData& global_data);
+    void Submit(const Renderable& renderable, u16 render_queue = RENDER_QUEUE_OPAQUE);
     void End();
+};
+
+struct BindGroupEntry {
+    union {
+        Handle<Buffer> buffer;
+        Handle<Texture> texture;
+    };
+
+    Handle<TextureSampler> sampler;
+    u32 binding;
+    ResourceType::Enum type = ResourceType::StorageBuffer;
+};
+
+struct BindGroupDescription {
+    const char* debug_name;
+
+    BindGroupEntry* entries;
+    u32 entry_count;
+    u32 set_index; // default is 3
+    ShaderStageFlags stage_flags = SHADER_STAGE_FLAGS_ALL;
+};
+
+struct BindGroup {
+    // Required when binding
+    u32 set_index;
 };
 
 } // namespace r

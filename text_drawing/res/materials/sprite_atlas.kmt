@@ -1,0 +1,6 @@
+Material SpriteAtlas
+{
+    Shader          "res/shaders/basic_2d.kfx.bkfx"
+    DiffuseColor    vec4(1.0, 1.0, 1.0, 1.0)
+    DiffuseTexture  tex("res/textures/tile_atlas.png", filter=nearest, wrap=clamp)
+}

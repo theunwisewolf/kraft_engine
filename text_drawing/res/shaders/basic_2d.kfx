@@ -5,8 +5,8 @@ Shader Basic2D
         // Vertex layouts
         Vertex Main
         {
-            Binding     0 36 vertex
-            Attribute   float3 Position 0 0 0
+            Binding     0 32 vertex
+            Attribute   float2 Position 0 0 0
             Attribute   float2 UV 0 1 12
             Attribute   float4 Color 0 2 20
         }
@@ -71,11 +71,6 @@ Shader Basic2D
 
         #if defined VERTEX
 
-        // Inputs
-        layout (location = 0) in vec3 inPosition;
-        layout (location = 1) in vec2 inUV;
-        layout (location = 2) in vec4 inColor;
-
         // Output from the vertex shader to the fragment shader
         layout(location = 0) out struct DataTransferObject 
         {
@@ -84,8 +79,9 @@ Shader Basic2D
 
         void main()
         {
-            outDTO.UV = inUV;
-            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(inPosition, 1.0);
+            Vertex2D vertex = vertices[gl_VertexIndex];
+            outDTO.UV = vertex.uv;
+            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(vertex.position, 0.0, 1.0);
         }
 
         #endif // VERTEX
@@ -111,6 +107,7 @@ Shader Basic2D
             MeshMaterial Material = Materials[variableState.MaterialIdx];
             outColor = Material.DiffuseColor * SampleTexture(Material.DiffuseTexture, inDTO.UV);
             // outColor = Material.DiffuseColor;
+            // outColor = vec4(1.0, 0.0, 0.0, 1.0);
         }
 
         #endif // FRAGMENT

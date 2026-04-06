@@ -114,6 +114,7 @@ struct VariantDefinition
     ShaderDefinition*                 shader_stages;
     bool                              has_color_output = true;
     bool                              has_depth_output = true;
+    u8                                msaa_samples = 0; // 0 = inherit from swapchain, 1/2/4/8 = override
 };
 
 struct ShaderEffect

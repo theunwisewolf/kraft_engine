@@ -2,6 +2,35 @@
 
 #include <stdio.h>
 
+#ifndef KRAFT_TIMING_STATS_ENABLED
+#define KRAFT_TIMING_STATS_ENABLED 1
+#endif
+
+#if KRAFT_TIMING_STATS_ENABLED
+#define KRAFT_TIMING_STATS_NOW_MS() (kraft::Platform::GetAbsoluteTime() * 1000.0)
+#define KRAFT_TIMING_STATS_BEGIN(scope_name) f64 scope_name##_start_ms = KRAFT_TIMING_STATS_NOW_MS()
+#define KRAFT_TIMING_STATS_ACCUM(scope_name, target)                                                                                                                                                   \
+    do {                                                                                                                                                                                               \
+        (target) += (KRAFT_TIMING_STATS_NOW_MS() - scope_name##_start_ms);                                                                                                                             \
+    } while (0)
+#define KRAFT_TIMING_STATS_SET(scope_name, target)                                                                                                                                                     \
+    do {                                                                                                                                                                                               \
+        (target) = (KRAFT_TIMING_STATS_NOW_MS() - scope_name##_start_ms);                                                                                                                              \
+    } while (0)
+#define KRAFT_TIMING_STATS_ACCUM2(scope_name, target_a, target_b)                                                                                                                                      \
+    do {                                                                                                                                                                                               \
+        f64 scope_name##_elapsed_ms = (KRAFT_TIMING_STATS_NOW_MS() - scope_name##_start_ms);                                                                                                           \
+        (target_a) += scope_name##_elapsed_ms;                                                                                                                                                         \
+        (target_b) += scope_name##_elapsed_ms;                                                                                                                                                         \
+    } while (0)
+#else
+#define KRAFT_TIMING_STATS_NOW_MS() (0.0)
+#define KRAFT_TIMING_STATS_BEGIN(scope_name)
+#define KRAFT_TIMING_STATS_ACCUM(scope_name, target)
+#define KRAFT_TIMING_STATS_SET(scope_name, target)
+#define KRAFT_TIMING_STATS_ACCUM2(scope_name, target_a, target_b)
+#endif
+
 // Platform detection
 #if defined(WIN32) || defined(_WIN32)
 #define KRAFT_PLATFORM_WINDOWS
@@ -43,10 +72,10 @@
 #define KRAFT_INLINE inline
 #else
 #if defined(_MSC_VER)
-#define KRAFT_INLINE   __forceinline
+#define KRAFT_INLINE __forceinline
 #define KRAFT_NOINLINE __declspec(noinline)
 #elif defined(__clang__) || defined(__gcc__)
-#define KRAFT_INLINE   __attribute__((always_inline)) inline
+#define KRAFT_INLINE __attribute__((always_inline)) inline
 #define KRAFT_NOINLINE __attribute__((noinline))
 #else
 #define KRAFT_INLINE inline
@@ -74,7 +103,7 @@
 // Taken from rapidjson's src
 // Endianness - Required by some third-party code
 #define KRAFT_BYTEORDER_LITTLE_ENDIAN 0 // Little endian machine.
-#define KRAFT_BYTEORDER_BIG_ENDIAN    1 // Big endian machine.
+#define KRAFT_BYTEORDER_BIG_ENDIAN 1 // Big endian machine.
 
 #ifndef KRAFT_BYTEORDER_ENDIANNESS
 // Detect with GCC 4.6's macro.
@@ -125,23 +154,21 @@
 #include <cstddef>
 #include <cstdint>
 
-typedef double   f64;
-typedef float    f32;
-typedef int8_t   i8;
-typedef int16_t  i16;
-typedef int      i32;
-typedef int64_t  i64;
-typedef uint8_t  byte;
-typedef uint8_t  u8;
+typedef double f64;
+typedef float f32;
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int i32;
+typedef int64_t i64;
+typedef uint8_t byte;
+typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-struct String8
-{
-    union
-    {
-        u8*   ptr;
+struct String8 {
+    union {
+        u8* ptr;
         char* str;
     };
 
@@ -152,7 +179,7 @@ typedef String8 buffer;
 
 #define CArray(Type) Type*
 
-#define KRAFT_INVALID_ID       4294967295U
+#define KRAFT_INVALID_ID 4294967295U
 #define KRAFT_INVALID_ID_UINT8 255U
 
 #define KRAFT_C_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -177,23 +204,18 @@ typedef String8 buffer;
 
 // Some forward declares for most-used types
 namespace kraft {
-template<typename T, u64 InternalBufferSize>
-struct KString;
+template <typename T, u64 InternalBufferSize> struct KString;
 
-template<typename T>
-struct KStringView;
+template <typename T> struct KStringView;
 
 typedef KString<char, 128> String;
-typedef KStringView<char>  StringView;
+typedef KStringView<char> StringView;
 
-template<typename T>
-struct Array;
+template <typename T> struct Array;
 
-template<typename T, int rows, int cols>
-struct Matrix;
+template <typename T, int rows, int cols> struct Matrix;
 
-template<typename T, int n>
-struct Vector;
+template <typename T, int n> struct Vector;
 
 typedef Vector<f32, 4> Vec4f;
 typedef Vector<f32, 4> vec4;

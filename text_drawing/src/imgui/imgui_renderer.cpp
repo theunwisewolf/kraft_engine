@@ -1,7 +1,6 @@
 static bool WidgetsNeedRefresh = false;
 
-bool RendererImGui::Init(ArenaAllocator* arena)
-{
+bool RendererImGui::Init(ArenaAllocator* arena) {
     const u32 max_widgets = 128;
     ini_filename = kraft::StringFormat(arena, "%S/kraft_sample_app_imgui_config.ini", kraft::Engine::base_path);
     widgets = ArenaPushArray(arena, ImGuiWidget, max_widgets);
@@ -14,7 +13,7 @@ bool RendererImGui::Init(ArenaAllocator* arena)
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport / Platform Windows
     io.IniFilename = (char*)ini_filename.ptr;
 
@@ -23,8 +22,7 @@ bool RendererImGui::Init(ArenaAllocator* arena)
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
@@ -33,21 +31,6 @@ bool RendererImGui::Init(ArenaAllocator* arena)
 
     // Upload Fonts
     ImGuiIO& IO = ImGui::GetIO();
-    {
-        fs::FileHandle Handle;
-        KASSERT(fs::OpenFile(String8Raw("res/fonts/PlusJakartaSans-Regular.ttf"), fs::FILE_OPEN_MODE_READ, true, &Handle));
-
-        u64  Size = fs::GetFileSize(&Handle);
-        u8*  Buffer = (u8*)kraft::Malloc(Size);
-        bool JakartaRegular = fs::ReadAllBytes(&Handle, &Buffer, &Size);
-        KASSERT(JakartaRegular);
-
-        // Atlas will be freed by ImGui
-        IO.Fonts->AddFontFromMemoryTTF(Buffer, (int)Size, 14.0f * DPI);
-        // ImGui_ImplVulkan_CreateFontsTexture();
-
-        // kraft::Free(Buffer/*, Size, kraft::MEMORY_TAG_FILE_BUF*/);
-    }
 
     // ImGui::GetStyle().WindowPadding = ImVec2(14, 8);
     // ImGui::GetStyle().FramePadding = ImVec2(10, 8);
@@ -129,50 +112,41 @@ bool RendererImGui::Init(ArenaAllocator* arena)
     return true;
 }
 
-void RendererImGui::AddWidget(String8 name, ImGuiRenderCallback callback)
-{
+void RendererImGui::AddWidget(String8 name, ImGuiRenderCallback callback) {
     widgets[widget_count++] = ImGuiWidget(name, callback);
 
     KINFO("Added imgui widget %S", name);
 }
 
-ImTextureID RendererImGui::AddTexture(kraft::r::Handle<kraft::Texture> texture, kraft::r::Handle<kraft::TextureSampler> sampler)
-{
+ImTextureID RendererImGui::AddTexture(kraft::r::Handle<kraft::Texture> texture, kraft::r::Handle<kraft::TextureSampler> sampler) {
     return kraft::r::VulkanImgui::AddTexture(texture, sampler);
 }
 
-void RendererImGui::RemoveTexture(ImTextureID TextureID)
-{
+void RendererImGui::RemoveTexture(ImTextureID TextureID) {
     return kraft::r::VulkanImgui::RemoveTexture(TextureID);
 }
 
-void RendererImGui::RenderWidgets()
-{
-    for (int i = 0; i < widget_count; i++)
-    {
+void RendererImGui::RenderWidgets() {
+    for (int i = 0; i < widget_count; i++) {
         widgets[i].callback(WidgetsNeedRefresh);
     }
 
     WidgetsNeedRefresh = false;
 }
 
-void RendererImGui::OnResize(int width, int height)
-{
+void RendererImGui::OnResize(int width, int height) {
     WidgetsNeedRefresh = true;
 }
 
-void RendererImGui::Destroy()
-{
+void RendererImGui::Destroy() {
     kraft::r::VulkanImgui::Destroy();
 }
 
 // Only valid if multi-viewports is enabled
-void RendererImGui::EndFrameUpdatePlatformWindows()
-{
+void RendererImGui::EndFrameUpdatePlatformWindows() {
     // Update and Render additional Platform Windows
     ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
@@ -180,14 +154,12 @@ void RendererImGui::EndFrameUpdatePlatformWindows()
     kraft::r::VulkanImgui::PostFrameCleanup();
 }
 
-void RendererImGui::BeginFrame()
-{
+void RendererImGui::BeginFrame() {
     kraft::r::VulkanImgui::BeginFrame();
     ImGui::NewFrame();
 }
 
-void RendererImGui::EndFrame()
-{
+void RendererImGui::EndFrame() {
     ImGui::Render();
     ImDrawData* DrawData = ImGui::GetDrawData();
 

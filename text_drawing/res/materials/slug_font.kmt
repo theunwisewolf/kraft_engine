@@ -1,0 +1,5 @@
+Material SlugFont
+{
+    Shader "res/shaders/slug_font.kfx.bkfx"
+    DiffuseColor vec4(1.0, 1.0, 1.0, 1.0)
+}

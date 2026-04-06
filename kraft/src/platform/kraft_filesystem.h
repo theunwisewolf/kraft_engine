@@ -14,35 +14,29 @@ struct ArenaAllocator;
 
 namespace fs {
 
-struct FileSystemEntry
-{
+struct FileSystemEntry {
     String8 name;
-    union
-    {
-        u64  file_size;
+    union {
+        u64 file_size;
         bool is_file;
     };
 };
 
-struct Directory
-{
+struct Directory {
     FileSystemEntry* entries;
-    u32              entry_count;
+    u32 entry_count;
 };
 
-struct FileHandle
-{
+struct FileHandle {
     FILE* Handle;
 };
 
-struct FileMMapHandle
-{
+struct FileMMapHandle {
     void* Handle;
-    u64   Size;
+    u64 Size;
 };
 
-enum FileOpenMode
-{
+enum FileOpenMode {
     FILE_OPEN_MODE_READ = 0x1,
     FILE_OPEN_MODE_WRITE = 0x2,
     FILE_OPEN_MODE_APPEND = 0x4,
@@ -50,14 +44,19 @@ enum FileOpenMode
 
 // File helpers
 KRAFT_API bool OpenFile(String8 path, int mode, bool binary, FileHandle* out);
-KRAFT_API u64  GetFileSize(FileHandle* handle);
+KRAFT_API u64 GetFileSize(FileHandle* handle);
 KRAFT_API void CloseFile(FileHandle* handle);
 
 // Returns true if the file exists at "path"
 KRAFT_API bool FileExists(String8 path);
 
-// Very basic for now, just replaces all windows path separators
-// with unix path separators
+// Cleans a path similar to Go's path.Clean:
+// - Replaces backslashes with forward slashes
+// - Collapses multiple consecutive slashes into one
+// - Eliminates . (current directory) elements
+// - Eliminates inner .. elements along with the parent
+// - Strips trailing slashes (unless the path is just "/")
+// Returns "." for empty paths
 KRAFT_API String8 CleanPath(ArenaAllocator* arena, String8 path);
 
 // Returns the directory without the filename
@@ -89,50 +88,45 @@ KRAFT_API bool WriteFile(FileHandle* handle, const u8* buffer, u64 size);
 KRAFT_API u64 GetFileModifiedTime(String8 path);
 
 // Platform dependent APIs
-KRAFT_API u32       GetFileCount(String8 path);
+KRAFT_API u32 GetFileCount(String8 path);
 KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path);
 
 //
 // File watcher
 //
 
-enum FileWatchEventType
-{
+enum FileWatchEventType {
     FILE_WATCH_EVENT_MODIFIED,
     FILE_WATCH_EVENT_CREATED,
     FILE_WATCH_EVENT_DELETED,
     FILE_WATCH_EVENT_RENAMED,
 };
 
-struct FileWatchEvent
-{
+struct FileWatchEvent {
     FileWatchEventType type;
-    String8            file_path;
-    String8            directory;
+    String8 file_path;
+    String8 directory;
 };
 
 typedef void (*FileWatchCallback)(FileWatchEvent event, void* userdata);
 
-struct FileWatchEntry
-{
-    String8           directory;
+struct FileWatchEntry {
+    String8 directory;
     FileWatchCallback callback;
-    void*             userdata;
-    bool              recursive;
-    void*             platform_data;
+    void* userdata;
+    bool recursive;
+    void* platform_data;
 };
 
 #define FILE_WATCHER_MAX_WATCHES 16
 
-struct FileWatcherState
-{
+struct FileWatcherState {
     ArenaAllocator* arena;
-    FileWatchEntry  watches[FILE_WATCHER_MAX_WATCHES];
-    u32             watch_count;
+    FileWatchEntry watches[FILE_WATCHER_MAX_WATCHES];
+    u32 watch_count;
 };
 
-struct KRAFT_API FileWatcher
-{
+struct KRAFT_API FileWatcher {
     static bool Init(ArenaAllocator* arena);
     static void Shutdown();
 

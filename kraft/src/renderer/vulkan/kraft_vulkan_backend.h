@@ -38,12 +38,12 @@ struct VulkanRendererBackend
     static void DestroyRenderPipeline(Shader* shader);
 
     static void UseShader(const Shader* shader, u32 variant_index = 0);
-    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer);
+    static void ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer);
     static void ApplyLocalShaderProperties(Shader* shader, void* data);
     static void UpdateTextures(Handle<Texture>* textures, u64 texture_count);
 
     // Geometry
-    static void DrawGeometryData(GeometryDrawData draw_data);
+    static void DrawGeometryData(GeometryDrawData draw_data, Handle<Buffer> index_buffer);
     static bool CreateGeometry(const GeometryDescription& description);
     static bool UpdateGeometry(const GeometryDescription& description);
 
@@ -53,6 +53,7 @@ struct VulkanRendererBackend
 
     // Commands
     static void CmdSetCustomBuffer(Shader* shader, Handle<Buffer> buffer, u32 set_idx, u32 binding_idx);
+    static void BindBindGroup(Shader* shader, Handle<BindGroup> bind_group);
 
     // Misc
     static VulkanContext* Context();

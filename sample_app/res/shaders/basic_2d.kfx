@@ -53,7 +53,9 @@ Shader Basic2D
         #extension GL_EXT_nonuniform_qualifier: require
 
         #include "includes/kraft_shader_includes.h"
+        #define KRAFT_VERTEX_REF_TYPE Vertex3DRef
         #include "includes/common.glsl"
+        #undef KRAFT_VERTEX_REF_TYPE
 
         struct MeshMaterial
         {

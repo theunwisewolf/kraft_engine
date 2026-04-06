@@ -24,6 +24,12 @@ else()
     add_executable(${PROJECT_NAME} ${SRC_FILES})
 endif()
 
+if (WIN32)
+    target_link_options(${PROJECT_NAME} PRIVATE
+        $<$<NOT:$<CONFIG:Debug>>:/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup>
+    )
+endif()
+
 target_link_libraries(${PROJECT_NAME} Kraft)
 
 # Compiler options
@@ -36,14 +42,13 @@ endif()
 #     ${CMAKE_SOURCE_DIR}/res $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 # )
 
-add_custom_target(${PROJECT_NAME}_copy_resources ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
         ${CMAKE_CURRENT_SOURCE_DIR}/res
-        ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res
-    COMMENT "Copying resources from '${CMAKE_CURRENT_SOURCE_DIR}/res' to '${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}/res'..."
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+    COMMENT "Symlinking resources directory..."
 )
-
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_copy_resources)
 
 # add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 #     COMMAND ${CMAKE_SOURCE_DIR}/tools/compile_shaders 

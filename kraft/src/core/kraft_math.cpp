@@ -41,6 +41,11 @@ f32 Abs(f32 x)
     return fabsf(x);
 }
 
+f32 Exp(f32 x)
+{
+    return expf(x);
+}
+
 Mat4f OrthographicMatrix(f32 left, f32 right, f32 bottom, f32 top, f32 zNear, f32 zFar)
 {
     Mat4f out(Identity);
@@ -49,17 +54,16 @@ Mat4f OrthographicMatrix(f32 left, f32 right, f32 bottom, f32 top, f32 zNear, f3
     f32 bottomTop = 1.0f / (top - bottom);
     f32 nearFar = 1.0f / (zFar - zNear);
 
-    // We have specified minDepth & maxDepth in vkViewport to be [0,1]
-    // The commented part will work if we would've used [-1,1]
+    // Right-handed, -Z forward, Vulkan depth [0,1]
+    // Maps view-space z in [-far, -near] to NDC z in [0, 1]
+    // z_ndc = (-z_view - near) / (far - near)
     out._data[0] = 2.0f * leftRight;
     out._data[5] = 2.0f * bottomTop;
-    // out._data[10] = 2.0f * nearFar;
-    out._data[10] = 1.0f * nearFar;
+    out._data[10] = -1.0f * nearFar;
 
     out._data[12] = -(left + right) * leftRight;
     out._data[13] = -(top + bottom) * bottomTop;
-    // out._data[14] = -(farClip + nearClip) * nearFar;
-    out._data[14] = -zNear / (zFar - zNear);
+    out._data[14] = -zNear * nearFar;
 
     return out;
 }

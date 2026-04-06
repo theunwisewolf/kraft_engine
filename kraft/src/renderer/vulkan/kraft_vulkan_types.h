@@ -238,8 +238,6 @@ struct VulkanContext {
 
     ArenaAllocator* Arena;
 
-    Handle<Buffer> IndexBuffer;
-
     // Global Data
     VkDescriptorPool GlobalDescriptorPool;
     VkDescriptorSetLayout DescriptorSetLayouts[16];
@@ -278,6 +276,11 @@ struct VulkanImageBarrierDescription {
     VkImageAspectFlags aspect_mask;
     u32 base_mip_level;
     u32 level_count;
+};
+
+struct VulkanBindGroup {
+    VkDescriptorSet set;
+    VkDescriptorSetLayout layout;
 };
 
 } // namespace kraft::r

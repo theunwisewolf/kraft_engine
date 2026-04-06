@@ -84,10 +84,10 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
     }
 
     Material* instance = &ref->material;
-    instance->ID = free_index;
-    instance->Name = data.name;
-    instance->AssetPath = data.filepath;
-    instance->Shader = shader;
+    instance->id = free_index;
+    instance->name = data.name;
+    instance->asset_path = data.filepath;
+    instance->shader = shader;
 
     // Offset into the material buffer
     u8* material_buf = material_system_state->materials_buffer + free_index * material_system_state->material_buffer_size;
@@ -158,14 +158,17 @@ Material* MaterialSystem::CreateMaterialWithData(const MaterialDataIntermediateF
         }
     }
 
-    instance->Properties = data.properties;
+    // Set the buffer to dirty so it's reuploaded to the gpu
+    material_system_state->dirty = true;
+
+    instance->properties = data.properties;
     return instance;
 }
 
 void MaterialSystem::DestroyMaterial(String8 name) {
     Material* instance = 0;
     for (i32 i = 0; i < material_system_state->max_materials_count; i++) {
-        if (StringEqual(material_system_state->material_references[i].material.Name, name)) {
+        if (StringEqual(material_system_state->material_references[i].material.name, name)) {
             instance = &material_system_state->material_references[i].material;
             break;
         }
@@ -177,24 +180,24 @@ void MaterialSystem::DestroyMaterial(String8 name) {
     }
 
     KDEBUG("[MaterialSystem::DestroyMaterial]: Releasing material %S", name);
-    if (instance->ID == 0) {
+    if (instance->id == 0) {
         KWARN("[MaterialSystem::DestroyMaterial]: Default material cannot be released!");
         return;
     }
 
-    ReleaseMaterialInternal(instance->ID);
+    ReleaseMaterialInternal(instance->id);
 }
 
 void MaterialSystem::DestroyMaterial(Material* instance) {
-    KASSERT(instance->ID < material_system_state->max_materials_count);
-    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %S", instance->Name);
+    KASSERT(instance->id < material_system_state->max_materials_count);
+    KDEBUG("[MaterialSystem::DestroyMaterial]: Destroying material %S", instance->name);
 
-    MaterialReference* Reference = &material_system_state->material_references[instance->ID];
-    if (!Reference) {
-        KERROR("Invalid material %S", instance->Name);
+    MaterialReference* ref = &material_system_state->material_references[instance->id];
+    if (!ref) {
+        KERROR("Invalid material %S", instance->name);
     }
 
-    ShaderSystem::ReleaseShader(instance->Shader);
+    ShaderSystem::ReleaseShader(instance->shader);
     MemZero(instance, sizeof(Material));
 }
 
@@ -208,26 +211,36 @@ bool MaterialSystem::SetTexture(Material* instance, String8 key, String8 texture
 }
 
 bool MaterialSystem::SetTexture(Material* instance, String8 key, r::Handle<Texture> texture) {
+    Shader* shader = instance->shader;
     u64 key_hash = FNV1AHashBytes(key);
-    auto it = instance->Shader->UniformCacheMapping.find(key_hash);
-    if (it == instance->Shader->UniformCacheMapping.end()) {
-        KERROR("[MaterialSystem::SetTexture]: Unknown key %S", key);
+    auto it = shader->UniformCacheMapping.find(key_hash);
+    if (it == shader->UniformCacheMapping.end()) {
+        KERROR("[SetProperty]: Unknown property '%S' on material '%S'", key, instance->name);
         return false;
     }
 
-    u8* material_buf = material_system_state->materials_buffer + instance->ID * material_system_state->material_buffer_size;
-    Shader* shader = instance->Shader;
+    u8* material_buf = material_system_state->materials_buffer + instance->id * material_system_state->material_buffer_size;
+
     ShaderUniform uniform;
     if (!ShaderSystem::GetUniform(shader, key, &uniform)) {
         KERROR("GetUniform() failed for '%S'", key);
         return false;
     }
 
-    u32 Index = texture.GetIndex();
-    MemCpy(material_buf + uniform.Offset, &Index, uniform.Stride);
-    instance->Properties[key_hash].TextureValue = texture;
+    material_system_state->dirty = true;
+    u32 index = texture.GetIndex();
+    MemCpy(material_buf + uniform.Offset, &index, uniform.Stride);
+    instance->properties[key_hash].TextureValue = texture;
 
     return true;
+}
+
+bool MaterialSystem::IsDirty() {
+    return material_system_state->dirty;
+}
+
+void MaterialSystem::SetDirty(bool value) {
+    material_system_state->dirty = value;
 }
 
 u8* MaterialSystem::GetMaterialsBuffer() {
@@ -241,7 +254,7 @@ u8* MaterialSystem::GetMaterialsBuffer() {
 static void ReleaseMaterialInternal(u32 index) {
     MaterialReference ref = material_system_state->material_references[index];
     if (ref.ref_count == 0) {
-        KWARN("[MaterialSystem::ReleaseMaterial]: Material %S already released!", ref.material.Name);
+        KWARN("[MaterialSystem::ReleaseMaterial]: Material %S already released!", ref.material.name);
         return;
     }
 
@@ -257,8 +270,8 @@ static void ReleaseMaterialInternal(u32 index) {
 //     data.Name = "Materials.Default";
 //     data.file_path = "Material.Default.kmt";
 //     data.ShaderAsset = ShaderSystem::GetDefaultShader()->Path;
-//     data.Properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
-//     data.Properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
+//     data.properties["DiffuseColor"] = MaterialProperty(0, Vec4fOne);
+//     data.properties["DiffuseTexture"] = MaterialProperty(1, TextureSystem::GetDefaultDiffuseTexture());
 
 //     KASSERT(MaterialSystem::CreateMaterialWithData(data, Handle<RenderPass>::Invalid()));
 // }
@@ -519,10 +532,13 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
 
                             // Tokens aren't null terminated, so create a null-terminated string
                             String8 texture_path = StringCopy(scratch.arena, token.text);
-                            r::Handle<Texture> handle = TextureSystem::AcquireTexture(texture_path);
-                            if (handle.IsInvalid()) {
-                                KERROR("[MaterialSystem::CreateMaterial]: Failed to load texture %S for material %S. Using default texture.", texture_path, file_path);
-                                handle = TextureSystem::GetDefaultDiffuseTexture();
+                            r::Handle<Texture> handle = TextureSystem::GetDefaultDiffuseTexture();
+                            if (texture_path.count > 0) {
+                                handle = TextureSystem::AcquireTexture(texture_path);
+                                if (handle.IsInvalid()) {
+                                    KERROR("[CreateMaterial]: Failed to load texture %S for material %S. Using default texture.", texture_path, file_path);
+                                    handle = TextureSystem::GetDefaultDiffuseTexture();
+                                }
                             }
 
                             data->properties[key_hash] = handle;
@@ -554,15 +570,16 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
 
 #define MATERIAL_SYSTEM_SET_PROPERTY(T)                                                                                                                                                                \
     template <> bool MaterialSystem::SetProperty(Material* instance, String8 key, T value) {                                                                                                           \
+        Shader* shader = instance->shader;                                                                                                                                                             \
         u64 key_hash = FNV1AHashBytes(key);                                                                                                                                                            \
-        auto it = instance->Shader->UniformCacheMapping.find(key_hash);                                                                                                                                \
-        if (it == instance->Shader->UniformCacheMapping.end()) {                                                                                                                                       \
-            KERROR("[SetProperty]: Unknown property '%S' on material '%S'", key, instance->Name);                                                                                                      \
+        auto it = shader->UniformCacheMapping.find(key_hash);                                                                                                                                          \
+        if (it == shader->UniformCacheMapping.end()) {                                                                                                                                                 \
+            KERROR("[SetProperty]: Unknown property '%S' on material '%S'", key, instance->name);                                                                                                      \
             return false;                                                                                                                                                                              \
         }                                                                                                                                                                                              \
                                                                                                                                                                                                        \
-        u8* material_buffer = material_system_state->materials_buffer + instance->ID * material_system_state->material_buffer_size;                                                                    \
-        Shader* shader = instance->Shader;                                                                                                                                                             \
+        u8* material_buffer = material_system_state->materials_buffer + instance->id * material_system_state->material_buffer_size;                                                                    \
+                                                                                                                                                                                                       \
         ShaderUniform uniform;                                                                                                                                                                         \
         if (!ShaderSystem::GetUniform(shader, key, &uniform)) {                                                                                                                                        \
             KERROR("GetUniform() failed for '%S'", key);                                                                                                                                               \
@@ -574,6 +591,7 @@ static bool LoadMaterialFromFileInternal(ArenaAllocator* arena, String8 file_pat
             return false;                                                                                                                                                                              \
         }                                                                                                                                                                                              \
                                                                                                                                                                                                        \
+        material_system_state->dirty = true;                                                                                                                                                           \
         MemCpy(material_buffer + uniform.Offset, &value, uniform.Stride);                                                                                                                              \
         return true;                                                                                                                                                                                   \
     }

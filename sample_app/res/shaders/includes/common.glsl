@@ -1,26 +1,21 @@
 #extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference2 : require
 
-layout (push_constant) uniform pushConstants
-{
-    mat4 Model;
-    vec2 MousePosition;
-    uint EntityId;
-    uint MaterialIdx;
-} variableState;
+#ifndef KRAFT_VERTEX_REF_TYPE
+#error KRAFT_VERTEX_REF_TYPE must be defined before including this file
+#endif
 
 // Written to; using descriptor sets
 layout (set = 0, binding = 0) uniform GlobalUniformBuffer
 {
-    mat4 Projection;
-    mat4 View;
-    vec3 LightPosition;
-    uint Pad0;
-    vec4 LightColor;
-    vec3  CameraPosition;
-    float Time;
-    float DeltaTime;
-    uint  Pad1;
-    uint  Pad2;
+    mat4 ViewProjection; // 64
+    mat4 LightViewProjection; // 64
+    vec3 LightPosition; // 12
+    float Time; // 4
+    vec4 LightColor; // 16
+    vec3 CameraPosition; // 12
+    float DeltaTime; // 4
 } globalState;
 
 struct Vertex3D
@@ -31,10 +26,21 @@ struct Vertex3D
     vec4 tangent;
 };
 
-layout(scalar, set = 0, binding = 3) readonly buffer VertexData
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer Vertex3DRef
 {
     Vertex3D vertices[];
 };
+
+layout (push_constant) uniform pushConstants
+{
+    mat4 Model;
+    vec2 MousePosition;
+    uint EntityId;
+    uint MaterialIdx;
+    KRAFT_VERTEX_REF_TYPE VertexBuffer;
+} variableState;
+
+#define vertices variableState.VertexBuffer.vertices
 
 #if defined FRAGMENT
 

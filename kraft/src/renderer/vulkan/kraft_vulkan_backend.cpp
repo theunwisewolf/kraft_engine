@@ -217,9 +217,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
 
     VulkanCreateSwapchain(&s_Context, s_Context.FramebufferWidth, s_Context.FramebufferHeight, s_Context.Options->VSync);
 
-#if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
-
-#else
+#if !KRAFT_ENABLE_VK_DYNAMIC_RENDERING
     VulkanCreateRenderPass(
         &s_Context, {0.10f, 0.10f, 0.10f, 1.0f}, {0.0f, 0.0f, (float)s_Context.FramebufferWidth, (float)s_Context.FramebufferHeight}, 1.0f, 0, &s_Context.MainRenderPass, true, "MainRenderPass"
     );
@@ -271,7 +269,7 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         vkCreateDescriptorPool(s_Context.LogicalDevice.Handle, &descriptor_pool_create_info, s_Context.AllocationCallbacks, &s_Context.GlobalDescriptorPool);
 
         // Descriptor sets
-        VkDescriptorSetLayoutBinding global_data_layout_bindings[4] = {};
+        VkDescriptorSetLayoutBinding global_data_layout_bindings[3] = {};
 
         // Binding #0: Global Shader Data - Projection, View, Camera, etc
         global_data_layout_bindings[0].binding = 0;
@@ -303,13 +301,6 @@ bool VulkanRendererBackend::Init(ArenaAllocator* arena, RendererOptions* rendere
         global_data_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         global_data_layout_bindings[2].pImmutableSamplers = 0;
         global_data_layout_bindings[2].stageFlags = VK_SHADER_STAGE_ALL;
-
-        // Binding #3: Vertex data
-        global_data_layout_bindings[3].binding = 3;
-        global_data_layout_bindings[3].descriptorCount = 1;
-        global_data_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        global_data_layout_bindings[3].pImmutableSamplers = 0;
-        global_data_layout_bindings[3].stageFlags = VK_SHADER_STAGE_ALL;
 
         VkDescriptorSetLayoutCreateInfo global_data_layout_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         global_data_layout_create_info.bindingCount = KRAFT_C_ARRAY_SIZE(global_data_layout_bindings);
@@ -530,7 +521,7 @@ bool VulkanRendererBackend::BeginFrame() {
         color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // MSAA image doesn't need to be stored
-        color_attachment_info.clearValue.color = {{0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f}};
+        color_attachment_info.clearValue.color = {{0x1a / 255.0f, 0x1a / 255.0f, 0x1a / 255.0f, 1.0f}};
         color_attachment_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
         color_attachment_info.resolveImageView = s_Context.Swapchain.ImageViews[s_Context.CurrentSwapchainImageIndex];
         color_attachment_info.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
@@ -539,7 +530,7 @@ bool VulkanRendererBackend::BeginFrame() {
         color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color_attachment_info.clearValue.color = {{0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f}};
+        color_attachment_info.clearValue.color = {{0x1a / 255.0f, 0x1a / 255.0f, 0x1a / 255.0f, 1.0f}};
     }
 
     VkRenderingAttachmentInfo depth_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
@@ -829,6 +820,9 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader) {
         //     attribute_descs[j].offset = vertex_attribute_def.offset;
         // }
 
+        // "Hello world"
+        // [  ]
+
         VkPipelineViewportStateCreateInfo viewport_state_create_info = {};
         viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewport_state_create_info.viewportCount = 1;
@@ -852,7 +846,7 @@ void VulkanRendererBackend::CreateRenderPipeline(Shader* shader) {
         VkPipelineMultisampleStateCreateInfo multisample_state_create_info = {};
         multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-        multisample_state_create_info.rasterizationSamples = s_Context.Swapchain.MSAASampleCount;
+        multisample_state_create_info.rasterizationSamples = variant.msaa_samples > 0 ? (VkSampleCountFlagBits)variant.msaa_samples : s_Context.Swapchain.MSAASampleCount;
         multisample_state_create_info.minSampleShading = 1.0f;
         multisample_state_create_info.pSampleMask = 0;
         multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -985,8 +979,7 @@ void VulkanRendererBackend::UseShader(const Shader* Shader, u32 variant_index) {
     vkCmdBindPipeline(GPUCmdBuffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline);
 }
 
-void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer, Handle<Buffer> vertex_buffer, Handle<Buffer> index_buffer) {
-    s_Context.IndexBuffer = index_buffer;
+void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<Buffer> ubo_buffer, Handle<Buffer> materials_buffer) {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VulkanShader* shader_data = (VulkanShader*)shader->RendererData;
 
@@ -997,7 +990,7 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<B
     global_data_buffer_info.range = VK_WHOLE_SIZE;
 
     u32 count = 0;
-    VkWriteDescriptorSet descriptor_write_info[4] = {};
+    VkWriteDescriptorSet descriptor_write_info[3] = {};
     descriptor_write_info[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_write_info[0].descriptorCount = 1;
     descriptor_write_info[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1040,21 +1033,6 @@ void VulkanRendererBackend::ApplyGlobalShaderProperties(Shader* shader, Handle<B
         count++;
     }
 
-    VulkanBuffer* vertex_gpu_buffer = VulkanResourceManagerApi::GetBuffer(vertex_buffer);
-    VkDescriptorBufferInfo vertex_buffer_info = {};
-    if (vertex_gpu_buffer) {
-        vertex_buffer_info.buffer = vertex_gpu_buffer->Handle;
-        vertex_buffer_info.range = VK_WHOLE_SIZE;
-
-        descriptor_write_info[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write_info[3].descriptorCount = 1;
-        descriptor_write_info[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptor_write_info[3].dstBinding = 3;
-        descriptor_write_info[3].dstArrayElement = 0;
-        descriptor_write_info[3].pBufferInfo = &vertex_buffer_info;
-        count++;
-    }
-
     vkCmdPushDescriptorSetKHR(cmd_buffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, 0, count, &descriptor_write_info[0]);
     vkCmdBindDescriptorSets(cmd_buffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, 2, 1, &s_Context.GlobalTexturesDescriptorSet, 0, nullptr);
 }
@@ -1085,12 +1063,12 @@ void VulkanRendererBackend::UpdateTextures(Handle<Texture>* textures, u64 textur
     }
 }
 
-void VulkanRendererBackend::DrawGeometryData(GeometryDrawData draw_data) {
+void VulkanRendererBackend::DrawGeometryData(GeometryDrawData draw_data, Handle<Buffer> index_buffer_handle) {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
-    VulkanBuffer* index_buffer = VulkanResourceManagerApi::GetBuffer(s_Context.IndexBuffer);
+    VulkanBuffer* index_buffer = VulkanResourceManagerApi::GetBuffer(index_buffer_handle);
 
     vkCmdBindIndexBuffer(cmd_buffer->Resource, index_buffer->Handle, draw_data.IndexBufferOffset, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cmd_buffer->Resource, draw_data.IndexCount, 1, 0, draw_data.VertexOffset, 0);
+    vkCmdDrawIndexed(cmd_buffer->Resource, draw_data.IndexCount, 1, 0, 0, 0);
 }
 
 static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u32 dst_buffer_offset, const void* data, u32 size) {
@@ -1133,7 +1111,7 @@ bool VulkanRendererBackend::UpdateGeometry(const GeometryDescription& descriptio
 }
 
 void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
-    Handle<CommandBuffer> cmd_buffer_handle = surface->CmdBuffers[s_Context.CurrentSwapchainImageIndex];
+    Handle<CommandBuffer> cmd_buffer_handle = surface->cmd_buffers[s_Context.CurrentSwapchainImageIndex];
     s_Context.ActiveCommandBuffer = cmd_buffer_handle;
     VulkanCommandBuffer* gpu_cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(cmd_buffer_handle);
     VulkanResetCommandBuffer(gpu_cmd_buffer);
@@ -1141,9 +1119,9 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
 
     // Transition the attachments to the right format
     // Before rendering, they must be in VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL
-    if (surface->DepthPassTexture) {
+    if (surface->depth_pass) {
         imageBarrier(
-            VulkanResourceManagerApi::GetTexture(surface->DepthPassTexture)->Image,
+            VulkanResourceManagerApi::GetTexture(surface->depth_pass)->Image,
             VK_DEPENDENCY_BY_REGION_BIT,
             {
                 .src_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -1160,9 +1138,9 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
     }
 
     // Gbuffer target
-    if (surface->ColorPassTexture) {
+    if (surface->color_pass) {
         imageBarrier(
-            VulkanResourceManagerApi::GetTexture(surface->ColorPassTexture)->Image,
+            VulkanResourceManagerApi::GetTexture(surface->color_pass)->Image,
             VK_DEPENDENCY_BY_REGION_BIT,
             {
                 .src_stage_mask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -1185,21 +1163,22 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
     rendering_info.layerCount = 1;
 
     VkRenderingAttachmentInfo color_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    if (surface->ColorPassTexture) {
-        VkImageView color_pass_view = VulkanResourceManagerApi::GetTexture(surface->ColorPassTexture)->View;
+    if (surface->color_pass) {
+        VkImageView color_pass_view = VulkanResourceManagerApi::GetTexture(surface->color_pass)->View;
         color_attachment_info.imageView = color_pass_view;
         color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color_attachment_info.clearValue.color = {{0x2c / 255.0f, 0x3e / 255.0f, 0x50 / 255.0f, 1.0f}};
+        // color_attachment_info.clearValue.color =  {{0x1a / 255.0f, 0x1a / 255.0f, 0x1a / 255.0f, 1.0f}};
+        color_attachment_info.clearValue.color = {{0x1a / 255.0f, 0x1a / 255.0f, 0x1a / 255.0f, 1.0f}};
 
         rendering_info.colorAttachmentCount = 1;
         rendering_info.pColorAttachments = &color_attachment_info;
     }
 
     VkRenderingAttachmentInfo depth_attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    if (surface->DepthPassTexture) {
-        VkImageView depth_pass_view = VulkanResourceManagerApi::GetTexture(surface->DepthPassTexture)->View;
+    if (surface->depth_pass) {
+        VkImageView depth_pass_view = VulkanResourceManagerApi::GetTexture(surface->depth_pass)->View;
         depth_attachment_info.imageView = depth_pass_view;
         depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1245,14 +1224,14 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
     gpu_cmd_buffer->State = VULKAN_COMMAND_BUFFER_STATE_IN_RENDER_PASS;
 
     VkViewport viewport = {};
-    viewport.width = (f32)surface->Width;
-    viewport.height = (f32)surface->Height;
+    viewport.width = (f32)surface->width;
+    viewport.height = (f32)surface->height;
     viewport.maxDepth = 1.0f;
 
     vkCmdSetViewport(gpu_cmd_buffer->Resource, 0, 1, &viewport);
 
     VkRect2D scissor = {};
-    scissor.extent = {surface->Width, surface->Height};
+    scissor.extent = {surface->width, surface->height};
 
     vkCmdSetScissor(gpu_cmd_buffer->Resource, 0, 1, &scissor);
 
@@ -1261,7 +1240,7 @@ void VulkanRendererBackend::BeginSurface(RenderSurface* surface) {
 }
 
 void VulkanRendererBackend::EndSurface(RenderSurface* surface) {
-    Handle<CommandBuffer> cmd_buffer_handle = surface->CmdBuffers[s_Context.CurrentSwapchainImageIndex];
+    Handle<CommandBuffer> cmd_buffer_handle = surface->cmd_buffers[s_Context.CurrentSwapchainImageIndex];
     VulkanCommandBuffer* gpu_cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(cmd_buffer_handle);
 
 #if KRAFT_ENABLE_VK_DYNAMIC_RENDERING
@@ -1283,9 +1262,9 @@ void VulkanRendererBackend::EndSurface(RenderSurface* surface) {
     // vkCmdPipelineBarrier2(GPUCmdBuffer->Resource, &DependencyInfo);
 
     // Now we must transition the surface attachments to the format the user expects them to be in
-    if (surface->DepthPassTexture) {
+    if (surface->depth_pass) {
         imageBarrier(
-            VulkanResourceManagerApi::GetTexture(surface->DepthPassTexture)->Image,
+            VulkanResourceManagerApi::GetTexture(surface->depth_pass)->Image,
             VK_DEPENDENCY_BY_REGION_BIT,
             {
                 .src_stage_mask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
@@ -1302,9 +1281,9 @@ void VulkanRendererBackend::EndSurface(RenderSurface* surface) {
     }
 
     // Gbuffer target
-    if (surface->ColorPassTexture) {
+    if (surface->color_pass) {
         imageBarrier(
-            VulkanResourceManagerApi::GetTexture(surface->ColorPassTexture)->Image,
+            VulkanResourceManagerApi::GetTexture(surface->color_pass)->Image,
             VK_DEPENDENCY_BY_REGION_BIT,
             {
                 .src_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -1354,6 +1333,15 @@ void VulkanRendererBackend::CmdSetCustomBuffer(Shader* shader, Handle<Buffer> bu
     );
 }
 
+void VulkanRendererBackend::BindBindGroup(Shader* shader, Handle<BindGroup> bind_group) {
+    VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
+    VulkanShader* shader_data = (VulkanShader*)shader->RendererData;
+    VulkanBindGroup* vk_bind_group = VulkanResourceManagerApi::GetBindGroup(bind_group);
+    BindGroup* metadata = VulkanResourceManagerApi::GetBindGroupMetadata(bind_group);
+
+    vkCmdBindDescriptorSets(cmd_buffer->Resource, VK_PIPELINE_BIND_POINT_GRAPHICS, shader_data->PipelineLayout, metadata->set_index, 1, &vk_bind_group->set, 0, nullptr);
+}
+
 static void imageBarrier(VkImage image, VkDependencyFlags dependency_flags, VulkanImageBarrierDescription description) {
     VulkanCommandBuffer* cmd_buffer = VulkanResourceManagerApi::GetCommandBuffer(s_Context.ActiveCommandBuffer);
     VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
@@ -1391,7 +1379,8 @@ static VkBool32
 DebugUtilsMessenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
     switch (messageSeverity) {
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: {
-        printf("%s", pCallbackData->pMessage);
+        printf("%s\n", pCallbackData->pMessage);
+        fflush(stdout);
     } break;
 
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: {

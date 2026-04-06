@@ -20,30 +20,20 @@ namespace kraft {
 
 namespace fs {
 
-bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
-{
+bool OpenFile(String8 path, int mode, bool binary, FileHandle* result) {
     KASSERT(result);
     result->Handle = {};
 
     const char* mode_string;
-    if (mode & FILE_OPEN_MODE_APPEND)
-    {
+    if (mode & FILE_OPEN_MODE_APPEND) {
         mode_string = binary ? "a+b" : "a+";
-    }
-    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE))
-    {
+    } else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE)) {
         mode_string = binary ? "w+b" : "w+";
-    }
-    else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0)
-    {
+    } else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0) {
         mode_string = binary ? "r+b" : "r";
-    }
-    else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE))
-    {
+    } else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE)) {
         mode_string = binary ? "wb" : "w";
-    }
-    else
-    {
+    } else {
         KERROR("[FileSystem::OpenFile] Invalid mode %d", mode);
         return {};
     }
@@ -51,7 +41,7 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
 #if UNICODE && defined(KRAFT_PLATFORM_WINDOWS)
     TempArena scratch = ScratchBegin(0, 0);
 
-    int      character_count = MultiByteToWideChar(CP_UTF8, 0, path.str, -1, NULL, 0);
+    int character_count = MultiByteToWideChar(CP_UTF8, 0, path.str, -1, NULL, 0);
     wchar_t* path_wide = ArenaPushArray(scratch.arena, wchar_t, character_count);
     KASSERT(MultiByteToWideChar(CP_UTF8, 0, path.str, -1, path_wide, character_count));
 
@@ -65,8 +55,7 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
 #else
     result->Handle = fopen((char*)path.ptr, mode_string);
 #endif
-    if (!result->Handle)
-    {
+    if (!result->Handle) {
         KERROR("[FileSystem::OpenFile]: Failed to open %S with error %s", path, strerror(errno));
         return false;
     }
@@ -74,8 +63,7 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result)
     return true;
 }
 
-u64 GetFileSize(FileHandle* handle)
-{
+u64 GetFileSize(FileHandle* handle) {
     KASSERT(handle->Handle);
 
     fseek(handle->Handle, 0, SEEK_END);
@@ -85,17 +73,14 @@ u64 GetFileSize(FileHandle* handle)
     return size;
 }
 
-void CloseFile(FileHandle* handle)
-{
-    if (handle)
-    {
+void CloseFile(FileHandle* handle) {
+    if (handle) {
         fclose(handle->Handle);
         handle->Handle = 0;
     }
 }
 
-bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read)
-{
+bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read) {
     if (!handle->Handle)
         return false;
 
@@ -111,21 +96,18 @@ bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read)
     KASSERT(read == size);
 
     // Not all bytes were read
-    if (read != size)
-    {
+    if (read != size) {
         return false;
     }
 
-    if (bytes_read)
-    {
+    if (bytes_read) {
         *bytes_read = read;
     }
 
     return true;
 }
 
-buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
-{
+buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle) {
     fseek(handle->Handle, 0, SEEK_END);
     u64 size = ftell(handle->Handle);
     rewind(handle->Handle);
@@ -140,11 +122,9 @@ buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle)
     return output;
 }
 
-buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
-{
+buffer ReadAllBytes(ArenaAllocator* arena, String8 path) {
     FileHandle handle = {};
-    if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle))
-    {
+    if (!OpenFile(path, FILE_OPEN_MODE_READ, true, &handle)) {
         return {};
     }
 
@@ -154,8 +134,7 @@ buffer ReadAllBytes(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-bool WriteFile(FileHandle* handle, const u8* buffer, u64 size)
-{
+bool WriteFile(FileHandle* handle, const u8* buffer, u64 size) {
     if (!handle->Handle)
         return false;
 
@@ -164,59 +143,126 @@ bool WriteFile(FileHandle* handle, const u8* buffer, u64 size)
     return true;
 }
 
-String8 CleanPath(ArenaAllocator* arena, String8 path)
-{
-    String8 result = {};
-    result.ptr = ArenaPushArray(arena, u8, path.count + 1);
-    result.count = path.count;
+// https://github.com/golang/go/blob/master/src/internal/filepathlite/path.go
+String8 CleanPath(ArenaAllocator* arena, String8 path) {
+    const u8 sep = KRAFT_PATH_SEPARATOR;
 
-    for (i32 i = 0; i < (i32)path.count; i++)
-    {
-        if (path.ptr[i] == '\\')
-        {
-            result.ptr[i] = '/';
-        }
-        else
-        {
-            result.ptr[i] = path.ptr[i];
+    if (path.count == 0) {
+        String8 dot = {};
+        dot.ptr = ArenaPushArray(arena, u8, 2);
+        dot.ptr[0] = '.';
+        dot.ptr[1] = 0;
+        dot.count = 1;
+
+        return dot;
+    }
+
+    u8* buf = ArenaPushArray(arena, u8, path.count + 1);
+    u32 write_index = 0;
+
+    bool rooted = (path.ptr[0] == '/' || path.ptr[0] == '\\');
+
+    // Does the path include a drive letter prefix?
+    bool has_drive = false;
+    if (path.count >= 2 && ((path.ptr[0] >= 'A' && path.ptr[0] <= 'Z') || (path.ptr[0] >= 'a' && path.ptr[0] <= 'z')) && path.ptr[1] == ':') {
+        has_drive = true;
+        buf[write_index++] = path.ptr[0];
+        buf[write_index++] = ':';
+        if (path.count >= 3 && (path.ptr[2] == '/' || path.ptr[2] == '\\')) {
+            rooted = true;
         }
     }
 
-    result.ptr[result.count] = 0;
+    if (rooted) {
+        buf[write_index++] = sep;
+    }
+
+    u32 dot_dot_limit = write_index; // We cannot backtrack past this point
+
+    u32 read_index = has_drive ? (rooted ? 3 : 2) : (rooted ? 1 : 0);
+
+    while (read_index < path.count) {
+        u8 c = path.ptr[read_index];
+
+        if (c == '/' || c == '\\') {
+            // Skip redundant slashes
+            read_index++;
+        } else if (c == '.' && (read_index + 1 == path.count || path.ptr[read_index + 1] == '/' || path.ptr[read_index + 1] == '\\')) {
+            // Single dot element "."
+            read_index++;
+        } else if (c == '.' && path.ptr[read_index + 1] == '.' && (read_index + 2 == path.count || path.ptr[read_index + 2] == '/' || path.ptr[read_index + 2] == '\\')) {
+            // Double dot element ".."
+            read_index += 2;
+
+            // Try to backtrack
+            if (write_index > dot_dot_limit) {
+                // Back up to previous slash
+                write_index--;
+                while (write_index > dot_dot_limit && buf[write_index - 1] != sep) {
+                    write_index--;
+                }
+            } else if (!rooted) {
+                // Cannot backtrack, emit ".."
+                if (write_index > 0 && buf[write_index - 1] != sep) {
+                    buf[write_index++] = sep;
+                }
+
+                buf[write_index++] = '.';
+                buf[write_index++] = '.';
+                dot_dot_limit = write_index;
+            }
+        } else {
+            // Normal path element
+            if ((rooted && write_index != dot_dot_limit) || (!rooted && write_index > 0)) {
+                buf[write_index++] = sep;
+            }
+
+            while (read_index < path.count && path.ptr[read_index] != '/' && path.ptr[read_index] != '\\') {
+                buf[write_index++] = path.ptr[read_index++];
+            }
+        }
+    }
+
+    if (write_index == 0) {
+        buf[write_index++] = '.';
+    }
+
+    buf[write_index] = 0;
+
+    // Return unused memory
+    ArenaPop(arena, path.count + 1 - (write_index + 1));
+
+    String8 result = {};
+    result.ptr = buf;
+    result.count = write_index;
     return result;
 }
 
-String8 Dirname(ArenaAllocator* arena, String8 path)
-{
+String8 Dirname(ArenaAllocator* arena, String8 path) {
     String8 result = {};
-    i32     i = (i32)path.count - 1;
-    for (; i >= 0; i--)
-    {
-        if (path.ptr[i] == '/' || path.ptr[i] == '\\')
-        {
+    i32 i = (i32)path.count - 1;
+    for (; i >= 0; i--) {
+        if (path.ptr[i] == '/' || path.ptr[i] == '\\') {
             break;
         }
     }
 
     // This represents the normal case: "xyz/SampleApp.exe"
-    if (i > 0)
-    {
+    if (i > 0) {
         result.ptr = ArenaPushArray(arena, u8, i + 1);
         MemCpy(result.ptr, path.ptr, i);
         result.ptr[i] = 0; // Null terminate, because why not
         result.count = i;
     }
     // This is when path is just "/" or "\" (Root)
-    else if (i == 0)
-    {
+    else if (i == 0) {
         result.ptr = ArenaPushArray(arena, u8, 2);
         result.ptr[0] = path.ptr[0]; // What is at 0, just use that
         result.ptr[1] = 0;
         result.count = 1;
     }
     // If we have a path like "SampleApp.exe" then `i` will be negative
-    else
-    {
+    else {
         result.ptr = ArenaPushArray(arena, u8, 2);
         result.ptr[0] = '.';
         result.ptr[1] = 0;
@@ -226,15 +272,12 @@ String8 Dirname(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-String8 Basename(ArenaAllocator* arena, String8 path)
-{
+String8 Basename(ArenaAllocator* arena, String8 path) {
     String8 result = {};
     result.ptr = ArenaPushArray(arena, u8, path.count);
     i32 i = (i32)path.count - 1;
-    for (; i >= 0; i--)
-    {
-        if (path.ptr[i] == '/' || path.ptr[i] == '\\')
-        {
+    for (; i >= 0; i--) {
+        if (path.ptr[i] == '/' || path.ptr[i] == '\\') {
             break;
         }
     }
@@ -246,29 +289,25 @@ String8 Basename(ArenaAllocator* arena, String8 path)
     return result;
 }
 
-u64 GetFileModifiedTime(String8 path)
-{
+u64 GetFileModifiedTime(String8 path) {
 #ifdef KRAFT_PLATFORM_WINDOWS
     struct _stat64 file_stat;
-    if (_stat64((const char*)path.ptr, &file_stat) != 0)
-    {
+    if (_stat64((const char*)path.ptr, &file_stat) != 0) {
         return 0;
     }
     return (u64)file_stat.st_mtime;
 #else
     struct stat file_stat;
-    if (stat((const char*)path.ptr, &file_stat) != 0)
-    {
+    if (stat((const char*)path.ptr, &file_stat) != 0) {
         return 0;
     }
     return (u64)file_stat.st_mtime;
 #endif
 }
 
-String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
-{
+String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2) {
     String8 result = {};
-    u64     final_path_size = path1.count + path2.count + sizeof(KRAFT_PATH_SEPARATOR) + 1;
+    u64 final_path_size = path1.count + path2.count + sizeof(KRAFT_PATH_SEPARATOR) + 1;
     result.ptr = ArenaPushArray(arena, u8, final_path_size);
     u8* ptr = result.ptr;
 
@@ -290,25 +329,22 @@ String8 PathJoin(ArenaAllocator* arena, String8 path1, String8 path2)
     return result;
 }
 
-String8 AbsolutePath(ArenaAllocator* arena, String8 path)
-{
+String8 AbsolutePath(ArenaAllocator* arena, String8 path) {
 #ifdef KRAFT_PLATFORM_WINDOWS
     char resolved[MAX_PATH];
-    if (_fullpath(resolved, (const char*)path.ptr, MAX_PATH) == nullptr)
-    {
+    if (_fullpath(resolved, (const char*)path.ptr, MAX_PATH) == nullptr) {
         KERROR("[FileSystem::AbsolutePath]: Failed to resolve path %S", path);
         return {};
     }
 #else
     char resolved[PATH_MAX];
-    if (realpath((const char*)path.ptr, resolved) == nullptr)
-    {
+    if (realpath((const char*)path.ptr, resolved) == nullptr) {
         KERROR("[FileSystem::AbsolutePath]: Failed to resolve path %S", path);
         return {};
     }
 #endif
 
-    u64     len = CStringLength((u8*)resolved);
+    u64 len = CStringLength((u8*)resolved);
     String8 result = {};
     result.ptr = ArenaPushArray(arena, u8, len + 1);
     result.count = len;
@@ -328,8 +364,7 @@ namespace fs {
 
 static FileWatcherState* file_watcher_state = nullptr;
 
-bool FileWatcher::Init(ArenaAllocator* arena)
-{
+bool FileWatcher::Init(ArenaAllocator* arena) {
     file_watcher_state = ArenaPush(arena, FileWatcherState);
     file_watcher_state->arena = arena;
     file_watcher_state->watch_count = 0;
@@ -337,10 +372,8 @@ bool FileWatcher::Init(ArenaAllocator* arena)
     return true;
 }
 
-void FileWatcher::Shutdown()
-{
-    for (u32 i = 0; i < file_watcher_state->watch_count; i++)
-    {
+void FileWatcher::Shutdown() {
+    for (u32 i = 0; i < file_watcher_state->watch_count; i++) {
         UnwatchDirectory(i);
     }
 
@@ -354,31 +387,27 @@ void FileWatcher::Shutdown()
 #endif
 #include <Windows.h>
 
-struct Win32WatchData
-{
-    HANDLE     directory_handle;
+struct Win32WatchData {
+    HANDLE directory_handle;
     OVERLAPPED overlapped;
-    u8         buffer[4096];
-    bool       active;
+    u8 buffer[4096];
+    bool active;
 };
 
-i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata)
-{
-    if (file_watcher_state->watch_count >= FILE_WATCHER_MAX_WATCHES)
-    {
+i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata) {
+    if (file_watcher_state->watch_count >= FILE_WATCHER_MAX_WATCHES) {
         KERROR("[FileWatcher]: Max watches reached (%d)", FILE_WATCHER_MAX_WATCHES);
         return -1;
     }
 
-    i32             index = file_watcher_state->watch_count;
+    i32 index = file_watcher_state->watch_count;
     FileWatchEntry* entry = &file_watcher_state->watches[index];
     Win32WatchData* watch_data = ArenaPush(file_watcher_state->arena, Win32WatchData);
 
     HANDLE dir_handle =
         CreateFileA(directory.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
 
-    if (dir_handle == INVALID_HANDLE_VALUE)
-    {
+    if (dir_handle == INVALID_HANDLE_VALUE) {
         KERROR("[FileWatcher]: Failed to open directory '%S' (error: %d)", directory, GetLastError());
         return -1;
     }
@@ -398,8 +427,7 @@ i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCall
         NULL
     );
 
-    if (!success)
-    {
+    if (!success) {
         KERROR("[FileWatcher]: ReadDirectoryChangesW failed (error: %d)", GetLastError());
         CloseHandle(dir_handle);
         return -1;
@@ -417,48 +445,43 @@ i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCall
     return index;
 }
 
-void FileWatcher::UnwatchDirectory(i32 watch_index)
-{
+void FileWatcher::UnwatchDirectory(i32 watch_index) {
     if (watch_index < 0 || watch_index >= (i32)file_watcher_state->watch_count)
         return;
 
     FileWatchEntry* entry = &file_watcher_state->watches[watch_index];
     Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
 
-    if (watch_data && watch_data->active)
-    {
+    if (watch_data && watch_data->active) {
         CancelIo(watch_data->directory_handle);
         CloseHandle(watch_data->directory_handle);
         watch_data->active = false;
     }
 }
 
-void FileWatcher::ProcessChanges()
-{
+void FileWatcher::ProcessChanges() {
     if (!file_watcher_state)
         return;
 
     TempArena scratch = ScratchBegin(&file_watcher_state->arena, 1);
 
-    for (u32 i = 0; i < file_watcher_state->watch_count; i++)
-    {
+    for (u32 i = 0; i < file_watcher_state->watch_count; i++) {
         FileWatchEntry* entry = &file_watcher_state->watches[i];
         Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
         if (!watch_data || !watch_data->active)
             continue;
 
         DWORD bytes_transferred = 0;
-        BOOL  result = GetOverlappedResult(watch_data->directory_handle, &watch_data->overlapped, &bytes_transferred, FALSE);
+        BOOL result = GetOverlappedResult(watch_data->directory_handle, &watch_data->overlapped, &bytes_transferred, FALSE);
 
         if (!result || bytes_transferred == 0)
             continue;
 
         // Process the notification buffer
         FILE_NOTIFY_INFORMATION* notify = (FILE_NOTIFY_INFORMATION*)watch_data->buffer;
-        for (;;)
-        {
+        for (;;) {
             // Convert wide filename to UTF-8
-            int   utf8_len = WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), NULL, 0, NULL, NULL);
+            int utf8_len = WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), NULL, 0, NULL, NULL);
             char* utf8_name = ArenaPushArray(scratch.arena, char, utf8_len + 1);
             WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), utf8_name, utf8_len, NULL, NULL);
             utf8_name[utf8_len] = 0;
@@ -467,14 +490,13 @@ void FileWatcher::ProcessChanges()
             String8 full_path = PathJoin(scratch.arena, entry->directory, relative_path);
 
             FileWatchEventType event_type;
-            switch (notify->Action)
-            {
-                case FILE_ACTION_MODIFIED:         event_type = FILE_WATCH_EVENT_MODIFIED; break;
-                case FILE_ACTION_ADDED:            event_type = FILE_WATCH_EVENT_CREATED; break;
-                case FILE_ACTION_REMOVED:          event_type = FILE_WATCH_EVENT_DELETED; break;
-                case FILE_ACTION_RENAMED_OLD_NAME:
-                case FILE_ACTION_RENAMED_NEW_NAME: event_type = FILE_WATCH_EVENT_RENAMED; break;
-                default:                           event_type = FILE_WATCH_EVENT_MODIFIED; break;
+            switch (notify->Action) {
+            case FILE_ACTION_MODIFIED:         event_type = FILE_WATCH_EVENT_MODIFIED; break;
+            case FILE_ACTION_ADDED:            event_type = FILE_WATCH_EVENT_CREATED; break;
+            case FILE_ACTION_REMOVED:          event_type = FILE_WATCH_EVENT_DELETED; break;
+            case FILE_ACTION_RENAMED_OLD_NAME:
+            case FILE_ACTION_RENAMED_NEW_NAME: event_type = FILE_WATCH_EVENT_RENAMED; break;
+            default:                           event_type = FILE_WATCH_EVENT_MODIFIED; break;
             }
 
             FileWatchEvent event = {};
@@ -511,16 +533,13 @@ void FileWatcher::ProcessChanges()
 
 // TODO (amn):
 // Stub implementations for other platforms
-i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata)
-{
+i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata) {
     return -1;
 }
 
-void FileWatcher::UnwatchDirectory(i32 watch_index)
-{}
+void FileWatcher::UnwatchDirectory(i32 watch_index) {}
 
-void FileWatcher::ProcessChanges()
-{}
+void FileWatcher::ProcessChanges() {}
 
 #endif
 

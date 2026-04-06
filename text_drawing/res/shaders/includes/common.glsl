@@ -1,10 +1,6 @@
-layout (push_constant) uniform pushConstants
-{
-    mat4 Model;
-    vec2 MousePosition;
-    uint EntityId;
-    uint MaterialIdx;
-} variableState;
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference2 : require
 
 // Written to; using descriptor sets
 layout (set = 0, binding = 0) uniform GlobalUniformBuffer
@@ -20,6 +16,29 @@ layout (set = 0, binding = 0) uniform GlobalUniformBuffer
     uint  Pad1;
     uint  Pad2;
 } globalState;
+
+struct Vertex2D
+{
+    vec2 position;
+    vec2 uv;
+    vec4 color;
+};
+
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer Vertex2DRef
+{
+    Vertex2D vertices[];
+};
+
+layout (push_constant) uniform pushConstants
+{
+    mat4 Model;
+    vec2 MousePosition;
+    uint EntityId;
+    uint MaterialIdx;
+    Vertex2DRef VertexBuffer;
+} variableState;
+
+#define vertices variableState.VertexBuffer.vertices
 
 #if defined FRAGMENT
 

@@ -26,8 +26,8 @@ static bool VulkanAllocateMemory(VulkanContext* context, VkDeviceSize size, i32 
     info.allocationSize = size;
     info.memoryTypeIndex = memory_type_index;
 
+    VkMemoryAllocateFlagsInfo flags_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
     if (allocate_flags) {
-        VkMemoryAllocateFlagsInfo flags_info = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
         flags_info.flags = allocate_flags;
         info.pNext = &flags_info;
     }
@@ -92,8 +92,8 @@ BufferView VulkanTempMemoryBlockAllocator::AllocateGPUMemory(ArenaAllocator* are
     Handle<Buffer> buf = ResourceManager->CreateBuffer({
         .DebugName = "VkTempMemoryBlockAllocator",
         .Size = block_size,
-        .UsageFlags = BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_SRC | BufferUsageFlags::BUFFER_USAGE_FLAGS_TRANSFER_DST,
-        .MemoryPropertyFlags = MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
+        .UsageFlags = BUFFER_USAGE_FLAGS_TRANSFER_SRC | BUFFER_USAGE_FLAGS_TRANSFER_DST,
+        .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_HOST_VISIBLE | MEMORY_PROPERTY_FLAGS_HOST_COHERENT,
         .MapMemory = true,
     });
 
@@ -191,6 +191,18 @@ static void Clear() {
         VulkanCommandPool& cmd_pool = state->cmd_pool_pool.data[i];
         vkDestroyCommandPool(device, cmd_pool.Resource, context->AllocationCallbacks);
         cmd_pool.Resource = 0;
+    }
+
+    for (int i = 0; i < state->bind_group_pool.GetCapacity(); i++) {
+        VulkanBindGroup& bind_group = state->bind_group_pool.data[i];
+        vkDestroyDescriptorSetLayout(device, bind_group.layout, context->AllocationCallbacks);
+        bind_group.layout = 0;
+        bind_group.set = 0;
+    }
+
+    if (state->descriptor_pool) {
+        vkDestroyDescriptorPool(device, state->descriptor_pool, context->AllocationCallbacks);
+        state->descriptor_pool = VK_NULL_HANDLE;
     }
 }
 
@@ -333,6 +345,9 @@ static Handle<Buffer> CreateBuffer(const BufferDescription& description) {
     VulkanBuffer output = {};
     VkMemoryPropertyFlags memory_properties = ToVulkanMemoryPropertyFlags(description.MemoryPropertyFlags);
     VkMemoryAllocateFlags allocate_flags = ToVulkanMemoryAllocateFlags(description.MemoryAllocationFlags);
+    if (description.UsageFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS) {
+        allocate_flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    }
     u64 actual_size = description.Size; // TODO: Fix
 
     if (description.UsageFlags & BufferUsageFlags::BUFFER_USAGE_FLAGS_UNIFORM_BUFFER) {
@@ -361,7 +376,7 @@ static Handle<Buffer> CreateBuffer(const BufferDescription& description) {
     }
 
     // Get the device address if this buffer is to be used as a raw pointer in shaders
-    if (description.MemoryPropertyFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS) {
+    if (description.UsageFlags & BUFFER_USAGE_FLAGS_SHADER_DEVICE_ADDRESS) {
         VkBufferDeviceAddressInfo addr_info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
         addr_info.buffer = output.Handle;
         output.device_address = vkGetBufferDeviceAddress(device, &addr_info);
@@ -563,6 +578,96 @@ static Handle<CommandPool> CreateCommandPool(const CommandPoolDescription& descr
     return state->cmd_pool_pool.Insert({}, out);
 }
 
+static void EnsureDescriptorPool() {
+    if (state->descriptor_pool != VK_NULL_HANDLE)
+        return;
+
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64},
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool_info.maxSets = 128;
+    pool_info.poolSizeCount = KRAFT_C_ARRAY_SIZE(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+    KRAFT_VK_CHECK(vkCreateDescriptorPool(device, &pool_info, context->AllocationCallbacks, &state->descriptor_pool));
+}
+
+static Handle<BindGroup> CreateBindGroup(const BindGroupDescription& description) {
+    VulkanContext* context = VulkanRendererBackend::Context();
+    VkDevice device = context->LogicalDevice.Handle;
+    VulkanBindGroup out = {};
+
+    EnsureDescriptorPool();
+
+    VkDescriptorSetLayoutBinding bindings[16] = {};
+    for (u32 i = 0; i < description.entry_count; i++) {
+        BindGroupEntry* entry = &description.entries[i];
+
+        bindings[i].binding = entry->binding;
+        bindings[i].descriptorCount = 1;
+        bindings[i].descriptorType = ToVulkanResourceType(entry->type);
+        bindings[i].pImmutableSamplers = 0;
+        bindings[i].stageFlags = ToVulkanShaderStageFlags(description.stage_flags);
+    }
+
+    VkDescriptorSetLayoutCreateInfo layout_create_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    layout_create_info.bindingCount = description.entry_count;
+    layout_create_info.pBindings = &bindings[0];
+
+    KRAFT_VK_CHECK(vkCreateDescriptorSetLayout(device, &layout_create_info, context->AllocationCallbacks, &out.layout));
+
+    VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    alloc_info.descriptorPool = state->descriptor_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &out.layout;
+
+    KRAFT_VK_CHECK(vkAllocateDescriptorSets(device, &alloc_info, &out.set));
+
+    VkWriteDescriptorSet writes[16] = {};
+    VkDescriptorBufferInfo buffer_infos[16] = {};
+    VkDescriptorImageInfo image_infos[16] = {};
+
+    for (u32 i = 0; i < description.entry_count; i++) {
+        BindGroupEntry* entry = &description.entries[i];
+
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[i].dstSet = out.set;
+        writes[i].dstBinding = entry->binding;
+        writes[i].dstArrayElement = 0;
+        writes[i].descriptorCount = 1;
+        writes[i].descriptorType = ToVulkanResourceType(entry->type);
+
+        if (entry->type == ResourceType::Sampler) {
+            VulkanTexture* vk_texture = VulkanResourceManagerApi::GetTexture(entry->texture);
+            VulkanTextureSampler* vk_sampler = VulkanResourceManagerApi::GetTextureSampler(entry->sampler);
+
+            image_infos[i].imageView = vk_texture->View;
+            image_infos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            image_infos[i].sampler = vk_sampler->Sampler;
+            writes[i].pImageInfo = &image_infos[i];
+        } else {
+            VulkanBuffer* vk_buffer = VulkanResourceManagerApi::GetBuffer(entry->buffer);
+
+            buffer_infos[i].buffer = vk_buffer->Handle;
+            buffer_infos[i].offset = 0;
+            buffer_infos[i].range = VK_WHOLE_SIZE;
+            writes[i].pBufferInfo = &buffer_infos[i];
+        }
+    }
+
+    vkUpdateDescriptorSets(device, description.entry_count, writes, 0, nullptr);
+
+    return state->bind_group_pool.Insert({.set_index = description.set_index}, out);
+}
+
 static void DestroyTexture(Handle<Texture> handle) {
     state->texture_pool.MarkForDelete(handle);
 }
@@ -575,9 +680,9 @@ static void DestroyRenderPass(Handle<RenderPass> handle) {
     state->render_pass_pool.MarkForDelete(handle);
 }
 
-static void DestroyTextureSampler(Handle<TextureSampler> handle) {
-    state->texture_sampler_pool.MarkForDelete(handle);
-}
+// static void DestroyTextureSampler(Handle<TextureSampler> handle) {
+//     state->texture_sampler_pool.MarkForDelete(handle);
+// }
 
 static void DestroyCommandBuffer(Handle<CommandBuffer> handle) {
     // TODO: Should single-use command buffers be destroyed immediately?
@@ -600,6 +705,11 @@ static u8* GetBufferData(Handle<Buffer> handle) {
     }
 
     return (u8*)buffer->Ptr;
+}
+
+static u64 GetBufferDeviceAddress(Handle<Buffer> handle) {
+    VulkanBuffer* buf = state->buffer_pool.Get(handle);
+    return buf ? (u64)buf->device_address : 0;
 }
 
 static BufferView CreateTempBuffer(u64 size) {
@@ -846,6 +956,15 @@ static void EndFrame(u64 frame_number) {
         resource->Resource = 0;
     });
 
+    state->bind_group_pool.Cleanup([](VulkanBindGroup* resource) {
+        VulkanContext* context = VulkanRendererBackend::Context();
+        VkDevice device = context->LogicalDevice.Handle;
+
+        vkDestroyDescriptorSetLayout(device, resource->layout, context->AllocationCallbacks);
+        resource->layout = 0;
+        resource->set = 0;
+    });
+
     state->temp_gpu_allocator->Clear();
 }
 
@@ -873,6 +992,14 @@ VulkanCommandPool* VulkanResourceManagerApi::GetCommandPool(Handle<CommandPool> 
     return state->cmd_pool_pool.Get(handle);
 }
 
+VulkanBindGroup* VulkanResourceManagerApi::GetBindGroup(Handle<BindGroup> handle) {
+    return state->bind_group_pool.Get(handle);
+}
+
+BindGroup* VulkanResourceManagerApi::GetBindGroupMetadata(Handle<BindGroup> handle) {
+    return state->bind_group_pool.GetAuxiliaryData(handle);
+}
+
 u32 VulkanResourceManagerApi::GetActiveSamplers(VkSampler* out_samplers, u32 max_count) {
     // Samplers are never deleted so we don't check for any holes here
     u32 count = 0;
@@ -886,6 +1013,11 @@ u32 VulkanResourceManagerApi::GetActiveSamplers(VkSampler* out_samplers, u32 max
     return count;
 }
 
+VkDeviceAddress VulkanResourceManagerApi::GetBufferDeviceAddress(Handle<Buffer> handle) {
+    VulkanBuffer* buf = GetBuffer(handle);
+    return buf ? buf->device_address : 0;
+}
+
 struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
     state = ArenaPush(arena, VulkanResourceManagerState);
     state->arena = arena;
@@ -895,6 +1027,7 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
     state->render_pass_pool.Grow(16);
     state->cmd_buffer_pool.Grow(16);
     state->cmd_pool_pool.Grow(1);
+    state->bind_group_pool.Grow(128);
     state->temp_gpu_allocator = ArenaPush(arena, VulkanTempMemoryBlockAllocator);
     state->temp_gpu_allocator->Initialize(arena, KRAFT_SIZE_MB(128));
 
@@ -906,6 +1039,7 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
     api->CreateRenderPass = CreateRenderPass;
     api->CreateCommandBuffer = CreateCommandBuffer;
     api->CreateCommandPool = CreateCommandPool;
+    api->CreateBindGroup = CreateBindGroup;
     api->DestroyTexture = DestroyTexture;
     // api->DestroyTextureSampler = DestroyTextureSampler;
     api->DestroyBuffer = DestroyBuffer;
@@ -913,6 +1047,7 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
     api->DestroyCommandBuffer = DestroyCommandBuffer;
     api->DestroyCommandPool = DestroyCommandPool;
     api->GetBufferData = GetBufferData;
+    api->GetBufferDeviceAddress = GetBufferDeviceAddress;
     api->CreateTempBuffer = CreateTempBuffer;
     api->UploadTexture = UploadTexture;
     api->UploadBuffer = UploadBuffer;
@@ -926,6 +1061,7 @@ struct ResourceManager* CreateVulkanResourceManager(ArenaAllocator* arena) {
 }
 
 void DestroyVulkanResourceManager(struct ResourceManager* ResourceManager) {
+    state->bind_group_pool.Destroy();
     state->cmd_pool_pool.Destroy();
     state->cmd_buffer_pool.Destroy();
     state->render_pass_pool.Destroy();

@@ -14,46 +14,40 @@
 
 namespace kraft {
 
-World::World()
-{
+World::World() {
     EntityCount = 0;
     Entity WorldRootEntity = this->CreateEntity(S("WorldRoot"), EntityHandleInvalid);
     this->Root = WorldRootEntity.EntityHandle;
     this->Camera = kraft::Camera();
 }
 
-World::~World()
-{
+World::~World() {
     this->Registry.clear();
 }
 
-Entity World::GetRoot() const
-{
+Entity World::GetRoot() const {
     return this->Entities.at(this->Root);
 }
 
-Entity World::CreateEntity()
-{
+Entity World::CreateEntity() {
     EntityHandleT EntityHandle = Registry.create();
-    Entity        NewEntity = Entity(EntityHandle, this);
+    Entity NewEntity = Entity(EntityHandle, this);
     this->Entities[EntityHandle] = NewEntity;
     this->EntityCount++;
 
     return NewEntity;
 }
 
-Entity World::CreateEntity(String8 name, EntityHandleT Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
-{
+Entity World::CreateEntity(String8 name, EntityHandleT Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale) {
     EntityHandleT EntityHandle = Registry.create();
-    Entity        NewEntity = Entity(EntityHandle, this);
+    Entity NewEntity = Entity(EntityHandle, this);
     this->Entities[EntityHandle] = NewEntity;
     this->EntityCount++;
 
     Registry.emplace<MetadataComponent>(EntityHandle, name);
     Registry.emplace<RelationshipComponent>(EntityHandle, Parent);
     Registry.emplace<TransformComponent>(EntityHandle, Position, Rotation, Scale);
-    if (Parent != EntityHandleInvalid)
-    {
+    if (Parent != EntityHandleInvalid) {
         RelationshipComponent& Relationship = Registry.get<RelationshipComponent>(Parent);
         Relationship.Children.Push(EntityHandle);
     }
@@ -61,20 +55,16 @@ Entity World::CreateEntity(String8 name, EntityHandleT Parent, Vec3f Position, V
     return NewEntity;
 }
 
-Entity World::CreateEntity(String8 name, const Entity& Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale)
-{
+Entity World::CreateEntity(String8 name, const Entity& Parent, Vec3f Position, Vec3f Rotation, Vec3f Scale) {
     return this->CreateEntity(name, Parent.EntityHandle, Position, Rotation, Scale);
 }
 
-void World::DestroyEntity(Entity Entity)
-{
+void World::DestroyEntity(Entity Entity) {
     // RelationshipComponent& Relationship = Registry.get<RelationshipComponent>(Entity.EntityHandle);
     RelationshipComponent& ParentRelationship = Registry.get<RelationshipComponent>(Entity.GetParent());
 
-    for (int i = 0; i < ParentRelationship.Children.Length; i++)
-    {
-        if (ParentRelationship.Children[i] == Entity.EntityHandle)
-        {
+    for (int i = 0; i < ParentRelationship.Children.Length; i++) {
+        if (ParentRelationship.Children[i] == Entity.EntityHandle) {
             ParentRelationship.Children.Pop(i);
             break;
         }
@@ -83,46 +73,40 @@ void World::DestroyEntity(Entity Entity)
     Registry.destroy(Entity.EntityHandle);
 }
 
-Entity World::GetEntity(EntityHandleT Handle) const
-{
+Entity World::GetEntity(EntityHandleT Handle) const {
     KASSERT(Handle != EntityHandleInvalid);
     return Entities.at(Handle);
 }
 
-bool World::IsValidEntity(EntityHandleT Handle) const
-{
+bool World::IsValidEntity(EntityHandleT Handle) const {
     return Entities.contains(Handle);
 }
 
-void World::Render()
-{
+void World::Render() {
     g_Renderer->Camera = &this->Camera;
     // kraft::r::Renderer->CurrentWorld = this;
 
     auto Group = Registry.group<MeshComponent, TransformComponent>();
-    for (auto EntityHandle : Group)
-    {
+    for (auto EntityHandle : Group) {
         auto [Transform, Mesh] = Group.get<TransformComponent, MeshComponent>(EntityHandle);
-        g_Renderer->AddRenderable(kraft::r::Renderable{
-            .ModelMatrix = Transform.ModelMatrix, // GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
-            .MaterialInstance = Mesh.MaterialInstance,
-            .DrawData = Mesh.DrawData,
-            .EntityId = (u32)EntityHandle,
-        });
+        // g_Renderer->AddRenderable(kraft::r::Renderable{
+        //     .ModelMatrix = Transform.ModelMatrix, // GetWorldSpaceTransformMatrix(Entity(EntityHandle, this)),
+        //     .MaterialInstance = Mesh.MaterialInstance,
+        //     .DrawData = Mesh.DrawData,
+        //     .EntityId = (u32)EntityHandle,
+        // });
     }
 }
 
-Mat4f World::GetWorldSpaceTransformMatrix(Entity E)
-{
+Mat4f World::GetWorldSpaceTransformMatrix(Entity E) {
     TransformComponent Transform = E.GetComponent<TransformComponent>();
-    EntityHandleT      ParentEntityHandle = E.GetParent();
-    if (ParentEntityHandle == EntityHandleInvalid)
-    {
+    EntityHandleT ParentEntityHandle = E.GetParent();
+    if (ParentEntityHandle == EntityHandleInvalid) {
         return Transform.ModelMatrix;
     }
 
     Entity ParentEntity = this->Entities[ParentEntityHandle];
-    Mat4f  ParentTransformMatrix = GetWorldSpaceTransformMatrix(ParentEntity);
+    Mat4f ParentTransformMatrix = GetWorldSpaceTransformMatrix(ParentEntity);
 
     return Transform.ModelMatrix * ParentTransformMatrix;
     // return ParentTransformMatrix * Transform.ModelMatrix;

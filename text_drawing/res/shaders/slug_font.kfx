@@ -1,0 +1,382 @@
+Shader SlugFont
+{
+    Layout
+    {
+        // No vertex attributes — vertices are fetched from the global SSBO (binding 3)
+        // via gl_VertexIndex. Traditional vertex input state is not used.
+        Vertex Main
+        {
+        }
+
+        UniformBuffer GlobalUniformBuffer
+        {
+            mat4   ViewProjection;
+            mat4   LightViewProjection;
+            float3 GlobalLightPosition;
+            float4 GlobalLightColor;
+            float3 CameraPosition;
+        }
+
+        // Material Data
+        StorageBuffer MaterialData
+        {
+            float4  DiffuseColor;
+        }
+
+        // Curve and Band SSBOs
+        StorageBuffer CurveData
+        {
+            float4[] Data;
+        }
+
+        StorageBuffer BandData
+        {
+            uint[] Data;
+        }
+
+        // List of local Resources
+        local Resource LocalResources
+        {
+            StorageBuffer MaterialData      Stage(Fragment) Set(0) Binding(1);
+        }
+
+        global Resource GlobalResources
+        {
+            UniformBuffer GlobalUniformBuffer   Stage(Fragment) Set(0) Binding(0);
+            StorageBuffer CurveData             Stage(Fragment) Set(3) Binding(0);
+            StorageBuffer BandData              Stage(Fragment) Set(3) Binding(1);
+        }
+
+        // Constant buffers/Push constants
+        ConstantBuffer Main
+        {
+            mat4    Model           Stage(Vertex);
+            float2  MousePosition   Stage(Vertex);
+            uint    EntityId        Stage(Vertex);
+            uint    MaterialIdx     Stage(Vertex);
+        }
+    }
+
+    GLSL ToScreen
+    {
+        #version 450
+
+        #extension GL_GOOGLE_include_directive: require
+        #extension GL_EXT_nonuniform_qualifier: require
+        #extension GL_EXT_scalar_block_layout: require
+        #extension GL_EXT_buffer_reference: require
+        #extension GL_EXT_buffer_reference2: require
+
+        #include "includes/kraft_shader_includes.h"
+
+        // Slug vertex pulled via BDA
+        struct SlugVertex
+        {
+            vec2  position;
+            vec2  em_coord;
+            vec4  color;
+            vec2  band_scale;
+            vec2  band_offset;
+            uint  band_data_offset;
+            uint  h_band_count;
+            uint  v_band_count;
+            uint  curve_data_offset;
+        };
+
+        layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer SlugVertexRef
+        {
+            SlugVertex vertices[];
+        };
+
+        layout (push_constant) uniform pushConstants
+        {
+            mat4 Model;
+            vec2 MousePosition;
+            uint EntityId;
+            uint MaterialIdx;
+            SlugVertexRef VertexBuffer;
+        } variableState;
+
+        layout (set = 0, binding = 0) uniform GlobalUniformBuffer
+        {
+            mat4  ViewProjection;
+            mat4  LightViewProjection;
+            vec3  GlobalLightPosition;
+            float Time;
+            vec4  GlobalLightColor;
+            vec3  CameraPosition;
+            float DeltaTime;
+            float Exposure;
+            float Saturation;
+            float VignetteStrength;
+            float VignetteRadius;
+            float Contrast;
+            float Warmth;
+            float ScreenWidth;
+            float ScreenHeight;
+        } globalState;
+
+        // Curve data SSBO: each curve = 2 consecutive vec4s
+        //   vec4[i*2+0] = (p1.x, p1.y, p2.x, p2.y)
+        //   vec4[i*2+1] = (p3.x, p3.y, 0, 0)
+        layout(scalar, set = 3, binding = 0) readonly buffer CurveDataBuffer
+        {
+            vec4 curve_data[];
+        };
+
+        // Band data SSBO: flat uint array
+        //   Per glyph at band_data_offset:
+        //     [h_band_count * 2 uints: headers] [v_band_count * 2 uints: headers] [curve index lists...]
+        //     Each header = (curve_count, list_offset_absolute)
+        //     Curve indices in lists are local (0-based within glyph's curves)
+        layout(scalar, set = 3, binding = 1) readonly buffer BandDataBuffer
+        {
+            uint band_data[];
+        };
+
+        #if defined VERTEX
+
+        layout(location = 0) out struct DataTransferObject
+        {
+            vec2 EmCoord;
+            vec4 Color;
+        } outDTO;
+
+        layout(location = 2) flat out vec2  outBandScale;
+        layout(location = 3) flat out vec2  outBandOffset;
+        layout(location = 4) flat out uint  outBandDataOffset;
+        layout(location = 5) flat out uint  outHBandCount;
+        layout(location = 6) flat out uint  outVBandCount;
+        layout(location = 7) flat out uint  outCurveDataOffset;
+
+        void main()
+        {
+            SlugVertex v = variableState.VertexBuffer.vertices[gl_VertexIndex];
+            outDTO.EmCoord = v.em_coord;
+            outDTO.Color = v.color;
+            outBandScale = v.band_scale;
+            outBandOffset = v.band_offset;
+            outBandDataOffset = v.band_data_offset;
+            outHBandCount = v.h_band_count;
+            outVBandCount = v.v_band_count;
+            outCurveDataOffset = v.curve_data_offset;
+            gl_Position = globalState.ViewProjection * variableState.Model * vec4(v.position, 0.0, 1.0);
+        }
+
+        #endif // VERTEX
+
+        #if defined FRAGMENT
+
+        layout(location = 0) in struct DataTransferObject
+        {
+            vec2 EmCoord;
+            vec4 Color;
+        } inDTO;
+
+        layout(location = 2) flat in vec2  inBandScale;
+        layout(location = 3) flat in vec2  inBandOffset;
+        layout(location = 4) flat in uint  inBandDataOffset;
+        layout(location = 5) flat in uint  inHBandCount;
+        layout(location = 6) flat in uint  inVBandCount;
+        layout(location = 7) flat in uint  inCurveDataOffset;
+
+        layout(location = 0) out vec4 outColor;
+
+        // ========================================================
+        // Slug Algorithm (ported from Eric Lengyel's reference HLSL)
+        // MIT License, Copyright 2017 Eric Lengyel
+        // ========================================================
+
+        // Root eligibility from sign bits of the 3 control point y-coordinates.
+        // Returns contribution flags in bits 0 and 8.
+        uint CalcRootCode(float y1, float y2, float y3)
+        {
+            uint i1 = floatBitsToUint(y1) >> 31u;
+            uint i2 = floatBitsToUint(y2) >> 30u;
+            uint i3 = floatBitsToUint(y3) >> 29u;
+
+            uint shift = (i2 & 2u) | (i1 & ~2u);
+            shift = (i3 & 4u) | (shift & ~4u);
+
+            return (0x2E74u >> shift) & 0x0101u;
+        }
+
+        // Solve quadratic C(t).y = 0 for horizontal ray, return x-coordinates of intersections.
+        vec2 SolveHorizPoly(vec4 p12, vec2 p3)
+        {
+            vec2 a = p12.xy - p12.zw * 2.0 + p3;
+            vec2 b = p12.xy - p12.zw;
+            float ra = 1.0 / a.y;
+            float rb = 0.5 / b.y;
+
+            float d = sqrt(max(b.y * b.y - a.y * p12.y, 0.0));
+            float t1 = (b.y - d) * ra;
+            float t2 = (b.y + d) * ra;
+
+            if (abs(a.y) < 1.0 / 65536.0) { t1 = t2 = p12.y * rb; }
+
+            return vec2(
+                (a.x * t1 - b.x * 2.0) * t1 + p12.x,
+                (a.x * t2 - b.x * 2.0) * t2 + p12.x
+            );
+        }
+
+        // Solve quadratic C(t).x = 0 for vertical ray, return y-coordinates of intersections.
+        vec2 SolveVertPoly(vec4 p12, vec2 p3)
+        {
+            vec2 a = p12.xy - p12.zw * 2.0 + p3;
+            vec2 b = p12.xy - p12.zw;
+            float ra = 1.0 / a.x;
+            float rb = 0.5 / b.x;
+
+            float d = sqrt(max(b.x * b.x - a.x * p12.x, 0.0));
+            float t1 = (b.x - d) * ra;
+            float t2 = (b.x + d) * ra;
+
+            if (abs(a.x) < 1.0 / 65536.0) { t1 = t2 = p12.x * rb; }
+
+            return vec2(
+                (a.y * t1 - b.y * 2.0) * t1 + p12.y,
+                (a.y * t2 - b.y * 2.0) * t2 + p12.y
+            );
+        }
+
+        // Combine horizontal and vertical coverage with weighting for final alpha.
+        float CalcCoverage(float xcov, float ycov, float xwgt, float ywgt)
+        {
+            float coverage = max(
+                abs(xcov * xwgt + ycov * ywgt) / max(xwgt + ywgt, 1.0 / 65536.0),
+                min(abs(xcov), abs(ycov))
+            );
+            return clamp(coverage, 0.0, 1.0);
+        }
+
+        void main()
+        {
+            vec2 render_coord = inDTO.EmCoord;
+
+            vec2 ems_per_pixel = fwidth(render_coord);
+            vec2 pixels_per_em = 1.0 / ems_per_pixel;
+
+            uint h_bands = inHBandCount;
+            uint v_bands = inVBandCount;
+
+            // Map em-space coordinate to band indices
+            // band_scale.x maps x -> vertical band index
+            // band_scale.y maps y -> horizontal band index
+            ivec2 band_index = clamp(
+                ivec2(render_coord * inBandScale + inBandOffset),
+                ivec2(0, 0),
+                ivec2(int(v_bands) - 1, int(h_bands) - 1)
+            );
+
+            uint base_offset = inBandDataOffset;
+            uint curve_base = inCurveDataOffset;
+
+            // ---- Horizontal ray (across horizontal bands) ----
+            float xcov = 0.0;
+            float xwgt = 0.0;
+
+            if (h_bands > 0u)
+            {
+                uint h_header_idx = base_offset + uint(band_index.y) * 2u;
+                uint h_curve_count = band_data[h_header_idx];
+                uint h_list_offset = band_data[h_header_idx + 1u];
+
+                for (uint ci = 0u; ci < h_curve_count; ci++)
+                {
+                    uint curve_local_idx = band_data[h_list_offset + ci];
+                    uint global_idx = curve_base + curve_local_idx * 2u;
+
+                    vec4 p12 = curve_data[global_idx] - vec4(render_coord, render_coord);
+                    vec2 p3 = curve_data[global_idx + 1u].xy - render_coord;
+
+                    uint code = CalcRootCode(p12.y, p12.w, p3.y);
+                    if (code != 0u)
+                    {
+                        vec2 r = SolveHorizPoly(p12, p3) * pixels_per_em.x;
+
+                        if ((code & 1u) != 0u)
+                        {
+                            xcov += clamp(r.x + 0.5, 0.0, 1.0);
+                            xwgt = max(xwgt, clamp(1.0 - abs(r.x) * 2.0, 0.0, 1.0));
+                        }
+
+                        if (code > 1u)
+                        {
+                            xcov -= clamp(r.y + 0.5, 0.0, 1.0);
+                            xwgt = max(xwgt, clamp(1.0 - abs(r.y) * 2.0, 0.0, 1.0));
+                        }
+                    }
+                }
+            }
+
+            // ---- Vertical ray (across vertical bands) ----
+            float ycov = 0.0;
+            float ywgt = 0.0;
+
+            if (v_bands > 0u)
+            {
+                uint v_header_idx = base_offset + h_bands * 2u + uint(band_index.x) * 2u;
+                uint v_curve_count = band_data[v_header_idx];
+                uint v_list_offset = band_data[v_header_idx + 1u];
+
+                for (uint ci = 0u; ci < v_curve_count; ci++)
+                {
+                    uint curve_local_idx = band_data[v_list_offset + ci];
+                    uint global_idx = curve_base + curve_local_idx * 2u;
+
+                    vec4 p12 = curve_data[global_idx] - vec4(render_coord, render_coord);
+                    vec2 p3 = curve_data[global_idx + 1u].xy - render_coord;
+
+                    uint code = CalcRootCode(p12.x, p12.z, p3.x);
+                    if (code != 0u)
+                    {
+                        vec2 r = SolveVertPoly(p12, p3) * pixels_per_em.y;
+
+                        if ((code & 1u) != 0u)
+                        {
+                            ycov -= clamp(r.x + 0.5, 0.0, 1.0);
+                            ywgt = max(ywgt, clamp(1.0 - abs(r.x) * 2.0, 0.0, 1.0));
+                        }
+
+                        if (code > 1u)
+                        {
+                            ycov += clamp(r.y + 0.5, 0.0, 1.0);
+                            ywgt = max(ywgt, clamp(1.0 - abs(r.y) * 2.0, 0.0, 1.0));
+                        }
+                    }
+                }
+            }
+
+            float coverage = CalcCoverage(xcov, ycov, xwgt, ywgt);
+            outColor = inDTO.Color * coverage;
+        }
+
+        #endif // FRAGMENT
+    }
+
+    RenderState
+    {
+        State Default
+        {
+            Cull            Off
+            ZTest           Never
+            ZWrite          Off
+            Blend           SrcAlpha OneMinusSrcAlpha, OneMinusSrcAlpha Zero
+            BlendOp         Add, Add
+            PolygonMode     Fill
+            LineWidth       1.0
+        }
+    }
+
+    Variant ToScreen
+    {
+        RenderState     Default
+        VertexLayout    Main
+        Resources       LocalResources
+        ConstantBuffer  Main
+        VertexShader    ToScreen
+        FragmentShader  ToScreen
+    }
+}

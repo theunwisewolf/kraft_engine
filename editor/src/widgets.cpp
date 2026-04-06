@@ -382,7 +382,7 @@ void DrawImGuiWidgets(bool refresh)
 
         if (!ImGuizmo::IsOver() && kraft::InputSystem::IsMouseButtonDown(kraft::MOUSE_BUTTON_LEFT) && ImGui::IsWindowFocused())
         {
-            EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { RelativeMousePosition.x, RelativeMousePosition.y };
+            EditorState::Ptr->ObjectPickingRenderSurface.relative_mouse_position = { RelativeMousePosition.x, RelativeMousePosition.y };
             u32* BufferData = (u32*)EditorState::Ptr->picking_buffer_memory;
             u32  BufferSize = 64;
 
@@ -403,7 +403,7 @@ void DrawImGuiWidgets(bool refresh)
         }
         else
         {
-            EditorState::Ptr->ObjectPickingRenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
+            EditorState::Ptr->ObjectPickingRenderSurface.relative_mouse_position = { 999999.0f, 999999.0f };
         }
     }
     //ImGui::SetCursorPos( { 0, 0 });

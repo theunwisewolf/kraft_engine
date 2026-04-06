@@ -40,6 +40,7 @@ Shader Basic
         global Resource GlobalResources
         {
             UniformBuffer GlobalUniformBuffer    Stage(Fragment) Set(0) Binding(0);
+            Sampler       ShadowMap              Stage(All) Set(3) Binding(0);
         }
 
         // Constant buffers/Push constants
@@ -59,7 +60,9 @@ Shader Basic
         #extension GL_EXT_nonuniform_qualifier: require
 
         #include "includes/kraft_shader_includes.h"
+        #define KRAFT_VERTEX_REF_TYPE Vertex3DRef
         #include "includes/common.glsl"
+        #undef KRAFT_VERTEX_REF_TYPE
 
         struct MeshMaterial
         {
@@ -77,41 +80,66 @@ Shader Basic
 
         #if defined VERTEX
 
-        // Output from the vertex shader to the fragment shader
-        layout(location = 0) out struct DataTransferObject 
+        layout(location = 0) out struct DataTransferObject
         {
             vec2 UV;
             vec3 Normal;
-            vec3 FragPosition;
+            vec3 WorldPosition;
         } outDTO;
 
         void main()
         {
             Vertex3D vertex = vertices[gl_VertexIndex];
+            vec4 world_pos = variableState.Model * vec4(vertex.position, 1.0);
+
             outDTO.UV = vertex.uv;
-            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * vertex.normal; // For non-uniform scale
-            
-            gl_Position = globalState.Projection * globalState.View * variableState.Model * vec4(vertex.position, 1.0);
+            outDTO.Normal = mat3(transpose(inverse(variableState.Model))) * vertex.normal;
+            outDTO.WorldPosition = world_pos.xyz;
+
+            // world_pos = vec4(world_pos.x + sin(globalState.Time), world_pos.yzw);
+            gl_Position = globalState.ViewProjection * world_pos;
         }
 
         #endif // VERTEX
 
         #if defined FRAGMENT
 
-        layout (location = 0) in struct DataTransferObject 
+        layout (location = 0) in struct DataTransferObject
         {
             vec2 UV;
             vec3 Normal;
-            vec3 FragPosition;
+            vec3 WorldPosition;
         } inDTO;
 
-        // Outputs
+        layout (set = 3, binding = 0) uniform sampler2D ShadowMap;
+
         layout (location = 0) out vec4 outColor;
 
-        void main() 
+        float CalculateShadow(vec3 world_pos)
+        {
+            vec4 light_space_pos = globalState.LightViewProjection * vec4(world_pos, 1.0);
+            vec3 proj = light_space_pos.xyz / light_space_pos.w;
+
+            // Vulkan clip space is [0,1] for depth, but xy is [-1,1]
+            vec2 shadow_uv = proj.xy * 0.5 + 0.5;
+
+            // Outside the shadow map? Not in shadow.
+            if (shadow_uv.x < 0.0 || shadow_uv.x > 1.0 || shadow_uv.y < 0.0 || shadow_uv.y > 1.0)
+                return 1.0;
+
+            float closest_depth = texture(ShadowMap, shadow_uv).r;
+            float current_depth = proj.z;
+            float bias = 0.005;
+
+            return current_depth > closest_depth + bias ? 0.3 : 1.0;
+        }
+
+        void main()
         {
             MeshMaterial Material = Materials[variableState.MaterialIdx];
-            outColor = vec4(SampleTexture(Material.DiffuseTexture, inDTO.UV).rgb, 1.0);
+            vec3 albedo = SampleTexture(Material.DiffuseTexture, inDTO.UV).rgb;
+            float shadow = CalculateShadow(inDTO.WorldPosition);
+            outColor = vec4(albedo * shadow, 1.0);
         }
 
         #endif // FRAGMENT
@@ -158,5 +186,6 @@ Shader Basic
         VertexShader    ToScreen
         DepthOutput     On
         ColorOutput     Off
+        MSAASamples     1
     }
 }

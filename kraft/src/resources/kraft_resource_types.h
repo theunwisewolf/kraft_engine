@@ -93,7 +93,7 @@ struct MaterialProperty {
     // Index of the uniform in the shader uniform cache
     u16 UniformIndex;
     u16 Size = 0;
-    u8  SamplerIndex = 0; // Index into global sampler array (packed into upper 4 bits of texture ID)
+    u8 SamplerIndex = 0; // Index into global sampler array (packed into upper 4 bits of texture ID)
 
     MaterialProperty() {
         MemSet(Memory, 0, sizeof(Memory));
@@ -122,13 +122,13 @@ struct MaterialProperty {
 #undef MATERIAL_PROPERTY_SETTERS
 
 struct Material {
-    ResourceID ID;
-    String8 Name;
-    String8 AssetPath;
-    FlatHashMap<u64, MaterialProperty> Properties;
+    ResourceID id;
+    String8 name;
+    String8 asset_path;
+    FlatHashMap<u64, MaterialProperty> properties;
 
     // Reference to the underlying shader
-    Shader* Shader;
+    Shader* shader;
 };
 
 struct Geometry {

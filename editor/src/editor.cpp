@@ -13,8 +13,8 @@ EditorState::EditorState()
     this->RenderSurface = kraft::g_Renderer->CreateRenderSurface(S("SceneView"), 200.0f, 200.0f, true);
     this->ObjectPickingRenderSurface = kraft::g_Renderer->CreateRenderSurface(S("ObjectPickingView"), 200.0f, 200.0f, true);
 
-    this->RenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
-    this->ObjectPickingRenderSurface.RelativeMousePosition = { 999999.0f, 999999.0f };
+    this->RenderSurface.relative_mouse_position = { 999999.0f, 999999.0f };
+    this->ObjectPickingRenderSurface.relative_mouse_position = { 999999.0f, 999999.0f };
 
     u64       ExtraMemoryFlags = g_Device->supports_device_local_host_visible ? MemoryPropertyFlags::MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL : 0;
     const u32 picking_buffer_size = 64;

@@ -30,41 +30,43 @@ struct ResourceManager {
     void (*Clear)();
 
     // Creation apis
-    Handle<Texture> (*CreateTexture)(const TextureDescription& Description) = 0;
-    Handle<TextureSampler> (*CreateTextureSampler)(const TextureSamplerDescription& Description) = 0;
-    Handle<Buffer> (*CreateBuffer)(const BufferDescription& Description) = 0;
-    Handle<RenderPass> (*CreateRenderPass)(const RenderPassDescription& Description) = 0;
-    Handle<CommandBuffer> (*CreateCommandBuffer)(const CommandBufferDescription& Description) = 0;
-    Handle<CommandPool> (*CreateCommandPool)(const CommandPoolDescription& Description) = 0;
-    // virtual Handle<ShaderEffect> CreateShaderEffect(ShaderEffectDescription Description) = 0;
+    Handle<Texture> (*CreateTexture)(const TextureDescription& description) = 0;
+    Handle<TextureSampler> (*CreateTextureSampler)(const TextureSamplerDescription& description) = 0;
+    Handle<Buffer> (*CreateBuffer)(const BufferDescription& description) = 0;
+    Handle<RenderPass> (*CreateRenderPass)(const RenderPassDescription& description) = 0;
+    Handle<CommandBuffer> (*CreateCommandBuffer)(const CommandBufferDescription& description) = 0;
+    Handle<CommandPool> (*CreateCommandPool)(const CommandPoolDescription& description) = 0;
+    Handle<BindGroup> (*CreateBindGroup)(const BindGroupDescription& description) = 0;
+    // virtual Handle<ShaderEffect> CreateShaderEffect(ShaderEffectDescription description) = 0;
 
     // Destruction apis
-    void (*DestroyTexture)(Handle<Texture> Resource) = 0;
+    void (*DestroyTexture)(Handle<Texture> handle) = 0;
     // We don't want to allow sampler deletion
-    // void (*DestroyTextureSampler)(Handle<TextureSampler> Resource) = 0;
-    void (*DestroyBuffer)(Handle<Buffer> Resource) = 0;
-    void (*DestroyRenderPass)(Handle<RenderPass> Resource) = 0;
-    void (*DestroyCommandBuffer)(Handle<CommandBuffer> Resource);
-    void (*DestroyCommandPool)(Handle<CommandPool> Resource) = 0;
+    // void (*DestroyTextureSampler)(Handle<TextureSampler> handle) = 0;
+    void (*DestroyBuffer)(Handle<Buffer> handle) = 0;
+    void (*DestroyRenderPass)(Handle<RenderPass> handle) = 0;
+    void (*DestroyCommandBuffer)(Handle<CommandBuffer> handle);
+    void (*DestroyCommandPool)(Handle<CommandPool> handle) = 0;
 
     // Access apis
-    u8* (*GetBufferData)(Handle<Buffer> Buffer) = 0;
+    u8* (*GetBufferData)(Handle<Buffer> buffer) = 0;
+    u64 (*GetBufferDeviceAddress)(Handle<Buffer> buffer) = 0;
 
     // Creates a temporary buffer that gets destroyed at the end of the frame
-    BufferView (*CreateTempBuffer)(u64 Size) = 0;
+    BufferView (*CreateTempBuffer)(u64 size) = 0;
 
     // Uploads data from the the `Buffer` to the `Texture`
-    bool (*UploadTexture)(Handle<Texture> Texture, Handle<Buffer> Buffer, u64 BufferOffset) = 0;
+    bool (*UploadTexture)(Handle<Texture> texture, Handle<Buffer> buffer, u64 buffer_offset) = 0;
     // Uploads raw buffer data to the GPU
-    bool (*UploadBuffer)(const UploadBufferDescription& Description) = 0;
-    bool (*ReadTextureData)(const ReadTextureDataDescription& Description) = 0;
+    bool (*UploadBuffer)(const UploadBufferDescription& description) = 0;
+    bool (*ReadTextureData)(const ReadTextureDataDescription& description) = 0;
 
-    Texture* (*GetTextureMetadata)(Handle<Texture> Resource) = 0;
-    RenderPass* (*GetRenderPassMetadata)(Handle<RenderPass> Resource) = 0;
-    void (*StartFrame)(u64 FrameNumber) = 0;
-    void (*EndFrame)(u64 FrameNumber) = 0;
+    Texture* (*GetTextureMetadata)(Handle<Texture> handle) = 0;
+    RenderPass* (*GetRenderPassMetadata)(Handle<RenderPass> handle) = 0;
+    void (*StartFrame)(u64 frame_number) = 0;
+    void (*EndFrame)(u64 frame_number) = 0;
 
-    void SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& Specs);
+    void SetPhysicalDeviceFormatSpecs(const PhysicalDeviceFormatSpecs& specifications);
     const PhysicalDeviceFormatSpecs& GetPhysicalDeviceFormatSpecs() const;
 };
 
