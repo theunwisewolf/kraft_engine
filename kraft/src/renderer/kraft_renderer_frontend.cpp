@@ -22,6 +22,7 @@ static RendererFrameStats& CurrentFrameStats() {
 }
 
 static void BeginStatsFrame(RendererFrontend* renderer) {
+#if 0
     if (renderer->Stats.current_frame.frame_id != 0) {
         renderer->Stats.last_completed_frame = renderer->Stats.current_frame;
 
@@ -62,6 +63,7 @@ static void BeginStatsFrame(RendererFrontend* renderer) {
             fflush(stdout);
         }
     }
+#endif
 
     renderer->Stats.current_frame = {};
     renderer->Stats.current_frame.frame_id = ++renderer->StatsFrameCounter;
@@ -438,16 +440,6 @@ DynamicGeometryAllocation RendererFrontend::AllocateDynamicGeometry(u32 vertex_c
         .index_count = index_count,
         .vertex_stride = vertex_stride,
     };
-}
-
-bool RendererFrontend::AddRenderable(SpriteBatch* batch) {
-    Renderable renderable = {
-        .ModelMatrix = mat4(Identity),
-        .MaterialInstance = batch->material,
-        .DrawData = batch->geometry->DrawData,
-    };
-
-    return true; // g_Renderer->(renderable);
 }
 
 RenderSurface* RendererFrontend::GetMainSurface() {

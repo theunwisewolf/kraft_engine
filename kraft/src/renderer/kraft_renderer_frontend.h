@@ -140,7 +140,6 @@ struct RendererFrontend {
     void DrawSingle(Shader* shader, GlobalShaderData* global_ubo, u32 geometry_id);
     void OnResize(int width, int height);
     void PrepareFrame();
-    bool AddRenderable(SpriteBatch* batch);
 
     RenderSurface* GetMainSurface();
     void BeginMainRenderpass();
