@@ -771,7 +771,6 @@ RSFORCEINLINE int draw_less_than(void* element_a, void* element_b) {
 void RenderSurface::End() {
     RendererFrameStats& frame_stats = CurrentFrameStats();
     RendererSurfaceStats& surface_stats = frame_stats.surfaces;
-    RendererDynamicGeometryStats& dynamic_stats = frame_stats.dynamic_geometry;
     surface_stats.end_count++;
     KRAFT_TIMING_STATS_BEGIN(surface_end_timer);
 
@@ -786,6 +785,7 @@ void RenderSurface::End() {
     Shader* current_shader = nullptr;
 
 #if !KRAFT_DYNAMIC_GEOMETRY_USE_HOST_VISIBLE_BUFFER
+    RendererDynamicGeometryStats& dynamic_stats = frame_stats.dynamic_geometry;
     auto dynamic_vertex_buffer_allocator = renderer_data_internal.dynamic_vertex_buffer_allocator[renderer_data_internal.current_frame_index];
     auto dynamic_index_buffer_allocator = renderer_data_internal.dynamic_index_buffer_allocator[renderer_data_internal.current_frame_index];
 

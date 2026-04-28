@@ -1087,8 +1087,10 @@ static bool UploadDataToGPU(VulkanContext* context, Handle<Buffer> dst_buffer, u
 }
 
 bool VulkanRendererBackend::CreateGeometry(const GeometryDescription& description) {
-    u32 vertex_data_size = description.VertexSize * description.VertexCount;
-    UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
+    if (description.Vertices && description.VertexCount > 0) {
+        u32 vertex_data_size = description.VertexSize * description.VertexCount;
+        UploadDataToGPU(&s_Context, description.VertexBuffer, description.VertexBufferOffset, description.Vertices, vertex_data_size);
+    }
 
     if (description.Indices && description.IndexCount > 0) {
         u32 index_data_size = description.IndexSize * description.IndexCount;

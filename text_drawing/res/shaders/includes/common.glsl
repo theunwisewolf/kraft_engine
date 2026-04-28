@@ -1,20 +1,26 @@
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_nonuniform_qualifier : require
 
 // Written to; using descriptor sets
 layout (set = 0, binding = 0) uniform GlobalUniformBuffer
 {
-    mat4 Projection;
-    mat4 View;
-    vec3 LightPosition;
-    uint Pad0;
-    vec4 LightColor;
-    vec3  CameraPosition;
-    float Time;
-    float DeltaTime;
-    uint  Pad1;
-    uint  Pad2;
+    mat4 ViewProjection; // 64
+    mat4 LightViewProjection; // 64
+    vec3 LightPosition; // 12
+    float Time; // 4
+    vec4 LightColor; // 16
+    vec3 CameraPosition; // 12
+    float DeltaTime; // 4
+    float Exposure; // 4
+    float Saturation; // 4
+    float VignetteStrength; // 4
+    float VignetteRadius; // 4
+    float Contrast; // 4
+    float Warmth; // 4
+    float ScreenWidth; // 4
+    float ScreenHeight; // 4
 } globalState;
 
 struct Vertex2D

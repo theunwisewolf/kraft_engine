@@ -221,7 +221,7 @@ static void OnShaderFileChanged(fs::FileWatchEvent event, void* userdata) {
         DWORD error_id = GetLastError();
         LPSTR message_buffer = nullptr;
 
-        size_t size = FormatMessageA(
+        size_t _ = FormatMessageA(
             FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error_id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&message_buffer, 0, NULL
         );
 

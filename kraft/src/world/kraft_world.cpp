@@ -1,7 +1,7 @@
 #include "kraft_world.h"
 
 // TODO: REMOVE
-#include <core/kraft_base_includes.h>
+#include <kraft_includes.h>
 
 #include <containers/kraft_array.h>
 #include <renderer/kraft_renderer_frontend.h>

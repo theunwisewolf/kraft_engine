@@ -1,6 +1,6 @@
 #pragma once
 
 namespace kraft {
-using EntityHandleT = uint32_t;
+using EntityHandleT = u32;
 static EntityHandleT EntityHandleInvalid = EntityHandleT(-1);
-}
+} // namespace kraft

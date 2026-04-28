@@ -1,3 +1,5 @@
+#include "kraft_includes.h"
+
 #define STB_RECT_PACK_IMPLEMENTATION
 #include "stb/stb_rect_pack.h"
 
@@ -166,27 +168,22 @@ r::Renderable RenderText(Material* material, FontAtlas* atlas, String8 text, Mat
         cursor_x += kern_advance + glyph.x_advance;
     }
 
-    // This uploads the vertices and index to the GPU, so it is safe to free them
-    Geometry* geometry = GeometrySystem::AcquireGeometryWithData(GeometryData{
-        .VertexCount = 4 * (u32)text.count,
-        .IndexCount = 6 * (u32)text.count,
-        .VertexSize = sizeof(r::Vertex2D),
-        .IndexSize = sizeof(u32),
-        .Vertices = vertices,
-        .Indices = indices,
-    });
+    // Use the per-frame dynamic geometry ring buffer so we don't leak Geometry objects
+    u32 vertex_count = 4 * (u32)text.count;
+    u32 index_count = 6 * (u32)text.count;
 
-    KASSERT(geometry);
-
-    MaterialSystem::SetProperty(material, String8Raw("DiffuseColor"), color);
+    DynamicGeometryAllocation alloc = g_Renderer->AllocateDynamicGeometry(vertex_count, sizeof(r::Vertex2D), index_count);
+    MemCpy(alloc.vertex_ptr, vertices, vertex_count * sizeof(r::Vertex2D));
+    MemCpy(alloc.index_ptr, indices, index_count * sizeof(u32));
 
     ScratchEnd(scratch);
 
     return {
         .ModelMatrix = transform,
         .MaterialInstance = material,
-        .DrawData = geometry->DrawData,
-        .EntityId = geometry->ID,
+        .DrawData = alloc.AsDrawData(),
+        .VertexBuffer = alloc.vertex_buffer,
+        .IndexBuffer = alloc.index_buffer,
     };
 }
 
