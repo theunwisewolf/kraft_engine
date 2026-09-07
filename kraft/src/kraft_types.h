@@ -1,6 +1,7 @@
 #pragma once
 
 #include <core/kraft_string.h>
+#include <platform/kraft_window_types.h>
 
 namespace kraft {
 
@@ -9,16 +10,6 @@ namespace kraft {
 //
 
 #if defined(KRAFT_GUI_APP)
-
-struct WindowOptions
-{
-    String Title = "";
-    u32    Width = 0;
-    u32    Height = 0;
-    int    RenderererHint = 1;
-    bool   Primary = true;
-    bool   StartMaximized = false;
-};
 
 enum RendererBackendType : int
 {

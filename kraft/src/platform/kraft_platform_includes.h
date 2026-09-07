@@ -4,6 +4,7 @@
 #include "kraft_platform.h"
 #include "kraft_window_types.h"
 #include "kraft_window.h"
+#include "kraft_input.h"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #include "Windows.h"

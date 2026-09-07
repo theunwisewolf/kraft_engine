@@ -1,5 +1,8 @@
 #pragma once
 
+#include <core/kraft_core.h>
+#include <core/kraft_math.h>
+
 #define KRAFT_DEFINE_KEYCODE(key, code) KEY_##key = code
 
 namespace kraft {
@@ -142,15 +145,60 @@ enum MouseButtons
     MOUSE_BUTTON_6,
     MOUSE_BUTTON_7,
     MOUSE_BUTTON_8,
+    MOUSE_BUTTON_COUNT,
     MOUSE_BUTTON_LAST = MOUSE_BUTTON_8,
     MOUSE_BUTTON_LEFT = MOUSE_BUTTON_1,
     MOUSE_BUTTON_RIGHT = MOUSE_BUTTON_2,
     MOUSE_BUTTON_MIDDLE = MOUSE_BUTTON_3,
 };
 
-struct KeyboardState
+#define KRAFT_KEY_COUNT         512
+#define KRAFT_MAX_INPUT_EVENTS  256
+#define KRAFT_MAX_TEXT_INPUT    64
+#define KRAFT_MAX_DROP_PATHS    16
+#define KRAFT_DROP_PATH_STORAGE 4096
+
+enum InputEventKind
 {
-    bool Keys[512];
+    INPUT_EVENT_NONE,
+    INPUT_EVENT_KEY_PRESS,
+    INPUT_EVENT_KEY_RELEASE,
+    INPUT_EVENT_TEXT,
+    INPUT_EVENT_MOUSE_PRESS,
+    INPUT_EVENT_MOUSE_RELEASE,
+    INPUT_EVENT_MOUSE_MOVE,
+    INPUT_EVENT_SCROLL,
+    INPUT_EVENT_WINDOW_RESIZE,
+    INPUT_EVENT_WINDOW_MAXIMIZE,
+    INPUT_EVENT_FRAMEBUFFER_RESIZE,
+    INPUT_EVENT_DROP,
+};
+
+// Same bit values as GLFW_MOD_*
+enum InputModifiers : u32
+{
+    INPUT_MODIFIER_SHIFT = 0x0001,
+    INPUT_MODIFIER_CONTROL = 0x0002,
+    INPUT_MODIFIER_ALT = 0x0004,
+    INPUT_MODIFIER_SUPER = 0x0008,
+};
+
+struct InputEvent
+{
+    InputEventKind kind;
+    Keys           key;
+    MouseButtons   button;
+    u32            codepoint;
+    u32            modifiers;
+    bool           repeat;
+    bool           handled;
+    Vec2f          mouse_position;
+    Vec2f          scroll;
+    i32            width;
+    i32            height;
+    bool           maximized;
+    String8*       paths;
+    u32            path_count;
 };
 
 struct MousePosition
@@ -159,19 +207,39 @@ struct MousePosition
     int y;
 };
 
-struct MouseState
-{
-    MousePosition Position;
-    bool          Buttons[16];
-    bool          Dragging = false;
-};
-
 struct InputSystemState
 {
-    KeyboardState PreviousKeyboardState;
-    KeyboardState CurrentKeyboardState;
-    MouseState    PreviousMouseState;
-    MouseState    CurrentMouseState;
+    bool key_down[KRAFT_KEY_COUNT];
+    bool key_down_previous[KRAFT_KEY_COUNT];
+    bool key_pressed[KRAFT_KEY_COUNT];
+    bool key_released[KRAFT_KEY_COUNT];
+
+    bool mouse_down[MOUSE_BUTTON_COUNT];
+    bool mouse_down_previous[MOUSE_BUTTON_COUNT];
+    bool mouse_pressed[MOUSE_BUTTON_COUNT];
+    bool mouse_released[MOUSE_BUTTON_COUNT];
+
+    Vec2f mouse_position;
+    Vec2f mouse_position_previous;
+    Vec2f mouse_delta;
+    Vec2f scroll;
+    bool  dragging;
+
+    bool shift_down;
+    bool ctrl_down;
+    bool alt_down;
+    bool super_down;
+
+    u32 text[KRAFT_MAX_TEXT_INPUT];
+    u32 text_count;
+
+    String8 drop_paths[KRAFT_MAX_DROP_PATHS];
+    u32     drop_path_count;
+    u8      drop_path_storage[KRAFT_DROP_PATH_STORAGE];
+    u32     drop_path_storage_used;
+
+    InputEvent events[KRAFT_MAX_INPUT_EVENTS];
+    u32        event_count;
 };
 
 struct KRAFT_API InputSystem
@@ -181,40 +249,74 @@ struct KRAFT_API InputSystem
 
     static bool Init();
     static bool Shutdown();
+
+    // Call once at the start of every frame, before polling the window.
     static void Update();
+
+    static void ProcessKey(int keycode, bool pressed, bool repeat, u32 modifiers);
     static void ProcessKeyboard(int keycode, bool pressed);
+    static void ProcessText(u32 codepoint);
+    static void ProcessMouseButton(int button, bool pressed, u32 modifiers);
     static void ProcessMouseButton(int button, bool pressed);
+    static void ProcessMouseMove(f64 x, f64 y);
     static void ProcessMouseMove(int x, int y);
+    static void SetMousePosition(f64 x, f64 y);
     static void ProcessScroll(f64 x, f64 y);
+    static void ProcessWindowResize(i32 width, i32 height, bool maximized);
+    static void ProcessFramebufferResize(i32 width, i32 height);
+    static void ProcessDrop(int count, const char** paths);
+
+    static InputEvent* PushEvent(InputEventKind kind);
+    static u32         CurrentModifiers();
 
     KRAFT_INLINE static bool IsKeyDown(Keys key)
     {
-        return State.CurrentKeyboardState.Keys[key];
+        return State.key_down[key];
     }
 
     KRAFT_INLINE static bool WasKeyDown(Keys key)
     {
-        return State.PreviousKeyboardState.Keys[key];
+        return State.key_down_previous[key];
+    }
+
+    KRAFT_INLINE static bool IsKeyPressed(Keys key)
+    {
+        return State.key_pressed[key];
+    }
+
+    KRAFT_INLINE static bool IsKeyReleased(Keys key)
+    {
+        return State.key_released[key];
     }
 
     KRAFT_INLINE static bool IsMouseButtonDown(MouseButtons button)
     {
-        return State.CurrentMouseState.Buttons[button];
+        return State.mouse_down[button];
     }
 
     KRAFT_INLINE static bool WasMouseButtonDown(MouseButtons button)
     {
-        return State.PreviousMouseState.Buttons[button];
+        return State.mouse_down_previous[button];
+    }
+
+    KRAFT_INLINE static bool IsMouseButtonPressed(MouseButtons button)
+    {
+        return State.mouse_pressed[button];
+    }
+
+    KRAFT_INLINE static bool IsMouseButtonReleased(MouseButtons button)
+    {
+        return State.mouse_released[button];
     }
 
     KRAFT_INLINE static MousePosition GetMousePosition()
     {
-        return State.CurrentMouseState.Position;
+        return MousePosition{ (int)State.mouse_position.x, (int)State.mouse_position.y };
     }
 
     KRAFT_INLINE static MousePosition GetPreviousMousePosition()
     {
-        return State.PreviousMouseState.Position;
+        return MousePosition{ (int)State.mouse_position_previous.x, (int)State.mouse_position_previous.y };
     }
 };
 

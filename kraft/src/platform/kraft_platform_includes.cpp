@@ -1,5 +1,6 @@
 #include "kraft_filesystem.cpp"
 #include "kraft_platform_common.cpp"
+#include "kraft_input.cpp"
 
 #if KRAFT_GUI_APP
 #include "kraft_window.cpp"

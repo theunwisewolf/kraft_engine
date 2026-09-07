@@ -3,7 +3,7 @@
 #include "kraft_camera.h"
 
 #include <core/kraft_math.h>
-#include <core/kraft_input.h>
+#include <platform/kraft_input.h>
 #include <core/kraft_events.h>
 
 namespace kraft {

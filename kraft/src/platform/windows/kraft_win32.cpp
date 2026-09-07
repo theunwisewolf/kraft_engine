@@ -8,7 +8,12 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <commdlg.h>
+#include <dbghelp.h>
 #include <memory>
+#include <stdio.h>
+#pragma comment(lib, "comdlg32")
+#pragma comment(lib, "dbghelp")
 
 #if defined(KRAFT_GUI_APP)
 #include <GLFW/glfw3.h>
@@ -19,7 +24,10 @@
 #include <platform/kraft_window.h>
 #endif
 
+#include <core/kraft_allocators.h>
 #include <core/kraft_string.h>
+#include <core/kraft_strings.h>
+#include <core/kraft_thread_context.h>
 #include <platform/kraft_platform.h>
 #include <platform/windows/kraft_win32_types.h>
 
@@ -331,6 +339,86 @@ bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const ch
     return false;
 }
 
+String8 Platform::ExecutableDirectory(ArenaAllocator* arena)
+{
+    char module_path[MAX_PATH];
+    DWORD length = GetModuleFileNameA(nullptr, module_path, (DWORD)sizeof(module_path));
+    while (length > 0 && module_path[length - 1] != '\\' && module_path[length - 1] != '/')
+        length--;
+    if (length > 0)
+        length--;
+
+    return StringCopy(arena, String8{ { (u8*)module_path }, (u64)length });
+}
+
+static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* info)
+{
+    fprintf(stderr, "\n[crash] exception 0x%08lX at %p\n", info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress);
+
+    ULONG_PTR stack_low = 0;
+    ULONG_PTR stack_high = 0;
+    GetCurrentThreadStackLimits(&stack_low, &stack_high);
+    u64 module_base = (u64)GetModuleHandleA(nullptr);
+    fprintf(stderr, "[crash] rip rva=0x%llX rsp=0x%llX stack=[0x%llX, 0x%llX) used=%llu KB%s\n",
+        (unsigned long long)((u64)info->ExceptionRecord->ExceptionAddress - module_base),
+        (unsigned long long)info->ContextRecord->Rsp,
+        (unsigned long long)stack_low,
+        (unsigned long long)stack_high,
+        (unsigned long long)((stack_high - info->ContextRecord->Rsp) / 1024),
+        info->ContextRecord->Rsp < stack_low ? "  <-- RSP BELOW STACK LIMIT" : "");
+    if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && info->ExceptionRecord->NumberParameters >= 2)
+    {
+        fprintf(stderr, "[crash] %s address 0x%llX\n",
+            info->ExceptionRecord->ExceptionInformation[0] ? "write to" : "read from",
+            (unsigned long long)info->ExceptionRecord->ExceptionInformation[1]);
+    }
+
+    HANDLE process = GetCurrentProcess();
+    HANDLE thread = GetCurrentThread();
+    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+    SymInitialize(process, nullptr, TRUE);
+
+    CONTEXT context = *info->ContextRecord;
+    STACKFRAME64 frame = {};
+    frame.AddrPC.Offset = context.Rip;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Offset = context.Rbp;
+    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = context.Rsp;
+    frame.AddrStack.Mode = AddrModeFlat;
+
+    for (u32 depth = 0; depth < 48; depth++)
+    {
+        if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, nullptr, SymFunctionTableAccess64, SymGetModuleBase64, nullptr))
+            break;
+        if (frame.AddrPC.Offset == 0)
+            break;
+
+        char symbol_buffer[sizeof(SYMBOL_INFO) + 256] = {};
+        SYMBOL_INFO* symbol = (SYMBOL_INFO*)symbol_buffer;
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = 255;
+        DWORD64 symbol_displacement = 0;
+        const char* name = SymFromAddr(process, frame.AddrPC.Offset, &symbol_displacement, symbol) ? symbol->Name : "?";
+
+        IMAGEHLP_LINE64 line = {};
+        line.SizeOfStruct = sizeof(line);
+        DWORD line_displacement = 0;
+        if (SymGetLineFromAddr64(process, frame.AddrPC.Offset, &line_displacement, &line))
+            fprintf(stderr, "  %2u: %s  (%s:%lu)\n", depth, name, line.FileName, line.LineNumber);
+        else
+            fprintf(stderr, "  %2u: %s\n", depth, name);
+    }
+    fflush(stderr);
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+void Platform::InstallCrashHandler()
+{
+    SetUnhandledExceptionFilter(CrashHandler);
+}
+
 #if defined(KRAFT_GUI_APP)
 Window* Platform::CreatePlatformWindow(const WindowOptions* Opts)
 {
@@ -352,6 +440,100 @@ void Platform::DestroyPlatformWindow(Window* Window)
     Free(State->PrimaryWindow->PlatformWindowState);
     Free(State->PrimaryWindow);
 }
+
+static wchar_t* DialogPushWide(ArenaAllocator* arena, const char* text)
+{
+    int wide_length = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
+    wchar_t* wide = ArenaPushArrayNoZero(arena, wchar_t, (u64)wide_length + 1);
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, wide, wide_length);
+    wide[wide_length] = 0;
+
+    return wide;
+}
+
+static wchar_t* DialogPushFilter(ArenaAllocator* arena, const char* filter)
+{
+    if (!filter || !filter[0])
+        return nullptr;
+
+    wchar_t* wide = DialogPushWide(arena, filter);
+    for (wchar_t* character = wide; *character; character++)
+    {
+        if (*character == L'|')
+            *character = 0;
+    }
+
+    return wide;
+}
+
+static String8 DialogPushUtf8(ArenaAllocator* arena, const wchar_t* wide)
+{
+    int utf8_length = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
+    if (utf8_length <= 0)
+        utf8_length = 1;
+
+    String8 result;
+    result.ptr = ArenaPushArrayNoZero(arena, u8, (u64)utf8_length);
+    WideCharToMultiByte(CP_UTF8, 0, wide, -1, result.str, utf8_length, nullptr, nullptr);
+    result.count = (u64)utf8_length - 1;
+    result.str[result.count] = 0;
+
+    return result;
+}
+
+static HWND DialogOwnerWindow()
+{
+    if (Platform::State && Platform::State->PrimaryWindow && Platform::State->PrimaryWindow->PlatformWindowState)
+        return Platform::State->PrimaryWindow->PlatformWindowState->hWindow;
+
+    return nullptr;
+}
+
+bool Platform::OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path)
+{
+    TempArena scratch = ScratchBegin(&arena, 1);
+    wchar_t path_buffer[2048];
+    path_buffer[0] = 0;
+
+    OPENFILENAMEW dialog = {};
+    dialog.lStructSize = sizeof(dialog);
+    dialog.hwndOwner = DialogOwnerWindow();
+    dialog.lpstrFilter = DialogPushFilter(scratch.arena, filter);
+    dialog.lpstrFile = path_buffer;
+    dialog.nMaxFile = (DWORD)KRAFT_C_ARRAY_SIZE(path_buffer);
+    dialog.Flags = OFN_NOCHANGEDIR | OFN_FILEMUSTEXIST;
+
+    bool ok = GetOpenFileNameW(&dialog) != 0;
+    if (ok)
+        *out_path = DialogPushUtf8(arena, path_buffer);
+    ScratchEnd(scratch);
+
+    return ok;
+}
+
+bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path)
+{
+    TempArena scratch = ScratchBegin(&arena, 1);
+    wchar_t path_buffer[2048];
+    path_buffer[0] = 0;
+
+    OPENFILENAMEW dialog = {};
+    dialog.lStructSize = sizeof(dialog);
+    dialog.hwndOwner = DialogOwnerWindow();
+    dialog.lpstrFilter = DialogPushFilter(scratch.arena, filter);
+    dialog.lpstrFile = path_buffer;
+    dialog.nMaxFile = (DWORD)KRAFT_C_ARRAY_SIZE(path_buffer);
+    dialog.lpstrDefExt = default_extension ? DialogPushWide(scratch.arena, default_extension) : nullptr;
+    dialog.Flags = OFN_NOCHANGEDIR | OFN_OVERWRITEPROMPT;
+
+    bool ok = GetSaveFileNameW(&dialog) != 0;
+    if (ok)
+        *out_path = DialogPushUtf8(arena, path_buffer);
+    ScratchEnd(scratch);
+
+    return ok;
+}
+
 
 #endif
 

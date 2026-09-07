@@ -5,6 +5,7 @@
 namespace kraft {
 
 struct EngineConfig;
+struct ArenaAllocator;
 enum Keys : u32;
 
 #if defined(KRAFT_GUI_APP)
@@ -165,12 +166,16 @@ struct KRAFT_API Platform
     static const char* GetKeyName(Keys key);
     static const char* GetEnv(const char* Key);
     static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
+    static String8     ExecutableDirectory(ArenaAllocator* arena);
+    static void        InstallCrashHandler();
 
 #if defined(KRAFT_GUI_APP)
     // Windowing
     static Window* CreatePlatformWindow(const struct WindowOptions* Opts);
     static void    DestroyPlatformWindow(struct Window* Window);
     static Window* GetWindow();
+    static bool    OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path); // filter: "JSON Files|*.json|All Files|*.*"
+    static bool    SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path);
 #endif
 };
 

@@ -1,20 +1,17 @@
 #include "kraft_window.h"
 
+#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
-#include <containers/kraft_array.h>
+#include <core/kraft_allocators.h>
 #include <core/kraft_core.h>
 #include <core/kraft_events.h>
-#include <core/kraft_input.h>
 #include <core/kraft_log.h>
+#include <core/kraft_memory.h>
 #include <core/kraft_string.h>
-#include <renderer/kraft_renderer_types.h>
-
-#if defined(KRAFT_PLATFORM_WINDOWS)
-#include <Windows.h>
-#endif
-
-#include <kraft_types.h>
+#include <core/kraft_strings.h>
+#include <core/kraft_thread_context.h>
+#include <platform/kraft_input.h>
 
 namespace kraft {
 
@@ -32,57 +29,46 @@ int Window::Init(const WindowOptions* Opts)
     glfwWindowHint(GLFW_MAXIMIZED, Opts->StartMaximized);
     glfwWindowHint(GLFW_SRGB_CAPABLE, true);
 
-    // TODO (amn): Handle window hints
-
-    // Remove the title bar
-    // glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-
     this->PlatformWindowHandle = glfwCreateWindow(Opts->Width, Opts->Height, *Opts->Title, NULL, NULL);
     if (!this->PlatformWindowHandle)
     {
         glfwTerminate();
-
         KERROR("glfwCreateWindow() failed");
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
 
-    this->Width = Opts->Width;
-    this->Height = Opts->Height;
+    glfwGetWindowSize(this->PlatformWindowHandle, &this->Width, &this->Height);
+    glfwGetFramebufferSize(this->PlatformWindowHandle, &this->FramebufferWidth, &this->FramebufferHeight);
 
-    // We need to update the width and height if we start maximized
-    if (Opts->StartMaximized)
+    this->DPI = 1.0f;
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (monitor)
     {
-        glfwGetWindowSize(this->PlatformWindowHandle, &this->Width, &this->Height);
-    }
-    else
-    {
-// Center the window
-#if defined(KRAFT_PLATFORM_WINDOWS)
-        int maxWidth = GetSystemMetrics(SM_CXSCREEN);
-        int maxHeight = GetSystemMetrics(SM_CYSCREEN);
-        glfwSetWindowPos(this->PlatformWindowHandle, (maxWidth / 2) - (this->Width / 2), (maxHeight / 2) - (this->Height / 2));
-#endif
+        f32 scale_x, scale_y;
+        glfwGetMonitorContentScale(monitor, &scale_x, &scale_y);
+        this->DPI = scale_x;
+
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        if (mode && !Opts->StartMaximized)
+        {
+            glfwSetWindowPos(this->PlatformWindowHandle, (mode->width - this->Width) / 2, (mode->height - this->Height) / 2);
+        }
     }
 
-    // TODO (amn): We should fetch the monitor the window is being drawn on
-    // Currently there is no inbuilt way to do this in glfw
-    // A possible workaround is mentioned here:
-    // https://github.com/glfw/glfw/issues/1699
-    // For now, we just use the primary monitor
-    GLFWmonitor* CurrentMonitor = glfwGetPrimaryMonitor();
-    float        XScale, YScale;
-    glfwGetMonitorContentScale(CurrentMonitor, &XScale, &YScale);
-    this->DPI = XScale;
-
-    // Window callbacks
     glfwSetWindowUserPointer(this->PlatformWindowHandle, this);
     glfwSetWindowSizeCallback(this->PlatformWindowHandle, WindowSizeCallback);
+    glfwSetFramebufferSizeCallback(this->PlatformWindowHandle, FramebufferSizeCallback);
     glfwSetWindowMaximizeCallback(this->PlatformWindowHandle, WindowMaximizeCallback);
     glfwSetKeyCallback(this->PlatformWindowHandle, KeyCallback);
+    glfwSetCharCallback(this->PlatformWindowHandle, CharCallback);
     glfwSetMouseButtonCallback(this->PlatformWindowHandle, MouseButtonCallback);
     glfwSetScrollCallback(this->PlatformWindowHandle, ScrollCallback);
     glfwSetCursorPosCallback(this->PlatformWindowHandle, CursorPositionCallback);
     glfwSetDropCallback(this->PlatformWindowHandle, DragDropCallback);
+
+    f64 cursor_x, cursor_y;
+    glfwGetCursorPos(this->PlatformWindowHandle, &cursor_x, &cursor_y);
+    InputSystem::SetMousePosition(cursor_x, cursor_y);
 
     u32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
     StringNCopy(this->Title, *Opts->Title, LengthToCopy);
@@ -99,7 +85,23 @@ void Window::Destroy()
 bool Window::PollEvents()
 {
     glfwPollEvents();
-    return !glfwWindowShouldClose(this->PlatformWindowHandle);
+    return !this->ShouldClose();
+}
+
+bool Window::WaitEvents(f64 timeout_seconds)
+{
+    glfwWaitEventsTimeout(timeout_seconds);
+    return !this->ShouldClose();
+}
+
+bool Window::ShouldClose()
+{
+    return glfwWindowShouldClose(this->PlatformWindowHandle) != 0;
+}
+
+bool Window::IsMaximized()
+{
+    return glfwGetWindowAttrib(this->PlatformWindowHandle, GLFW_MAXIMIZED) != 0;
 }
 
 void Window::SetWindowTitle(const char* title)
@@ -109,7 +111,7 @@ void Window::SetWindowTitle(const char* title)
 
 void Window::Minimize()
 {
-    glfwHideWindow(this->PlatformWindowHandle);
+    glfwIconifyWindow(this->PlatformWindowHandle);
 }
 
 void Window::Maximize()
@@ -137,35 +139,71 @@ void Window::GetCursorPosition(f64* X, f64* Y)
     glfwGetCursorPos(this->PlatformWindowHandle, X, Y);
 }
 
-void Window::WindowSizeCallback(GLFWwindow* window, int Width, int Height)
+String8 Window::ClipboardGet(ArenaAllocator* arena)
 {
-    Window* Self = (Window*)glfwGetWindowUserPointer(window);
-    Self->Width = Width;
-    Self->Height = Height;
+    const char* text = glfwGetClipboardString(this->PlatformWindowHandle);
+    if (!text)
+        return String8{};
+
+    return StringCopy(arena, String8FromCString(text));
+}
+
+void Window::ClipboardSet(String8 text)
+{
+    TempArena scratch = ScratchBegin(0, 0);
+    char* terminated = ArenaPushString(scratch.arena, text.str, text.count);
+    glfwSetClipboardString(this->PlatformWindowHandle, terminated);
+    ScratchEnd(scratch);
+}
+
+i32 Window::CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface)
+{
+    return (i32)glfwCreateWindowSurface((VkInstance)instance, this->PlatformWindowHandle, nullptr, (VkSurfaceKHR*)out_surface);
+}
+
+const char** Window::RequiredVulkanExtensions(u32* count)
+{
+    return glfwGetRequiredInstanceExtensions(count);
+}
+
+void Window::WindowSizeCallback(GLFWwindow* window, int width, int height)
+{
+    Window* self = (Window*)glfwGetWindowUserPointer(window);
+    self->Width = width;
+    self->Height = height;
+    InputSystem::ProcessWindowResize(width, height, false);
 
     EventDataResize data;
-    data.width = Width;
-    data.height = Height;
+    data.width = width;
+    data.height = height;
     data.maximized = false;
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, *(EventData*)(&data), self);
+}
 
-    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_RESIZE, *(EventData*)(&data), Self);
+void Window::FramebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    Window* self = (Window*)glfwGetWindowUserPointer(window);
+    self->FramebufferWidth = width;
+    self->FramebufferHeight = height;
+    self->FramebufferResized = true;
+    InputSystem::ProcessFramebufferResize(width, height);
 }
 
 void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized)
 {
-    int Width, Height;
-    glfwGetWindowSize(window, &Width, &Height);
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
 
-    Window* Self = (Window*)glfwGetWindowUserPointer(window);
-    Self->Width = Width;
-    Self->Height = Height;
+    Window* self = (Window*)glfwGetWindowUserPointer(window);
+    self->Width = width;
+    self->Height = height;
+    InputSystem::ProcessWindowResize(width, height, maximized != 0);
 
     EventDataResize data;
-    data.width = Width;
-    data.height = Height;
-    data.maximized = true;
-
-    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_MAXIMIZE, *(EventData*)(&data), Self);
+    data.width = width;
+    data.height = height;
+    data.maximized = maximized != 0;
+    EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_MAXIMIZE, *(EventData*)(&data), self);
 }
 
 void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)
@@ -173,13 +211,17 @@ void Window::KeyCallback(GLFWwindow* window, int keycode, int scancode, int acti
     if (keycode == GLFW_KEY_UNKNOWN)
         return;
 
-    bool pressed = action != GLFW_RELEASE;
-    InputSystem::ProcessKeyboard(keycode, pressed);
+    InputSystem::ProcessKey(keycode, action != GLFW_RELEASE, action == GLFW_REPEAT, (u32)mods);
+}
+
+void Window::CharCallback(GLFWwindow* window, unsigned int codepoint)
+{
+    InputSystem::ProcessText(codepoint);
 }
 
 void Window::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-    InputSystem::ProcessMouseButton(button, action == GLFW_PRESS);
+    InputSystem::ProcessMouseButton(button, action == GLFW_PRESS, (u32)mods);
 }
 
 void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
@@ -189,15 +231,16 @@ void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 
 void Window::CursorPositionCallback(GLFWwindow* window, double x, double y)
 {
-    InputSystem::ProcessMouseMove(int(x), int(y));
+    InputSystem::ProcessMouseMove(x, y);
 }
 
 void Window::DragDropCallback(GLFWwindow* window, int count, const char** paths)
 {
+    InputSystem::ProcessDrop(count, paths);
+
     EventData data;
     data.Int64Value[0] = count;
     data.Int64Value[1] = (i64)paths;
-
     EventSystem::Dispatch(EventType::EVENT_TYPE_WINDOW_DRAG_DROP, data, glfwGetWindowUserPointer(window));
 }
 
