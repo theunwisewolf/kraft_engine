@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <core/kraft_base_includes.h>
+#include <core/kraft_core_includes.h>
 
 #if defined(KRAFT_PLATFORM_WINDOWS)
 #ifndef WIN32_LEAN_AND_MEAN

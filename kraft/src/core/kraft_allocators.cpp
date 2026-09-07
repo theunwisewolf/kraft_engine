@@ -40,6 +40,11 @@ void ArenaPopToPosition(ArenaAllocator* arena, u64 position)
     KASSERT(arena->position >= sizeof(ArenaAllocator));
 }
 
+void ArenaClear(ArenaAllocator* arena)
+{
+    ArenaPopToPosition(arena, sizeof(ArenaAllocator));
+}
+
 String8 ArenaPushString8Empty(ArenaAllocator* arena, u64 size)
 {
     String8 result = {};

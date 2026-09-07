@@ -3,7 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-#include "kraft_includes.h"
+#include <core/kraft_core_includes.h>
 
 namespace kraft::fs {
 
@@ -57,7 +57,7 @@ KRAFT_API u32 GetFileCount(String8 path) {
 }
 
 KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path) {
-    TempArena scratch = ScratchBegin(0, 0);
+    TempArena scratch = ScratchBegin(&arena, 1);
     Directory result = {};
     String8 dir = path;
     if (!StringEndsWith(dir, String8Raw("/*")) && !StringEndsWith(dir, String8Raw("\\*"))) {

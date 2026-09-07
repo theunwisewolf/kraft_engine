@@ -1,7 +1,7 @@
 #pragma once
 
-#define KRAFT_SIZE_KB(Size) Size * 1024
-#define KRAFT_SIZE_MB(Size) KRAFT_SIZE_KB(Size) * 1024
+#define KRAFT_SIZE_KB(Size) ((u64)(Size) * 1024)
+#define KRAFT_SIZE_MB(Size) (KRAFT_SIZE_KB(Size) * 1024)
 
 #ifndef KRAFT_MEMORY_DEBUG
 #ifdef KRAFT_DEBUG
@@ -58,13 +58,14 @@ u64 ArenaPosition(ArenaAllocator* arena);
 
 void ArenaPop(ArenaAllocator* arena, u64 size);
 void ArenaPopToPosition(ArenaAllocator* arena, u64 position);
+void ArenaClear(ArenaAllocator* arena);
 char* ArenaPushString(ArenaAllocator* arena, const char* src, u64 length);
 String8 ArenaPushString8Empty(ArenaAllocator* arena, u64 size);
 String8 ArenaPushString8Copy(ArenaAllocator* arena, String8 str);
 void ArenaPopString8(ArenaAllocator* arena, String8 str);
 
-#define ArenaPushArrayAligned(arena, T, count) (T*)arena->Push(sizeof(T) * count, AlignOf(T), true)
-#define ArenaPushArrayAlignedNoZero(arena, T, count) (T*)arena->Push(sizeof(T) * count, AlignOf(T), false)
+#define ArenaPushArrayAligned(arena, T, count) (T*)(arena)->Push(sizeof(T) * (u64)(count), AlignOf(T), true)
+#define ArenaPushArrayAlignedNoZero(arena, T, count) (T*)(arena)->Push(sizeof(T) * (u64)(count), AlignOf(T), false)
 #define ArenaPushArray(arena, T, count) ArenaPushArrayAligned(arena, T, count)
 #define ArenaPushArrayNoZero(arena, T, count) ArenaPushArrayAlignedNoZero(arena, T, count)
 #define ArenaPush(arena, T) ArenaPushArray(arena, T, 1)

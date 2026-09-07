@@ -477,6 +477,41 @@ typedef Vector<f32, 3> vec3;
 typedef Vector<f32, 4> Vec4f;
 typedef Vector<f32, 4> vec4;
 
+struct Rect {
+    Vec2f min;
+    Vec2f max;
+};
+
+KRAFT_INLINE Rect RectMinMax(f32 x0, f32 y0, f32 x1, f32 y1) {
+    return Rect{Vec2f(x0, y0), Vec2f(x1, y1)};
+}
+
+KRAFT_INLINE Rect RectXYWH(f32 x, f32 y, f32 width, f32 height) {
+    return Rect{Vec2f(x, y), Vec2f(x + width, y + height)};
+}
+
+KRAFT_INLINE f32 RectWidth(Rect rect) {
+    return rect.max.x - rect.min.x;
+}
+
+KRAFT_INLINE f32 RectHeight(Rect rect) {
+    return rect.max.y - rect.min.y;
+}
+
+KRAFT_INLINE bool RectContains(Rect rect, Vec2f point) {
+    return point.x >= rect.min.x && point.x < rect.max.x && point.y >= rect.min.y && point.y < rect.max.y;
+}
+
+KRAFT_INLINE Rect RectIntersect(Rect a, Rect b) {
+    Rect result = RectMinMax(math::Max(a.min.x, b.min.x), math::Max(a.min.y, b.min.y), math::Min(a.max.x, b.max.x), math::Min(a.max.y, b.max.y));
+    if (result.max.x < result.min.x)
+        result.max.x = result.min.x;
+    if (result.max.y < result.min.y)
+        result.max.y = result.min.y;
+
+    return result;
+}
+
 extern const Vec2f Vec2fZero;
 extern const Vec3f Vec3fZero;
 extern const Vec4f Vec4fZero;

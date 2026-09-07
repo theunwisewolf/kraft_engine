@@ -1,4 +1,4 @@
-#include "kraft_includes.h"
+#include <core/kraft_core_includes.h>
 #include "kraft_lexer.h"
 
 #define CHECK_EOF_ERROR()                                                                                                                                                                              \

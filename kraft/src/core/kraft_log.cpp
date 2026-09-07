@@ -1,4 +1,6 @@
-#include "kraft_includes.h"
+#include <core/kraft_core_includes.h>
+#include <platform/kraft_platform.h>
+#include <platform/kraft_filesystem.h>
 
 namespace kraft {
 

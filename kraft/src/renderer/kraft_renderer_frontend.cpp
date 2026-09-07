@@ -225,7 +225,7 @@ static inline u64 MakeSortKey(u16 render_queue, u16 pipeline_id, u16 material_id
 }
 
 void RendererFrontend::Init() {
-    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 256;
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
     renderer_data_internal.vertex_buffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalVertexBuffer",
         .Size = vertex_buffer_size,
@@ -233,7 +233,7 @@ void RendererFrontend::Init() {
         .MemoryPropertyFlags = MEMORY_PROPERTY_FLAGS_DEVICE_LOCAL,
     });
 
-    const u64 index_buffer_size = sizeof(u32) * 1024 * 256;
+    const u64 index_buffer_size = sizeof(u32) * 1024 * 2048;
     renderer_data_internal.index_buffer = ResourceManager->CreateBuffer({
         .DebugName = "GlobalIndexBuffer",
         .Size = index_buffer_size,
