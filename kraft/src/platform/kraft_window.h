@@ -1,9 +1,10 @@
 #pragma once
 
 #include <core/kraft_core.h>
+#include <platform/kraft_window_events.h>
 #include <platform/kraft_window_types.h>
 
-#define KRAFT_ERROR_GLFW_INIT_FAILED          1
+#define KRAFT_ERROR_GLFW_INIT_FAILED 1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
 
 struct GLFWwindow;
@@ -15,29 +16,31 @@ namespace kraft {
 struct ArenaAllocator;
 struct PlatformWindowState;
 
-struct KRAFT_API Window
-{
+struct KRAFT_API Window {
     GLFWwindow* PlatformWindowHandle = nullptr;
 
     // Platform-specific window state
     PlatformWindowState* PlatformWindowState = nullptr;
 
-    int        Init(const struct WindowOptions* Opts);
-    bool       PollEvents(); // Returns false if the window wants to close
-    bool       WaitEvents(f64 timeout_seconds); // Blocks until an event arrives or the timeout elapses
-    bool       ShouldClose();
-    bool       IsMaximized();
-    void       SetWindowTitle(const char* title);
-    void       Minimize();
-    void       Maximize();
-    void       SetCursorMode(CursorMode Mode);
+    // Everything reported since the last poll, in order
+    WindowEventQueue Events;
+
+    int Init(const struct WindowOptions* Opts);
+    bool PollEvents(); // Returns false if the window wants to close
+    bool WaitEvents(f64 timeout_seconds); // Blocks until an event arrives or the timeout elapses
+    bool ShouldClose();
+    bool IsMaximized();
+    void SetWindowTitle(const char* title);
+    void Minimize();
+    void Maximize();
+    void SetCursorMode(CursorMode Mode);
     CursorMode GetCursorMode();
-    void       SetCursorPosition(f64 X, f64 Y);
-    void       GetCursorPosition(f64* X, f64* Y);
-    String8    ClipboardGet(ArenaAllocator* arena);
-    void       ClipboardSet(String8 text);
-    i32        CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface);
-    void       Destroy();
+    void SetCursorPosition(f64 X, f64 Y);
+    void GetCursorPosition(f64* X, f64* Y);
+    String8 ClipboardGet(ArenaAllocator* arena);
+    void ClipboardSet(String8 text);
+    i32 CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface);
+    void Destroy();
 
     static const char** RequiredVulkanExtensions(u32* count);
 
@@ -51,13 +54,13 @@ struct KRAFT_API Window
     static void CursorPositionCallback(GLFWwindow* window, double x, double y);
     static void DragDropCallback(GLFWwindow* window, int count, const char** paths);
 
-    int  Width;
-    int  Height;
-    int  FramebufferWidth;
-    int  FramebufferHeight;
+    int Width;
+    int Height;
+    int FramebufferWidth;
+    int FramebufferHeight;
     bool FramebufferResized;
-    f32  DPI;
-    char Title[1024] = { 0 };
+    f32 DPI;
+    char Title[1024] = {0};
 };
 
 } // namespace kraft

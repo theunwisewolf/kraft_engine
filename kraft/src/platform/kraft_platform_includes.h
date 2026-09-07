@@ -2,7 +2,9 @@
 
 #include "kraft_filesystem.h"
 #include "kraft_platform.h"
+#include "kraft_keys.h"
 #include "kraft_window_types.h"
+#include "kraft_window_events.h"
 #include "kraft_window.h"
 #include "kraft_input.h"
 
