@@ -1,13 +1,16 @@
 #pragma once
 
 #include <core/kraft_core.h>
+#include <core/kraft_math.h>
 #include <platform/kraft_window_events.h>
 #include <platform/kraft_window_types.h>
 
 #define KRAFT_ERROR_GLFW_INIT_FAILED 1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
+#define KRAFT_MAX_CAPTION_EXCLUSIONS 8
 
 struct GLFWwindow;
+struct GLFWcursor;
 struct VkInstance_T;
 struct VkSurfaceKHR_T;
 
@@ -31,9 +34,13 @@ struct KRAFT_API Window {
     bool ShouldClose();
     bool IsMaximized();
     void SetWindowTitle(const char* title);
+    void SetIcon(i32 width, i32 height, const u8* rgba_pixels);
     void Minimize();
     void Maximize();
+    void Restore();
+    void Close();
     void SetCursorMode(CursorMode Mode);
+    void SetCursorShape(CursorShape shape);
     CursorMode GetCursorMode();
     void SetCursorPosition(f64 X, f64 Y);
     void GetCursorPosition(f64* X, f64* Y);
@@ -41,6 +48,9 @@ struct KRAFT_API Window {
     void ClipboardSet(String8 text);
     i32 CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface);
     void Destroy();
+
+    // For a custom title bar
+    void SetCaptionRegion(f32 height, const Rect* excluded_rects, u32 excluded_count);
 
     static const char** RequiredVulkanExtensions(u32* count);
 
@@ -61,6 +71,14 @@ struct KRAFT_API Window {
     bool FramebufferResized;
     f32 DPI;
     char Title[1024] = {0};
+
+    bool CustomTitleBar;
+    f32 CaptionHeight;
+    Rect CaptionExclusions[KRAFT_MAX_CAPTION_EXCLUSIONS];
+    u32 CaptionExclusionCount;
+
+    CursorShape CurrentCursorShape;
+    GLFWcursor* Cursors[CURSOR_SHAPE_COUNT];
 };
 
 } // namespace kraft

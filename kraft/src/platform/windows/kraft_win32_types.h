@@ -2,18 +2,17 @@
 
 namespace kraft {
 
-struct PlatformState
-{
+struct PlatformState {
 #if defined(KRAFT_GUI_APP)
     Window* PrimaryWindow = nullptr;
 #endif
 };
 
 #if defined(KRAFT_GUI_APP)
-struct PlatformWindowState
-{
-    HWND      hWindow = 0;
+struct PlatformWindowState {
+    HWND hWindow = 0;
     HINSTANCE hInstance = 0;
+    WNDPROC OriginalWindowProc = 0;
 };
 #endif
 

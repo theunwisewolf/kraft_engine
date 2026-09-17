@@ -30,7 +30,7 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result) {
     } else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE)) {
         mode_string = binary ? "w+b" : "w+";
     } else if ((mode & FILE_OPEN_MODE_READ) && (mode & FILE_OPEN_MODE_WRITE) == 0) {
-        mode_string = binary ? "r+b" : "r";
+        mode_string = binary ? "rb" : "r";
     } else if ((mode & FILE_OPEN_MODE_READ) == 0 && (mode & FILE_OPEN_MODE_WRITE)) {
         mode_string = binary ? "wb" : "w";
     } else {
@@ -282,7 +282,8 @@ String8 Basename(ArenaAllocator* arena, String8 path) {
         }
     }
 
-    result.count = path.count - i + 1;
+    // i is the index of the separator, or -1 when there is none, so the name starts at i + 1
+    result.count = path.count - (u64)(i + 1);
     MemCpy(result.ptr, path.ptr + i + 1, result.count);
     ArenaPop(arena, path.count - result.count);
 

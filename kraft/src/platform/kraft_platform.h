@@ -24,67 +24,66 @@ struct PlatformState;
 // ----------------------------------------------------------------------------
 //  Control Sequence Introducer (CSI) sequences
 // ----------------------------------------------------------------------------
-#define KRAFT_CONSOLE_VT_RESET_CURSOR         "\x1B[1;1H" // Reset cursor position to upper left
-#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY_AFTER  "\x1B[0J"   // Erase in Display (after cursor)
-#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY_BEFORE "\x1B[1J"   // Erase in Display (before cursor)
-#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY        "\x1B[2J"   // Erase in Display (entire)
-#define KRAFT_CONSOLE_VT_CLEAR_LINE_AFTER     "\x1B[0K"   // Erase in Line (after cursor)
-#define KRAFT_CONSOLE_VT_CLEAR_LINE_BEFORE    "\x1B[1K"   // Erase in Line (before cursor)
-#define KRAFT_CONSOLE_VT_CLEAR_LINE           "\x1B[2K"   // Erase in Line (entire)
+#define KRAFT_CONSOLE_VT_RESET_CURSOR "\x1B[1;1H" // Reset cursor position to upper left
+#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY_AFTER "\x1B[0J" // Erase in Display (after cursor)
+#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY_BEFORE "\x1B[1J" // Erase in Display (before cursor)
+#define KRAFT_CONSOLE_VT_CLEAR_DISPLAY "\x1B[2J" // Erase in Display (entire)
+#define KRAFT_CONSOLE_VT_CLEAR_LINE_AFTER "\x1B[0K" // Erase in Line (after cursor)
+#define KRAFT_CONSOLE_VT_CLEAR_LINE_BEFORE "\x1B[1K" // Erase in Line (before cursor)
+#define KRAFT_CONSOLE_VT_CLEAR_LINE "\x1B[2K" // Erase in Line (entire)
 
 // ----------------------------------------------------------------------------
 //  Select Graphic Rendition (SGR) sequences
 // ----------------------------------------------------------------------------
-#define KRAFT_CONSOLE_TEXT_FORMAT_CLEAR     "\x1B[0m" // Clears previously applied formatting
-#define KRAFT_CONSOLE_TEXT_FORMAT_BOLD      "\x1B[1m"
+#define KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "\x1B[0m" // Clears previously applied formatting
+#define KRAFT_CONSOLE_TEXT_FORMAT_BOLD "\x1B[1m"
 #define KRAFT_CONSOLE_TEXT_FORMAT_UNDERLINE "\x1B[4m"
 
 // Text colors
-#define KRAFT_CONSOLE_COLOR_BLACK                  "\x1B[30m"
-#define KRAFT_CONSOLE_COLOR_RED                    "\x1B[31m"
-#define KRAFT_CONSOLE_COLOR_GREEN                  "\x1B[32m"
-#define KRAFT_CONSOLE_COLOR_YELLOW                 "\x1B[33m"
-#define KRAFT_CONSOLE_COLOR_BLUE                   "\x1B[34m"
-#define KRAFT_CONSOLE_COLOR_MAGENTA                "\x1B[35m"
-#define KRAFT_CONSOLE_COLOR_CYAN                   "\x1B[36m"
-#define KRAFT_CONSOLE_COLOR_WHITE                  "\x1B[37m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_BLACK   "\x1B[90m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_RED     "\x1B[91m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_GREEN   "\x1B[92m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_YELLOW  "\x1B[93m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_BLUE    "\x1B[94m"
+#define KRAFT_CONSOLE_COLOR_BLACK "\x1B[30m"
+#define KRAFT_CONSOLE_COLOR_RED "\x1B[31m"
+#define KRAFT_CONSOLE_COLOR_GREEN "\x1B[32m"
+#define KRAFT_CONSOLE_COLOR_YELLOW "\x1B[33m"
+#define KRAFT_CONSOLE_COLOR_BLUE "\x1B[34m"
+#define KRAFT_CONSOLE_COLOR_MAGENTA "\x1B[35m"
+#define KRAFT_CONSOLE_COLOR_CYAN "\x1B[36m"
+#define KRAFT_CONSOLE_COLOR_WHITE "\x1B[37m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_BLACK "\x1B[90m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_RED "\x1B[91m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_GREEN "\x1B[92m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_YELLOW "\x1B[93m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_BLUE "\x1B[94m"
 #define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_MAGENTA "\x1B[95m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_CYAN    "\x1B[96m"
-#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_WHITE   "\x1B[97m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_CYAN "\x1B[96m"
+#define KRAFT_CONSOLE_COLOR_HIGH_INTENSITY_WHITE "\x1B[97m"
 
 // Background colors
-#define KRAFT_CONSOLE_BG_COLOR_BLACK                  "\x1B[40m"
-#define KRAFT_CONSOLE_BG_COLOR_RED                    "\x1B[41m"
-#define KRAFT_CONSOLE_BG_COLOR_GREEN                  "\x1B[42m"
-#define KRAFT_CONSOLE_BG_COLOR_YELLOW                 "\x1B[43m"
-#define KRAFT_CONSOLE_BG_COLOR_BLUE                   "\x1B[44m"
-#define KRAFT_CONSOLE_BG_COLOR_MAGENTA                "\x1B[45m"
-#define KRAFT_CONSOLE_BG_COLOR_CYAN                   "\x1B[46m"
-#define KRAFT_CONSOLE_BG_COLOR_WHITE                  "\x1B[47m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_BLACK             "\x1B[100m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_RED     "\x1B[101m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_GREEN   "\x1B[102m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_YELLOW  "\x1B[103m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_BLUE    "\x1B[104m"
+#define KRAFT_CONSOLE_BG_COLOR_BLACK "\x1B[40m"
+#define KRAFT_CONSOLE_BG_COLOR_RED "\x1B[41m"
+#define KRAFT_CONSOLE_BG_COLOR_GREEN "\x1B[42m"
+#define KRAFT_CONSOLE_BG_COLOR_YELLOW "\x1B[43m"
+#define KRAFT_CONSOLE_BG_COLOR_BLUE "\x1B[44m"
+#define KRAFT_CONSOLE_BG_COLOR_MAGENTA "\x1B[45m"
+#define KRAFT_CONSOLE_BG_COLOR_CYAN "\x1B[46m"
+#define KRAFT_CONSOLE_BG_COLOR_WHITE "\x1B[47m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_BLACK "\x1B[100m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_RED "\x1B[101m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_GREEN "\x1B[102m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_YELLOW "\x1B[103m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_BLUE "\x1B[104m"
 #define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_MAGENTA "\x1B[105m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_CYAN    "\x1B[106m"
-#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_WHITE   "\x1B[107m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_CYAN "\x1B[106m"
+#define KRAFT_CONSOLE_BG_COLOR_HIGH_INTENSITY_WHITE "\x1B[107m"
 
 // 8-bit color / 256 Color
-#define KRAFT_CONSOLE_COLOR_256(code)    "\x1B[38;5;" #code "m"
+#define KRAFT_CONSOLE_COLOR_256(code) "\x1B[38;5;" #code "m"
 #define KRAFT_CONSOLE_COLOR_BG_256(code) "\x1B[48;5;" #code "m"
 
 // 24-bit true colour
-#define KRAFT_CONSOLE_COLOR_RGB(r, g, b)    "\x1B[38;2;" #r ";" #g ";" #b "m"
+#define KRAFT_CONSOLE_COLOR_RGB(r, g, b) "\x1B[38;2;" #r ";" #g ";" #b "m"
 #define KRAFT_CONSOLE_COLOR_BG_RGB(r, g, b) "\x1B[48;2;" #r ";" #g ";" #b "m"
 
-struct KRAFT_API Platform
-{
+struct KRAFT_API Platform {
     // If the platform wants to store any internal state,
     // it should do so in this variable
     static PlatformState* State;
@@ -96,11 +95,11 @@ struct KRAFT_API Platform
     // Memory
     static void* Malloc(u64 size, bool aligned);
     static void* Realloc(void* region, u64 size, bool aligned);
-    static void  Free(void* region);
+    static void Free(void* region);
     static void* MemZero(void* region, u64 size);
     static void* MemCpy(void* dst, const void* src, u64 size);
     static void* MemSet(void* region, int value, u64 size);
-    static int   MemCmp(const void* a, const void* b, u64 size);
+    static int MemCmp(const void* a, const void* b, u64 size);
 
     // Console
     // Foreground colors
@@ -162,21 +161,23 @@ struct KRAFT_API Platform
     static f64 GetElapsedTime();
 
     // Misc
-    static void        SleepMilliseconds(u64 Milliseconds);
+    static void SleepMilliseconds(u64 Milliseconds);
     static const char* GetKeyName(Keys key);
     static const char* GetEnv(const char* Key);
-    static bool        ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
-    static String8     ExecutableDirectory(ArenaAllocator* arena);
-    static void        InstallCrashHandler();
+    static bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
+    static String8 ExecutableDirectory(ArenaAllocator* arena);
+    static String8 SystemFontDirectory(ArenaAllocator* arena);
+    static void InstallCrashHandler();
 
 #if defined(KRAFT_GUI_APP)
     // Windowing
     static Window* CreatePlatformWindow(const struct WindowOptions* Opts);
-    static void    DestroyPlatformWindow(struct Window* Window);
+    static void DestroyPlatformWindow(struct Window* Window);
     static Window* GetWindow();
-    static bool    OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path); // filter: "JSON Files|*.json|All Files|*.*"
-    static bool    SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path);
+    static bool OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path); // filter: "JSON Files|*.json|All Files|*.*"
+    static bool SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path);
+    static bool OpenFolderDialog(ArenaAllocator* arena, const char* title, String8* out_path);
 #endif
 };
 
-}
+} // namespace kraft

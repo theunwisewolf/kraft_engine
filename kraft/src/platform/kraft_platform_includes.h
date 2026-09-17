@@ -2,6 +2,8 @@
 
 #include "kraft_filesystem.h"
 #include "kraft_platform.h"
+#include "kraft_threading.h"
+#include "kraft_tasks.h"
 #include "kraft_keys.h"
 #include "kraft_window_types.h"
 #include "kraft_window_events.h"

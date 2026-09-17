@@ -20,6 +20,8 @@ struct FileSystemEntry {
         u64 file_size;
         bool is_file;
     };
+    bool is_directory;
+    u64  modified_time; // seconds since the epoch
 };
 
 struct Directory {
@@ -90,6 +92,24 @@ KRAFT_API u64 GetFileModifiedTime(String8 path);
 // Platform dependent APIs
 KRAFT_API u32 GetFileCount(String8 path);
 KRAFT_API Directory ReadDir(ArenaAllocator* arena, String8 path);
+
+// Files and sub-directories (excluding "." and ".."), with is_directory set on each entry
+KRAFT_API Directory ReadDirEntries(ArenaAllocator* arena, String8 path);
+KRAFT_API bool DirectoryExists(String8 path);
+
+// Creates one directory
+// returns `true` if it was created or was already there
+KRAFT_API bool MakeDirectory(String8 path);
+
+// Creates every missing directory along the path, similar to mkdir -p
+KRAFT_API bool MakeDirectories(ArenaAllocator* arena, String8 path);
+
+// Deletes one file
+// returns `true` if it is gone, including when it was never there
+KRAFT_API bool RemoveFile(String8 path);
+
+// Deletes one directory, which has to be empty already
+KRAFT_API bool RemoveEmptyDirectory(String8 path);
 
 //
 // File watcher

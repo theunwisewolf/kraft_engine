@@ -41,6 +41,8 @@ WindowEvent* WindowEventQueue::PushDrop(int path_count, const char** paths) {
 
 int Window::Init(const WindowOptions* Opts) {
     MemSet(this, 0, sizeof(Window));
+    this->CustomTitleBar = Opts->CustomTitleBar;
+    this->CurrentCursorShape = CURSOR_SHAPE_ARROW;
 
     if (!glfwInit()) {
         KERROR("glfwInit() failed");
@@ -98,8 +100,36 @@ int Window::Init(const WindowOptions* Opts) {
 }
 
 void Window::Destroy() {
+    for (u32 cursor_index = 0; cursor_index < CURSOR_SHAPE_COUNT; cursor_index++) {
+        if (this->Cursors[cursor_index])
+            glfwDestroyCursor(this->Cursors[cursor_index]);
+    }
+
     glfwDestroyWindow(this->PlatformWindowHandle);
     glfwTerminate();
+}
+
+void Window::SetCursorShape(CursorShape shape) {
+    if (shape == this->CurrentCursorShape) {
+        return;
+    }
+
+    this->CurrentCursorShape = shape;
+    if (shape == CURSOR_SHAPE_ARROW) {
+        glfwSetCursor(this->PlatformWindowHandle, nullptr);
+        return;
+    }
+
+    u32 cursor_index = (u32)shape - (u32)CURSOR_SHAPE_ARROW;
+    if (cursor_index >= CURSOR_SHAPE_COUNT) {
+        return;
+    }
+
+    if (!this->Cursors[cursor_index]) {
+        this->Cursors[cursor_index] = glfwCreateStandardCursor((int)shape);
+    }
+
+    glfwSetCursor(this->PlatformWindowHandle, this->Cursors[cursor_index]);
 }
 
 bool Window::PollEvents() {
@@ -136,6 +166,30 @@ void Window::Minimize() {
 
 void Window::Maximize() {
     glfwMaximizeWindow(this->PlatformWindowHandle);
+}
+
+void Window::Restore() {
+    glfwRestoreWindow(this->PlatformWindowHandle);
+}
+
+void Window::Close() {
+    glfwSetWindowShouldClose(this->PlatformWindowHandle, 1);
+}
+
+void Window::SetIcon(i32 width, i32 height, const u8* rgba_pixels) {
+    GLFWimage image;
+    image.width = width;
+    image.height = height;
+    image.pixels = (unsigned char*)rgba_pixels;
+    glfwSetWindowIcon(this->PlatformWindowHandle, 1, &image);
+}
+
+void Window::SetCaptionRegion(f32 height, const Rect* excluded_rects, u32 excluded_count) {
+    this->CaptionHeight = height;
+    this->CaptionExclusionCount = excluded_count < KRAFT_MAX_CAPTION_EXCLUSIONS ? excluded_count : KRAFT_MAX_CAPTION_EXCLUSIONS;
+    for (u32 exclusion_index = 0; exclusion_index < this->CaptionExclusionCount; exclusion_index++) {
+        this->CaptionExclusions[exclusion_index] = excluded_rects[exclusion_index];
+    }
 }
 
 void Window::SetCursorMode(CursorMode Mode) {
