@@ -71,6 +71,10 @@ int Window::Init(const WindowOptions* Opts) {
         this->DPI = scale_x;
 
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        if (mode && mode->refreshRate > 0) {
+            this->RefreshRateHz = (f32)mode->refreshRate;
+        }
+
         if (mode && !Opts->StartMaximized) {
             glfwSetWindowPos(this->PlatformWindowHandle, (mode->width - this->Width) / 2, (mode->height - this->Height) / 2);
         }

@@ -7,12 +7,36 @@
 #include <GLFW/glfw3.h>
 
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
+#include <sys/random.h>
 
 #include <core/kraft_log.h>
+
+namespace kraft {
+
+bool Platform::RandomBytes(void* Out, u64 Count) {
+    u8* Bytes = (u8*)Out;
+    while (Count > 0) {
+        ssize_t Read = getrandom(Bytes, Count, 0);
+        if (Read < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return false;
+        }
+        Bytes += Read;
+        Count -= (u64)Read;
+    }
+
+    return true;
+}
+
+} // namespace kraft
 #include <core/kraft_engine.h>
 #include <platform/kraft_platform.h>
 #include <platform/kraft_window.h>
@@ -21,7 +45,7 @@
 namespace kraft {
 
 LinuxPlatformState* State = nullptr;
-void*               Platform::InternalState = nullptr;
+void* Platform::InternalState = nullptr;
 
 const int Platform::ConsoleColorBlack = 30;
 const int Platform::ConsoleColorLoWhite = 37;
@@ -55,8 +79,7 @@ const int Platform::ConsoleColorBGHiCyan = 106 << 16;
 const int Platform::ConsoleColorBGLoMagenta = 45 << 16;
 const int Platform::ConsoleColorBGHiMagenta = 105 << 16;
 
-bool Platform::Init(struct EngineConfig* config)
-{
+bool Platform::Init(struct EngineConfig* config) {
     InternalState = Malloc(sizeof(LinuxPlatformState), false);
     State = (LinuxPlatformState*)InternalState;
     State->Window.Init(config->WindowTitle, config->WindowWidth, config->WindowHeight, config->RendererBackend);
@@ -64,50 +87,64 @@ bool Platform::Init(struct EngineConfig* config)
     return true;
 }
 
-bool Platform::PollEvents()
-{
+bool Platform::PollEvents() {
     return State->Window.PollEvents();
 }
 
-void Platform::Shutdown()
-{}
+void Platform::Shutdown() {}
 
 // ------------------------------------------
 // Memory Specific Functions
 // ------------------------------------------
 
-void* Platform::Malloc(u64 size, bool aligned)
-{
+void* Platform::MemReserve(u64 size) {
+    void* region = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+
+    return region == MAP_FAILED ? nullptr : region;
+}
+
+bool Platform::MemCommit(void* address, u64 size) {
+    return mprotect(address, size, PROT_READ | PROT_WRITE) == 0;
+}
+
+void Platform::MemDecommit(void* address, u64 size) {
+    madvise(address, size, MADV_DONTNEED);
+    mprotect(address, size, PROT_NONE);
+}
+
+void Platform::MemRelease(void* address, u64 size) {
+    munmap(address, size);
+}
+
+u64 Platform::MemPageSize() {
+    return (u64)sysconf(_SC_PAGESIZE);
+}
+
+void* Platform::Malloc(u64 size, bool aligned) {
     return malloc(size);
 }
 
-void* Platform::Realloc(void* region, u64 size, bool aligned)
-{
+void* Platform::Realloc(void* region, u64 size, bool aligned) {
     return realloc(region, size);
 }
 
-void Platform::Free(void* region, bool aligned)
-{
+void Platform::Free(void* region, bool aligned) {
     free(region);
 }
 
-void* Platform::MemZero(void* region, u64 size)
-{
+void* Platform::MemZero(void* region, u64 size) {
     return memset(region, 0, size);
 }
 
-void* Platform::MemCpy(void* Dst, const void* Src, u64 Size)
-{
+void* Platform::MemCpy(void* Dst, const void* Src, u64 Size) {
     return memcpy(Dst, Src, Size);
 }
 
-void* Platform::MemSet(void* region, int value, uint64_t size)
-{
+void* Platform::MemSet(void* region, int value, uint64_t size) {
     return memset(region, value, size);
 }
 
-int Platform::MemCmp(const void* a, const void* b, uint64_t size)
-{
+int Platform::MemCmp(const void* a, const void* b, uint64_t size) {
     return memcmp(a, b, size);
 }
 
@@ -115,54 +152,46 @@ int Platform::MemCmp(const void* a, const void* b, uint64_t size)
 // Console Specific Functions
 // ------------------------------------------
 
-void Platform::ConsoleOutputString(const char* str, int color)
-{
+void Platform::ConsoleOutputString(const char* str, int color) {
     // \033 is the control code
     //"\033[{FORMAT_ATTRIBUTE};{FORGROUND_COLOR};{BACKGROUND_COLOR}m{TEXT}\033[{RESET_FORMATE_ATTRIBUTE}m"
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
-    int       foregroundColor = color & 0xffff;
-    int       backgroundColor = color >> 0x10;
+    int foregroundColor = color & 0xffff;
+    int backgroundColor = color >> 0x10;
     fprintf(stdout, "\033[%d;%d;%dm%s\033[0m", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str);
 }
 
-void Platform::ConsoleOutputStringError(const char* str, int color)
-{
+void Platform::ConsoleOutputStringError(const char* str, int color) {
     const int formatAttribute = 0; // For bold, italics and other fancy stuff
-    int       foregroundColor = color & 0xffff;
-    int       backgroundColor = color >> 0x10;
+    int foregroundColor = color & 0xffff;
+    int backgroundColor = color >> 0x10;
     fprintf(stderr, "\033[%d;%d;%dm%s\033[0m", formatAttribute, foregroundColor, backgroundColor == 0 ? 49 : backgroundColor, str);
 }
 
-f64 Platform::GetAbsoluteTime()
-{
+f64 Platform::GetAbsoluteTime() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     return (uint64_t)ts.tv_sec + (ts.tv_nsec / 1000000000.f);
 }
 
-f64 Platform::GetElapsedTime()
-{
+f64 Platform::GetElapsedTime() {
     return 0.f;
 }
 
-void Platform::SleepMilliseconds(uint64_t Milliseconds)
-{
-    if (Milliseconds >= 1000)
-    {
+void Platform::SleepMilliseconds(uint64_t Milliseconds) {
+    if (Milliseconds >= 1000) {
         sleep(Milliseconds / 1000);
     }
 
     usleep((Milliseconds % 1000) * 1000);
 }
 
-const char* Platform::GetKeyName(Keys key)
-{
+const char* Platform::GetKeyName(Keys key) {
     int keycode = (int)key;
     return glfwGetKeyName(keycode, glfwGetKeyScancode(keycode));
 }
 
-const char* Platform::GetEnv(const char* Key)
-{
+const char* Platform::GetEnv(const char* Key) {
     return getenv(Key);
 }
 

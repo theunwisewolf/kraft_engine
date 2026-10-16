@@ -7,7 +7,7 @@
 
 #define KRAFT_ERROR_GLFW_INIT_FAILED 1
 #define KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED 2
-#define KRAFT_MAX_CAPTION_EXCLUSIONS 8
+#define KRAFT_MAX_CAPTION_EXCLUSIONS 32
 
 struct GLFWwindow;
 struct GLFWcursor;
@@ -70,6 +70,9 @@ struct KRAFT_API Window {
     int FramebufferHeight;
     bool FramebufferResized;
     f32 DPI;
+
+    // of the monitor the window is on; Returns 0 if unknown
+    f32 RefreshRateHz;
     char Title[1024] = {0};
 
     bool CustomTitleBar;

@@ -89,10 +89,20 @@ struct KRAFT_API Platform {
     static PlatformState* State;
 
     static bool Init(struct EngineConfig* config);
+
+    static void SetCrashContext(const char* text);
+    static u32 CrashReportCount();
+    static void SetCrashReportDirectory(const char* directory);
     static bool PollEvents();
     static void Shutdown();
 
     // Memory
+    static void* MemReserve(u64 size);
+    static bool MemCommit(void* address, u64 size);
+    static void MemDecommit(void* address, u64 size);
+    static void MemRelease(void* address, u64 size);
+    static u64 MemPageSize();
+
     static void* Malloc(u64 size, bool aligned);
     static void* Realloc(void* region, u64 size, bool aligned);
     static void Free(void* region);
@@ -160,6 +170,10 @@ struct KRAFT_API Platform {
     // Returns the elapsed time in milliseconds
     static f64 GetElapsedTime();
 
+    // Fills Out from the operating system's cryptographic random source;
+    // Returns false on failure
+    static bool RandomBytes(void* Out, u64 Count);
+
     // Misc
     static void SleepMilliseconds(u64 Milliseconds);
     static const char* GetKeyName(Keys key);
@@ -168,6 +182,7 @@ struct KRAFT_API Platform {
     static String8 ExecutableDirectory(ArenaAllocator* arena);
     static String8 SystemFontDirectory(ArenaAllocator* arena);
     static void InstallCrashHandler();
+    static u64 ProcessMemoryBytes();
 
 #if defined(KRAFT_GUI_APP)
     // Windowing

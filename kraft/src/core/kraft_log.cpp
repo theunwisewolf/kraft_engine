@@ -6,6 +6,42 @@ namespace kraft {
 
 struct Logger g_logger_instance = kraft::Logger();
 
+static char g_log_history[KRAFT_LOG_HISTORY_LINES][KRAFT_LOG_HISTORY_LINE_MAX];
+static u32 g_log_history_next;
+static u32 g_log_history_count;
+
+static void LogHistoryPush(const char* level, const char* file, int line, String8 message) {
+    char* slot = g_log_history[g_log_history_next % KRAFT_LOG_HISTORY_LINES];
+    snprintf(slot, KRAFT_LOG_HISTORY_LINE_MAX, "%s <%s:%d> %.*s", level, file, line, (int)message.count, (const char*)message.ptr);
+    g_log_history_next = (g_log_history_next + 1) % KRAFT_LOG_HISTORY_LINES;
+    if (g_log_history_count < KRAFT_LOG_HISTORY_LINES) {
+        g_log_history_count++;
+    }
+}
+
+void LogHistoryPushLine(const char* text) {
+    char* slot = g_log_history[g_log_history_next % KRAFT_LOG_HISTORY_LINES];
+    snprintf(slot, KRAFT_LOG_HISTORY_LINE_MAX, "%s", text ? text : "");
+    g_log_history_next = (g_log_history_next + 1) % KRAFT_LOG_HISTORY_LINES;
+    if (g_log_history_count < KRAFT_LOG_HISTORY_LINES) {
+        g_log_history_count++;
+    }
+}
+
+u32 LogHistoryCount() {
+    return g_log_history_count;
+}
+
+const char* LogHistoryLine(u32 index) {
+    if (index >= g_log_history_count) {
+        return "";
+    }
+
+    u32 oldest = g_log_history_count == KRAFT_LOG_HISTORY_LINES ? g_log_history_next : 0;
+
+    return g_log_history[(oldest + index) % KRAFT_LOG_HISTORY_LINES];
+}
+
 bool Logger::Init() {
     return true;
 }
@@ -48,17 +84,24 @@ void Logger::LogWithFileAndLine(LogLevel level, const char* filename, int line, 
     va_end(args);
 
     String8 filename_buffer = fs::Basename(scratch.arena, String8FromCString(filename));
+    LogHistoryPush(get_level_prefix(level), (const char*)filename_buffer.ptr, line, out);
 
-    fprintf(
-        stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%.*s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR "%.*s\n",
-        String8VArg(formatted_time),
-        get_level_color(level),
-        get_level_prefix(level),
-        String8VArg(filename_buffer),
-        line,
-        String8VArg(out)
-    );
+    if (Plain) {
+        fprintf(stdout, "%.*s %s <%.*s:%d> %.*s\n", String8VArg(formatted_time), get_level_prefix(level), String8VArg(filename_buffer), line, String8VArg(out));
+    } else {
+        fprintf(
+            stdout,
+            KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(240) "<%.*s:%d> " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR
+                                                                                                                                                     "%.*s\n",
+            String8VArg(formatted_time),
+            get_level_color(level),
+            get_level_prefix(level),
+            String8VArg(filename_buffer),
+            line,
+            String8VArg(out)
+        );
+    }
+    fflush(stdout);
 
     ScratchEnd(scratch);
 }
@@ -73,14 +116,19 @@ void Logger::Log(LogLevel level, const char* message_with_format, ...) {
     String8 out = StringFormatV(scratch.arena, message_with_format, args);
     va_end(args);
 
-    fprintf(
-        stdout,
-        KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%.*s\n",
-        String8VArg(formatted_time),
-        get_level_color(level),
-        get_level_prefix(level),
-        String8VArg(out)
-    );
+    if (Plain) {
+        fprintf(stdout, "%.*s %s %.*s\n", String8VArg(formatted_time), get_level_prefix(level), String8VArg(out));
+    } else {
+        fprintf(
+            stdout,
+            KRAFT_CONSOLE_COLOR_256(246) "%.*s " KRAFT_CONSOLE_TEXT_FORMAT_BOLD "%s%s " KRAFT_CONSOLE_TEXT_FORMAT_CLEAR KRAFT_CONSOLE_COLOR_256(255) "%.*s\n",
+            String8VArg(formatted_time),
+            get_level_color(level),
+            get_level_prefix(level),
+            String8VArg(out)
+        );
+    }
+    fflush(stdout);
 
     ScratchEnd(scratch);
 #else

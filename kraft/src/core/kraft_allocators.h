@@ -18,16 +18,26 @@ enum MemoryTag : int;
 struct ArenaCreateOptions {
     u64 ChunkSize = 64;
     u64 Alignment = 64;
+    u64 CommitSize = 0;
+    u64 DecommitThreshold = 0;
     MemoryTag Tag = (MemoryTag)0;
 };
 
-// TODO: Arena->Next
 struct ArenaAllocator {
     MemoryTag tag;
     u8* base_ptr;
     u64 capacity = 0;
     u64 base_position;
     u64 position;
+
+    // header plus the chunk rounded to pages
+    u64 capacity_reserved;
+    
+    // bytes committed from the start of the reservation, header included
+    u64 committed;
+    
+    // furthest position ever used; committed pages above it have never been written
+    u64 high_water;
     ArenaCreateOptions options;
 
     void* Push(u64 size, u64 alignment, bool zero);
@@ -38,21 +48,16 @@ struct TempArena {
     u64 position;
 
 #if KRAFT_MEMORY_DEBUG
+    // Poisoning the region happens in ArenaPopToPosition, which knows both ends of it and can stay
+    // inside the committed pages.
     ~TempArena() {
         KASSERTM(arena->position == position, "ScratchEnd not called!");
-
-        // Set the original region to some garbage so we never read legit values from it
-        for (u64 i = 0; i < arena->position; i += 4) {
-            arena->base_ptr[position + i + 0] = 0xfc;
-            arena->base_ptr[position + i + 1] = 0xfc;
-            arena->base_ptr[position + i + 2] = 0xfc;
-            arena->base_ptr[position + i + 3] = 0xfc;
-        }
     }
 #endif
 };
 
 ArenaAllocator* CreateArena(ArenaCreateOptions options);
+void DecommitArenaAbove(ArenaAllocator* arena, u64 position); // give back everything past a point
 void DestroyArena(ArenaAllocator* arena);
 u64 ArenaPosition(ArenaAllocator* arena);
 

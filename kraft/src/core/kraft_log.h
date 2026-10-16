@@ -4,6 +4,13 @@
 
 namespace kraft {
 
+#define KRAFT_LOG_HISTORY_LINES 96
+#define KRAFT_LOG_HISTORY_LINE_MAX 320
+
+KRAFT_API u32 LogHistoryCount();
+KRAFT_API const char* LogHistoryLine(u32 index);
+KRAFT_API void LogHistoryPushLine(const char* text); // for callers that cannot use the logger, such as an assert
+
 enum LogLevel {
     LOG_LEVEL_FATAL,
     LOG_LEVEL_ERROR,
@@ -15,6 +22,8 @@ enum LogLevel {
 };
 
 struct KRAFT_API Logger {
+    bool Plain = false;
+
     bool Init();
     void Shutdown();
     void LogWithFileAndLine(LogLevel level, const char* filename, int line, const char* message, ...);

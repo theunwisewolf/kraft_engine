@@ -11,11 +11,14 @@
 #include <commdlg.h>
 #include <shobjidl.h>
 #include <dbghelp.h>
+#include <psapi.h>
+#include <bcrypt.h>
 #include <memory>
 #include <stdio.h>
 #pragma comment(lib, "comdlg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "dbghelp")
+#pragma comment(lib, "bcrypt")
 
 #if defined(KRAFT_GUI_APP)
 #include <GLFW/glfw3.h>
@@ -145,6 +148,34 @@ void Platform::Shutdown() {
 // Memory Specific Functions
 // ------------------------------------------
 
+void* Platform::MemReserve(uint64_t size) {
+    return VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_READWRITE);
+}
+
+bool Platform::MemCommit(void* address, uint64_t size) {
+    return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
+}
+
+void Platform::MemDecommit(void* address, uint64_t size) {
+    VirtualFree(address, size, MEM_DECOMMIT);
+}
+
+void Platform::MemRelease(void* address, uint64_t size) {
+    (void)size;
+    VirtualFree(address, 0, MEM_RELEASE);
+}
+
+uint64_t Platform::MemPageSize() {
+    static uint64_t page_size = 0;
+    if (page_size == 0) {
+        SYSTEM_INFO info = {};
+        GetSystemInfo(&info);
+        page_size = info.dwPageSize;
+    }
+
+    return page_size;
+}
+
 void* Platform::Malloc(uint64_t size, bool aligned) {
     return malloc(size);
 }
@@ -242,6 +273,21 @@ void Platform::ConsoleResetFormatting() {
     SetConsoleTextAttribute(s_ConsoleErrorHandle, s_ConsoleErrorScreenBufferInfo.wAttributes);
 }
 
+bool Platform::RandomBytes(void* Out, u64 Count) {
+    u8* Bytes = (u8*)Out;
+    while (Count > 0) {
+        ULONG Chunk = Count > 0x40000000ull ? 0x40000000ul : (ULONG)Count;
+        if (BCryptGenRandom(nullptr, Bytes, Chunk, BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
+            return false;
+        }
+
+        Bytes += Chunk;
+        Count -= Chunk;
+    }
+
+    return true;
+}
+
 u64 Platform::TimeNowNS() {
     FILETIME ft;
     ULARGE_INTEGER uli;
@@ -319,21 +365,121 @@ String8 Platform::ExecutableDirectory(ArenaAllocator* arena) {
     return StringCopy(arena, String8{{(u8*)module_path}, (u64)length});
 }
 
+u64 Platform::ProcessMemoryBytes() {
+    PROCESS_MEMORY_COUNTERS_EX2 counters = {};
+    counters.cb = sizeof(counters);
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&counters, sizeof(counters))) {
+        return counters.PrivateWorkingSetSize;
+    }
+
+    PROCESS_MEMORY_COUNTERS basic = {};
+    basic.cb = sizeof(basic);
+    return GetProcessMemoryInfo(GetCurrentProcess(), &basic, sizeof(basic)) ? basic.WorkingSetSize : 0;
+}
+
 String8 Platform::SystemFontDirectory(ArenaAllocator* arena) {
     char windows_directory[MAX_PATH];
     UINT length = GetWindowsDirectoryA(windows_directory, (UINT)sizeof(windows_directory));
     return StringFormat(arena, "%.*s/Fonts", (int)length, windows_directory);
 }
 
+#define KRAFT_CRASH_CONTEXT_MAX 2048
+static char g_crash_context[KRAFT_CRASH_CONTEXT_MAX];
+
+void Platform::SetCrashContext(const char* text) {
+    if (!text) {
+        g_crash_context[0] = 0;
+        return;
+    }
+
+    strncpy(g_crash_context, text, sizeof(g_crash_context) - 1);
+    g_crash_context[sizeof(g_crash_context) - 1] = 0;
+}
+
+static char g_crash_directory[MAX_PATH];
+
+void Platform::SetCrashReportDirectory(const char* directory) {
+    snprintf(g_crash_directory, sizeof(g_crash_directory), "%s", directory ? directory : "");
+}
+
+static void CrashReportDirectory(char* out, u64 capacity) {
+    if (g_crash_directory[0]) {
+        snprintf(out, capacity, "%s\\crashes", g_crash_directory);
+        return;
+    }
+
+    char module_path[MAX_PATH];
+    DWORD length = GetModuleFileNameA(nullptr, module_path, (DWORD)sizeof(module_path));
+    while (length > 0 && module_path[length - 1] != '\\' && module_path[length - 1] != '/') {
+        length--;
+    }
+    snprintf(out, capacity, "%.*scrashes", (int)length, module_path);
+}
+
+u32 Platform::CrashReportCount() {
+    char directory[MAX_PATH];
+    CrashReportDirectory(directory, sizeof(directory));
+
+    char pattern[MAX_PATH];
+    snprintf(pattern, sizeof(pattern), "%s\\pigeon-crash-*.txt", directory);
+
+    WIN32_FIND_DATAA found = {};
+    HANDLE search = FindFirstFileA(pattern, &found);
+    if (search == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    u32 count = 0;
+    do {
+        count++;
+    } while (FindNextFileA(search, &found));
+    FindClose(search);
+
+    return count;
+}
+
+static FILE* g_crash_file;
+
+static void CrashPrint(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+
+    if (g_crash_file) {
+        va_start(args, format);
+        vfprintf(g_crash_file, format, args);
+        va_end(args);
+    }
+}
+
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* info) {
-    fprintf(stderr, "\n[crash] exception 0x%08lX at %p\n", info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress);
+    {
+        char directory[MAX_PATH];
+        CrashReportDirectory(directory, sizeof(directory));
+        CreateDirectoryA(directory, nullptr);
+
+        SYSTEMTIME now = {};
+        GetLocalTime(&now);
+        char report_path[MAX_PATH];
+        snprintf(report_path, sizeof(report_path), "%s\\pigeon-crash-%04u%02u%02u-%02u%02u%02u.txt", directory, now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+        g_crash_file = fopen(report_path, "wb");
+        fprintf(stderr, "\n[crash] writing %s\n", report_path);
+        if (g_crash_file) {
+            fprintf(g_crash_file, "pigeon crash report %04u-%02u-%02u %02u:%02u:%02u\n", now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+            if (g_crash_context[0]) {
+                fprintf(g_crash_file, "%s\n", g_crash_context);
+            }
+        }
+    }
+
+    CrashPrint("[crash] exception 0x%08lX at %p\n", info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress);
 
     ULONG_PTR stack_low = 0;
     ULONG_PTR stack_high = 0;
     GetCurrentThreadStackLimits(&stack_low, &stack_high);
     u64 module_base = (u64)GetModuleHandleA(nullptr);
-    fprintf(
-        stderr,
+    CrashPrint(
         "[crash] rip rva=0x%llX rsp=0x%llX stack=[0x%llX, 0x%llX) used=%llu KB%s\n",
         (unsigned long long)((u64)info->ExceptionRecord->ExceptionAddress - module_base),
         (unsigned long long)info->ContextRecord->Rsp,
@@ -343,7 +489,7 @@ static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* info) {
         info->ContextRecord->Rsp < stack_low ? "  <-- RSP BELOW STACK LIMIT" : ""
     );
     if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && info->ExceptionRecord->NumberParameters >= 2) {
-        fprintf(stderr, "[crash] %s address 0x%llX\n", info->ExceptionRecord->ExceptionInformation[0] ? "write to" : "read from", (unsigned long long)info->ExceptionRecord->ExceptionInformation[1]);
+        CrashPrint("[crash] %s address 0x%llX\n", info->ExceptionRecord->ExceptionInformation[0] ? "write to" : "read from", (unsigned long long)info->ExceptionRecord->ExceptionInformation[1]);
     }
 
     HANDLE process = GetCurrentProcess();
@@ -377,11 +523,23 @@ static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* info) {
         line.SizeOfStruct = sizeof(line);
         DWORD line_displacement = 0;
         if (SymGetLineFromAddr64(process, frame.AddrPC.Offset, &line_displacement, &line))
-            fprintf(stderr, "  %2u: %s  (%s:%lu)\n", depth, name, line.FileName, line.LineNumber);
+            CrashPrint("  %2u: %s  (%s:%lu)\n", depth, name, line.FileName, line.LineNumber);
         else
-            fprintf(stderr, "  %2u: %s\n", depth, name);
+            CrashPrint("  %2u: %s\n", depth, name);
     }
+
+    if (g_crash_file && LogHistoryCount() > 0) {
+        fprintf(g_crash_file, "\n[crash] last %u log lines:\n", LogHistoryCount());
+        for (u32 index = 0; index < LogHistoryCount(); index++) {
+            fprintf(g_crash_file, "  %s\n", LogHistoryLine(index));
+        }
+    }
+
     fflush(stderr);
+    if (g_crash_file) {
+        fclose(g_crash_file);
+        g_crash_file = nullptr;
+    }
 
     return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -472,12 +630,29 @@ Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
         SetPropW(window_handle, KRAFT_WINDOW_PROPERTY, State->PrimaryWindow);
         State->PrimaryWindow->PlatformWindowState->OriginalWindowProc = (WNDPROC)SetWindowLongPtrW(window_handle, GWLP_WNDPROC, (LONG_PTR)CustomFrameWindowProc);
         SetWindowPos(window_handle, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-        RECT client_rect;
-        RECT window_rect;
-        GetClientRect(window_handle, &client_rect);
-        GetWindowRect(window_handle, &window_rect);
-        int client_height_excess = (client_rect.bottom - client_rect.top) - (int)Opts->Height;
-        SetWindowPos(window_handle, nullptr, 0, 0, window_rect.right - window_rect.left, (window_rect.bottom - window_rect.top) - client_height_excess, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        if (IsZoomed(window_handle)) {
+            WINDOWPLACEMENT placement = {sizeof(placement)};
+            GetWindowPlacement(window_handle, &placement);
+            RECT frame = {};
+            AdjustWindowRectExForDpi(&frame, (DWORD)GetWindowLongW(window_handle, GWL_STYLE), FALSE, (DWORD)GetWindowLongW(window_handle, GWL_EXSTYLE), GetDpiForWindow(window_handle));
+            LONG restored_width = placement.rcNormalPosition.right - placement.rcNormalPosition.left;
+            LONG restored_height = (LONG)Opts->Height + frame.bottom;
+            MONITORINFO monitor = {sizeof(monitor)};
+            MONITORINFO primary = {sizeof(primary)};
+            GetMonitorInfoW(MonitorFromWindow(window_handle, MONITOR_DEFAULTTONEAREST), &monitor);
+            GetMonitorInfoW(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), &primary);
+            LONG left = monitor.rcWork.left + (monitor.rcWork.right - monitor.rcWork.left - restored_width) / 2 - (primary.rcWork.left - primary.rcMonitor.left);
+            LONG top = monitor.rcWork.top + (monitor.rcWork.bottom - monitor.rcWork.top - restored_height) / 2 - (primary.rcWork.top - primary.rcMonitor.top);
+            placement.rcNormalPosition = {left, top, left + restored_width, top + restored_height};
+            SetWindowPlacement(window_handle, &placement);
+        } else {
+            RECT client_rect;
+            RECT window_rect;
+            GetClientRect(window_handle, &client_rect);
+            GetWindowRect(window_handle, &window_rect);
+            int client_height_excess = (client_rect.bottom - client_rect.top) - (int)Opts->Height;
+            SetWindowPos(window_handle, nullptr, 0, 0, window_rect.right - window_rect.left, (window_rect.bottom - window_rect.top) - client_height_excess, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
         glfwGetWindowSize(State->PrimaryWindow->PlatformWindowHandle, &State->PrimaryWindow->Width, &State->PrimaryWindow->Height);
         glfwGetFramebufferSize(State->PrimaryWindow->PlatformWindowHandle, &State->PrimaryWindow->FramebufferWidth, &State->PrimaryWindow->FramebufferHeight);
     }
@@ -540,11 +715,10 @@ static HWND DialogOwnerWindow() {
 // shell uses everywhere else, so it gets the places bar, typing a path, and a usable size.
 bool Platform::OpenFolderDialog(ArenaAllocator* arena, const char* title, String8* out_path) {
     HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-    bool    uninitialize = initialized == S_OK || initialized == S_FALSE;
+    bool uninitialize = initialized == S_OK || initialized == S_FALSE;
 
     IFileOpenDialog* dialog = nullptr;
-    HRESULT          result = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
-                                               IID_PPV_ARGS(&dialog));
+    HRESULT result = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
     if (FAILED(result)) {
         if (uninitialize) {
             CoUninitialize();
@@ -557,8 +731,8 @@ bool Platform::OpenFolderDialog(ArenaAllocator* arena, const char* title, String
     dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR);
     if (title) {
         TempArena scratch = ScratchBegin(&arena, 1);
-        i32       length = MultiByteToWideChar(CP_UTF8, 0, title, -1, nullptr, 0);
-        wchar_t*  wide = ArenaPushArray(scratch.arena, wchar_t, length > 0 ? length : 1);
+        i32 length = MultiByteToWideChar(CP_UTF8, 0, title, -1, nullptr, 0);
+        wchar_t* wide = ArenaPushArray(scratch.arena, wchar_t, length > 0 ? length : 1);
         if (length > 0) {
             MultiByteToWideChar(CP_UTF8, 0, title, -1, wide, length);
             dialog->SetTitle(wide);
