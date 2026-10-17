@@ -47,6 +47,8 @@ KRAFT_API i64 AtomicCompareExchange64(volatile i64* target, i64 value, i64 compa
 KRAFT_API i64 AtomicLoad64(volatile i64* target);
 KRAFT_API void AtomicStore64(volatile i64* target, i64 value);
 
+KRAFT_API void* AtomicExchangePointer(void* volatile* target, void* value);
+
 KRAFT_API i32 AtomicIncrement32(volatile i32* target);
 KRAFT_API i32 AtomicDecrement32(volatile i32* target);
 KRAFT_API i32 AtomicExchange32(volatile i32* target, i32 value);

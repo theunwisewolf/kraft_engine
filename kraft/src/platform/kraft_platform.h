@@ -190,7 +190,9 @@ struct KRAFT_API Platform {
     static void DestroyPlatformWindow(struct Window* Window);
     static Window* GetWindow();
     static bool OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path); // filter: "JSON Files|*.json|All Files|*.*"
-    static bool SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path);
+
+    // `suggested_name` is the file name the dialog starts with
+    static bool SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path, String8 suggested_name = {});
     static bool OpenFolderDialog(ArenaAllocator* arena, const char* title, String8* out_path);
 #endif
 };

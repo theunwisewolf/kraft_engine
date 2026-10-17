@@ -21,7 +21,7 @@ struct FileSystemEntry {
         bool is_file;
     };
     bool is_directory;
-    u64  modified_time; // seconds since the epoch
+    u64 modified_time; // seconds since the epoch
 };
 
 struct Directory {
@@ -79,10 +79,10 @@ KRAFT_API bool ReadAllBytes(FileHandle* handle, u8** out_buffer, u64* bytes_read
 // Reads all data from the given file handle and returns a buffer allocated in the provided arena
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, FileHandle* handle);
 
-// Reads all data from the file at [`path`] and returns a buffer allocated in the provided arena
+// Reads all data from the file at `path` and returns a buffer allocated in the provided arena
 KRAFT_API buffer ReadAllBytes(ArenaAllocator* arena, String8 path);
 
-// Writes the provided [`buffer`] of [`size`] to the file [`handle`]
+// Writes the provided `buffer` of `size` to the file `handle`
 KRAFT_API bool WriteFile(FileHandle* handle, const u8* buffer, u64 size);
 
 // Returns the last modified time of the file in seconds since epoch
@@ -111,55 +111,67 @@ KRAFT_API bool RemoveFile(String8 path);
 // Deletes one directory, which has to be empty already
 KRAFT_API bool RemoveEmptyDirectory(String8 path);
 
+// Deletes a file, or a directory and everything in it
+KRAFT_API bool RemoveTree(String8 path);
+
+// Moves the given path
+// Fails if `to` exists, unless replace_existing is true
+KRAFT_API bool MovePath(String8 from, String8 to, bool replace_existing = false);
+
+// Moves the file or directory at `path` to the system's trash, from where the user can restore it
+KRAFT_API bool MoveToTrash(String8 path);
+
+enum FileReadStatus {
+    FILE_READ_STATUS_OK,
+    FILE_READ_STATUS_MISSING,
+    FILE_READ_STATUS_BUSY, // locked by another program
+};
+
+// Reads a file in its entirety
+// The output string is zero-terminated
+KRAFT_API FileReadStatus ReadEntireFile(ArenaAllocator* arena, String8 path, String8* out_contents);
+
 //
-// File watcher
+// Directory watch
 //
 
-enum FileWatchEventType {
-    FILE_WATCH_EVENT_MODIFIED,
-    FILE_WATCH_EVENT_CREATED,
-    FILE_WATCH_EVENT_DELETED,
-    FILE_WATCH_EVENT_RENAMED,
+// Watches a directory for changes on a background thread
+// The paths of the files that changed are collected until DirectoryWatchTakeChanges is called
+struct DirectoryWatch;
+
+// Called on the watch thread for every changed path; return true to drop the path
+// It runs without a thread context, so it can't log
+typedef bool DirectoryWatchIgnore(String8 relative_path);
+
+// Called on the watch thread when new changes arrive, to wake up a main loop that is waiting for events
+// It runs without a thread context, so it can't log
+typedef void DirectoryWatchWake();
+
+struct DirectoryWatchChanges {
+    String8* paths; // relative to the watched directory, with forward slashes; a path can appear more than once
+    u32 path_count;
+    bool overflowed; // more changes arrived than could be recorded, so `paths` is incomplete
+    bool lost; // the directory was deleted or can no longer be read, and the watch has stopped
 };
 
-struct FileWatchEvent {
-    FileWatchEventType type;
-    String8 file_path;
-    String8 directory;
-};
+// Starts watching the directory at `path`, and every directory inside it if `recursive` is true
+// `ignore` and `wake` are optional; returns null if the directory can't be watched
+KRAFT_API DirectoryWatch* DirectoryWatchStart(String8 path, bool recursive, DirectoryWatchIgnore* ignore, DirectoryWatchWake* wake);
 
-typedef void (*FileWatchCallback)(FileWatchEvent event, void* userdata);
+// Stops the watch and frees it
+KRAFT_API void DirectoryWatchStop(DirectoryWatch* watch);
 
-struct FileWatchEntry {
-    String8 directory;
-    FileWatchCallback callback;
-    void* userdata;
-    bool recursive;
-    void* platform_data;
-};
+// Returns true if there are changes waiting to be taken
+// `out_seconds_since_last` and `out_seconds_since_first` are the time since the newest and the oldest of them, so the
+// caller can wait for a burst of changes (like a git pull) to settle before taking them
+KRAFT_API bool DirectoryWatchHasChanges(DirectoryWatch* watch, f64* out_seconds_since_last, f64* out_seconds_since_first);
 
-#define FILE_WATCHER_MAX_WATCHES 16
+// Returns every change collected since the last call, copied into the provided arena, and clears them from the watch
+KRAFT_API DirectoryWatchChanges DirectoryWatchTakeChanges(DirectoryWatch* watch, ArenaAllocator* arena);
 
-struct FileWatcherState {
-    ArenaAllocator* arena;
-    FileWatchEntry watches[FILE_WATCHER_MAX_WATCHES];
-    u32 watch_count;
-};
-
-struct KRAFT_API FileWatcher {
-    static bool Init(ArenaAllocator* arena);
-    static void Shutdown();
-
-    // Start watching a directory for changes
-    // Returns the watch index, or -1 on failure
-    static i32 WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata);
-
-    // Stop watching a directory
-    static void UnwatchDirectory(i32 watch_index);
-
-    // Poll for changes and dispatch callbacks
-    static void ProcessChanges();
-};
+// Puts paths back into the watch, so the next DirectoryWatchTakeChanges returns them again
+// Useful for a file another program was still writing when it was read
+KRAFT_API void DirectoryWatchPutBack(DirectoryWatch* watch, String8* paths, u32 path_count);
 
 } // namespace fs
 

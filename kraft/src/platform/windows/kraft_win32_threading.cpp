@@ -170,6 +170,10 @@ void AtomicStore64(volatile i64* target, i64 value) {
     _InterlockedExchange64((volatile __int64*)target, (__int64)value);
 }
 
+void* AtomicExchangePointer(void* volatile* target, void* value) {
+    return _InterlockedExchangePointer(target, value);
+}
+
 i32 AtomicIncrement32(volatile i32* target) {
     return (i32)_InterlockedIncrement((volatile long*)target);
 }

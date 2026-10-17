@@ -1,11 +1,25 @@
 #include <platform/kraft_filesystem.h>
+#include <platform/kraft_filesystem_internal.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <shellapi.h>
 
 #include <core/kraft_core_includes.h>
 
+#pragma comment(lib, "shell32")
+
 namespace kraft::fs {
+
+static WCHAR* Win32WidePath(ArenaAllocator* arena, String8 path) {
+    i32 wide_count = MultiByteToWideChar(CP_UTF8, 0, (const char*)path.ptr, (i32)path.count, nullptr, 0);
+
+    // Double zero-terminated, as SHFileOperation wants
+    WCHAR* wide = ArenaPushArray(arena, WCHAR, (u64)wide_count + 2);
+    MultiByteToWideChar(CP_UTF8, 0, (const char*)path.ptr, (i32)path.count, wide, wide_count);
+
+    return wide;
+}
 
 // FileMMapHandle MMap(const String& Path) {
 //     HANDLE File = CreateFileA(*Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -79,8 +93,227 @@ KRAFT_API bool RemoveFile(String8 path) {
     }
 
     DWORD error = GetLastError();
+    // Read-only files too, as on other systems
+    if (error == ERROR_ACCESS_DENIED && SetFileAttributesA((char*)path.ptr, FILE_ATTRIBUTE_NORMAL)) {
+        if (DeleteFileA((char*)path.ptr)) {
+            return true;
+        }
+
+        error = GetLastError();
+    }
 
     return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+}
+
+KRAFT_API bool MovePath(String8 from, String8 to, bool replace_existing) {
+    TempArena scratch = ScratchBegin(0, 0);
+    bool moved = MoveFileExW(Win32WidePath(scratch.arena, from), Win32WidePath(scratch.arena, to), replace_existing ? MOVEFILE_REPLACE_EXISTING : 0) != 0;
+    ScratchEnd(scratch);
+
+    return moved;
+}
+
+KRAFT_API bool MoveToTrash(String8 path) {
+    TempArena scratch = ScratchBegin(0, 0);
+    String8 native = ArenaPushString8Copy(scratch.arena, path);
+    for (u64 index = 0; index < native.count; index++) {
+        if (native.ptr[index] == '/') {
+            native.ptr[index] = '\\';
+        }
+    }
+
+    SHFILEOPSTRUCTW operation = {};
+    operation.wFunc = FO_DELETE;
+    operation.pFrom = Win32WidePath(scratch.arena, native);
+    operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+    bool trashed = SHFileOperationW(&operation) == 0 && !operation.fAnyOperationsAborted;
+    ScratchEnd(scratch);
+
+    return trashed;
+}
+
+KRAFT_API FileReadStatus ReadEntireFile(ArenaAllocator* arena, String8 path, String8* out_contents) {
+    *out_contents = String8{};
+    TempArena scratch = ScratchBegin(&arena, 1);
+    HANDLE file = CreateFileW(Win32WidePath(scratch.arena, path), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+    ScratchEnd(scratch);
+    if (file == INVALID_HANDLE_VALUE) {
+        DWORD error = GetLastError();
+        return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND ? FILE_READ_STATUS_MISSING : FILE_READ_STATUS_BUSY;
+    }
+
+    LARGE_INTEGER size = {};
+    if (!GetFileSizeEx(file, &size) || size.QuadPart < 0 || size.QuadPart > 0x7FFFFFFF) {
+        CloseHandle(file);
+        return FILE_READ_STATUS_BUSY;
+    }
+
+    u64 capacity = (u64)size.QuadPart;
+    u8* bytes = ArenaPushArrayNoZero(arena, u8, capacity + 1);
+    u64 total = 0;
+    while (total < capacity) {
+        DWORD got = 0;
+        if (!::ReadFile(file, bytes + total, (DWORD)(capacity - total), &got, nullptr) || got == 0) {
+            break;
+        }
+        total += got;
+    }
+    CloseHandle(file);
+    bytes[total] = 0;
+    *out_contents = String8FromPtrAndLength(bytes, total);
+
+    return FILE_READ_STATUS_OK;
+}
+
+//
+// Directory watch
+//
+
+#define KRAFT_WIN32_WATCH_NOTIFY_BYTES KRAFT_SIZE_KB(256)
+#define KRAFT_WIN32_WATCH_NAME_BYTES KRAFT_SIZE_KB(96)
+
+struct Win32DirectoryWatch {
+    HANDLE directory;
+    HANDLE stop;
+    HANDLE arrived;
+    Thread thread;
+    u8* notify;
+    u8* name;
+};
+
+static void Win32DirectoryWatchCollect(DirectoryWatch* watch, Win32DirectoryWatch* platform, DWORD bytes) {
+    FILE_NOTIFY_INFORMATION* record = (FILE_NOTIFY_INFORMATION*)platform->notify;
+    for (;;) {
+        i32 length = WideCharToMultiByte(CP_UTF8, 0, record->FileName, (i32)(record->FileNameLength / sizeof(WCHAR)), (char*)platform->name, KRAFT_WIN32_WATCH_NAME_BYTES, nullptr, nullptr);
+        if (length <= 0) {
+            watch->overflowed = true;
+        } else {
+            for (i32 index = 0; index < length; index++) {
+                if (platform->name[index] == '\\') {
+                    platform->name[index] = '/';
+                }
+            }
+            String8 relative_path = String8FromPtrAndLength(platform->name, (u64)length);
+            if (!watch->ignore || !watch->ignore(relative_path)) {
+                DirectoryWatchPush(watch, relative_path);
+            }
+        }
+
+        if (record->NextEntryOffset == 0 || (u8*)record + record->NextEntryOffset >= platform->notify + bytes) {
+            break;
+        }
+
+        record = (FILE_NOTIFY_INFORMATION*)((u8*)record + record->NextEntryOffset);
+    }
+}
+
+static KRAFT_THREAD_ENTRY(Win32DirectoryWatchThread) {
+    DirectoryWatch* watch = (DirectoryWatch*)user_data;
+    Win32DirectoryWatch* platform = (Win32DirectoryWatch*)watch->platform;
+    DWORD filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_SIZE;
+    for (;;) {
+        OVERLAPPED overlapped = {};
+        overlapped.hEvent = platform->arrived;
+        bool started = ReadDirectoryChangesW(platform->directory, platform->notify, KRAFT_WIN32_WATCH_NOTIFY_BYTES, watch->recursive, filter, nullptr, &overlapped, nullptr);
+
+        DWORD bytes = 0;
+        bool read = false;
+        DWORD error = 0;
+        if (started) {
+            HANDLE handles[2] = {platform->stop, platform->arrived};
+            DWORD woke = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+            if (woke == WAIT_OBJECT_0) {
+                CancelIoEx(platform->directory, &overlapped);
+                GetOverlappedResult(platform->directory, &overlapped, &bytes, TRUE);
+                return;
+            }
+            read = GetOverlappedResult(platform->directory, &overlapped, &bytes, FALSE);
+            error = read ? 0 : GetLastError();
+        } else {
+            error = GetLastError();
+        }
+
+        MutexLock(&watch->lock);
+        bool was_pending = DirectoryWatchHasPending(watch);
+        u64 used_before = watch->queue_used;
+        bool overflowed_before = watch->overflowed;
+        bool give_up = false;
+        if (read && bytes > 0) {
+            Win32DirectoryWatchCollect(watch, platform, bytes);
+        } else if (read || error == ERROR_NOTIFY_ENUM_DIR) {
+            // The system's buffer overflowed
+            watch->overflowed = true;
+        } else {
+            watch->lost = true;
+            give_up = true;
+        }
+
+        bool arrived = give_up || watch->queue_used != used_before || watch->overflowed != overflowed_before;
+        if (arrived) {
+            DirectoryWatchStamp(watch, was_pending);
+        }
+        MutexUnlock(&watch->lock);
+
+        if (arrived && watch->wake) {
+            watch->wake();
+        }
+
+        if (give_up) {
+            return;
+        }
+    }
+}
+
+KRAFT_API DirectoryWatch* DirectoryWatchStart(String8 path, bool recursive, DirectoryWatchIgnore* ignore, DirectoryWatchWake* wake) {
+    TempArena scratch = ScratchBegin(0, 0);
+    HANDLE directory = CreateFileW(
+        Win32WidePath(scratch.arena, path),
+        FILE_LIST_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+        nullptr
+    );
+
+    ScratchEnd(scratch);
+    if (directory == INVALID_HANDLE_VALUE) {
+        KWARN("[DirectoryWatch]: cannot watch %S (error %lu)", path, (unsigned long)GetLastError());
+        return nullptr;
+    }
+
+    DirectoryWatch* watch = DirectoryWatchCreate(recursive, ignore, wake);
+    Win32DirectoryWatch* platform = ArenaPush(watch->arena, Win32DirectoryWatch);
+    platform->directory = directory;
+    platform->notify = (u8*)ArenaPushArrayAligned(watch->arena, DWORD, KRAFT_WIN32_WATCH_NOTIFY_BYTES / sizeof(DWORD));
+    platform->name = ArenaPushArray(watch->arena, u8, KRAFT_WIN32_WATCH_NAME_BYTES);
+    platform->stop = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    platform->arrived = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    watch->platform = platform;
+    platform->thread = ThreadLaunch(Win32DirectoryWatchThread, watch, String8Raw("directory watch"));
+    if (!platform->thread.handle) {
+        CloseHandle(platform->stop);
+        CloseHandle(platform->arrived);
+        CloseHandle(directory);
+        DirectoryWatchDestroy(watch);
+        return nullptr;
+    }
+
+    return watch;
+}
+
+KRAFT_API void DirectoryWatchStop(DirectoryWatch* watch) {
+    if (!watch) {
+        return;
+    }
+
+    Win32DirectoryWatch* platform = (Win32DirectoryWatch*)watch->platform;
+    SetEvent(platform->stop);
+    ThreadJoin(platform->thread);
+    CloseHandle(platform->stop);
+    CloseHandle(platform->arrived);
+    CloseHandle(platform->directory);
+    DirectoryWatchDestroy(watch);
 }
 
 KRAFT_API bool RemoveEmptyDirectory(String8 path) {

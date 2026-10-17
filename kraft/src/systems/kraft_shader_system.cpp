@@ -24,7 +24,7 @@ void ShaderSystem::Init(u32 max_shader_count) {
     shader_system_state->current_shader = nullptr;
     shader_system_state->active_variant_name = {};
     shader_system_state->active_variant_index = -1;
-    shader_system_state->watch_index = -1;
+    shader_system_state->watch = nullptr;
 
     // Load the default shader
     // KASSERT(AcquireShader("res/shaders/basic.kfx.bkfx", Handle<RenderPass>::Invalid()));
@@ -33,6 +33,8 @@ void ShaderSystem::Init(u32 max_shader_count) {
 }
 
 void ShaderSystem::Shutdown() {
+    fs::DirectoryWatchStop(shader_system_state->watch);
+
     // Free the default shader
     ReleaseShaderInternal(0);
 
@@ -199,19 +201,13 @@ void ShaderSystem::ReloadAllShaders() {
     }
 }
 
-static void OnShaderFileChanged(fs::FileWatchEvent event, void* userdata) {
-    if (event.type != fs::FILE_WATCH_EVENT_MODIFIED)
-        return;
-
-    if (!StringEndsWith(event.file_path, String8Raw(".kfx")))
-        return;
-
-    KINFO("[ShaderSystem]: Detected change in '%S', recompiling...", event.file_path);
+static void RecompileShaderFile(String8 file_path) {
+    KINFO("[ShaderSystem]: Detected change in '%S', recompiling...", file_path);
 
     TempArena scratch = ScratchBegin(&shader_system_state->arena, 1);
 
 #ifdef KRAFT_PLATFORM_WINDOWS
-    String8 cmd_args = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, event.file_path);
+    String8 cmd_args = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, file_path);
 
     STARTUPINFOA si = {};
     si.cb = sizeof(si);
@@ -241,23 +237,23 @@ static void OnShaderFileChanged(fs::FileWatchEvent event, void* userdata) {
     CloseHandle(pi.hThread);
 
     if (exit_code != 0) {
-        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", event.file_path, exit_code);
+        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", file_path, exit_code);
         ScratchEnd(scratch);
         return;
     }
 #else
-    String8 cmd = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, event.file_path);
+    String8 cmd = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, file_path);
     int exit_code = system((const char*)cmd.ptr);
     if (exit_code != 0) {
-        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", event.file_path, exit_code);
+        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", file_path, exit_code);
         ScratchEnd(scratch);
         return;
     }
 #endif
 
-    KSUCCESS("[ShaderSystem]: Recompiled '%S'", event.file_path);
+    KSUCCESS("[ShaderSystem]: Recompiled '%S'", file_path);
 
-    String8 clean_path = fs::CleanPath(scratch.arena, event.file_path);
+    String8 clean_path = fs::CleanPath(scratch.arena, file_path);
     for (u32 i = 0; i < shader_system_state->max_shader_count; i++) {
         ShaderReference* ref = &shader_system_state->shaders[i];
         if (ref->ref_count > 0 && StringEndsWith(ref->shader.ShaderEffect.resource_path, clean_path)) {
@@ -274,14 +270,37 @@ void ShaderSystem::EnableHotReload(ArenaAllocator* arena, String8 shader_compile
 
     KINFO("Shader Hot-Reload is enabled\nShader compiler: %S", absolute_path);
 
-    fs::FileWatcher::Init(shader_system_state->arena);
-    shader_system_state->watch_index = fs::FileWatcher::WatchDirectory(watch_directory, true, OnShaderFileChanged, nullptr);
+    shader_system_state->watch_directory = ArenaPushString8Copy(shader_system_state->arena, watch_directory);
+    shader_system_state->watch = fs::DirectoryWatchStart(watch_directory, true, nullptr, nullptr);
 }
 
 void ShaderSystem::ProcessHotReload() {
-    if (shader_system_state->watch_index >= 0) {
-        fs::FileWatcher::ProcessChanges();
+    // Editors often write a file more than once when saving, so wait for the changes to settle
+    f64 seconds_since_last = 0.0;
+    f64 seconds_since_first = 0.0;
+    if (!fs::DirectoryWatchHasChanges(shader_system_state->watch, &seconds_since_last, &seconds_since_first) || seconds_since_last < 0.1) {
+        return;
     }
+
+    TempArena scratch = ScratchBegin(&shader_system_state->arena, 1);
+    fs::DirectoryWatchChanges changes = fs::DirectoryWatchTakeChanges(shader_system_state->watch, scratch.arena);
+    for (u32 i = 0; i < changes.path_count; i++) {
+        if (!StringEndsWith(changes.paths[i], String8Raw(".kfx"))) {
+            continue;
+        }
+
+        bool repeated = false;
+        for (u32 j = 0; j < i && !repeated; j++) {
+            repeated = StringEqual(changes.paths[j], changes.paths[i]);
+        }
+
+        String8 file_path = fs::PathJoin(scratch.arena, shader_system_state->watch_directory, changes.paths[i]);
+        if (!repeated && fs::FileExists(file_path)) {
+            RecompileShaderFile(file_path);
+        }
+    }
+
+    ScratchEnd(scratch);
 }
 
 static void ReleaseShaderInternal(u32 index) {

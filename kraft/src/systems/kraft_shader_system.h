@@ -4,6 +4,10 @@
 
 namespace kraft {
 
+namespace fs {
+struct DirectoryWatch;
+}
+
 namespace r {
 template<typename>
 struct Handle;
@@ -39,8 +43,9 @@ struct ShaderSystemState
     i32     active_variant_index; // Cached index for the current shader, -1 if not resolved
 
     // Hot-reload
-    String8 shader_compiler_path;
-    i32     watch_index;
+    String8             shader_compiler_path;
+    String8             watch_directory;
+    fs::DirectoryWatch* watch;
 };
 
 struct ShaderSystem

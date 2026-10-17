@@ -783,10 +783,13 @@ bool Platform::OpenFileDialog(ArenaAllocator* arena, const char* filter, String8
     return ok;
 }
 
-bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path) {
+bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path, String8 suggested_name) {
     TempArena scratch = ScratchBegin(&arena, 1);
     wchar_t path_buffer[2048];
     path_buffer[0] = 0;
+    if (suggested_name.count > 0) {
+        lstrcpynW(path_buffer, DialogPushWide(scratch.arena, (const char*)ArenaPushString8Copy(scratch.arena, suggested_name).ptr), (int)KRAFT_C_ARRAY_SIZE(path_buffer));
+    }
 
     OPENFILENAMEW dialog = {};
     dialog.lStructSize = sizeof(dialog);
@@ -795,7 +798,7 @@ bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const c
     dialog.lpstrFile = path_buffer;
     dialog.nMaxFile = (DWORD)KRAFT_C_ARRAY_SIZE(path_buffer);
     dialog.lpstrDefExt = default_extension ? DialogPushWide(scratch.arena, default_extension) : nullptr;
-    dialog.Flags = OFN_NOCHANGEDIR | OFN_OVERWRITEPROMPT;
+    dialog.Flags = OFN_NOCHANGEDIR | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
 
     bool ok = GetSaveFileNameW(&dialog) != 0;
     if (ok)

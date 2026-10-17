@@ -1,4 +1,6 @@
 #include "kraft_filesystem.h"
+#include "kraft_filesystem_internal.h"
+#include "kraft_platform.h"
 
 #include <cerrno>
 #include <climits>
@@ -355,194 +357,147 @@ String8 AbsolutePath(ArenaAllocator* arena, String8 path) {
     return result;
 }
 
+bool RemoveTree(String8 path) {
+    if (!DirectoryExists(path)) {
+        return RemoveFile(path);
+    }
+
+    TempArena scratch = ScratchBegin(0, 0);
+    Directory listing = ReadDirEntries(scratch.arena, path);
+
+    bool removed = true;
+    for (u32 index = 0; index < listing.entry_count; index++) {
+        String8 child = StringFormat(scratch.arena, "%S/%S", path, listing.entries[index].name);
+        removed = (listing.entries[index].is_directory ? RemoveTree(child) : RemoveFile(child)) && removed;
+    }
+
+    removed = removed && RemoveEmptyDirectory(path);
+    ScratchEnd(scratch);
+
+    return removed;
+}
+
 } // namespace fs
 
 //
-// File Watcher
+// Directory watch
 //
 
 namespace fs {
 
-static FileWatcherState* file_watcher_state = nullptr;
+#define KRAFT_DIRECTORY_WATCH_QUEUE_BYTES KRAFT_SIZE_MB(1)
 
-bool FileWatcher::Init(ArenaAllocator* arena) {
-    file_watcher_state = ArenaPush(arena, FileWatcherState);
-    file_watcher_state->arena = arena;
-    file_watcher_state->watch_count = 0;
+DirectoryWatch* DirectoryWatchCreate(bool recursive, DirectoryWatchIgnore* ignore, DirectoryWatchWake* wake) {
+    ArenaAllocator* arena = ArenaAlloc();
+    DirectoryWatch* watch = ArenaPush(arena, DirectoryWatch);
+    watch->arena = arena;
+    watch->recursive = recursive;
+    watch->ignore = ignore;
+    watch->wake = wake;
+    watch->queue = ArenaPushArrayNoZero(arena, u8, KRAFT_DIRECTORY_WATCH_QUEUE_BYTES);
+    MutexCreate(&watch->lock);
 
-    return true;
+    return watch;
 }
 
-void FileWatcher::Shutdown() {
-    for (u32 i = 0; i < file_watcher_state->watch_count; i++) {
-        UnwatchDirectory(i);
-    }
-
-    file_watcher_state = nullptr;
+void DirectoryWatchDestroy(DirectoryWatch* watch) {
+    MutexDestroy(&watch->lock);
+    DestroyArena(watch->arena);
 }
 
-#if defined(KRAFT_PLATFORM_WINDOWS)
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <Windows.h>
-
-struct Win32WatchData {
-    HANDLE directory_handle;
-    OVERLAPPED overlapped;
-    u8 buffer[4096];
-    bool active;
-};
-
-i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata) {
-    if (file_watcher_state->watch_count >= FILE_WATCHER_MAX_WATCHES) {
-        KERROR("[FileWatcher]: Max watches reached (%d)", FILE_WATCHER_MAX_WATCHES);
-        return -1;
-    }
-
-    i32 index = file_watcher_state->watch_count;
-    FileWatchEntry* entry = &file_watcher_state->watches[index];
-    Win32WatchData* watch_data = ArenaPush(file_watcher_state->arena, Win32WatchData);
-
-    HANDLE dir_handle =
-        CreateFileA(directory.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
-
-    if (dir_handle == INVALID_HANDLE_VALUE) {
-        KERROR("[FileWatcher]: Failed to open directory '%S' (error: %d)", directory, GetLastError());
-        return -1;
-    }
-
-    watch_data->directory_handle = dir_handle;
-    watch_data->active = true;
-    MemZero(&watch_data->overlapped, sizeof(OVERLAPPED));
-
-    BOOL success = ReadDirectoryChangesW(
-        dir_handle,
-        watch_data->buffer,
-        sizeof(watch_data->buffer),
-        recursive ? TRUE : FALSE,
-        FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_CREATION,
-        NULL,
-        &watch_data->overlapped,
-        NULL
-    );
-
-    if (!success) {
-        KERROR("[FileWatcher]: ReadDirectoryChangesW failed (error: %d)", GetLastError());
-        CloseHandle(dir_handle);
-        return -1;
-    }
-
-    entry->directory = directory;
-    entry->callback = callback;
-    entry->userdata = userdata;
-    entry->recursive = recursive;
-    entry->platform_data = watch_data;
-
-    file_watcher_state->watch_count++;
-
-    KINFO("[FileWatcher]: Watching '%S'", directory);
-    return index;
+bool DirectoryWatchHasPending(DirectoryWatch* watch) {
+    return watch->queue_used > 0 || watch->overflowed || (watch->lost && !watch->lost_told);
 }
 
-void FileWatcher::UnwatchDirectory(i32 watch_index) {
-    if (watch_index < 0 || watch_index >= (i32)file_watcher_state->watch_count)
+void DirectoryWatchStamp(DirectoryWatch* watch, bool was_pending) {
+    f64 now = Platform::GetAbsoluteTime();
+    if (!was_pending) {
+        watch->first_time = now;
+    }
+
+    watch->last_time = now;
+}
+
+void DirectoryWatchPush(DirectoryWatch* watch, String8 relative_path) {
+    if (watch->queue_used + sizeof(u32) + relative_path.count > KRAFT_DIRECTORY_WATCH_QUEUE_BYTES) {
+        watch->overflowed = true;
         return;
-
-    FileWatchEntry* entry = &file_watcher_state->watches[watch_index];
-    Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
-
-    if (watch_data && watch_data->active) {
-        CancelIo(watch_data->directory_handle);
-        CloseHandle(watch_data->directory_handle);
-        watch_data->active = false;
     }
+
+    u32 length = (u32)relative_path.count;
+    MemCpy(watch->queue + watch->queue_used, &length, sizeof(u32));
+    MemCpy(watch->queue + watch->queue_used + sizeof(u32), relative_path.ptr, length);
+    watch->queue_used += sizeof(u32) + length;
 }
 
-void FileWatcher::ProcessChanges() {
-    if (!file_watcher_state)
+bool DirectoryWatchHasChanges(DirectoryWatch* watch, f64* out_seconds_since_last, f64* out_seconds_since_first) {
+    if (!watch) {
+        return false;
+    }
+
+    MutexLock(&watch->lock);
+    bool pending = DirectoryWatchHasPending(watch);
+    f64 first_time = watch->first_time;
+    f64 last_time = watch->last_time;
+    MutexUnlock(&watch->lock);
+    if (pending) {
+        f64 now = Platform::GetAbsoluteTime();
+        *out_seconds_since_last = now - last_time;
+        *out_seconds_since_first = now - first_time;
+    }
+
+    return pending;
+}
+
+DirectoryWatchChanges DirectoryWatchTakeChanges(DirectoryWatch* watch, ArenaAllocator* arena) {
+    DirectoryWatchChanges changes = {};
+    if (!watch) {
+        return changes;
+    }
+
+    MutexLock(&watch->lock);
+    u32 count = 0;
+    for (u64 at = 0; at < watch->queue_used;) {
+        u32 length = 0;
+        MemCpy(&length, watch->queue + at, sizeof(u32));
+        at += sizeof(u32) + length;
+        count++;
+    }
+
+    changes.paths = count > 0 ? ArenaPushArray(arena, String8, count) : nullptr;
+    for (u64 at = 0; at < watch->queue_used;) {
+        u32 length = 0;
+        MemCpy(&length, watch->queue + at, sizeof(u32));
+        String8 path = ArenaPushString8Empty(arena, length);
+        MemCpy(path.ptr, watch->queue + at + sizeof(u32), length);
+        changes.paths[changes.path_count++] = path;
+        at += sizeof(u32) + length;
+    }
+
+    changes.overflowed = watch->overflowed;
+    changes.lost = watch->lost && !watch->lost_told;
+    watch->lost_told = watch->lost;
+    watch->queue_used = 0;
+    watch->overflowed = false;
+    MutexUnlock(&watch->lock);
+
+    return changes;
+}
+
+void DirectoryWatchPutBack(DirectoryWatch* watch, String8* paths, u32 path_count) {
+    if (!watch || path_count == 0) {
         return;
-
-    TempArena scratch = ScratchBegin(&file_watcher_state->arena, 1);
-
-    for (u32 i = 0; i < file_watcher_state->watch_count; i++) {
-        FileWatchEntry* entry = &file_watcher_state->watches[i];
-        Win32WatchData* watch_data = (Win32WatchData*)entry->platform_data;
-        if (!watch_data || !watch_data->active)
-            continue;
-
-        DWORD bytes_transferred = 0;
-        BOOL result = GetOverlappedResult(watch_data->directory_handle, &watch_data->overlapped, &bytes_transferred, FALSE);
-
-        if (!result || bytes_transferred == 0)
-            continue;
-
-        // Process the notification buffer
-        FILE_NOTIFY_INFORMATION* notify = (FILE_NOTIFY_INFORMATION*)watch_data->buffer;
-        for (;;) {
-            // Convert wide filename to UTF-8
-            int utf8_len = WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), NULL, 0, NULL, NULL);
-            char* utf8_name = ArenaPushArray(scratch.arena, char, utf8_len + 1);
-            WideCharToMultiByte(CP_UTF8, 0, notify->FileName, notify->FileNameLength / sizeof(WCHAR), utf8_name, utf8_len, NULL, NULL);
-            utf8_name[utf8_len] = 0;
-
-            String8 relative_path = String8FromPtrAndLength((u8*)utf8_name, utf8_len);
-            String8 full_path = PathJoin(scratch.arena, entry->directory, relative_path);
-
-            FileWatchEventType event_type;
-            switch (notify->Action) {
-            case FILE_ACTION_MODIFIED:         event_type = FILE_WATCH_EVENT_MODIFIED; break;
-            case FILE_ACTION_ADDED:            event_type = FILE_WATCH_EVENT_CREATED; break;
-            case FILE_ACTION_REMOVED:          event_type = FILE_WATCH_EVENT_DELETED; break;
-            case FILE_ACTION_RENAMED_OLD_NAME:
-            case FILE_ACTION_RENAMED_NEW_NAME: event_type = FILE_WATCH_EVENT_RENAMED; break;
-            default:                           event_type = FILE_WATCH_EVENT_MODIFIED; break;
-            }
-
-            FileWatchEvent event = {};
-            event.type = event_type;
-            event.file_path = full_path;
-            event.directory = entry->directory;
-
-            entry->callback(event, entry->userdata);
-
-            if (notify->NextEntryOffset == 0)
-                break;
-
-            notify = (FILE_NOTIFY_INFORMATION*)((u8*)notify + notify->NextEntryOffset);
-        }
-
-        // Re-arm the watch
-        MemZero(&watch_data->overlapped, sizeof(OVERLAPPED));
-        ReadDirectoryChangesW(
-            watch_data->directory_handle,
-            watch_data->buffer,
-            sizeof(watch_data->buffer),
-            entry->recursive ? TRUE : FALSE,
-            FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_CREATION,
-            NULL,
-            &watch_data->overlapped,
-            NULL
-        );
     }
 
-    ScratchEnd(scratch);
+    MutexLock(&watch->lock);
+    bool was_pending = DirectoryWatchHasPending(watch);
+    for (u32 index = 0; index < path_count; index++) {
+        DirectoryWatchPush(watch, paths[index]);
+    }
+
+    DirectoryWatchStamp(watch, was_pending);
+    MutexUnlock(&watch->lock);
 }
-
-#else
-
-// TODO (amn):
-// Stub implementations for other platforms
-i32 FileWatcher::WatchDirectory(String8 directory, bool recursive, FileWatchCallback callback, void* userdata) {
-    return -1;
-}
-
-void FileWatcher::UnwatchDirectory(i32 watch_index) {}
-
-void FileWatcher::ProcessChanges() {}
-
-#endif
 
 } // namespace fs
 
