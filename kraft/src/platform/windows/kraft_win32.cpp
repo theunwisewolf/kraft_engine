@@ -290,6 +290,28 @@ bool Platform::RandomBytes(void* Out, u64 Count) {
     return true;
 }
 
+bool Platform::VerifyEcdsaP256(const u8* public_key, const u8* digest, const u8* signature) {
+    u8 key_blob[sizeof(BCRYPT_ECCKEY_BLOB) + 64];
+    BCRYPT_ECCKEY_BLOB* key_header = (BCRYPT_ECCKEY_BLOB*)key_blob;
+    key_header->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
+    key_header->cbKey = 32;
+    MemCpy(key_blob + sizeof(BCRYPT_ECCKEY_BLOB), public_key, 64);
+
+    BCRYPT_ALG_HANDLE algorithm = nullptr;
+    BCRYPT_KEY_HANDLE key = nullptr;
+    bool valid = false;
+    if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_ECDSA_P256_ALGORITHM, nullptr, 0) == 0) {
+        if (BCryptImportKeyPair(algorithm, nullptr, BCRYPT_ECCPUBLIC_BLOB, &key, key_blob, sizeof(key_blob), 0) == 0) {
+            valid = BCryptVerifySignature(key, nullptr, (PUCHAR)digest, 32, (PUCHAR)signature, 64, 0) == 0;
+            BCryptDestroyKey(key);
+        }
+
+        BCryptCloseAlgorithmProvider(algorithm, 0);
+    }
+
+    return valid;
+}
+
 u64 Platform::TimeNowNS() {
     FILETIME ft;
     ULARGE_INTEGER uli;
@@ -352,15 +374,32 @@ const char* Platform::GetEnv(const char* Key) {
     return getenv(Key);
 }
 
-String8 Platform::ExecutableDirectory(ArenaAllocator* arena) {
-    char module_path[MAX_PATH];
-    DWORD length = GetModuleFileNameA(nullptr, module_path, (DWORD)sizeof(module_path));
-    while (length > 0 && module_path[length - 1] != '\\' && module_path[length - 1] != '/')
-        length--;
-    if (length > 0)
-        length--;
+String8 Platform::ExecutablePath(ArenaAllocator* arena) {
+    WCHAR module_path[4096];
+    DWORD length = GetModuleFileNameW(nullptr, module_path, (DWORD)KRAFT_C_ARRAY_SIZE(module_path));
+    if (length == 0 || length >= KRAFT_C_ARRAY_SIZE(module_path)) {
+        return String8{};
+    }
 
-    return StringCopy(arena, String8{{(u8*)module_path}, (u64)length});
+    i32 bytes = WideCharToMultiByte(CP_UTF8, 0, module_path, (i32)length, nullptr, 0, nullptr, nullptr);
+    String8 path = ArenaPushString8Empty(arena, (u64)bytes);
+    WideCharToMultiByte(CP_UTF8, 0, module_path, (i32)length, (char*)path.ptr, bytes, nullptr, nullptr);
+
+    return path;
+}
+
+String8 Platform::ExecutableDirectory(ArenaAllocator* arena) {
+    String8 path = ExecutablePath(arena);
+    u64 length = path.count;
+    while (length > 0 && path.ptr[length - 1] != '\\' && path.ptr[length - 1] != '/') {
+        length--;
+    }
+
+    if (length > 0) {
+        length--;
+    }
+
+    return StringCopy(arena, String8{{path.ptr}, length});
 }
 
 u64 Platform::ProcessMemoryBytes() {

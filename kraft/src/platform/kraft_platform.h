@@ -174,10 +174,17 @@ struct KRAFT_API Platform {
     // Returns false on failure
     static bool RandomBytes(void* Out, u64 Count);
 
+    // Returns true when `signature` was made over `digest` with the private half of the P-256 key `public_key`
+    // `public_key` is the key's x then y and `signature` is r then s, 32 bytes each; `digest` is the 32-byte SHA-256 of what was signed
+    static bool VerifyEcdsaP256(const u8* public_key, const u8* digest, const u8* signature);
+
     // Misc
     static void SleepMilliseconds(u64 Milliseconds);
     static const char* GetKeyName(Keys key);
     static const char* GetEnv(const char* Key);
+
+    // Returns the full path of this program's executable
+    static String8 ExecutablePath(ArenaAllocator* arena);
     static String8 ExecutableDirectory(ArenaAllocator* arena);
     static String8 SystemFontDirectory(ArenaAllocator* arena);
     static void InstallCrashHandler();

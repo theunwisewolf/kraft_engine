@@ -276,23 +276,32 @@ static i64 Win32SocketReceiveSome(Connection* connection, ConnectionBuffer* buff
     return received;
 }
 
-bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns_micros) {
-    Win32WinsockStartup();
+static void Win32ConnectionPrepare(Connection* connection) {
     if (!connection->platform) {
         connection->platform = ArenaPush(connection->arena, ConnectionPlatform);
         connection->platform->socket = INVALID_SOCKET;
         connection->platform->encrypted.arena = connection->arena;
         connection->platform->plaintext.arena = connection->arena;
     }
+}
+
+// Copies `host` into `out_text` with a zero after it, without the brackets of an IPv6 address like [::1]
+static void Win32HostText(String8 host, char* out_text, u64 capacity) {
+    u64 host_length = host.count < capacity - 1 ? host.count : capacity - 1;
+    MemCpy(out_text, host.ptr, host_length);
+    out_text[host_length] = 0;
+    if (host_length > 2 && out_text[0] == '[' && out_text[host_length - 1] == ']') {
+        memmove(out_text, out_text + 1, host_length - 2);
+        out_text[host_length - 2] = 0;
+    }
+}
+
+bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns_micros) {
+    Win32WinsockStartup();
+    Win32ConnectionPrepare(connection);
 
     char host_text[512];
-    u64 host_length = host.count < sizeof(host_text) - 1 ? host.count : sizeof(host_text) - 1;
-    MemCpy(host_text, host.ptr, host_length);
-    host_text[host_length] = 0;
-    if (host_length > 2 && host_text[0] == '[' && host_text[host_length - 1] == ']') {
-        memmove(host_text, host_text + 1, host_length - 2);
-        host_text[host_length - 2] = 0;
-    }
+    Win32HostText(host, host_text, sizeof(host_text));
 
     String8 port_text = StringFormat(connection->arena, "%u", (u32)port);
 
@@ -829,6 +838,163 @@ void ConnectionClose(Connection* connection) {
     }
 
     platform->socket = INVALID_SOCKET;
+}
+
+#define KRAFT_LISTENER_MAX_SOCKETS 8
+
+struct Listener {
+    ArenaAllocator* arena;
+    SOCKET sockets[KRAFT_LISTENER_MAX_SOCKETS];
+    u32 socket_count;
+    u16 port;
+};
+
+static SOCKET Win32ListenOn(addrinfo* address, u16 port, int* out_error) {
+    SOCKET listening = ::socket(address->ai_family, SOCK_STREAM, IPPROTO_TCP);
+    if (listening == INVALID_SOCKET) {
+        *out_error = WSAGetLastError();
+        return INVALID_SOCKET;
+    }
+
+    // Nobody else can take the port while it is listened on
+    BOOL exclusive = TRUE;
+    setsockopt(listening, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (const char*)&exclusive, sizeof(exclusive));
+
+    sockaddr_storage bound_address = {};
+    MemCpy(&bound_address, address->ai_addr, address->ai_addrlen);
+    if (address->ai_family == AF_INET) {
+        ((sockaddr_in*)&bound_address)->sin_port = htons(port);
+    } else {
+        ((sockaddr_in6*)&bound_address)->sin6_port = htons(port);
+    }
+
+    if (bind(listening, (sockaddr*)&bound_address, (int)address->ai_addrlen) == SOCKET_ERROR || listen(listening, SOMAXCONN) == SOCKET_ERROR) {
+        *out_error = WSAGetLastError();
+        closesocket(listening);
+        return INVALID_SOCKET;
+    }
+
+    u_long non_blocking = 1;
+    ioctlsocket(listening, FIONBIO, &non_blocking);
+
+    return listening;
+}
+
+Listener* ListenerStart(String8 host, u16 port, ListenerStartStatus* out_status) {
+    ListenerStartStatus ignored_status;
+    if (!out_status) {
+        out_status = &ignored_status;
+    }
+
+    *out_status = LISTENER_START_STATUS_FAILED;
+    Win32WinsockStartup();
+
+    char host_text[512];
+    Win32HostText(host, host_text, sizeof(host_text));
+    addrinfo hints = {};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_PASSIVE;
+    addrinfo* results = nullptr;
+    if (getaddrinfo(host.count > 0 ? host_text : nullptr, "0", &hints, &results) != 0 || !results) {
+        return nullptr;
+    }
+
+    ArenaAllocator* arena = ArenaAlloc();
+    Listener* listener = ArenaPush(arena, Listener);
+    listener->arena = arena;
+    listener->port = port;
+
+    // IPv4 first, so a free port is picked there and IPv6 takes the same one
+    int families[] = {AF_INET, AF_INET6};
+    int last_error = 0;
+    for (u32 family_index = 0; family_index < KRAFT_C_ARRAY_SIZE(families); family_index++) {
+        for (addrinfo* address = results; address && listener->socket_count < KRAFT_LISTENER_MAX_SOCKETS; address = address->ai_next) {
+            if (address->ai_family != families[family_index]) {
+                continue;
+            }
+
+            SOCKET listening = Win32ListenOn(address, listener->port, &last_error);
+            if (listening == INVALID_SOCKET) {
+                continue;
+            }
+
+            if (listener->port == 0) {
+                sockaddr_storage bound_address = {};
+                int size = sizeof(bound_address);
+                getsockname(listening, (sockaddr*)&bound_address, &size);
+                listener->port = ntohs(bound_address.ss_family == AF_INET ? ((sockaddr_in*)&bound_address)->sin_port : ((sockaddr_in6*)&bound_address)->sin6_port);
+            }
+
+            listener->sockets[listener->socket_count++] = listening;
+        }
+    }
+
+    freeaddrinfo(results);
+
+    if (listener->socket_count == 0) {
+        *out_status = last_error == WSAEADDRINUSE || last_error == WSAEACCES ? LISTENER_START_STATUS_PORT_TAKEN : LISTENER_START_STATUS_FAILED;
+        DestroyArena(arena);
+        return nullptr;
+    }
+
+    *out_status = LISTENER_START_STATUS_OK;
+
+    return listener;
+}
+
+u16 ListenerPort(Listener* listener) {
+    return listener->port;
+}
+
+i32 ListenerAccept(Listener* listener, u64 timeout_ms, Connection* out_connection) {
+    fd_set readable;
+    FD_ZERO(&readable);
+    for (u32 index = 0; index < listener->socket_count; index++) {
+        FD_SET(listener->sockets[index], &readable);
+    }
+
+    timeval timeout;
+    timeout.tv_sec = (long)(timeout_ms / 1000);
+    timeout.tv_usec = (long)((timeout_ms % 1000) * 1000);
+    int ready = select(0, &readable, nullptr, nullptr, &timeout);
+    if (ready < 0) {
+        return -1;
+    }
+
+    for (u32 index = 0; index < listener->socket_count && ready > 0; index++) {
+        if (!FD_ISSET(listener->sockets[index], &readable)) {
+            continue;
+        }
+
+        // The peer may have given up between the two calls
+        SOCKET accepted = accept(listener->sockets[index], nullptr, nullptr);
+        if (accepted == INVALID_SOCKET) {
+            continue;
+        }
+
+        u_long non_blocking = 1;
+        ioctlsocket(accepted, FIONBIO, &non_blocking);
+        Win32ConnectionPrepare(out_connection);
+        out_connection->platform->socket = accepted;
+
+        return 1;
+    }
+
+    return 0;
+}
+
+void ListenerStop(Listener* listener) {
+    if (!listener) {
+        return;
+    }
+
+    for (u32 index = 0; index < listener->socket_count; index++) {
+        closesocket(listener->sockets[index]);
+    }
+
+    DestroyArena(listener->arena);
 }
 
 } // namespace kraft::net

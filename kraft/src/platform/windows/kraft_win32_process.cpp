@@ -460,4 +460,20 @@ void ProcessFree(Process* process) {
     DestroyArena(process->arena);
 }
 
+u32 ProcessCurrentId() {
+    return (u32)GetCurrentProcessId();
+}
+
+bool ProcessWaitById(u32 process_id, u64 timeout_ms) {
+    HANDLE handle = OpenProcess(SYNCHRONIZE, FALSE, process_id);
+    if (!handle) {
+        return GetLastError() == ERROR_INVALID_PARAMETER;
+    }
+
+    DWORD result = WaitForSingleObject(handle, timeout_ms == KRAFT_WAIT_FOREVER ? INFINITE : (DWORD)timeout_ms);
+    CloseHandle(handle);
+
+    return result == WAIT_OBJECT_0;
+}
+
 } // namespace kraft

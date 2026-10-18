@@ -61,4 +61,11 @@ KRAFT_API void ProcessKill(Process* process);
 // Frees the process, ending the program first unless it was started detached
 KRAFT_API void ProcessFree(Process* process);
 
+// Returns the id the system knows this process by
+KRAFT_API u32 ProcessCurrentId();
+
+// Waits up to `timeout_ms` for the process with the id `process_id` to exit, such as one that started this one
+// Returns true once it has exited, or when there is no process with that id
+KRAFT_API bool ProcessWaitById(u32 process_id, u64 timeout_ms);
+
 } // namespace kraft

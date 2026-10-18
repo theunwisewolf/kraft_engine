@@ -40,4 +40,7 @@ u32 MurmurHashInverse(u32 h, u32 seed);
 u64 MurmurHash64(const void* key, int len, u64 seed);
 u64 MurmurHash64Inverse(u64 h, u64 seed);
 
+// Computes the SHA-256 digest of the `count` bytes at `data` into the 32 bytes at `out_digest`
+KRAFT_API void Sha256(const void* data, u64 count, u8* out_digest);
+
 } // namespace kraft

@@ -56,6 +56,30 @@ KRAFT_API bool ConnectionIsOpen(Connection* connection);
 // Closes the socket and frees the TLS state
 KRAFT_API void ConnectionClose(Connection* connection);
 
+struct Listener;
+
+enum ListenerStartStatus {
+    LISTENER_START_STATUS_OK,
+    LISTENER_START_STATUS_PORT_TAKEN, // another program is listening on that port
+    LISTENER_START_STATUS_FAILED,
+};
+
+// Starts listening for TCP connections at `port` on every address `host` has, such as both loopback addresses for "localhost"
+// A `port` of 0 takes a free one, which ListenerPort returns
+// Returns null if no address could be listened on, and `out_status` is optional and says why
+KRAFT_API Listener* ListenerStart(String8 host, u16 port, ListenerStartStatus* out_status = nullptr);
+
+// Returns the port the listener is on
+KRAFT_API u16 ListenerPort(Listener* listener);
+
+// Waits up to `timeout_ms` for a connection to arrive and opens `out_connection` on it
+// `out_connection` is set up as for ConnectionOpen first: its arena, deadline and cancel flag
+// Returns 1 when a connection was accepted, 0 when none arrived in time, -1 on error
+KRAFT_API i32 ListenerAccept(Listener* listener, u64 timeout_ms, Connection* out_connection);
+
+// Stops listening and frees the listener
+KRAFT_API void ListenerStop(Listener* listener);
+
 } // namespace net
 
 } // namespace kraft
