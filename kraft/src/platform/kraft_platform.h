@@ -178,7 +178,6 @@ struct KRAFT_API Platform {
     static void SleepMilliseconds(u64 Milliseconds);
     static const char* GetKeyName(Keys key);
     static const char* GetEnv(const char* Key);
-    static bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output);
     static String8 ExecutableDirectory(ArenaAllocator* arena);
     static String8 SystemFontDirectory(ArenaAllocator* arena);
     static void InstallCrashHandler();
@@ -194,6 +193,13 @@ struct KRAFT_API Platform {
     // `suggested_name` is the file name the dialog starts with
     static bool SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path, String8 suggested_name = {});
     static bool OpenFolderDialog(ArenaAllocator* arena, const char* title, String8* out_path);
+
+    // Opens a file, folder or URL the way a double click would: a URL in the default browser, 
+    // a file in the app registered for its type
+    static bool OpenWithSystem(String8 path);
+
+    // Opens the system's file manager with the file at `path` selected
+    static bool RevealInFileManager(String8 path);
 #endif
 };
 

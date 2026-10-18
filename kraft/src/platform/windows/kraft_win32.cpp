@@ -10,12 +10,14 @@
 #include <Windows.h>
 #include <commdlg.h>
 #include <shobjidl.h>
+#include <shellapi.h>
 #include <dbghelp.h>
 #include <psapi.h>
 #include <bcrypt.h>
 #include <memory>
 #include <stdio.h>
 #pragma comment(lib, "comdlg32")
+#pragma comment(lib, "shell32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "bcrypt")
@@ -348,10 +350,6 @@ const char* Platform::GetKeyName(Keys key) {
 
 const char* Platform::GetEnv(const char* Key) {
     return getenv(Key);
-}
-
-bool ExecuteProcess(const char* WorkingDir, const char* ExecutablePath, const char** Args, char** Output) {
-    return false;
 }
 
 String8 Platform::ExecutableDirectory(ArenaAllocator* arena) {
@@ -806,6 +804,24 @@ bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const c
     ScratchEnd(scratch);
 
     return ok;
+}
+
+bool Platform::OpenWithSystem(String8 path) {
+    TempArena scratch = ScratchBegin(0, 0);
+    wchar_t* wide = DialogPushWide(scratch.arena, (const char*)ArenaPushString8Copy(scratch.arena, path).ptr);
+    bool opened = (INT_PTR)ShellExecuteW(nullptr, L"open", wide, nullptr, nullptr, SW_SHOWNORMAL) > 32;
+    ScratchEnd(scratch);
+
+    return opened;
+}
+
+bool Platform::RevealInFileManager(String8 path) {
+    TempArena scratch = ScratchBegin(0, 0);
+    String8 argument = StringFormat(scratch.arena, "/select,\"%S\"", path);
+    bool opened = (INT_PTR)ShellExecuteW(nullptr, L"open", L"explorer.exe", DialogPushWide(scratch.arena, (const char*)argument.ptr), nullptr, SW_SHOWNORMAL) > 32;
+    ScratchEnd(scratch);
+
+    return opened;
 }
 
 #endif

@@ -11,6 +11,7 @@
 #include "windows/kraft_win32.cpp"
 #include "windows/kraft_win32_filesystem.cpp"
 #include "windows/kraft_win32_threading.cpp"
+#include "windows/kraft_win32_process.cpp"
 #elif defined(KRAFT_PLATFORM_LINUX)
 #include "linux/kraft_linux.cpp"
 #elif defined(KRAFT_PLATFORM_MACOS)

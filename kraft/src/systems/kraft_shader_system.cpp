@@ -206,50 +206,25 @@ static void RecompileShaderFile(String8 file_path) {
 
     TempArena scratch = ScratchBegin(&shader_system_state->arena, 1);
 
-#ifdef KRAFT_PLATFORM_WINDOWS
-    String8 cmd_args = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, file_path);
-
-    STARTUPINFOA si = {};
-    si.cb = sizeof(si);
-    PROCESS_INFORMATION pi = {};
-
-    if (!CreateProcessA((const char*)shader_system_state->shader_compiler_path.ptr, (char*)cmd_args.ptr, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-        DWORD error_id = GetLastError();
-        LPSTR message_buffer = nullptr;
-
-        size_t _ = FormatMessageA(
-            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error_id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&message_buffer, 0, NULL
-        );
-
-        KERROR("[ShaderSystem]: Failed to launch shader compiler at path: %S (error: %d)\n%s", shader_system_state->shader_compiler_path, error_id, message_buffer);
+    ProcessOptions options = {};
+    options.program = shader_system_state->shader_compiler_path;
+    options.arguments = &file_path;
+    options.argument_count = 1;
+    Process* compiler = ProcessStart(&options);
+    if (!compiler) {
+        KERROR("[ShaderSystem]: Failed to launch shader compiler at path: %S", shader_system_state->shader_compiler_path);
         ScratchEnd(scratch);
-
-        LocalFree(message_buffer);
-
         return;
     }
 
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    DWORD exit_code = 0;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-
+    ProcessWait(compiler, KRAFT_WAIT_FOREVER);
+    i32 exit_code = ProcessExitCode(compiler);
+    ProcessFree(compiler);
     if (exit_code != 0) {
         KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", file_path, exit_code);
         ScratchEnd(scratch);
         return;
     }
-#else
-    String8 cmd = StringFormat(scratch.arena, "\"%S\" \"%S\"", shader_system_state->shader_compiler_path, file_path);
-    int exit_code = system((const char*)cmd.ptr);
-    if (exit_code != 0) {
-        KERROR("[ShaderSystem]: Shader compilation failed for '%S' (exit code %d)", file_path, exit_code);
-        ScratchEnd(scratch);
-        return;
-    }
-#endif
 
     KSUCCESS("[ShaderSystem]: Recompiled '%S'", file_path);
 
