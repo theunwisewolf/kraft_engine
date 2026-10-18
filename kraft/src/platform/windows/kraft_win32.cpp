@@ -32,6 +32,7 @@
 #endif
 
 #include <core/kraft_allocators.h>
+#include <core/kraft_log.h>
 #include <core/kraft_string.h>
 #include <core/kraft_strings.h>
 #include <core/kraft_thread_context.h>
