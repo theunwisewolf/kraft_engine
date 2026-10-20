@@ -694,6 +694,24 @@ Rect Window::SystemCaptionButtons() {
     return RectMinMax(top_left.x, top_left.y, bottom_right.x, bottom_right.y);
 }
 
+} // namespace kraft
+
+// Brings the app to the front when a link of a scheme its bundle declares is opened, such as the browser's way back
+// from a sign-in
+@interface KraftLinkHandler : NSObject
+- (void)openLink:(NSAppleEventDescriptor*)event withReply:(NSAppleEventDescriptor*)reply;
+@end
+
+@implementation KraftLinkHandler
+- (void)openLink:(NSAppleEventDescriptor*)event withReply:(NSAppleEventDescriptor*)reply {
+    [NSApp activateIgnoringOtherApps:YES];
+}
+@end
+
+namespace kraft {
+
+static KraftLinkHandler* g_link_handler;
+
 Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
     State->PrimaryWindow = (Window*)Malloc(sizeof(Window), false);
     if (State->PrimaryWindow->Init(Opts) != 0) {
@@ -705,6 +723,11 @@ Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
     State->PrimaryWindow->PlatformWindowState = (PlatformWindowState*)Malloc(sizeof(PlatformWindowState), false);
     MemSet(State->PrimaryWindow->PlatformWindowState, 0, sizeof(PlatformWindowState));
     State->PrimaryWindow->PlatformWindowState->ns_window = (void*)glfwGetCocoaWindow(State->PrimaryWindow->PlatformWindowHandle);
+    if (!g_link_handler) {
+        g_link_handler = [[KraftLinkHandler alloc] init];
+        [[NSAppleEventManager sharedAppleEventManager] setEventHandler:g_link_handler andSelector:@selector(openLink:withReply:) forEventClass:kInternetEventClass
+                                                            andEventID:kAEGetURL];
+    }
 
     return State->PrimaryWindow;
 }
@@ -909,6 +932,44 @@ bool Platform::OpenWithSystem(String8 path) {
     }
 
     return opened;
+}
+
+// The system reads the schemes from the bundle's Info.plist, so a program that is not in a bundle gets no links
+bool Platform::RegisterUrlScheme(const char* scheme, const char* name) {
+    bool declared = false;
+    @autoreleasepool {
+        NSBundle* bundle = [NSBundle mainBundle];
+        NSString* wanted = [NSString stringWithUTF8String:scheme];
+        if ([bundle.bundlePath hasSuffix:@".app"]) {
+            for (NSDictionary* type in [bundle objectForInfoDictionaryKey:@"CFBundleURLTypes"]) {
+                for (NSString* listed in type[@"CFBundleURLSchemes"]) {
+                    declared = declared || [listed caseInsensitiveCompare:wanted] == NSOrderedSame;
+                }
+            }
+        }
+    }
+    (void)name;
+
+    return declared;
+}
+
+bool Platform::ProcessHasWindow(u32 process_id) {
+    bool running = false;
+    @autoreleasepool {
+        running = [NSRunningApplication runningApplicationWithProcessIdentifier:(pid_t)process_id] != nil;
+    }
+
+    return running;
+}
+
+bool Platform::BringProcessToFront(u32 process_id) {
+    bool activated = false;
+    @autoreleasepool {
+        NSRunningApplication* application = [NSRunningApplication runningApplicationWithProcessIdentifier:(pid_t)process_id];
+        activated = application && [application activateWithOptions:NSApplicationActivateAllWindows];
+    }
+
+    return activated;
 }
 
 bool Platform::RevealInFileManager(String8 path) {

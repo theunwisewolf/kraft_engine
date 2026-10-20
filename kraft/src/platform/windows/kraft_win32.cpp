@@ -21,6 +21,7 @@
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "bcrypt")
+#pragma comment(lib, "advapi32")
 
 #if defined(KRAFT_GUI_APP)
 #include <GLFW/glfw3.h>
@@ -880,6 +881,88 @@ bool Platform::OpenWithSystem(String8 path) {
     ScratchEnd(scratch);
 
     return opened;
+}
+
+static bool RegistryWriteString(const wchar_t* path, const wchar_t* name, const wchar_t* value) {
+    HKEY key = nullptr;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, path, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) {
+        return false;
+    }
+    bool written = RegSetValueExW(key, name, 0, REG_SZ, (const BYTE*)value, (DWORD)((wcslen(value) + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
+    RegCloseKey(key);
+
+    return written;
+}
+
+static bool RegistryHoldsString(const wchar_t* path, const wchar_t* value) {
+    wchar_t held[4096];
+    DWORD size = sizeof(held);
+    if (RegGetValueW(HKEY_CURRENT_USER, path, nullptr, RRF_RT_REG_SZ, nullptr, held, &size) != ERROR_SUCCESS) {
+        return false;
+    }
+
+    return wcscmp(held, value) == 0;
+}
+
+bool Platform::RegisterUrlScheme(const char* scheme, const char* name) {
+    TempArena scratch = ScratchBegin(0, 0);
+    String8 executable = ExecutablePath(scratch.arena);
+    bool registered = executable.count > 0;
+    if (registered) {
+        wchar_t* key = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "Software\\Classes\\%s", scheme).ptr);
+        wchar_t* command_key = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "Software\\Classes\\%s\\shell\\open\\command", scheme).ptr);
+        wchar_t* command = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "\"%S\" \"%%1\"", executable).ptr);
+        if (!RegistryHoldsString(command_key, command)) {
+            wchar_t* icon_key = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "Software\\Classes\\%s\\DefaultIcon", scheme).ptr);
+            wchar_t* title = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "URL:%s", name).ptr);
+            wchar_t* icon = DialogPushWide(scratch.arena, (const char*)StringFormat(scratch.arena, "\"%S\",0", executable).ptr);
+            registered = RegistryWriteString(key, nullptr, title) && RegistryWriteString(key, L"URL Protocol", L"") && RegistryWriteString(icon_key, nullptr, icon) &&
+                         RegistryWriteString(command_key, nullptr, command);
+        }
+    }
+    ScratchEnd(scratch);
+
+    return registered;
+}
+
+struct ProcessWindowSearch {
+    DWORD process_id;
+    HWND window;
+};
+
+static BOOL CALLBACK ProcessWindowVisit(HWND window, LPARAM parameter) {
+    ProcessWindowSearch* search = (ProcessWindowSearch*)parameter;
+    DWORD owner = 0;
+    GetWindowThreadProcessId(window, &owner);
+    if (owner != search->process_id || !IsWindowVisible(window) || GetWindow(window, GW_OWNER)) {
+        return TRUE;
+    }
+    search->window = window;
+
+    return FALSE;
+}
+
+static HWND ProcessMainWindow(u32 process_id) {
+    ProcessWindowSearch search = {(DWORD)process_id, nullptr};
+    EnumWindows(ProcessWindowVisit, (LPARAM)&search);
+
+    return search.window;
+}
+
+bool Platform::ProcessHasWindow(u32 process_id) {
+    return ProcessMainWindow(process_id) != nullptr;
+}
+
+bool Platform::BringProcessToFront(u32 process_id) {
+    HWND window = ProcessMainWindow(process_id);
+    if (!window) {
+        return false;
+    }
+    if (IsIconic(window)) {
+        ShowWindow(window, SW_RESTORE);
+    }
+
+    return SetForegroundWindow(window) != 0;
 }
 
 bool Platform::RevealInFileManager(String8 path) {

@@ -210,6 +210,18 @@ struct KRAFT_API Platform {
     // a file in the app registered for its type
     static bool OpenWithSystem(String8 path);
 
+    // Makes links that start with `scheme`:// open this program with the link as its one argument: on Windows for
+    // this user alone, on a Mac from the app bundle that declares the scheme. Returns false when such a link cannot
+    // reach this program. `name` is what the system calls the links.
+    static bool RegisterUrlScheme(const char* scheme, const char* name);
+
+    // Returns true when the process `process_id` has a window on screen
+    static bool ProcessHasWindow(u32 process_id);
+
+    // Brings the window of the process `process_id` to the front. The system lets only the program the user is in, or
+    // one it has just started, do it: a program the browser started to open a link can.
+    static bool BringProcessToFront(u32 process_id);
+
     // Opens the system's file manager with the file at `path` selected
     static bool RevealInFileManager(String8 path);
 
