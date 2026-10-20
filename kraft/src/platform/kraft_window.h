@@ -51,6 +51,11 @@ struct KRAFT_API Window {
 
     // For a custom title bar
     void SetCaptionRegion(f32 height, const Rect* excluded_rects, u32 excluded_count);
+    // Returns the height of the caption the system's own window buttons sit in the middle of, in framebuffer pixels,
+    // or 0 where the app draws its own
+    f32 SystemCaptionHeight();
+    // Returns where the system's own window buttons are, in framebuffer pixels; empty when none are on show
+    Rect SystemCaptionButtons();
 
     static const char** RequiredVulkanExtensions(u32* count);
 

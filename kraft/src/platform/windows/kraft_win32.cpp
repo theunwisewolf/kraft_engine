@@ -421,6 +421,27 @@ String8 Platform::SystemFontDirectory(ArenaAllocator* arena) {
     return StringFormat(arena, "%.*s/Fonts", (int)length, windows_directory);
 }
 
+String8 Platform::DocumentsDirectory(ArenaAllocator* arena) {
+    WCHAR folder[4096];
+    DWORD room = (DWORD)KRAFT_C_ARRAY_SIZE(folder) - 16;
+    DWORD length = GetEnvironmentVariableW(L"USERPROFILE", folder, room);
+    if (length == 0 || length >= room) {
+        return String8{};
+    }
+
+    lstrcpyW(folder + length, L"\\Documents");
+    DWORD attributes = GetFileAttributesW(folder);
+    if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        length = (DWORD)lstrlenW(folder);
+    }
+
+    i32 bytes = WideCharToMultiByte(CP_UTF8, 0, folder, (i32)length, nullptr, 0, nullptr, nullptr);
+    String8 path = ArenaPushString8Empty(arena, (u64)bytes);
+    WideCharToMultiByte(CP_UTF8, 0, folder, (i32)length, (char*)path.ptr, bytes, nullptr, nullptr);
+
+    return path;
+}
+
 bool Platform::HasStandardOutput() {
     HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
 

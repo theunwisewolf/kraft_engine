@@ -581,6 +581,119 @@ bool MacScrollIsPrecise() {
     return event && event.type == NSEventTypeScrollWheel && event.hasPreciseScrollingDeltas;
 }
 
+static id g_caption_monitor;
+static CGFloat g_system_caption_points;
+
+// A point in the window, in its points from the bottom left, as the framebuffer's pixels from the top left
+static Vec2f MacWindowPointToPixels(Window* window, NSWindow* ns_window, NSPoint point) {
+    NSView* content = ns_window.contentView;
+    NSRect bounds = content.bounds;
+    NSPoint local = [content convertPoint:point fromView:nil];
+    if (bounds.size.width <= 0.0 || bounds.size.height <= 0.0) {
+        return Vec2f(0.0f, 0.0f);
+    }
+
+    return Vec2f((f32)(local.x * window->FramebufferWidth / bounds.size.width), (f32)((bounds.size.height - local.y) * window->FramebufferHeight / bounds.size.height));
+}
+
+// What the system's setting for a double-click on a title bar asks for: zoom unless it says minimize or nothing
+static void MacCaptionDoubleClick(NSWindow* ns_window) {
+    NSString* action = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleActionOnDoubleClick"];
+    if ([action isEqualToString:@"Minimize"]) {
+        [ns_window performMiniaturize:nil];
+    } else if (![action isEqualToString:@"None"]) {
+        [ns_window performZoom:nil];
+    }
+}
+
+// A press on the caption, away from the window's buttons and from what the app keeps for itself, is the title bar's
+static NSEvent* MacCaptionMouseDown(Window* window, NSEvent* event) {
+    NSWindow* ns_window = (NSWindow*)glfwGetCocoaWindow(window->PlatformWindowHandle);
+    if (event.window != ns_window || (ns_window.styleMask & NSWindowStyleMaskFullScreen) || window->CaptionHeight <= 0.0f) {
+        return event;
+    }
+
+    NSWindowButton kinds[] = {NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
+    for (u32 index = 0; index < KRAFT_C_ARRAY_SIZE(kinds); index++) {
+        NSButton* button = [ns_window standardWindowButton:kinds[index]];
+        if (button && NSPointInRect(event.locationInWindow, [button convertRect:button.bounds toView:nil])) {
+            return event;
+        }
+    }
+
+    Vec2f pixel = MacWindowPointToPixels(window, ns_window, event.locationInWindow);
+    if (pixel.y < 0.0f || pixel.y >= window->CaptionHeight) {
+        return event;
+    }
+    for (u32 index = 0; index < window->CaptionExclusionCount; index++) {
+        if (RectContains(window->CaptionExclusions[index], pixel)) {
+            return event;
+        }
+    }
+
+    if (event.clickCount >= 2) {
+        MacCaptionDoubleClick(ns_window);
+    } else {
+        [ns_window performWindowDragWithEvent:event];
+    }
+
+    return nil;
+}
+
+void MacUseCustomTitleBar(Window* window, i32 width, i32 height) {
+    @autoreleasepool {
+        NSWindow* ns_window = (NSWindow*)glfwGetCocoaWindow(window->PlatformWindowHandle);
+        ns_window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+        ns_window.titlebarAppearsTransparent = YES;
+        ns_window.titleVisibility = NSWindowTitleHidden;
+        ns_window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
+        // An empty toolbar makes the title bar as tall as a compact one, with the buttons in the middle of it
+        ns_window.toolbar = [[[NSToolbar alloc] initWithIdentifier:@"kraft"] autorelease];
+        ns_window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
+        if (!ns_window.isZoomed) {
+            [ns_window setContentSize:NSMakeSize(width, height)];
+        }
+        [ns_window layoutIfNeeded];
+        g_system_caption_points = NSHeight(ns_window.frame) - NSMaxY(ns_window.contentLayoutRect);
+
+        g_caption_monitor = [[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown
+                                                                   handler:^NSEvent*(NSEvent* event) {
+                                                                       return MacCaptionMouseDown(window, event);
+                                                                   }] retain];
+    }
+}
+
+f32 Window::SystemCaptionHeight() {
+    if (!this->CustomTitleBar || this->Height <= 0) {
+        return 0.0f;
+    }
+
+    return (f32)g_system_caption_points * (f32)this->FramebufferHeight / (f32)this->Height;
+}
+
+Rect Window::SystemCaptionButtons() {
+    NSWindow* ns_window = (NSWindow*)glfwGetCocoaWindow(this->PlatformWindowHandle);
+    if (!this->CustomTitleBar || !ns_window || (ns_window.styleMask & NSWindowStyleMaskFullScreen)) {
+        return RectMinMax(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    NSRect area = NSZeroRect;
+    NSWindowButton kinds[] = {NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton};
+    for (u32 index = 0; index < KRAFT_C_ARRAY_SIZE(kinds); index++) {
+        NSButton* button = [ns_window standardWindowButton:kinds[index]];
+        if (button && !button.hidden) {
+            area = NSUnionRect(area, [button convertRect:button.bounds toView:nil]);
+        }
+    }
+    if (NSIsEmptyRect(area)) {
+        return RectMinMax(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    Vec2f top_left = MacWindowPointToPixels(this, ns_window, NSMakePoint(NSMinX(area), NSMaxY(area)));
+    Vec2f bottom_right = MacWindowPointToPixels(this, ns_window, NSMakePoint(NSMaxX(area), NSMinY(area)));
+    return RectMinMax(top_left.x, top_left.y, bottom_right.x, bottom_right.y);
+}
+
 Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
     State->PrimaryWindow = (Window*)Malloc(sizeof(Window), false);
     if (State->PrimaryWindow->Init(Opts) != 0) {
@@ -597,6 +710,11 @@ Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
 }
 
 void Platform::DestroyPlatformWindow(Window* window) {
+    if (g_caption_monitor) {
+        [NSEvent removeMonitor:g_caption_monitor];
+        [g_caption_monitor release];
+        g_caption_monitor = nil;
+    }
     State->PrimaryWindow->Destroy();
 
     Free(State->PrimaryWindow->PlatformWindowState);
@@ -612,6 +730,19 @@ static String8 MacPushString(ArenaAllocator* arena, NSString* text) {
     const char* utf8 = [text UTF8String];
 
     return StringCopy(arena, String8FromCString(utf8 ? utf8 : ""));
+}
+
+String8 Platform::DocumentsDirectory(ArenaAllocator* arena) {
+    @autoreleasepool {
+        NSFileManager* files = [NSFileManager defaultManager];
+        NSString* path = [files URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject.path;
+        BOOL is_directory = NO;
+        if (!path || ![files fileExistsAtPath:path isDirectory:&is_directory] || !is_directory) {
+            path = NSHomeDirectory();
+        }
+
+        return MacPushString(arena, path);
+    }
 }
 
 // The file types a "Name|*.ext;*.ext|Name|*.*" filter names, one list of UTType per entry; an empty list allows any file

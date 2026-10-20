@@ -91,6 +91,11 @@ int Window::Init(const WindowOptions* Opts) {
         KERROR("glfwCreateWindow() failed");
         return KRAFT_ERROR_GLFW_CREATE_WINDOW_FAILED;
     }
+#if defined(KRAFT_PLATFORM_MACOS)
+    if (Opts->CustomTitleBar) {
+        MacUseCustomTitleBar(this, width, height);
+    }
+#endif
 
     glfwGetWindowSize(this->PlatformWindowHandle, &this->Width, &this->Height);
     glfwGetFramebufferSize(this->PlatformWindowHandle, &this->FramebufferWidth, &this->FramebufferHeight);
@@ -227,6 +232,17 @@ void Window::SetCaptionRegion(f32 height, const Rect* excluded_rects, u32 exclud
         this->CaptionExclusions[exclusion_index] = excluded_rects[exclusion_index];
     }
 }
+
+#if !defined(KRAFT_PLATFORM_MACOS)
+// The app draws the window's buttons itself
+f32 Window::SystemCaptionHeight() {
+    return 0.0f;
+}
+
+Rect Window::SystemCaptionButtons() {
+    return RectMinMax(0.0f, 0.0f, 0.0f, 0.0f);
+}
+#endif
 
 void Window::SetCursorMode(CursorMode Mode) {
     glfwSetInputMode(this->PlatformWindowHandle, GLFW_CURSOR, (int)Mode);

@@ -187,6 +187,8 @@ struct KRAFT_API Platform {
     static String8 ExecutablePath(ArenaAllocator* arena);
     static String8 ExecutableDirectory(ArenaAllocator* arena);
     static String8 SystemFontDirectory(ArenaAllocator* arena);
+    // Returns the user's Documents folder, or their home folder when there is none
+    static String8 DocumentsDirectory(ArenaAllocator* arena);
     static void InstallCrashHandler();
     static u64 ProcessMemoryBytes();
 
