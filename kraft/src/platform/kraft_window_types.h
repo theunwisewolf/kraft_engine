@@ -35,6 +35,9 @@ struct WindowOptions {
     bool Primary = true;
     bool StartMaximized = false;
     bool CustomTitleBar = false;
+
+    // Takes the keyboard focus as it opens, bringing the program to the front
+    bool Focused = true;
 };
 
 } // namespace kraft

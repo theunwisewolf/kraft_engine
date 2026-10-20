@@ -36,6 +36,9 @@ struct WindowEvent {
     bool handled;
     Vec2f cursor_position;
     Vec2f scroll;
+
+    // the scroll is in points, from a trackpad or the like, rather than in a wheel's notches
+    bool precise;
     i32 width;
     i32 height;
     bool maximized;

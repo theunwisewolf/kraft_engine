@@ -12,8 +12,6 @@
 #include <security.h>
 #include <schannel.h>
 
-#include <stdarg.h>
-
 #include <core/kraft_core_includes.h>
 
 #pragma comment(lib, "ws2_32")
@@ -151,21 +149,6 @@ static String8 Win32SocketErrorText(ArenaAllocator* arena, int code) {
     }
 
     return StringFormat(arena, "%S (wsa %d)", message, code);
-}
-
-void ConnectionFail(Connection* connection, const char* format, ...) {
-    if (connection->error.count) {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    connection->error = StringFormatV(connection->arena, format, args);
-    va_end(args);
-}
-
-bool ConnectionCancelled(Connection* connection) {
-    return connection->cancel && AtomicLoad32(connection->cancel) != 0;
 }
 
 enum Win32SocketWait {

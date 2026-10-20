@@ -16,4 +16,7 @@
 #include "linux/kraft_linux.cpp"
 #elif defined(KRAFT_PLATFORM_MACOS)
 #include "macos/kraft_macos.mm"
+#include "macos/kraft_macos_filesystem.mm"
+#include "macos/kraft_macos_threading.cpp"
+#include "macos/kraft_macos_process.cpp"
 #endif

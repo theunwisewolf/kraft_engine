@@ -38,6 +38,7 @@ void InputSystem::Update() {
     State.mouse_position_previous = State.mouse_position;
     State.mouse_delta = Vec2f(0.0f, 0.0f);
     State.scroll = Vec2f(0.0f, 0.0f);
+    State.scroll_points = Vec2f(0.0f, 0.0f);
     State.text_count = 0;
 }
 
@@ -143,7 +144,11 @@ static void ApplyMouseMove(const WindowEvent* event) {
 
 static void ApplyScroll(const WindowEvent* event) {
     InputSystemState* state = &InputSystem::State;
-    state->scroll = state->scroll + event->scroll;
+    if (event->precise) {
+        state->scroll_points = state->scroll_points + event->scroll;
+    } else {
+        state->scroll = state->scroll + event->scroll;
+    }
 
     EventData data;
     data.Float64Value[0] = (f64)event->scroll.x;

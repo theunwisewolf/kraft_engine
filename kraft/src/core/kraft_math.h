@@ -20,7 +20,7 @@ namespace kraft {
 
 template <typename T, int n> struct Vector;
 
-template <typename T, int n> void Normalize(Vector<T, n>* in);
+template <typename T, int n> static void Normalize(Vector<T, n>* in);
 
 namespace math {
 

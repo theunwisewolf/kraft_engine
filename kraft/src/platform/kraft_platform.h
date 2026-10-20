@@ -190,6 +190,9 @@ struct KRAFT_API Platform {
     static void InstallCrashHandler();
     static u64 ProcessMemoryBytes();
 
+    // Returns true when this process's standard output goes somewhere: a terminal, a file or a pipe
+    static bool HasStandardOutput();
+
 #if defined(KRAFT_GUI_APP)
     // Windowing
     static Window* CreatePlatformWindow(const struct WindowOptions* Opts);
@@ -207,6 +210,9 @@ struct KRAFT_API Platform {
 
     // Opens the system's file manager with the file at `path` selected
     static bool RevealInFileManager(String8 path);
+
+    // Shows an error with an OK button and waits for it to be pressed, before any window is open too
+    static void ShowErrorDialog(const char* title, String8 message);
 #endif
 };
 

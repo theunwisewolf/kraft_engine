@@ -421,6 +421,12 @@ String8 Platform::SystemFontDirectory(ArenaAllocator* arena) {
     return StringFormat(arena, "%.*s/Fonts", (int)length, windows_directory);
 }
 
+bool Platform::HasStandardOutput() {
+    HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    return output != nullptr && output != INVALID_HANDLE_VALUE;
+}
+
 #define KRAFT_CRASH_CONTEXT_MAX 2048
 static char g_crash_context[KRAFT_CRASH_CONTEXT_MAX];
 
@@ -862,6 +868,14 @@ bool Platform::RevealInFileManager(String8 path) {
     ScratchEnd(scratch);
 
     return opened;
+}
+
+void Platform::ShowErrorDialog(const char* title, String8 message) {
+    TempArena scratch = ScratchBegin(0, 0);
+    wchar_t* wide_title = DialogPushWide(scratch.arena, title ? title : "");
+    wchar_t* wide_message = DialogPushWide(scratch.arena, (const char*)ArenaPushString8Copy(scratch.arena, message).ptr);
+    MessageBoxW(nullptr, wide_message, wide_title, MB_OK | MB_ICONERROR);
+    ScratchEnd(scratch);
 }
 
 #endif

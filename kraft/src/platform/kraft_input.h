@@ -15,7 +15,8 @@ struct MousePosition {
     int y;
 };
 
-// Device state derived from the window event stream. Windows push events, ProcessEvents projects them here.
+// Device state derived from the window event stream
+// Windows push events, ProcessEvents projects them here
 struct InputSystemState {
     bool key_down[KRAFT_KEY_COUNT];
     bool key_down_previous[KRAFT_KEY_COUNT];
@@ -30,7 +31,12 @@ struct InputSystemState {
     Vec2f mouse_position;
     Vec2f mouse_position_previous;
     Vec2f mouse_delta;
+    
+    // in a wheel's notches
     Vec2f scroll;
+
+    // from a trackpad or the like, which scrolls by points
+    Vec2f scroll_points;
     bool dragging;
 
     bool shift_down;
@@ -49,10 +55,10 @@ struct KRAFT_API InputSystem {
     static bool Init();
     static bool Shutdown();
 
-    // Call once at the start of every frame, before the window polls.
+    // Call once at the start of every frame, before the window polls
     static void Update();
 
-    // Called by Window after each poll with everything that happened since the previous one.
+    // Called by Window after each poll with everything that happened since the previous one
     static void ProcessEvents(const WindowEventQueue* queue);
 
     static void SetMousePosition(f64 x, f64 y);

@@ -13,6 +13,10 @@
 #include <core/kraft_thread_context.h>
 #include <platform/kraft_input.h>
 
+#if defined(KRAFT_PLATFORM_MACOS)
+#include <platform/macos/kraft_macos.h>
+#endif
+
 namespace kraft {
 
 WindowEvent* WindowEventQueue::PushDrop(int path_count, const char** paths) {
@@ -39,6 +43,19 @@ WindowEvent* WindowEventQueue::PushDrop(int path_count, const char** paths) {
     return event;
 }
 
+// GLFW gives the cursor in the window's coordinates, which on a Mac are points, while kraft measures everything in
+// the framebuffer's pixels
+static Vec2f WindowToFramebuffer(Window* window, f64 x, f64 y) {
+#if defined(KRAFT_PLATFORM_MACOS)
+    if (window->Width > 0 && window->Height > 0) {
+        x *= (f64)window->FramebufferWidth / (f64)window->Width;
+        y *= (f64)window->FramebufferHeight / (f64)window->Height;
+    }
+#endif
+
+    return Vec2f((f32)x, (f32)y);
+}
+
 int Window::Init(const WindowOptions* Opts) {
     MemSet(this, 0, sizeof(Window));
     this->CustomTitleBar = Opts->CustomTitleBar;
@@ -51,9 +68,24 @@ int Window::Init(const WindowOptions* Opts) {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_MAXIMIZED, Opts->StartMaximized);
+    glfwWindowHint(GLFW_FOCUSED, Opts->Focused);
     glfwWindowHint(GLFW_SRGB_CAPABLE, true);
 
-    this->PlatformWindowHandle = glfwCreateWindow(Opts->Width, Opts->Height, *Opts->Title, NULL, NULL);
+    i32 width = (i32)Opts->Width;
+    i32 height = (i32)Opts->Height;
+#if defined(KRAFT_PLATFORM_MACOS)
+    // A Mac sizes windows in points, and the size asked for is in pixels
+    if (GLFWmonitor* primary = glfwGetPrimaryMonitor()) {
+        f32 scale_x = 1.0f, scale_y = 1.0f;
+        glfwGetMonitorContentScale(primary, &scale_x, &scale_y);
+        if (scale_x > 0.0f && scale_y > 0.0f) {
+            width = (i32)((f32)width / scale_x + 0.5f);
+            height = (i32)((f32)height / scale_y + 0.5f);
+        }
+    }
+#endif
+
+    this->PlatformWindowHandle = glfwCreateWindow(width, height, *Opts->Title, NULL, NULL);
     if (!this->PlatformWindowHandle) {
         glfwTerminate();
         KERROR("glfwCreateWindow() failed");
@@ -94,8 +126,8 @@ int Window::Init(const WindowOptions* Opts) {
     f64 cursor_x, cursor_y;
     glfwGetCursorPos(this->PlatformWindowHandle, &cursor_x, &cursor_y);
     this->Events.Clear();
-    this->Events.cursor_position = Vec2f((f32)cursor_x, (f32)cursor_y);
-    InputSystem::SetMousePosition(cursor_x, cursor_y);
+    this->Events.cursor_position = WindowToFramebuffer(this, cursor_x, cursor_y);
+    InputSystem::SetMousePosition(this->Events.cursor_position.x, this->Events.cursor_position.y);
 
     u32 LengthToCopy = StringLengthClamped(*Opts->Title, sizeof(this->Title));
     StringNCopy(this->Title, *Opts->Title, LengthToCopy);
@@ -205,11 +237,24 @@ CursorMode Window::GetCursorMode() {
 }
 
 void Window::SetCursorPosition(f64 X, f64 Y) {
+#if defined(KRAFT_PLATFORM_MACOS)
+    if (this->FramebufferWidth > 0 && this->FramebufferHeight > 0) {
+        X *= (f64)this->Width / (f64)this->FramebufferWidth;
+        Y *= (f64)this->Height / (f64)this->FramebufferHeight;
+    }
+#endif
+
     glfwSetCursorPos(this->PlatformWindowHandle, (double)X, (double)Y);
 }
 
 void Window::GetCursorPosition(f64* X, f64* Y) {
     glfwGetCursorPos(this->PlatformWindowHandle, X, Y);
+#if defined(KRAFT_PLATFORM_MACOS)
+    if (this->Width > 0 && this->Height > 0) {
+        *X *= (f64)this->FramebufferWidth / (f64)this->Width;
+        *Y *= (f64)this->FramebufferHeight / (f64)this->Height;
+    }
+#endif
 }
 
 String8 Window::ClipboardGet(ArenaAllocator* arena) {
@@ -321,13 +366,23 @@ void Window::MouseButtonCallback(GLFWwindow* window, int button, int action, int
 void Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     Window* self = (Window*)glfwGetWindowUserPointer(window);
     WindowEvent* event = self->Events.Push(WINDOW_EVENT_SCROLL);
-    if (event)
-        event->scroll = Vec2f((f32)xoffset, (f32)yoffset);
+    if (!event) {
+        return;
+    }
+
+    event->scroll = Vec2f((f32)xoffset, (f32)yoffset);
+#if defined(KRAFT_PLATFORM_MACOS)
+    // A trackpad's deltas are in points, of which GLFW gives a tenth
+    if (MacScrollIsPrecise()) {
+        event->precise = true;
+        event->scroll = Vec2f((f32)xoffset * 10.0f, (f32)yoffset * 10.0f);
+    }
+#endif
 }
 
 void Window::CursorPositionCallback(GLFWwindow* window, double x, double y) {
     Window* self = (Window*)glfwGetWindowUserPointer(window);
-    self->Events.cursor_position = Vec2f((f32)x, (f32)y);
+    self->Events.cursor_position = WindowToFramebuffer(self, x, y);
     self->Events.Push(WINDOW_EVENT_MOUSE_MOVE);
 }
 

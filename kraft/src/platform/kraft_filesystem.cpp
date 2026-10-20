@@ -57,6 +57,17 @@ bool OpenFile(String8 path, int mode, bool binary, FileHandle* result) {
 #else
     result->Handle = fopen((char*)path.ptr, mode_string);
 #endif
+
+#if !defined(KRAFT_PLATFORM_WINDOWS)
+    // A folder opens like a file here, as it does not on Windows
+    struct stat file_stat;
+    if (result->Handle && fstat(fileno(result->Handle), &file_stat) == 0 && S_ISDIR(file_stat.st_mode)) {
+        fclose(result->Handle);
+        result->Handle = nullptr;
+        errno = EISDIR;
+    }
+#endif
+
     if (!result->Handle) {
         KERROR("[FileSystem::OpenFile]: Failed to open %S with error %s", path, strerror(errno));
         return false;
