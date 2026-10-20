@@ -130,6 +130,16 @@ static const char* MacDnsErrorText(int code) {
     }
 }
 
+// Why getaddrinfo could not look a host name up
+static const char* MacResolveErrorText(int code) {
+    switch (code) {
+    case EAI_NONAME:    return "no such host";
+    case EAI_AGAIN:     return "the name server is temporarily unavailable, try again";
+    case EAI_FAIL:      return "the name server reported a non-recoverable error";
+    default:            return gai_strerror(code);
+    }
+}
+
 static String8 MacNetworkErrorText(ArenaAllocator* arena, nw_error_t error) {
     if (!error) {
         return S("the connection failed");
@@ -294,7 +304,7 @@ bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns
     int resolve_status = getaddrinfo(host_text, port_text, &hints, &results);
     *out_dns_micros = (u64)((Platform::GetAbsoluteTime() - resolve_start) * 1000000.0);
     if (resolve_status != 0 || !results) {
-        ConnectionFail(connection, "could not resolve %s (%s)", host_text, gai_strerror(resolve_status));
+        ConnectionFail(connection, "could not resolve %s: %s (gai %d)", host_text, MacResolveErrorText(resolve_status), resolve_status);
         return false;
     }
 

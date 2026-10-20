@@ -21,7 +21,8 @@ struct FileSystemEntry {
         bool is_file;
     };
     bool is_directory;
-    u64 modified_time; // seconds since the epoch
+    bool is_link;
+    u64 modified_time;
 };
 
 struct Directory {
@@ -112,7 +113,41 @@ KRAFT_API bool RemoveFile(String8 path);
 KRAFT_API bool RemoveEmptyDirectory(String8 path);
 
 // Deletes a file, or a directory and everything in it
+// A link is deleted as a link, here or anywhere inside, and never what it points to
 KRAFT_API bool RemoveTree(String8 path);
+
+//
+// Links
+//
+
+struct LinkInfo {
+    String8 target; // as the link holds it, relative or absolute
+    bool directory; // it points at a directory, which Windows makes a different kind of link for
+    bool junction;  // a Windows junction rather than a symbolic link; its target is always absolute
+};
+
+// Returns true if `path` itself is a link, without following it
+KRAFT_API bool IsLink(String8 path);
+
+// Fills `out` with what the link at `path` holds; returns false if it is not a link
+KRAFT_API bool ReadLink(ArenaAllocator* arena, String8 path, LinkInfo* out);
+
+// Makes a link at `path`, as `link` describes
+// Windows makes a symbolic link only with Developer Mode on, so one to a directory becomes a junction without it
+KRAFT_API bool MakeLink(String8 path, const LinkInfo* link);
+
+// Deletes the link at `path`, never what it points to
+// returns `true` if it is gone, including when it was never there
+KRAFT_API bool RemoveLink(String8 path);
+
+// What a file or directory is, whichever path or link reaches it
+struct FileIdentity {
+    u64 volume;
+    u64 index;
+};
+
+// Fills `out` with the identity of what `path` names, following links; returns false if there is nothing there
+KRAFT_API bool GetFileIdentity(String8 path, FileIdentity* out);
 
 // Moves the given path
 // Fails if `to` exists, unless replace_existing is true

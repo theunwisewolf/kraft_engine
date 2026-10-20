@@ -8,6 +8,7 @@
 #define SECURITY_WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <mstcpip.h>
 #include <Windows.h>
 #include <security.h>
 #include <schannel.h>
@@ -109,7 +110,7 @@ static String8 Win32SocketErrorText(ArenaAllocator* arena, int code) {
     case WSAENOBUFS:        known = "no buffer space left"; break;
     case WSAEWOULDBLOCK:    known = "the operation would block"; break;
     case WSAEMSGSIZE:       known = "the message was too large for the buffer"; break;
-    case WSAHOST_NOT_FOUND: known = "the host name could not be resolved"; break;
+    case WSAHOST_NOT_FOUND: known = "no such host"; break;
     case WSANO_DATA:        known = "the host name has no address record"; break;
     case WSATRY_AGAIN:      known = "the name server is temporarily unavailable, try again"; break;
     case WSANO_RECOVERY:    known = "the name server reported a non-recoverable error"; break;
@@ -279,6 +280,14 @@ static void Win32HostText(String8 host, char* out_text, u64 capacity) {
     }
 }
 
+static bool Win32IsLoopback(const sockaddr* address) {
+    if (address->sa_family == AF_INET) {
+        return (ntohl(((const sockaddr_in*)address)->sin_addr.s_addr) >> 24) == 127;
+    }
+
+    return address->sa_family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(&((const sockaddr_in6*)address)->sin6_addr);
+}
+
 bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns_micros) {
     Win32WinsockStartup();
     Win32ConnectionPrepare(connection);
@@ -297,7 +306,7 @@ bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns
     int resolve_status = getaddrinfo(host_text, (const char*)port_text.ptr, &hints, &results);
     *out_dns_micros = (u64)((Platform::GetAbsoluteTime() - resolve_start) * 1000000.0);
     if (resolve_status != 0 || !results) {
-        ConnectionFail(connection, "could not resolve %s (error %d)", host_text, resolve_status);
+        ConnectionFail(connection, "could not resolve %s: %S", host_text, Win32SocketErrorText(connection->arena, resolve_status));
         return false;
     }
 
@@ -324,6 +333,12 @@ bool ConnectionOpen(Connection* connection, String8 host, u16 port, u64* out_dns
             }
             u_long non_blocking = 1;
             ioctlsocket(candidate_socket, FIONBIO, &non_blocking);
+            // Windows sends the SYN again after a refusal, so a closed local port would take 2 s to fail
+            if (Win32IsLoopback(candidate->ai_addr)) {
+                TCP_INITIAL_RTO_PARAMETERS initial_rto = {TCP_INITIAL_RTO_UNSPECIFIED_RTT, TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS};
+                DWORD returned = 0;
+                WSAIoctl(candidate_socket, SIO_TCP_INITIAL_RTO, &initial_rto, sizeof(initial_rto), nullptr, 0, &returned, nullptr, nullptr);
+            }
             int connect_status = connect(candidate_socket, candidate->ai_addr, (int)candidate->ai_addrlen);
             if (connect_status == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
                 closesocket(candidate_socket);
@@ -615,7 +630,7 @@ bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool
                 reason = "the certificate has expired";
             } else if (status == SEC_E_WRONG_PRINCIPAL || status == CERT_E_CN_NO_MATCH) {
                 reason = "the certificate does not match the host name";
-            } else if (status == SEC_E_ILLEGAL_MESSAGE) {
+            } else if (status == SEC_E_ILLEGAL_MESSAGE || status == SEC_E_INVALID_TOKEN) {
                 reason = "the TLS handshake was rejected by the server (is this a TLS port?)";
             } else if (status == SEC_E_ALGORITHM_MISMATCH) {
                 reason = "no TLS version or cipher in common with the server";

@@ -369,6 +369,10 @@ String8 AbsolutePath(ArenaAllocator* arena, String8 path) {
 }
 
 bool RemoveTree(String8 path) {
+    if (IsLink(path)) {
+        return RemoveLink(path);
+    }
+
     if (!DirectoryExists(path)) {
         return RemoveFile(path);
     }
@@ -378,8 +382,9 @@ bool RemoveTree(String8 path) {
 
     bool removed = true;
     for (u32 index = 0; index < listing.entry_count; index++) {
-        String8 child = StringFormat(scratch.arena, "%S/%S", path, listing.entries[index].name);
-        removed = (listing.entries[index].is_directory ? RemoveTree(child) : RemoveFile(child)) && removed;
+        FileSystemEntry* entry = &listing.entries[index];
+        String8 child = StringFormat(scratch.arena, "%S/%S", path, entry->name);
+        removed = (entry->is_link ? RemoveLink(child) : entry->is_directory ? RemoveTree(child) : RemoveFile(child)) && removed;
     }
 
     removed = removed && RemoveEmptyDirectory(path);

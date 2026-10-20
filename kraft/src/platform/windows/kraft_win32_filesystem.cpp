@@ -4,6 +4,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <shellapi.h>
+#include <winioctl.h>
 
 #include <core/kraft_core_includes.h>
 
@@ -130,6 +131,193 @@ KRAFT_API bool MoveToTrash(String8 path) {
     ScratchEnd(scratch);
 
     return trashed;
+}
+
+//
+// Links
+//
+
+// What FSCTL_GET_REPARSE_POINT reads and FSCTL_SET_REPARSE_POINT takes, which only the driver kit's headers declare.
+// The names follow it, after a ULONG of flags for a symbolic link and straight away for a junction.
+struct Win32ReparseHeader {
+    ULONG tag;
+    USHORT data_length; // from substitute_name_offset to the end
+    USHORT reserved;
+    USHORT substitute_name_offset; // the system's form, \??\ in front of an absolute path
+    USHORT substitute_name_length;
+    USHORT print_name_offset; // the path as it was given
+    USHORT print_name_length;
+};
+
+// Symbolic links and junctions are links; other reparse points, such as OneDrive's files kept in the cloud, are not
+static bool Win32IsLinkTag(DWORD tag) {
+    return tag == IO_REPARSE_TAG_SYMLINK || tag == IO_REPARSE_TAG_MOUNT_POINT;
+}
+
+KRAFT_API bool IsLink(String8 path) {
+    TempArena scratch = ScratchBegin(0, 0);
+    WIN32_FIND_DATAW find_data;
+    HANDLE find_handle = FindFirstFileW(Win32WidePath(scratch.arena, path), &find_data);
+    ScratchEnd(scratch);
+    if (find_handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    FindClose(find_handle);
+
+    return (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) && Win32IsLinkTag(find_data.dwReserved0);
+}
+
+KRAFT_API bool ReadLink(ArenaAllocator* arena, String8 path, LinkInfo* out) {
+    *out = {};
+    TempArena scratch = ScratchBegin(&arena, 1);
+    // Most paths asked about are plain files, which this answers without opening them
+    WCHAR* wide = Win32WidePath(scratch.arena, path);
+    DWORD attributes = GetFileAttributesW(wide);
+    if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        ScratchEnd(scratch);
+        return false;
+    }
+
+    HANDLE file = CreateFileW(
+        wide, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr
+    );
+    if (file == INVALID_HANDLE_VALUE) {
+        ScratchEnd(scratch);
+        return false;
+    }
+
+    u8* buffer = ArenaPushArray(scratch.arena, u8, MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+    DWORD returned = 0;
+    bool read = DeviceIoControl(file, FSCTL_GET_REPARSE_POINT, nullptr, 0, buffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, &returned, nullptr) != 0;
+    BY_HANDLE_FILE_INFORMATION info = {};
+    bool directory = GetFileInformationByHandle(file, &info) && (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+    CloseHandle(file);
+
+    Win32ReparseHeader* header = (Win32ReparseHeader*)buffer;
+    if (!read || returned < sizeof(Win32ReparseHeader) || !Win32IsLinkTag(header->tag)) {
+        ScratchEnd(scratch);
+        return false;
+    }
+
+    bool junction = header->tag == IO_REPARSE_TAG_MOUNT_POINT;
+    u8* names = buffer + sizeof(Win32ReparseHeader) + (junction ? 0 : sizeof(ULONG));
+    bool printed = header->print_name_length > 0;
+    WCHAR* name = (WCHAR*)(names + (printed ? header->print_name_offset : header->substitute_name_offset));
+    i32 name_count = (i32)((printed ? header->print_name_length : header->substitute_name_length) / sizeof(WCHAR));
+    if (!printed && name_count >= 4 && name[0] == L'\\' && name[1] == L'?' && name[2] == L'?' && name[3] == L'\\') {
+        name += 4;
+        name_count -= 4;
+    }
+
+    i32 bytes = WideCharToMultiByte(CP_UTF8, 0, name, name_count, nullptr, 0, nullptr, nullptr);
+    out->target = ArenaPushString8Empty(arena, (u64)bytes);
+    WideCharToMultiByte(CP_UTF8, 0, name, name_count, (char*)out->target.ptr, bytes, nullptr, nullptr);
+    out->directory = directory || junction;
+    out->junction = junction;
+    ScratchEnd(scratch);
+
+    return true;
+}
+
+// A junction at `path` to `target`, which a junction needs absolute; a relative one is taken from the folder it goes in
+static bool Win32MakeJunction(ArenaAllocator* arena, String8 path, String8 target) {
+    bool absolute = (target.count >= 2 && target.ptr[1] == ':') || (target.count >= 2 && (target.ptr[0] == '\\' || target.ptr[0] == '/') && (target.ptr[1] == '\\' || target.ptr[1] == '/'));
+    String8 joined = absolute ? target : StringFormat(arena, "%S/%S", Dirname(arena, path), target);
+    WCHAR* full = ArenaPushArray(arena, WCHAR, 32768);
+    DWORD full_count = GetFullPathNameW(Win32WidePath(arena, joined), 32768, full, nullptr);
+    if (full_count == 0 || full_count >= 32768) {
+        return false;
+    }
+
+    WCHAR* wide_path = Win32WidePath(arena, path);
+    if (!CreateDirectoryW(wide_path, nullptr)) {
+        return false;
+    }
+
+    HANDLE file = CreateFileW(wide_path, GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        RemoveDirectoryW(wide_path);
+        return false;
+    }
+
+    // The substitute name, \??\ and the path, then the print name, the path alone, each with a zero after it
+    u32 substitute_count = 4 + full_count;
+    u32 names_size = (substitute_count + 1 + full_count + 1) * sizeof(WCHAR);
+    u32 total = sizeof(Win32ReparseHeader) + names_size;
+    u8* buffer = ArenaPushArray(arena, u8, total);
+    Win32ReparseHeader* header = (Win32ReparseHeader*)buffer;
+    header->tag = IO_REPARSE_TAG_MOUNT_POINT;
+    header->data_length = (USHORT)(total - 8);
+    header->substitute_name_offset = 0;
+    header->substitute_name_length = (USHORT)(substitute_count * sizeof(WCHAR));
+    header->print_name_offset = (USHORT)((substitute_count + 1) * sizeof(WCHAR));
+    header->print_name_length = (USHORT)(full_count * sizeof(WCHAR));
+    WCHAR* names = (WCHAR*)(buffer + sizeof(Win32ReparseHeader));
+    MemCpy(names, L"\\??\\", 4 * sizeof(WCHAR));
+    MemCpy(names + 4, full, full_count * sizeof(WCHAR));
+    MemCpy(names + substitute_count + 1, full, full_count * sizeof(WCHAR));
+
+    DWORD returned = 0;
+    bool made = DeviceIoControl(file, FSCTL_SET_REPARSE_POINT, buffer, total, nullptr, 0, &returned, nullptr) != 0;
+    CloseHandle(file);
+    if (!made) {
+        RemoveDirectoryW(wide_path);
+    }
+
+    return made;
+}
+
+KRAFT_API bool MakeLink(String8 path, const LinkInfo* link) {
+    TempArena scratch = ScratchBegin(0, 0);
+    bool made = false;
+    if (!link->junction) {
+        DWORD flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE | (link->directory ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0);
+        made = CreateSymbolicLinkW(Win32WidePath(scratch.arena, path), Win32WidePath(scratch.arena, link->target), flags) != 0;
+    }
+
+    if (!made && link->directory) {
+        made = Win32MakeJunction(scratch.arena, path, link->target);
+    }
+    ScratchEnd(scratch);
+
+    return made;
+}
+
+KRAFT_API bool RemoveLink(String8 path) {
+    TempArena scratch = ScratchBegin(0, 0);
+    WCHAR* wide = Win32WidePath(scratch.arena, path);
+    DWORD attributes = GetFileAttributesW(wide);
+    bool removed = attributes == INVALID_FILE_ATTRIBUTES;
+    if (!removed && IsLink(path)) {
+        // A link to a directory is one itself, which RemoveDirectory takes away without going into
+        removed = (attributes & FILE_ATTRIBUTE_DIRECTORY) ? RemoveDirectoryW(wide) != 0 : DeleteFileW(wide) != 0;
+    }
+    ScratchEnd(scratch);
+
+    return removed;
+}
+
+KRAFT_API bool GetFileIdentity(String8 path, FileIdentity* out) {
+    *out = {};
+    TempArena scratch = ScratchBegin(0, 0);
+    HANDLE file = CreateFileW(Win32WidePath(scratch.arena, path), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    ScratchEnd(scratch);
+    if (file == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    BY_HANDLE_FILE_INFORMATION info = {};
+    bool known = GetFileInformationByHandle(file, &info) != 0;
+    CloseHandle(file);
+    if (!known) {
+        return false;
+    }
+
+    out->volume = info.dwVolumeSerialNumber;
+    out->index = ((u64)info.nFileIndexHigh << 32) | info.nFileIndexLow;
+
+    return true;
 }
 
 KRAFT_API FileReadStatus ReadEntireFile(ArenaAllocator* arena, String8 path, String8* out_contents) {
@@ -316,7 +504,39 @@ KRAFT_API void DirectoryWatchStop(DirectoryWatch* watch) {
     DirectoryWatchDestroy(watch);
 }
 
+// FILETIME counts 100ns intervals from 1601
+static u64 Win32UnixSeconds(FILETIME time) {
+    ULARGE_INTEGER intervals;
+    intervals.LowPart = time.dwLowDateTime;
+    intervals.HighPart = time.dwHighDateTime;
+
+    return intervals.QuadPart > 116444736000000000ull ? (intervals.QuadPart - 116444736000000000ull) / 10000000ull : 0;
+}
+
+// Describes what the link at `path` points to; one to nothing is neither a directory nor sized
+static void Win32LinkTargetEntry(const char* path, FileSystemEntry* entry) {
+    entry->is_directory = false;
+    entry->file_size = 0;
+    HANDLE file = CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    BY_HANDLE_FILE_INFORMATION info = {};
+    if (GetFileInformationByHandle(file, &info)) {
+        entry->is_directory = (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        entry->file_size = entry->is_directory ? 0 : ((u64)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+        entry->modified_time = Win32UnixSeconds(info.ftLastWriteTime);
+    }
+    CloseHandle(file);
+}
+
 KRAFT_API bool RemoveEmptyDirectory(String8 path) {
+    // RemoveDirectory takes a link to a directory away whatever is in it, where on other systems it is not a directory
+    if (IsLink(path)) {
+        return false;
+    }
+
     if (RemoveDirectoryA((char*)path.ptr)) {
         return true;
     }
@@ -370,11 +590,13 @@ KRAFT_API Directory ReadDirEntries(ArenaAllocator* arena, String8 path) {
 
         // The enumeration already has the timestamp, so a caller that wants it does not have to
         // stat every file again
-        // FILETIME counts 100ns intervals from 1601.
-        ULARGE_INTEGER write_time;
-        write_time.LowPart = find_data.ftLastWriteTime.dwLowDateTime;
-        write_time.HighPart = find_data.ftLastWriteTime.dwHighDateTime;
-        entry->modified_time = write_time.QuadPart > 116444736000000000ull ? (write_time.QuadPart - 116444736000000000ull) / 10000000ull : 0;
+        entry->modified_time = Win32UnixSeconds(find_data.ftLastWriteTime);
+
+        // The listing describes a link itself, which the caller wants to know about what it points to
+        entry->is_link = (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) && Win32IsLinkTag(find_data.dwReserved0);
+        if (entry->is_link) {
+            Win32LinkTargetEntry((char*)StringFormat(scratch.arena, "%S/%s", path, find_data.cFileName).ptr, entry);
+        }
     } while (FindNextFile(find_handle, &find_data) != 0);
     FindClose(find_handle);
     ScratchEnd(scratch);

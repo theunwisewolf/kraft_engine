@@ -122,6 +122,68 @@ KRAFT_API bool MoveToTrash(String8 path) {
     return trashed;
 }
 
+KRAFT_API bool IsLink(String8 path) {
+    char native[PATH_MAX];
+    struct stat info;
+
+    return MacPath(native, sizeof(native), path) && lstat(native, &info) == 0 && S_ISLNK(info.st_mode);
+}
+
+KRAFT_API bool ReadLink(ArenaAllocator* arena, String8 path, LinkInfo* out) {
+    *out = {};
+    char native[PATH_MAX];
+    char target[PATH_MAX];
+    if (!MacPath(native, sizeof(native), path)) {
+        return false;
+    }
+
+    ssize_t length = readlink(native, target, sizeof(target) - 1);
+    if (length < 0) {
+        return false;
+    }
+
+    struct stat info;
+    out->target = ArenaPushString8Copy(arena, String8FromPtrAndLength((u8*)target, (u64)length));
+    out->directory = stat(native, &info) == 0 && S_ISDIR(info.st_mode);
+
+    return true;
+}
+
+KRAFT_API bool MakeLink(String8 path, const LinkInfo* link) {
+    char native[PATH_MAX];
+    char target[PATH_MAX];
+
+    return MacPath(native, sizeof(native), path) && MacPath(target, sizeof(target), link->target) && symlink(target, native) == 0;
+}
+
+KRAFT_API bool RemoveLink(String8 path) {
+    char native[PATH_MAX];
+    struct stat info;
+    if (!MacPath(native, sizeof(native), path)) {
+        return false;
+    }
+
+    if (lstat(native, &info) != 0) {
+        return errno == ENOENT;
+    }
+
+    return S_ISLNK(info.st_mode) && unlink(native) == 0;
+}
+
+KRAFT_API bool GetFileIdentity(String8 path, FileIdentity* out) {
+    *out = {};
+    char native[PATH_MAX];
+    struct stat info;
+    if (!MacPath(native, sizeof(native), path) || stat(native, &info) != 0) {
+        return false;
+    }
+
+    out->volume = (u64)info.st_dev;
+    out->index = (u64)info.st_ino;
+
+    return true;
+}
+
 KRAFT_API FileReadStatus ReadEntireFile(ArenaAllocator* arena, String8 path, String8* out_contents) {
     *out_contents = String8{};
     char native[PATH_MAX];
@@ -170,6 +232,7 @@ struct MacListingEntry {
     const char* name;
     u64 name_length;
     bool is_directory;
+    bool is_link;
     u64 size;
     u64 modified_time;
 };
@@ -250,14 +313,16 @@ static bool MacListDirectory(const char* directory, MacListingVisit* visit, void
 
             entry.is_directory = type == VDIR;
 
-            // A link is never a folder to go into, so nothing that walks a tree, deleting it least of all, reaches
-            // through one into what it points at. One to a file reads as that file.
+            // A link reads as what it points to; one to nothing is neither a directory nor sized
             if (type == VLNK) {
                 char target[PATH_MAX];
                 struct stat info;
+                entry.is_link = true;
+                entry.size = 0;
                 snprintf(target, sizeof(target), "%s/%.*s", directory, (int)entry.name_length, entry.name);
-                if (stat(target, &info) == 0 && S_ISREG(info.st_mode)) {
-                    entry.size = (u64)info.st_size;
+                if (stat(target, &info) == 0) {
+                    entry.is_directory = S_ISDIR(info.st_mode);
+                    entry.size = S_ISREG(info.st_mode) ? (u64)info.st_size : 0;
                     entry.modified_time = (u64)info.st_mtimespec.tv_sec;
                 }
             }
@@ -289,6 +354,7 @@ static void MacListingAdd(MacListingEntry* entry, void* user) {
     MacListingNode* node = ArenaPush(listing->nodes_arena, MacListingNode);
     node->entry.name = ArenaPushString8Copy(listing->arena, String8FromPtrAndLength((u8*)entry->name, entry->name_length));
     node->entry.is_directory = entry->is_directory;
+    node->entry.is_link = entry->is_link;
     node->entry.file_size = entry->is_directory ? 0 : entry->size;
     node->entry.modified_time = entry->modified_time;
     if (listing->last) {
