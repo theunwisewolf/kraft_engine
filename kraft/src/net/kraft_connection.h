@@ -39,6 +39,20 @@ KRAFT_API bool ConnectionOpen(Connection* connection, String8 host, u16 port, u6
 // so self-signed development servers still work
 KRAFT_API bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool skip_verify);
 
+// How long each part of opening a connection took
+struct ConnectionTimes {
+    u64 dns_micros;
+    u64 connect_micros; // the TCP handshake
+    u64 tls_micros;
+};
+
+// ConnectionOpen and then ConnectionStartTls, made one connection where the system can, which saves a round trip
+// `out_times` is set as far as it got, even when it fails
+KRAFT_API bool ConnectionOpenTls(Connection* connection, String8 host, u16 port, String8 alpn, bool skip_verify, ConnectionTimes* out_times);
+
+// The same as two steps, timed apart, for a platform or a host that needs them
+KRAFT_API bool ConnectionOpenTlsInSteps(Connection* connection, String8 host, u16 port, String8 alpn, bool skip_verify, ConnectionTimes* out_times);
+
 // Sends all of `data`, waiting for the socket as long as the deadline allows
 KRAFT_API bool ConnectionSend(Connection* connection, const u8* data, u64 count);
 

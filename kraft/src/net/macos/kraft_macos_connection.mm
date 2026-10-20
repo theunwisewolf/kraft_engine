@@ -4,6 +4,7 @@
 #include <platform/macos/kraft_macos_cocoa.h>
 
 #include <arpa/inet.h>
+#include <dns_sd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -117,6 +118,18 @@ static String8 MacSocketErrorText(ArenaAllocator* arena, int code) {
     return StringFormat(arena, "%s (errno %d)", text, code);
 }
 
+// Why a host name could not be looked up, from Network.framework's DNS error
+static const char* MacDnsErrorText(int code) {
+    switch (code) {
+    case kDNSServiceErr_NoSuchName:
+    case kDNSServiceErr_NoSuchRecord:       return "no such host";
+    case kDNSServiceErr_Timeout:            return "the lookup timed out";
+    case kDNSServiceErr_Refused:            return "the name server refused the lookup";
+    case kDNSServiceErr_ServiceNotRunning:  return "the system's resolver is not running";
+    default:                                return "the lookup failed";
+    }
+}
+
 static String8 MacNetworkErrorText(ArenaAllocator* arena, nw_error_t error) {
     if (!error) {
         return S("the connection failed");
@@ -125,7 +138,7 @@ static String8 MacNetworkErrorText(ArenaAllocator* arena, nw_error_t error) {
     int code = nw_error_get_error_code(error);
     switch (nw_error_get_error_domain(error)) {
     case nw_error_domain_posix: return MacSocketErrorText(arena, code);
-    case nw_error_domain_dns:   return StringFormat(arena, "the host name could not be resolved (dns %d)", code);
+    case nw_error_domain_dns:   return StringFormat(arena, "the host name could not be resolved: %s (dns %d)", MacDnsErrorText(code), code);
     case nw_error_domain_tls:   {
         const char* known = "TLS handshake failed";
         switch (code) {
@@ -486,17 +499,25 @@ static void MacTlsClose(ConnectionPlatform* platform) {
     MacTlsRelease(platform);
 }
 
-bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool skip_verify) {
+// Where it went wrong, named the way ConnectionOpen names it, since a connection made in one step also looks up the
+// host and connects to it
+static void MacTlsFail(Connection* connection, u16 port) {
     ConnectionPlatform* platform = connection->platform;
-    if (!platform || platform->socket < 0) {
-        ConnectionFail(connection, "TLS needs an open connection");
-        return false;
+    nw_error_t error = platform->state_error;
+    nw_error_domain_t domain = error ? nw_error_get_error_domain(error) : nw_error_domain_invalid;
+    if (domain == nw_error_domain_dns) {
+        int code = nw_error_get_error_code(error);
+        ConnectionFail(connection, "could not resolve %s: %s (dns %d)", platform->host, MacDnsErrorText(code), code);
+    } else if (domain == nw_error_domain_posix) {
+        ConnectionFail(connection, "could not connect to %s:%u: %S", platform->host, (u32)port, MacNetworkErrorText(connection->arena, error));
+    } else {
+        ConnectionFail(connection, "%S", MacNetworkErrorText(connection->arena, error));
     }
+}
 
-    // Network.framework makes its own connection to the address ConnectionOpen reached, so the plain one goes
-    close(platform->socket);
-    platform->socket = -1;
-
+// Makes the TLS connection to `endpoint` and waits until it is ready with `alpn` agreed
+static bool MacTlsConnect(Connection* connection, nw_endpoint_t endpoint, u16 port, String8 host, String8 alpn, bool skip_verify) {
+    ConnectionPlatform* platform = connection->platform;
     MacHostText(host, platform->host, sizeof(platform->host));
     u64 alpn_count = alpn.count < sizeof(platform->alpn) - 1 ? alpn.count : sizeof(platform->alpn) - 1;
     MemCpy(platform->alpn, alpn.ptr, alpn_count);
@@ -560,9 +581,7 @@ bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool
         ^(nw_protocol_options_t tcp_options) { nw_tcp_options_set_no_delay(tcp_options, true); }
     );
 
-    nw_endpoint_t endpoint = nw_endpoint_create_address((const struct sockaddr*)&platform->peer);
     platform->tls = nw_connection_create(endpoint, parameters);
-    nw_release(endpoint);
     nw_release(parameters);
 
     nw_connection_set_queue(platform->tls, platform->queue);
@@ -588,7 +607,7 @@ bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool
         if (state == nw_connection_state_ready) {
             ready = true;
         } else if (state == nw_connection_state_failed || state == nw_connection_state_waiting || state == nw_connection_state_cancelled) {
-            ConnectionFail(connection, "%S", MacNetworkErrorText(connection->arena, platform->state_error));
+            MacTlsFail(connection, port);
             break;
         }
     }
@@ -623,6 +642,88 @@ bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool
         connection->tls_warning = StringFormat(connection->arena, "TLS not verified: %s", platform->verify_reason);
     }
 
+    return true;
+}
+
+bool ConnectionStartTls(Connection* connection, String8 host, String8 alpn, bool skip_verify) {
+    ConnectionPlatform* platform = connection->platform;
+    if (!platform || platform->socket < 0) {
+        ConnectionFail(connection, "TLS needs an open connection");
+        return false;
+    }
+
+    // Network.framework makes its own connection to the address ConnectionOpen reached, so the plain one goes
+    close(platform->socket);
+    platform->socket = -1;
+
+    nw_endpoint_t endpoint = nw_endpoint_create_address((const struct sockaddr*)&platform->peer);
+    u16 port = ntohs(((const sockaddr_in*)&platform->peer)->sin_port);
+    bool secured = MacTlsConnect(connection, endpoint, port, host, alpn, skip_verify);
+    nw_release(endpoint);
+
+    return secured;
+}
+
+// What the system's report on making the connection says each part took
+static void MacTlsTimes(ConnectionPlatform* platform, ConnectionTimes* out_times) {
+    dispatch_semaphore_t reported = dispatch_semaphore_create(0);
+    __block ConnectionTimes times = {};
+    nw_connection_access_establishment_report(platform->tls, platform->queue, ^(nw_establishment_report_t report) {
+      if (report) {
+          nw_establishment_report_enumerate_resolutions(
+              report,
+              ^bool(nw_report_resolution_source_t source, uint64_t milliseconds, uint32_t endpoint_count, nw_endpoint_t successful, nw_endpoint_t preferred) {
+                times.dns_micros += milliseconds * 1000;
+                return true;
+              }
+          );
+          nw_protocol_definition_t tcp = nw_protocol_copy_tcp_definition();
+          nw_protocol_definition_t tls = nw_protocol_copy_tls_definition();
+          nw_establishment_report_enumerate_protocols(report, ^bool(nw_protocol_definition_t protocol, uint64_t handshake_milliseconds, uint64_t handshake_rtt_milliseconds) {
+            if (nw_protocol_definition_is_equal(protocol, tcp)) {
+                times.connect_micros = handshake_milliseconds * 1000;
+            } else if (nw_protocol_definition_is_equal(protocol, tls)) {
+                times.tls_micros = handshake_milliseconds * 1000;
+            }
+            return true;
+          });
+          nw_release(tcp);
+          nw_release(tls);
+      }
+      dispatch_semaphore_signal(reported);
+    });
+    if (dispatch_semaphore_wait(reported, dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC)) == 0) {
+        *out_times = times;
+    }
+    dispatch_release(reported);
+}
+
+// One connection by the host's name, so the TCP and TLS handshakes are not two connections' worth of round trips.
+// localhost goes in two steps: ConnectionOpen tries IPv4 first, which a proxy listening on both families needs.
+bool ConnectionOpenTls(Connection* connection, String8 host, u16 port, String8 alpn, bool skip_verify, ConnectionTimes* out_times) {
+    MacConnectionPrepare(connection);
+    char host_text[512];
+    MacHostText(host, host_text, sizeof(host_text));
+    if (strcasecmp(host_text, "localhost") == 0) {
+        return ConnectionOpenTlsInSteps(connection, host, port, alpn, skip_verify, out_times);
+    }
+
+    *out_times = {};
+    char port_text[8];
+    snprintf(port_text, sizeof(port_text), "%u", (u32)port);
+    f64 start = Platform::GetAbsoluteTime();
+    const char* phase = connection->phase;
+    connection->phase = "connecting and completing the TLS handshake";
+    nw_endpoint_t endpoint = nw_endpoint_create_host(host_text, port_text);
+    bool secured = MacTlsConnect(connection, endpoint, port, host, alpn, skip_verify);
+    nw_release(endpoint);
+    connection->phase = phase;
+    if (!secured) {
+        out_times->connect_micros = (u64)((Platform::GetAbsoluteTime() - start) * 1000000.0);
+        return false;
+    }
+
+    MacTlsTimes(connection->platform, out_times);
     return true;
 }
 
