@@ -153,6 +153,7 @@ static String8 MacNetworkErrorText(ArenaAllocator* arena, nw_error_t error) {
         const char* known = "TLS handshake failed";
         switch (code) {
         case errSSLProtocol:
+        case errSSLHandshakeFail:
         case errSSLRecordOverflow:      known = "the TLS handshake was rejected by the server (is this a TLS port?)"; break;
         case errSSLPeerHandshakeFail:
         case errSSLNegotiation:         known = "no TLS version or cipher in common with the server"; break;
