@@ -46,7 +46,9 @@ struct KRAFT_API Window {
     void GetCursorPosition(f64* X, f64* Y);
     String8 ClipboardGet(ArenaAllocator* arena);
     void ClipboardSet(String8 text);
+#if !defined(KRAFT_NO_VULKAN) // a program that does not draw with Vulkan defines it, and builds without the Vulkan SDK
     i32 CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface);
+#endif
     void Destroy();
 
     // For a custom title bar
@@ -57,7 +59,9 @@ struct KRAFT_API Window {
     // Returns where the system's own window buttons are, in framebuffer pixels; empty when none are on show
     Rect SystemCaptionButtons();
 
+#if !defined(KRAFT_NO_VULKAN)
     static const char** RequiredVulkanExtensions(u32* count);
+#endif
 
     static void WindowSizeCallback(GLFWwindow* window, int width, int height);
     static void FramebufferSizeCallback(GLFWwindow* window, int width, int height);

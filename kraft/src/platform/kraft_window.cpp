@@ -1,6 +1,8 @@
 #include "kraft_window.h"
 
+#if !defined(KRAFT_NO_VULKAN)
 #include <vulkan/vulkan.h>
+#endif
 #include <GLFW/glfw3.h>
 
 #include <core/kraft_allocators.h>
@@ -288,6 +290,7 @@ void Window::ClipboardSet(String8 text) {
     ScratchEnd(scratch);
 }
 
+#if !defined(KRAFT_NO_VULKAN)
 i32 Window::CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_surface) {
     return (i32)glfwCreateWindowSurface((VkInstance)instance, this->PlatformWindowHandle, nullptr, (VkSurfaceKHR*)out_surface);
 }
@@ -295,6 +298,7 @@ i32 Window::CreateVulkanSurface(VkInstance_T* instance, VkSurfaceKHR_T** out_sur
 const char** Window::RequiredVulkanExtensions(u32* count) {
     return glfwGetRequiredInstanceExtensions(count);
 }
+#endif
 
 void Window::WindowSizeCallback(GLFWwindow* window, int width, int height) {
     Window* self = (Window*)glfwGetWindowUserPointer(window);
