@@ -18,13 +18,6 @@
 
 namespace kraft::net {
 
-struct ConnectionBuffer {
-    ArenaAllocator* arena;
-    u8* data;
-    u64 count;
-    u64 capacity;
-};
-
 struct ConnectionPlatform {
     // -1 when there is none
     int socket;
@@ -58,25 +51,6 @@ struct ConnectionPlatform {
     char host[512];
     char alpn[64];
 };
-
-static void ConnectionBufferReserve(ConnectionBuffer* buffer, u64 extra) {
-    if (buffer->count + extra <= buffer->capacity) {
-        return;
-    }
-
-    u64 new_capacity = buffer->capacity ? buffer->capacity * 2 : 16384;
-    while (new_capacity < buffer->count + extra) {
-        new_capacity *= 2;
-    }
-
-    u8* new_data = ArenaPushArrayNoZero(buffer->arena, u8, new_capacity);
-    if (buffer->count) {
-        MemCpy(new_data, buffer->data, buffer->count);
-    }
-
-    buffer->data = new_data;
-    buffer->capacity = new_capacity;
-}
 
 static String8 MacSocketErrorText(ArenaAllocator* arena, int code) {
     const char* known = nullptr;
