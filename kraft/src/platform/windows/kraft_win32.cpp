@@ -723,6 +723,10 @@ Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
         glfwGetFramebufferSize(State->PrimaryWindow->PlatformWindowHandle, &State->PrimaryWindow->FramebufferWidth, &State->PrimaryWindow->FramebufferHeight);
     }
 
+    if (!Opts->Focused) {
+        SetWindowPos(State->PrimaryWindow->PlatformWindowState->hWindow, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
+
     return State->PrimaryWindow;
 }
 

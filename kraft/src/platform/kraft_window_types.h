@@ -37,6 +37,7 @@ struct WindowOptions {
     bool CustomTitleBar = false;
 
     // Takes the keyboard focus as it opens, bringing the program to the front
+    // On Windows one without it opens behind the other windows
     bool Focused = true;
 };
 

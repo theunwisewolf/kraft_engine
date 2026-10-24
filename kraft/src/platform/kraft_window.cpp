@@ -71,6 +71,11 @@ int Window::Init(const WindowOptions* Opts) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_MAXIMIZED, Opts->StartMaximized);
     glfwWindowHint(GLFW_FOCUSED, Opts->Focused);
+    glfwWindowHint(GLFW_FOCUS_ON_SHOW, Opts->Focused);
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    // CreatePlatformWindow shows one that is not to take the focus itself, behind the other windows
+    glfwWindowHint(GLFW_VISIBLE, Opts->Focused);
+#endif
     glfwWindowHint(GLFW_SRGB_CAPABLE, true);
 
     i32 width = (i32)Opts->Width;
