@@ -188,6 +188,14 @@ bool Window::PollEvents() {
     return !this->ShouldClose();
 }
 
+bool Window::WaitEvents() {
+    this->Events.Clear();
+    glfwWaitEvents();
+    InputSystem::ProcessEvents(&this->Events);
+
+    return !this->ShouldClose();
+}
+
 bool Window::WaitEvents(f64 timeout_seconds) {
     this->Events.Clear();
     glfwWaitEventsTimeout(timeout_seconds);

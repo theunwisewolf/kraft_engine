@@ -30,6 +30,7 @@ struct KRAFT_API Window {
 
     int Init(const struct WindowOptions* Opts);
     bool PollEvents(); // Returns false if the window wants to close
+    bool WaitEvents(); // Blocks until an event arrives
     bool WaitEvents(f64 timeout_seconds); // Blocks until an event arrives or the timeout elapses
     bool ShouldClose();
     bool IsMaximized();
