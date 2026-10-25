@@ -53,6 +53,9 @@ KRAFT_API void CloseFile(FileHandle* handle);
 // Returns true if the file exists at "path"
 KRAFT_API bool FileExists(String8 path);
 
+// Returns true if a file is at "path", with its size in bytes in out_size
+KRAFT_API bool FileSize(String8 path, u64* out_size);
+
 // Cleans a path similar to Go's path.Clean:
 // - Replaces backslashes with forward slashes
 // - Collapses multiple consecutive slashes into one

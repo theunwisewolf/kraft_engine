@@ -34,6 +34,18 @@ KRAFT_API bool FileExists(String8 path) {
     return MacPath(native, sizeof(native), path) && stat(native, &info) == 0 && !S_ISDIR(info.st_mode);
 }
 
+KRAFT_API bool FileSize(String8 path, u64* out_size) {
+    *out_size = 0;
+    char native[PATH_MAX];
+    struct stat info;
+    if (!MacPath(native, sizeof(native), path) || stat(native, &info) != 0 || S_ISDIR(info.st_mode)) {
+        return false;
+    }
+    *out_size = (u64)info.st_size;
+
+    return true;
+}
+
 KRAFT_API bool DirectoryExists(String8 path) {
     char native[PATH_MAX];
     struct stat info;

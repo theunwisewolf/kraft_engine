@@ -48,6 +48,20 @@ KRAFT_API bool FileExists(String8 path) {
     return (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0);
 }
 
+KRAFT_API bool FileSize(String8 path, u64* out_size) {
+    *out_size = 0;
+    TempArena scratch = ScratchBegin(nullptr, 0);
+    WIN32_FILE_ATTRIBUTE_DATA data = {};
+    BOOL found = GetFileAttributesExW(Win32WidePath(scratch.arena, path), GetFileExInfoStandard, &data);
+    ScratchEnd(scratch);
+    if (!found || (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        return false;
+    }
+    *out_size = ((u64)data.nFileSizeHigh << 32) | data.nFileSizeLow;
+
+    return true;
+}
+
 KRAFT_API bool DirectoryExists(String8 path) {
     DWORD attributes = GetFileAttributes((char*)path.ptr);
 
