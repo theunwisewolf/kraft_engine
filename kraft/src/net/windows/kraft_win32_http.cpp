@@ -134,6 +134,13 @@ static u64 HttpPushWithoutLineBreaks(ArenaAllocator* arena, String8 text) {
     return count;
 }
 
+static String8 HttpCopyWithoutLineBreaks(ArenaAllocator* arena, String8 text) {
+    u8* start = (u8*)arena->Push(0, 1, false);
+    u64 count = HttpPushWithoutLineBreaks(arena, text);
+
+    return String8{{start}, count};
+}
+
 static b32 HttpEqualsIgnoringCase(String8 text, const char* other) {
     for (u64 index = 0; index < text.count; index++) {
         u8 left = text.ptr[index];
@@ -247,14 +254,112 @@ static String8 HttpSecureFailureText(ArenaAllocator* arena, DWORD flags) {
     return result.count > 0 ? result : S("the certificate could not be verified");
 }
 
+// Splits "Key: value" lines after the status line into headers that point into the text
+static void HttpParseHeaders(ArenaAllocator* arena, String8 raw_headers, HttpHeader** out_headers, u32* out_count) {
+    u32 max_lines = 1;
+    for (u64 index = 0; index < raw_headers.count; index++) {
+        if (raw_headers.ptr[index] == '\n') {
+            max_lines++;
+        }
+    }
+
+    HttpHeader* parsed = ArenaPushArray(arena, HttpHeader, max_lines);
+    u32 parsed_count = 0;
+    b32 status_line = true;
+    u64 position = 0;
+    while (position < raw_headers.count) {
+        u64 line_end = position;
+        while (line_end < raw_headers.count && raw_headers.ptr[line_end] != '\n') {
+            line_end++;
+        }
+
+        u64 end = line_end;
+        if (end > position && raw_headers.ptr[end - 1] == '\r') {
+            end--;
+        }
+
+        if (status_line) {
+            status_line = false;
+        } else if (end > position) {
+            u64 colon = position;
+            while (colon < end && raw_headers.ptr[colon] != ':') {
+                colon++;
+            }
+
+            u64 value_start = colon < end ? colon + 1 : end;
+            while (value_start < end && raw_headers.ptr[value_start] == ' ') {
+                value_start++;
+            }
+
+            parsed[parsed_count].key = String8{{raw_headers.ptr + position}, colon - position};
+            parsed[parsed_count].value = String8{{raw_headers.ptr + value_start}, end - value_start};
+            parsed_count++;
+        }
+
+        position = line_end + 1;
+    }
+
+    *out_headers = parsed;
+    *out_count = parsed_count;
+}
+
+static String8 HttpQueryRawHeaders(ArenaAllocator* arena, HINTERNET request) {
+    DWORD raw_length = 0;
+    WinHttpQueryHeaders(request, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, nullptr, &raw_length, WINHTTP_NO_HEADER_INDEX);
+    if (raw_length == 0) {
+        return String8{};
+    }
+
+    wchar_t* raw = ArenaPushArrayNoZero(arena, wchar_t, raw_length / 2 + 1);
+    if (!WinHttpQueryHeaders(request, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, raw, &raw_length, WINHTTP_NO_HEADER_INDEX)) {
+        return String8{};
+    }
+
+    return HttpPushUtf8(arena, raw, -1);
+}
+
+// WinHTTP follows the redirect itself, with the headers left on the request handle once this returns
+static void HttpRedirected(HttpTask* task, HINTERNET request, const wchar_t* next_url) {
+    ArenaAllocator* arena = task->arena;
+    HttpRedirect redirect = {};
+    redirect.arena = arena;
+    redirect.url = HttpPushUtf8(arena, next_url, -1);
+
+    DWORD code = 0;
+    DWORD code_size = sizeof(code);
+    WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &code, &code_size, WINHTTP_NO_HEADER_INDEX);
+    redirect.status = (i32)code;
+    HttpParseHeaders(arena, HttpQueryRawHeaders(arena, request), &redirect.headers, &redirect.header_count);
+    task->request.before_redirect(&redirect, task->request.before_redirect_user);
+
+    for (u32 index = 0; index < redirect.next_header_count; index++) {
+        String8 key = HttpCopyWithoutLineBreaks(arena, redirect.next_headers[index].key);
+        String8 value = HttpCopyWithoutLineBreaks(arena, redirect.next_headers[index].value);
+        if (key.count == 0) {
+            continue;
+        }
+
+        // Removes every header of this name, one per call, then adds the new one unless its value is empty
+        wchar_t* removal = HttpPushWide(arena, StringFormat(arena, "%S:", key));
+        for (u32 removed = 0; removed < 64 && WinHttpAddRequestHeaders(request, removal, (DWORD)-1, WINHTTP_ADDREQ_FLAG_REPLACE); removed++) {}
+
+        if (value.count > 0) {
+            WinHttpAddRequestHeaders(request, HttpPushWide(arena, StringFormat(arena, "%S: %S", key, value)), (DWORD)-1, WINHTTP_ADDREQ_FLAG_ADD);
+        }
+    }
+}
+
 static void CALLBACK HttpStatusCallback(HINTERNET handle, DWORD_PTR context, DWORD status, void* info, DWORD info_length) {
-    if (status != WINHTTP_CALLBACK_STATUS_SECURE_FAILURE || context == 0) {
+    if (context == 0) {
         return;
     }
 
     HttpTask* task = (HttpTask*)context;
-    task->secure_failure_flags = (info && info_length >= sizeof(DWORD)) ? *(DWORD*)info : 0;
-    (void)handle;
+    if (status == WINHTTP_CALLBACK_STATUS_SECURE_FAILURE) {
+        task->secure_failure_flags = (info && info_length >= sizeof(DWORD)) ? *(DWORD*)info : 0;
+    } else if (status == WINHTTP_CALLBACK_STATUS_REDIRECT && info && task->request.before_redirect) {
+        HttpRedirected(task, handle, (const wchar_t*)info);
+    }
 }
 
 // Windows before 10 2004 has no per-step times, so the request is only measured as a whole
@@ -357,6 +462,8 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
         task->request_handle = request;
         DWORD decompression = WINHTTP_DECOMPRESSION_FLAG_ALL;
         WinHttpSetOption(request, WINHTTP_OPTION_DECOMPRESSION, &decompression, sizeof(decompression));
+        DWORD no_cookies = WINHTTP_DISABLE_COOKIES;
+        WinHttpSetOption(request, WINHTTP_OPTION_DISABLE_FEATURE, &no_cookies, sizeof(no_cookies));
         if (task->request.no_redirects) {
             DWORD policy = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
             WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY, &policy, sizeof(policy));
@@ -365,11 +472,12 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
             WinHttpSetOption(request, WINHTTP_OPTION_MAX_HTTP_AUTOMATIC_REDIRECTS, &max_redirects, sizeof(max_redirects));
         }
 
-        // The only way to learn why a certificate was rejected
-        if (url_parts.nScheme == INTERNET_SCHEME_HTTPS) {
+        // The only way to learn why a certificate was rejected, a redirect's too, and what a redirect said
+        {
             DWORD_PTR context = (DWORD_PTR)task;
+            DWORD callbacks = WINHTTP_CALLBACK_FLAG_SECURE_FAILURE | (task->request.before_redirect ? WINHTTP_CALLBACK_FLAG_REDIRECT : 0);
             WinHttpSetOption(request, WINHTTP_OPTION_CONTEXT_VALUE, &context, sizeof(context));
-            WinHttpSetStatusCallback(request, HttpStatusCallback, WINHTTP_CALLBACK_FLAG_SECURE_FAILURE, 0);
+            WinHttpSetStatusCallback(request, HttpStatusCallback, callbacks, 0);
         }
 
         u8* headers_start = (u8*)arena->Push(0, 1, false);
@@ -457,56 +565,9 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
             }
         }
 
-        DWORD raw_length = 0;
-        WinHttpQueryHeaders(request, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, nullptr, &raw_length, WINHTTP_NO_HEADER_INDEX);
-        if (raw_length > 0) {
-            wchar_t* raw = ArenaPushArrayNoZero(arena, wchar_t, raw_length / 2 + 1);
-            if (WinHttpQueryHeaders(request, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, raw, &raw_length, WINHTTP_NO_HEADER_INDEX)) {
-                response->raw_headers = HttpPushUtf8(arena, raw, -1);
-                String8 raw_headers = response->raw_headers;
-                u32 max_lines = 1;
-                for (u64 index = 0; index < raw_headers.count; index++) {
-                    if (raw_headers.ptr[index] == '\n') {
-                        max_lines++;
-                    }
-                }
-
-                HttpHeader* parsed = ArenaPushArray(arena, HttpHeader, max_lines);
-                u32 parsed_count = 0;
-                b32 status_line = true;
-                u64 position = 0;
-                while (position < raw_headers.count) {
-                    u64 line_end = position;
-                    while (line_end < raw_headers.count && raw_headers.ptr[line_end] != '\n') {
-                        line_end++;
-                    }
-
-                    u64 end = line_end;
-                    if (end > position && raw_headers.ptr[end - 1] == '\r') {
-                        end--;
-                    }
-
-                    if (status_line) {
-                        status_line = false;
-                    } else if (end > position) {
-                        u64 colon = position;
-                        while (colon < end && raw_headers.ptr[colon] != ':') {
-                            colon++;
-                        }
-                        u64 value_start = colon < end ? colon + 1 : end;
-                        while (value_start < end && raw_headers.ptr[value_start] == ' ') {
-                            value_start++;
-                        }
-                        parsed[parsed_count].key = String8{{raw_headers.ptr + position}, colon - position};
-                        parsed[parsed_count].value = String8{{raw_headers.ptr + value_start}, end - value_start};
-                        parsed_count++;
-                    }
-
-                    position = line_end + 1;
-                }
-                response->headers = parsed;
-                response->header_count = parsed_count;
-            }
+        response->raw_headers = HttpQueryRawHeaders(arena, request);
+        if (response->raw_headers.count > 0) {
+            HttpParseHeaders(arena, response->raw_headers, &response->headers, &response->header_count);
         }
 
         u8* body_start = (u8*)arena->Push(0, 1, false);
@@ -616,6 +677,8 @@ HttpTask* HttpSend(HttpRequest request) {
     task->request.no_redirects = request.no_redirects;
     task->request.after_response = request.after_response;
     task->request.after_response_user = request.after_response_user;
+    task->request.before_redirect = request.before_redirect;
+    task->request.before_redirect_user = request.before_redirect_user;
     task->request.max_redirects = request.max_redirects;
     task->request.url = StringCopy(arena, request.url);
     task->request.body = request.body.count ? StringCopy(arena, request.body) : String8{};

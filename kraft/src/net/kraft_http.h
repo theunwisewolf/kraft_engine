@@ -38,6 +38,24 @@ struct NetTimings {
 
 struct HttpResponse;
 
+// A redirect about to be followed
+struct HttpRedirect {
+    i32 status;
+    String8 url;
+
+    // the redirect's own response headers
+    HttpHeader* headers;
+    u32 header_count;
+
+    // What before_redirect allocates next_headers from
+    ArenaAllocator* arena;
+
+    // Set by before_redirect: headers for the request to url, each replacing any header of the same name.
+    // An empty value removes that header instead
+    HttpHeader* next_headers;
+    u32 next_header_count;
+};
+
 struct HttpRequest {
     HttpMethod method;
     String8 url;
@@ -55,6 +73,10 @@ struct HttpRequest {
     // Runs on the request's thread before the task is done
     void (*after_response)(HttpResponse* response, void* user);
     void* after_response_user;
+
+    // Runs on a thread of kraft's before each redirect is followed
+    void (*before_redirect)(HttpRedirect* redirect, void* user);
+    void* before_redirect_user;
 };
 
 #define KRAFT_HTTP_MAX_BODY KRAFT_SIZE_MB(1024)
@@ -87,6 +109,7 @@ KRAFT_API void HttpSetUserAgent(String8 user_agent);
 
 // Sends the request on a thread of its own and returns at once
 // Poll HttpTaskDone, read the response with HttpTaskResult, then free the task with HttpTaskDestroy
+// No cookies are kept: a request carries only the Cookie header it is given
 KRAFT_API HttpTask* HttpSend(HttpRequest request);
 
 // Returns true once the request has finished, failed, timed out or been cancelled

@@ -59,10 +59,13 @@ static char g_http_user_agent[128] = "kraft";
 static NSURLSession* HttpSessionGet() {
     os_unfair_lock_lock(&g_http_session_lock);
     if (!g_http_session) {
-        // Like WinHTTP: cookies kept in memory for the session, nothing cached
+        // Like WinHTTP: no cookies kept, nothing cached
         NSURLSessionConfiguration* configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         configuration.URLCache = nil;
         configuration.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+        configuration.HTTPCookieStorage = nil;
+        configuration.HTTPShouldSetCookies = NO;
+        configuration.HTTPCookieAcceptPolicy = NSHTTPCookieAcceptPolicyNever;
         g_http_queue = [[NSOperationQueue alloc] init];
         g_http_queue.maxConcurrentOperationCount = 1;
         g_http_queue.name = @"kraft http";
@@ -350,9 +353,49 @@ static void HttpFail(HttpTask* task, const char* reason, String8 detail) {
     task->response.error = detail.count > 0 ? StringFormat(task->arena, "%s: %S", reason, detail) : StringFormat(task->arena, "%s", reason);
 }
 
+// NSHTTPURLResponse joins every Set-Cookie into one value with commas, which an Expires date has in it too. A comma
+// starts the next cookie when a name and its = follow it before any ; or ,
+static void HttpAppendField(NSMutableString* raw, NSString* key, NSString* value) {
+    if ([key caseInsensitiveCompare:@"Set-Cookie"] != NSOrderedSame) {
+        [raw appendFormat:@"%@: %@\r\n", key, value];
+        return;
+    }
+
+    NSUInteger length = value.length;
+    NSUInteger start = 0;
+    for (NSUInteger index = 0; index <= length; index++) {
+        b32 split = index == length;
+        if (!split && [value characterAtIndex:index] == ',') {
+            NSUInteger name_start = index + 1;
+            while (name_start < length && [value characterAtIndex:name_start] == ' ') {
+                name_start++;
+            }
+
+            NSUInteger name_end = name_start;
+            while (name_end < length) {
+                unichar character = [value characterAtIndex:name_end];
+                if (character == '=' || character == ';' || character == ',' || character == ' ') {
+                    break;
+                }
+                name_end++;
+            }
+            split = name_end > name_start && name_end < length && [value characterAtIndex:name_end] == '=';
+        }
+
+        if (!split) {
+            continue;
+        }
+
+        NSString* cookie = [[value substringWithRange:NSMakeRange(start, index - start)] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (cookie.length > 0) {
+            [raw appendFormat:@"%@: %@\r\n", key, cookie];
+        }
+        start = index + 1;
+    }
+}
+
 // Splits "Key: value" lines after the status line into headers that point into the text
-static void HttpParseHeaders(ArenaAllocator* arena, HttpResponse* response) {
-    String8 raw_headers = response->raw_headers;
+static void HttpParseHeaders(ArenaAllocator* arena, String8 raw_headers, HttpHeader** out_headers, u32* out_count) {
     u32 max_lines = 1;
     for (u64 index = 0; index < raw_headers.count; index++) {
         if (raw_headers.ptr[index] == '\n') {
@@ -394,8 +437,8 @@ static void HttpParseHeaders(ArenaAllocator* arena, HttpResponse* response) {
         position = line_end + 1;
     }
 
-    response->headers = parsed;
-    response->header_count = parsed_count;
+    *out_headers = parsed;
+    *out_count = parsed_count;
 }
 
 static void HttpCancelTask(HttpTask* task) {
@@ -442,7 +485,44 @@ static NSMutableURLRequest* HttpBuildRequest(HttpTask* task, NSURL* url) {
         request.HTTPBody = [NSData dataWithBytes:task->request.body.ptr length:task->request.body.count];
     }
 
+    request.HTTPShouldHandleCookies = NO;
+
     return request;
+}
+
+// Called on the session's queue under the delegate's lock, while the request's thread waits for the task to end
+static NSURLRequest* HttpRedirected(HttpTask* task, NSHTTPURLResponse* redirect_response, NSURLRequest* next) {
+    ArenaAllocator* arena = task->arena;
+    HttpRedirect redirect = {};
+    redirect.arena = arena;
+    redirect.status = (i32)redirect_response.statusCode;
+    const char* next_url = next.URL.absoluteString.UTF8String;
+    redirect.url = next_url ? StringCopy(arena, String8FromCString(next_url)) : String8{};
+
+    NSMutableString* raw = [NSMutableString stringWithFormat:@"HTTP/1.1 %d\r\n", redirect.status];
+    NSDictionary* fields = redirect_response.allHeaderFields;
+    for (NSString* key in [fields.allKeys sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)]) {
+        HttpAppendField(raw, key, fields[key]);
+    }
+    HttpParseHeaders(arena, StringCopy(arena, String8FromCString(raw.UTF8String)), &redirect.headers, &redirect.header_count);
+    task->request.before_redirect(&redirect, task->request.before_redirect_user);
+    if (redirect.next_header_count == 0) {
+        return next;
+    }
+
+    NSMutableURLRequest* changed = [[next mutableCopy] autorelease];
+    for (u32 index = 0; index < redirect.next_header_count; index++) {
+        NSMutableString* key = [NSMutableString string];
+        NSMutableString* value = [NSMutableString string];
+        HttpAppendWithoutLineBreaks(key, redirect.next_headers[index].key);
+        HttpAppendWithoutLineBreaks(value, redirect.next_headers[index].value);
+        if (key.length > 0) {
+            [changed setValue:(value.length > 0 ? value : nil) forHTTPHeaderField:key];
+        }
+    }
+    changed.HTTPShouldHandleCookies = NO;
+
+    return changed;
 }
 
 // Everything the transfer left in the delegate, turned into the response, on the request's own thread
@@ -465,11 +545,11 @@ static void HttpTakeResult(HttpTask* task, KraftHttpDelegate* delegate) {
         NSMutableString* raw = [NSMutableString stringWithFormat:@"%s %d %s\r\n", HttpVersionText(delegate->metrics), response->status, HttpReasonPhrase(response->status)];
         NSDictionary* fields = http.allHeaderFields;
         for (NSString* key in [fields.allKeys sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)]) {
-            [raw appendFormat:@"%@: %@\r\n", key, fields[key]];
+            HttpAppendField(raw, key, fields[key]);
         }
         [raw appendString:@"\r\n"];
         response->raw_headers = StringCopy(arena, String8FromCString(raw.UTF8String));
-        HttpParseHeaders(arena, response);
+        HttpParseHeaders(arena, response->raw_headers, &response->headers, &response->header_count);
     }
 
     // Every host the request went through counts, a redirect's too, and a connection kept open from an earlier
@@ -599,6 +679,8 @@ HttpTask* HttpSend(HttpRequest request) {
     task->request.no_redirects = request.no_redirects;
     task->request.after_response = request.after_response;
     task->request.after_response_user = request.after_response_user;
+    task->request.before_redirect = request.before_redirect;
+    task->request.before_redirect_user = request.before_redirect_user;
     task->request.max_redirects = request.max_redirects;
     task->request.url = StringCopy(arena, request.url);
     task->request.body = request.body.count ? StringCopy(arena, request.body) : String8{};
@@ -697,6 +779,8 @@ void HttpTaskDestroy(HttpTask* task) {
         } else if (++redirect_count > limit) {
             too_many_redirects = true;
             follow = nil;
+        } else if (task->request.before_redirect) {
+            follow = kraft::net::HttpRedirected(task, redirect, request);
         }
     }
     os_unfair_lock_unlock(&lock);
