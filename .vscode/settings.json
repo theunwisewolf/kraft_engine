@@ -48,7 +48,6 @@
         "xmemory": "cpp",
         "ios": "cpp",
         "charconv": "cpp",
-        "*.mm": "cpp",
         "typeindex": "cpp",
         "thread": "cpp",
         "any": "cpp",

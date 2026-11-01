@@ -1264,6 +1264,7 @@ static bool RegistryWriteString(const wchar_t* path, const wchar_t* name, const 
     if (RegCreateKeyExW(HKEY_CURRENT_USER, path, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) {
         return false;
     }
+
     bool written = RegSetValueExW(key, name, 0, REG_SZ, (const BYTE*)value, (DWORD)((wcslen(value) + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
     RegCloseKey(key);
 
