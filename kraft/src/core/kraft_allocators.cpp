@@ -1,12 +1,17 @@
 #include <core/kraft_asserts.h>
 #include <core/kraft_memory.h>
 #include <platform/kraft_platform.h>
+#include <platform/kraft_threading.h>
 #include "kraft_allocators.h"
 
 namespace kraft {
 
 #define KRAFT_ARENA_COMMIT_SIZE KRAFT_SIZE_KB(64)
 #define KRAFT_ARENA_DECOMMIT_THRESHOLD KRAFT_SIZE_MB(4)
+
+// A zeroed mutex is an unlocked one on every platform, so the first arena needs nothing set up before it
+static Mutex g_live_arenas_lock;
+static ArenaAllocator* g_live_arenas;
 
 static u64 ArenaCommitTarget(ArenaAllocator* arena, u64 position) {
     u64 wanted = sizeof(ArenaAllocator) + position;
@@ -32,46 +37,83 @@ static bool ArenaCommitTo(ArenaAllocator* arena, u64 position) {
     return true;
 }
 
-ArenaAllocator* CreateArena(ArenaCreateOptions Options) {
+ArenaAllocator* CreateArena(ArenaCreateOptions options) {
     u64 page_size = Platform::MemPageSize();
-    if (Options.CommitSize == 0) {
-        Options.CommitSize = KRAFT_ARENA_COMMIT_SIZE;
+    if (options.CommitSize == 0) {
+        options.CommitSize = KRAFT_ARENA_COMMIT_SIZE;
     }
-    if (Options.DecommitThreshold == 0) {
-        Options.DecommitThreshold = KRAFT_ARENA_DECOMMIT_THRESHOLD;
+    if (options.DecommitThreshold == 0) {
+        options.DecommitThreshold = KRAFT_ARENA_DECOMMIT_THRESHOLD;
     }
-    if (Options.CommitSize < page_size) {
-        Options.CommitSize = page_size;
+    if (options.CommitSize < page_size) {
+        options.CommitSize = page_size;
     }
-    Options.CommitSize = AlignPow2(Options.CommitSize, page_size);
-    Options.ChunkSize = AlignPow2(Options.ChunkSize, Options.Alignment);
+    options.CommitSize = AlignPow2(options.CommitSize, page_size);
+    options.ChunkSize = AlignPow2(options.ChunkSize, options.Alignment);
 
-    u64 ReservedSize = AlignPow2(sizeof(ArenaAllocator) + Options.ChunkSize, Options.CommitSize);
-    u8* Memory = (u8*)Platform::MemReserve(ReservedSize);
-    KASSERTM(Memory != nullptr, "out of address space");
+    u64 reserved_size = AlignPow2(sizeof(ArenaAllocator) + options.ChunkSize, options.CommitSize);
+    u8* memory = (u8*)Platform::MemReserve(reserved_size);
+    KASSERTM(memory != nullptr, "out of address space");
 
     // Enough for the arena's own bookkeeping; the rest follows as it is pushed into.
-    bool committed = Platform::MemCommit(Memory, Options.CommitSize);
+    bool committed = Platform::MemCommit(memory, options.CommitSize);
     KASSERTM(committed, "could not commit the first page of an arena");
-    MemoryTrackCommit(Options.CommitSize, Options.Tag);
+    MemoryTrackCommit(options.CommitSize, options.Tag);
 
-    ArenaAllocator* OutArena = (ArenaAllocator*)Memory;
-    OutArena->tag = Options.Tag;
-    OutArena->base_ptr = Memory + sizeof(ArenaAllocator);
-    OutArena->base_position = 0;
-    OutArena->options = Options;
-    OutArena->capacity = Options.ChunkSize;
-    OutArena->capacity_reserved = ReservedSize;
-    OutArena->committed = Options.CommitSize;
-    OutArena->position = sizeof(ArenaAllocator);
-    OutArena->high_water = OutArena->position;
+    ArenaAllocator* out_arena = (ArenaAllocator*)memory;
+    out_arena->tag = options.Tag;
+    out_arena->base_ptr = memory + sizeof(ArenaAllocator);
+    out_arena->base_position = 0;
+    out_arena->options = options;
+    out_arena->capacity = options.ChunkSize;
+    out_arena->capacity_reserved = reserved_size;
+    out_arena->committed = options.CommitSize;
+    out_arena->position = sizeof(ArenaAllocator);
+    out_arena->high_water = out_arena->position;
 
-    return OutArena;
+    MutexLock(&g_live_arenas_lock);
+    out_arena->previous_live = nullptr;
+    out_arena->next_live = g_live_arenas;
+    if (g_live_arenas) {
+        g_live_arenas->previous_live = out_arena;
+    }
+    g_live_arenas = out_arena;
+    MutexUnlock(&g_live_arenas_lock);
+
+    return out_arena;
 }
 
-void DestroyArena(ArenaAllocator* Arena) {
-    MemoryTrackDecommit(Arena->committed, Arena->tag);
-    Platform::MemRelease(Arena, Arena->capacity_reserved);
+void DestroyArena(ArenaAllocator* arena) {
+    MutexLock(&g_live_arenas_lock);
+    if (arena->previous_live) {
+        arena->previous_live->next_live = arena->next_live;
+    } else {
+        g_live_arenas = arena->next_live;
+    }
+
+    if (arena->next_live) {
+        arena->next_live->previous_live = arena->previous_live;
+    }
+
+    MutexUnlock(&g_live_arenas_lock);
+
+    MemoryTrackDecommit(arena->committed, arena->tag);
+    Platform::MemRelease(arena, arena->capacity_reserved);
+}
+
+u64 ArenaResidentBytes(ArenaAllocator* arena) {
+    return Platform::MemResidentBytes(arena, arena->committed);
+}
+
+u64 ArenasResidentBytes() {
+    u64 total = 0;
+    MutexLock(&g_live_arenas_lock);
+    for (ArenaAllocator* arena = g_live_arenas; arena; arena = arena->next_live) {
+        total += ArenaResidentBytes(arena);
+    }
+    MutexUnlock(&g_live_arenas_lock);
+
+    return total;
 }
 
 void DecommitArenaAbove(ArenaAllocator* arena, u64 position) {

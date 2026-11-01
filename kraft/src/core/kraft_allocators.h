@@ -32,13 +32,16 @@ struct ArenaAllocator {
 
     // header plus the chunk rounded to pages
     u64 capacity_reserved;
-    
+
     // bytes committed from the start of the reservation, header included
     u64 committed;
-    
+
     // furthest position ever used; committed pages above it have never been written
     u64 high_water;
     ArenaCreateOptions options;
+
+    ArenaAllocator* previous_live;
+    ArenaAllocator* next_live;
 
     void* Push(u64 size, u64 alignment, bool zero);
 };
@@ -60,6 +63,12 @@ ArenaAllocator* CreateArena(ArenaCreateOptions options);
 void DecommitArenaAbove(ArenaAllocator* arena, u64 position); // give back everything past a point
 void DestroyArena(ArenaAllocator* arena);
 u64 ArenaPosition(ArenaAllocator* arena);
+
+// Returns how much of the arena is in physical memory, in bytes
+u64 ArenaResidentBytes(ArenaAllocator* arena);
+
+// Returns how much of all the arenas there are is in physical memory, in bytes
+u64 ArenasResidentBytes();
 
 void ArenaPop(ArenaAllocator* arena, u64 size);
 void ArenaPopToPosition(ArenaAllocator* arena, u64 position);

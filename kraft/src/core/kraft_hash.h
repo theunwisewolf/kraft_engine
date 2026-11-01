@@ -5,8 +5,7 @@
 namespace kraft {
 
 // https://learn.microsoft.com/en-us/cpp/porting/fix-your-dependencies-on-library-internals?view=msvc-170
-KRAFT_INLINE static u64 FNV1AHashBytes(const unsigned char* buffer, u64 count)
-{
+KRAFT_INLINE static u64 FNV1AHashBytes(const unsigned char* buffer, u64 count) {
     // #if defined(KRAFT_64BIT)
     static_assert(sizeof(u64) == 8, "This code is for 64-bit size_t.");
     const u64 fnv_offset_basis = 14695981039346656037ULL;
@@ -18,8 +17,7 @@ KRAFT_INLINE static u64 FNV1AHashBytes(const unsigned char* buffer, u64 count)
     // #endif /* defined(_WIN64) */
 
     u64 result = fnv_offset_basis;
-    for (u64 next = 0; next < count; ++next)
-    {
+    for (u64 next = 0; next < count; ++next) {
         // fold in another byte
         result ^= (u64)buffer[next];
         result *= fnv_prime;
@@ -28,8 +26,7 @@ KRAFT_INLINE static u64 FNV1AHashBytes(const unsigned char* buffer, u64 count)
     return result;
 }
 
-KRAFT_INLINE static u64 FNV1AHashBytes(String8 key)
-{
+KRAFT_INLINE static u64 FNV1AHashBytes(String8 key) {
     return FNV1AHashBytes(key.ptr, key.count);
 }
 
@@ -42,5 +39,14 @@ u64 MurmurHash64Inverse(u64 h, u64 seed);
 
 // Computes the SHA-256 digest of the `count` bytes at `data` into the 32 bytes at `out_digest`
 KRAFT_API void Sha256(const void* data, u64 count, u8* out_digest);
+
+// Computes the HMAC-SHA256 of the `count` bytes at `data` under the key into the 32 bytes at `out_digest`
+KRAFT_API void HmacSha256(const void* key, u64 key_count, const void* data, u64 count, u8* out_digest);
+
+// Computes the SHA-1 digest of the `count` bytes at `data` into the 20 bytes at `out_digest`
+KRAFT_API void Sha1(const void* data, u64 count, u8* out_digest);
+
+// Computes the HMAC-SHA1 of the `count` bytes at `data` under the key into the 20 bytes at `out_digest`
+KRAFT_API void HmacSha1(const void* key, u64 key_count, const void* data, u64 count, u8* out_digest);
 
 } // namespace kraft

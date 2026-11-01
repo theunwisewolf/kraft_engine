@@ -684,6 +684,9 @@ HttpTask* HttpSend(HttpRequest request) {
     task->request.max_redirects = request.max_redirects;
     task->request.url = StringCopy(arena, request.url);
     task->request.body = request.body.count ? StringCopy(arena, request.body) : String8{};
+    task->request.server_auth = request.server_auth;
+    task->request.server_auth_username = StringCopy(arena, request.server_auth_username);
+    task->request.server_auth_password = StringCopy(arena, request.server_auth_password);
     if (request.headers && request.header_count > 0) {
         task->request.headers = ArenaPushArray(arena, HttpHeader, request.header_count);
         task->request.header_count = request.header_count;
@@ -796,6 +799,24 @@ void HttpTaskDestroy(HttpTask* task) {
     didReceiveChallenge:(NSURLAuthenticationChallenge*)challenge
       completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential*))completion {
     NSURLProtectionSpace* space = challenge.protectionSpace;
+    bool digest = [space.authenticationMethod isEqualToString:NSURLAuthenticationMethodHTTPDigest];
+    bool ntlm = [space.authenticationMethod isEqualToString:NSURLAuthenticationMethodNTLM];
+    if (digest || ntlm) {
+        NSURLCredential* credential = nil;
+        os_unfair_lock_lock(&lock);
+        kraft::net::HttpServerAuth wanted = digest ? kraft::net::HTTP_SERVER_AUTH_DIGEST : kraft::net::HTTP_SERVER_AUTH_NTLM;
+        if (task && task->request.server_auth == wanted && challenge.previousFailureCount == 0) {
+            String8 username = task->request.server_auth_username;
+            String8 password = task->request.server_auth_password;
+            NSString* user_text = [[[NSString alloc] initWithBytes:username.ptr length:username.count encoding:NSUTF8StringEncoding] autorelease];
+            NSString* password_text = [[[NSString alloc] initWithBytes:password.ptr length:password.count encoding:NSUTF8StringEncoding] autorelease];
+            credential = [NSURLCredential credentialWithUser:user_text password:password_text persistence:NSURLCredentialPersistenceNone];
+        }
+        os_unfair_lock_unlock(&lock);
+        completion(credential ? NSURLSessionAuthChallengeUseCredential : NSURLSessionAuthChallengePerformDefaultHandling, credential);
+        return;
+    }
+
     if (![space.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust] || !space.serverTrust) {
         completion(NSURLSessionAuthChallengePerformDefaultHandling, nil);
         return;

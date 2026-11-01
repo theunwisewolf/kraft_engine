@@ -25,7 +25,9 @@
 
 #if defined(KRAFT_GUI_APP)
 #include <GLFW/glfw3.h>
+#ifndef GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #define GLFW_EXPOSE_NATIVE_WGL
 #define GLFW_NATIVE_INCLUDE_NONE
 #include <GLFW/glfw3native.h>
@@ -167,6 +169,30 @@ void Platform::MemDecommit(void* address, uint64_t size) {
 void Platform::MemRelease(void* address, uint64_t size) {
     (void)size;
     VirtualFree(address, 0, MEM_RELEASE);
+}
+
+u64 Platform::MemResidentBytes(void* address, u64 size) {
+    u64 page_size = MemPageSize();
+    u64 end = (u64)address + size;
+    PSAPI_WORKING_SET_EX_INFORMATION pages[512];
+    u64 resident = 0;
+    for (u64 at = (u64)address & ~(page_size - 1); at < end;) {
+        u32 count = 0;
+        for (; count < KRAFT_C_ARRAY_SIZE(pages) && at < end; count++, at += page_size) {
+            pages[count] = {};
+            pages[count].VirtualAddress = (void*)at;
+        }
+
+        if (QueryWorkingSetEx(GetCurrentProcess(), pages, count * sizeof(pages[0]))) {
+            for (u32 index = 0; index < count; index++) {
+                if (pages[index].VirtualAttributes.Valid) {
+                    resident += page_size;
+                }
+            }
+        }
+    }
+
+    return resident;
 }
 
 uint64_t Platform::MemPageSize() {
@@ -414,6 +440,308 @@ u64 Platform::ProcessMemoryBytes() {
     PROCESS_MEMORY_COUNTERS basic = {};
     basic.cb = sizeof(basic);
     return GetProcessMemoryInfo(GetCurrentProcess(), &basic, sizeof(basic)) ? basic.WorkingSetSize : 0;
+}
+
+// What the walk below knows about one allocation, the regions VirtualAlloc made together
+struct Win32Allocation {
+    u8* base;
+    u8* end;
+
+    // null until a committed region has been seen, and when that one cannot be read
+    u8* first_committed;
+    DWORD type;
+    bool seen_committed;
+    bool guarded;
+    bool write_combined;
+};
+
+// A heap's block too big for a segment, whose heap is found from where its links lead once every one has been seen
+struct Win32BigBlock {
+    u64 header;
+    u64 forward;
+    u64 back;
+    u64 bytes;
+
+    // -1 until its heap is known
+    i32 graphics;
+};
+
+struct Win32Walk {
+    u64* pages;
+    u64 page_count;
+    u64 next_page;
+    u8* thread_blocks;
+    HANDLE heaps[256];
+    u32 heap_count;
+    Win32BigBlock* blocks;
+    u32 block_count;
+    u32 block_capacity;
+};
+
+// The heaps there were before the graphics device, and those made while it was created and drew its first frame
+static HANDLE g_heaps_before_graphics[256];
+static u32 g_heaps_before_graphics_count;
+static HANDLE g_graphics_heaps[64];
+static u32 g_graphics_heap_count;
+
+void Platform::ProcessMemoryGraphicsBegin() {
+    DWORD count = GetProcessHeaps((DWORD)KRAFT_C_ARRAY_SIZE(g_heaps_before_graphics), g_heaps_before_graphics);
+    g_heaps_before_graphics_count = count < KRAFT_C_ARRAY_SIZE(g_heaps_before_graphics) ? count : KRAFT_C_ARRAY_SIZE(g_heaps_before_graphics);
+}
+
+void Platform::ProcessMemoryGraphicsEnd() {
+    HANDLE heaps[256];
+    DWORD count = GetProcessHeaps((DWORD)KRAFT_C_ARRAY_SIZE(heaps), heaps);
+    count = count < KRAFT_C_ARRAY_SIZE(heaps) ? count : KRAFT_C_ARRAY_SIZE(heaps);
+    for (DWORD index = 0; index < count && g_graphics_heap_count < KRAFT_C_ARRAY_SIZE(g_graphics_heaps); index++) {
+        bool before = false;
+        for (u32 earlier = 0; earlier < g_heaps_before_graphics_count && !before; earlier++) {
+            before = g_heaps_before_graphics[earlier] == heaps[index];
+        }
+        if (!before) {
+            g_graphics_heaps[g_graphics_heap_count++] = heaps[index];
+        }
+    }
+}
+
+static bool Win32IsGraphicsHeap(u64 heap) {
+    for (u32 index = 0; index < g_graphics_heap_count; index++) {
+        if ((u64)g_graphics_heaps[index] == heap) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int Win32CompareAddresses(const void* left, const void* right) {
+    u64 a = *(const u64*)left;
+    u64 b = *(const u64*)right;
+    return a < b ? -1 : a > b ? 1 : 0;
+}
+
+static bool Win32IsDriverStore(const wchar_t* path, DWORD length) {
+    const wchar_t* folder = L"\\driverstore\\";
+    DWORD folder_length = (DWORD)lstrlenW(folder);
+    for (DWORD start = 0; start + folder_length <= length; start++) {
+        DWORD matched = 0;
+        while (matched < folder_length && towlower(path[start + matched]) == folder[matched]) {
+            matched++;
+        }
+        if (matched == folder_length) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Windows' heaps write a signature into each segment's header, followed by the heap it belongs to
+static bool Win32IsHeapSegment(Win32Allocation* allocation, u64* out_heap) {
+    u8* header = allocation->first_committed;
+    if (!header || header != allocation->base || *(u32*)(header + 0x10) != 0xFFEEFFEE) {
+        return false;
+    }
+    *out_heap = *(u64*)(header + 0x28);
+
+    return true;
+}
+
+// A block too big for a segment gets a region of its own, starting a random distance in, headed by the links to its
+// heap's other such blocks, then how much of it is committed and reserved
+static bool Win32IsBigBlock(Win32Allocation* allocation, u64 page_size) {
+    u8* header = allocation->first_committed;
+    if (!header) {
+        return false;
+    }
+
+    u64 forward = *(u64*)(header);
+    u64 back = *(u64*)(header + 0x8);
+    u64 committed = *(u64*)(header + 0x20);
+    u64 reserved = *(u64*)(header + 0x28);
+    bool linked = forward >= page_size && back >= page_size && forward % 8 == 0 && back % 8 == 0;
+
+    return linked && reserved == (u64)(allocation->end - allocation->base) && committed > 0 && committed <= reserved && committed % page_size == 0;
+}
+
+static void Win32CountAllocation(Win32Walk* walk, Win32Allocation* allocation, ProcessMemoryUse* out) {
+    if (!allocation->base) {
+        return;
+    }
+
+    while (walk->next_page < walk->page_count && walk->pages[walk->next_page] < (u64)allocation->base) {
+        walk->next_page++;
+    }
+
+    u64 resident = 0;
+    while (walk->next_page < walk->page_count && walk->pages[walk->next_page] < (u64)allocation->end) {
+        resident++;
+        walk->next_page++;
+    }
+
+    if (resident == 0) {
+        return;
+    }
+
+    u64 page_size = Platform::MemPageSize();
+    u64 bytes = resident * page_size;
+    u64 heap = 0;
+    if (allocation->type == MEM_IMAGE) {
+        wchar_t path[MAX_PATH];
+        DWORD length = GetMappedFileNameW(GetCurrentProcess(), allocation->base, path, MAX_PATH);
+        if (Win32IsDriverStore(path, length)) {
+            out->graphics += bytes;
+        } else {
+            out->libraries += bytes;
+        }
+    } else if (allocation->type != MEM_PRIVATE) {
+        out->allocated += bytes;
+    } else if (allocation->guarded || allocation->base == walk->thread_blocks) {
+        out->stacks += bytes;
+        out->threads += allocation->guarded ? 1 : 0;
+    } else if (allocation->write_combined) {
+        out->graphics += bytes;
+    } else if (Win32IsHeapSegment(allocation, &heap)) {
+        if (Win32IsGraphicsHeap(heap)) {
+            out->graphics += bytes;
+        } else {
+            out->heaps += bytes;
+        }
+    } else if (Win32IsBigBlock(allocation, page_size) && walk->block_count < walk->block_capacity) {
+        u8* header = allocation->first_committed;
+        walk->blocks[walk->block_count++] = Win32BigBlock{(u64)header, *(u64*)header, *(u64*)(header + 0x8), bytes, -1};
+    } else if (Win32IsBigBlock(allocation, page_size)) {
+        out->heaps += bytes;
+    } else {
+        out->allocated += bytes;
+    }
+}
+
+// A big block's links lead to its heap's list of them, in the heap's first page, or to the blocks before and after it
+static void Win32CountBigBlocks(Win32Walk* walk, ProcessMemoryUse* out) {
+    u64 page_size = Platform::MemPageSize();
+    bool changed = true;
+    for (u32 pass = 0; pass <= walk->block_count && changed; pass++) {
+        changed = false;
+        for (u32 index = 0; index < walk->block_count; index++) {
+            Win32BigBlock* block = &walk->blocks[index];
+            if (block->graphics >= 0) {
+                continue;
+            }
+
+            u64 links[2] = {block->forward, block->back};
+            for (u32 link = 0; link < 2 && block->graphics < 0; link++) {
+                for (u32 heap = 0; heap < walk->heap_count && block->graphics < 0; heap++) {
+                    u64 start = (u64)walk->heaps[heap];
+                    if (links[link] >= start && links[link] < start + page_size) {
+                        block->graphics = Win32IsGraphicsHeap(start) ? 1 : 0;
+                    }
+                }
+
+                for (u32 other = 0; other < walk->block_count && block->graphics < 0; other++) {
+                    if (walk->blocks[other].graphics >= 0 && walk->blocks[other].header == links[link]) {
+                        block->graphics = walk->blocks[other].graphics;
+                    }
+                }
+            }
+
+            changed = changed || block->graphics >= 0;
+        }
+    }
+
+    for (u32 index = 0; index < walk->block_count; index++) {
+        if (walk->blocks[index].graphics == 1) {
+            out->graphics += walk->blocks[index].bytes;
+        } else {
+            out->heaps += walk->blocks[index].bytes;
+        }
+    }
+}
+
+bool Platform::ProcessMemoryBreakdown(ProcessMemoryUse* out) {
+    *out = {};
+    out->total = ProcessMemoryBytes();
+    TempArena scratch = ScratchBegin(nullptr, 0);
+
+    PSAPI_WORKING_SET_INFORMATION* set = nullptr;
+    u64 capacity = 32768;
+    for (u32 attempt = 0; attempt < 4; attempt++) {
+        ULONG_PTR* buffer = ArenaPushArrayNoZero(scratch.arena, ULONG_PTR, capacity + 1);
+        if (QueryWorkingSet(GetCurrentProcess(), buffer, (DWORD)((capacity + 1) * sizeof(ULONG_PTR)))) {
+            set = (PSAPI_WORKING_SET_INFORMATION*)buffer;
+            break;
+        }
+
+        if (GetLastError() != ERROR_BAD_LENGTH) {
+            break;
+        }
+
+        // With room for what asking again adds to it
+        capacity = ((PSAPI_WORKING_SET_INFORMATION*)buffer)->NumberOfEntries + capacity / 4;
+    }
+
+    if (!set) {
+        ScratchEnd(scratch);
+        return false;
+    }
+
+    // Only the pages no other process shares are this one's
+    Win32Walk* walk = ArenaPush(scratch.arena, Win32Walk);
+    u64 page_size = MemPageSize();
+    walk->pages = ArenaPushArrayNoZero(scratch.arena, u64, set->NumberOfEntries);
+    for (ULONG_PTR index = 0; index < set->NumberOfEntries; index++) {
+        if (!set->WorkingSetInfo[index].Shared) {
+            walk->pages[walk->page_count++] = (u64)set->WorkingSetInfo[index].VirtualPage * page_size;
+        }
+    }
+    qsort(walk->pages, walk->page_count, sizeof(u64), Win32CompareAddresses);
+    DWORD heap_count = GetProcessHeaps((DWORD)KRAFT_C_ARRAY_SIZE(walk->heaps), walk->heaps);
+    walk->heap_count = heap_count < KRAFT_C_ARRAY_SIZE(walk->heaps) ? heap_count : KRAFT_C_ARRAY_SIZE(walk->heaps);
+    walk->block_capacity = 1024;
+    walk->blocks = ArenaPushArrayNoZero(scratch.arena, Win32BigBlock, walk->block_capacity);
+
+    // Every thread's environment block sits in one allocation with the process's
+    MEMORY_BASIC_INFORMATION region = {};
+    if (VirtualQuery(NtCurrentTeb(), &region, sizeof(region))) {
+        walk->thread_blocks = (u8*)region.AllocationBase;
+    }
+
+    Win32Allocation allocation = {};
+    u8* address = nullptr;
+    while (VirtualQuery(address, &region, sizeof(region)) == sizeof(region)) {
+        if (region.State != MEM_FREE) {
+            if ((u8*)region.AllocationBase != allocation.base) {
+                Win32CountAllocation(walk, &allocation, out);
+                allocation = {};
+                allocation.base = (u8*)region.AllocationBase;
+                allocation.type = region.Type;
+            }
+
+            if (region.State == MEM_COMMIT && !allocation.seen_committed) {
+                allocation.seen_committed = true;
+                DWORD readable = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE;
+                if ((region.Protect & readable) && !(region.Protect & (PAGE_GUARD | PAGE_WRITECOMBINE | PAGE_NOCACHE))) {
+                    allocation.first_committed = (u8*)region.BaseAddress;
+                }
+            }
+
+            allocation.end = (u8*)region.BaseAddress + region.RegionSize;
+            allocation.guarded = allocation.guarded || (region.Protect & PAGE_GUARD);
+            allocation.write_combined = allocation.write_combined || (region.Protect & PAGE_WRITECOMBINE);
+        }
+
+        u8* next = (u8*)region.BaseAddress + region.RegionSize;
+        if (next <= address) {
+            break;
+        }
+
+        address = next;
+    }
+    Win32CountAllocation(walk, &allocation, out);
+    Win32CountBigBlocks(walk, out);
+
+    ScratchEnd(scratch);
+    return true;
 }
 
 String8 Platform::SystemFontDirectory(ArenaAllocator* arena) {
@@ -850,6 +1178,47 @@ bool Platform::OpenFileDialog(ArenaAllocator* arena, const char* filter, String8
         *out_path = DialogPushUtf8(arena, path_buffer);
     ScratchEnd(scratch);
 
+    return ok;
+}
+
+bool Platform::OpenFilesDialog(ArenaAllocator* arena, const char* filter, String8** out_paths, u32* out_count) {
+    *out_paths = nullptr;
+    *out_count = 0;
+    TempArena scratch = ScratchBegin(&arena, 1);
+    DWORD capacity = 1 << 16;
+    wchar_t* buffer = ArenaPushArray(scratch.arena, wchar_t, capacity);
+
+    OPENFILENAMEW dialog = {};
+    dialog.lStructSize = sizeof(dialog);
+    dialog.hwndOwner = DialogOwnerWindow();
+    dialog.lpstrFilter = DialogPushFilter(scratch.arena, filter);
+    dialog.lpstrFile = buffer;
+    dialog.nMaxFile = capacity;
+    dialog.Flags = OFN_NOCHANGEDIR | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+
+    bool ok = GetOpenFileNameW(&dialog) != 0;
+    if (ok) {
+        // One file comes back as its path; several as their folder and then each name, each ending in a zero
+        wchar_t* first_name = buffer + lstrlenW(buffer) + 1;
+        if (*first_name == 0) {
+            *out_paths = ArenaPushArray(arena, String8, 1);
+            (*out_paths)[0] = DialogPushUtf8(arena, buffer);
+            *out_count = 1;
+        } else {
+            u32 count = 0;
+            for (wchar_t* name = first_name; *name; name += lstrlenW(name) + 1) {
+                count++;
+            }
+            *out_paths = ArenaPushArray(arena, String8, count);
+            String8 folder = DialogPushUtf8(scratch.arena, buffer);
+            for (wchar_t* name = first_name; *name; name += lstrlenW(name) + 1) {
+                String8 file = DialogPushUtf8(scratch.arena, name);
+                (*out_paths)[(*out_count)++] = StringFormat(arena, "%S\\%S", folder, file);
+            }
+        }
+    }
+
+    ScratchEnd(scratch);
     return ok;
 }
 

@@ -2,8 +2,7 @@ namespace kraft {
 
 static u32 InvertShiftXor(u32 hs, u32 s);
 
-u32 MurmurHash(const void* key, int len, u32 seed)
-{
+u32 MurmurHash(const void* key, int len, u32 seed) {
     // 'm' and 'r' are mixing constants generated offline.
     // They're not really 'magic', they just happen to work well.
     const u32 m = 0x5bd1e995;
@@ -14,8 +13,7 @@ u32 MurmurHash(const void* key, int len, u32 seed)
 
     // Mix 4 bytes at a time into the hash
     const u8* data = (const u8*)key;
-    while (len >= 4)
-    {
+    while (len >= 4) {
 #ifdef KRAFT_PLATFORM_BIG_ENDIAN
         u32 k = (data[0]) + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
 #else
@@ -34,11 +32,10 @@ u32 MurmurHash(const void* key, int len, u32 seed)
     }
 
     // Handle the last few bytes of the input array
-    switch (len)
-    {
-        case 3: h ^= data[2] << 16;
-        case 2: h ^= data[1] << 8;
-        case 1: h ^= data[0]; h *= m;
+    switch (len) {
+    case 3: h ^= data[2] << 16;
+    case 2: h ^= data[1] << 8;
+    case 1: h ^= data[0]; h *= m;
     };
 
     // Do a few final mixes of the hash to ensure the last few
@@ -50,8 +47,7 @@ u32 MurmurHash(const void* key, int len, u32 seed)
     return h;
 }
 
-u32 MurmurHashInverse(u32 h, u32 seed)
-{
+u32 MurmurHashInverse(u32 h, u32 seed) {
     const u32 m = 0x5bd1e995;
     const u32 minv = 0xe59b19bd; // Multiplicative inverse of m under % 2^32
     const int r = 24;
@@ -75,22 +71,20 @@ u32 MurmurHashInverse(u32 h, u32 seed)
     return k;
 }
 
-u64 MurmurHash64(const void* key, int len, u64 seed)
-{
+u64 MurmurHash64(const void* key, int len, u64 seed) {
     const u64 m = 0xc6a4a7935bd1e995ULL;
-    const int    r = 47;
+    const int r = 47;
 
     u64 h = seed ^ (len * m);
 
     const u64* data = (const u64*)key;
     const u64* end = data + (len / 8);
 
-    while (data != end)
-    {
+    while (data != end) {
 #ifdef KRAFT_PLATFORM_BIG_ENDIAN
         u64 k = *data++;
-        char*  p = (char*)&k;
-        char   c;
+        char* p = (char*)&k;
+        char c;
         c = p[0];
         p[0] = p[7];
         p[7] = c;
@@ -116,15 +110,14 @@ u64 MurmurHash64(const void* key, int len, u64 seed)
     }
 
     const u8* data2 = (const u8*)data;
-    switch (len & 7)
-    {
-        case 7: h ^= u64(data2[6]) << 48;
-        case 6: h ^= u64(data2[5]) << 40;
-        case 5: h ^= u64(data2[4]) << 32;
-        case 4: h ^= u64(data2[3]) << 24;
-        case 3: h ^= u64(data2[2]) << 16;
-        case 2: h ^= u64(data2[1]) << 8;
-        case 1: h ^= u64(data2[0]); h *= m;
+    switch (len & 7) {
+    case 7: h ^= u64(data2[6]) << 48;
+    case 6: h ^= u64(data2[5]) << 40;
+    case 5: h ^= u64(data2[4]) << 32;
+    case 4: h ^= u64(data2[3]) << 24;
+    case 3: h ^= u64(data2[2]) << 16;
+    case 2: h ^= u64(data2[1]) << 8;
+    case 1: h ^= u64(data2[0]); h *= m;
     };
 
     h ^= h >> r;
@@ -134,11 +127,10 @@ u64 MurmurHash64(const void* key, int len, u64 seed)
     return h;
 }
 
-u64 MurmurHash64Inverse(u64 h, u64 seed)
-{
+u64 MurmurHash64Inverse(u64 h, u64 seed) {
     const u64 m = 0xc6a4a7935bd1e995ULL;
     const u64 minv = 0x5f7a0ea7e59b19bdULL; // Multiplicative inverse of m under % 2^64
-    const int    r = 47;
+    const int r = 47;
 
     h ^= h >> r;
     h *= minv;
@@ -154,7 +146,7 @@ u64 MurmurHash64Inverse(u64 h, u64 seed)
 
 #ifdef KRAFT_PLATFORM_BIG_ENDIAN
     char* p = (char*)&k;
-    char  c;
+    char c;
     c = p[0];
     p[0] = p[7];
     p[7] = c;
@@ -173,8 +165,7 @@ u64 MurmurHash64Inverse(u64 h, u64 seed)
 }
 
 /// Inverts a (h ^= h >> s) operation with 8 <= s <= 16
-static u32 InvertShiftXor(u32 hs, u32 s)
-{
+static u32 InvertShiftXor(u32 hs, u32 s) {
     KASSERT(s >= 8 && s <= 16);
     u32 hs0 = hs >> 24;
     u32 hs1 = (hs >> 16) & 0xff;
@@ -190,28 +181,23 @@ static u32 InvertShiftXor(u32 hs, u32 s)
 }
 
 static const u32 Sha256RoundConstants[64] = {
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74,
-    0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d,
-    0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e,
-    0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-static u32 Sha256RotateRight(u32 value, u32 count)
-{
+static u32 Sha256RotateRight(u32 value, u32 count) {
     return (value >> count) | (value << (32 - count));
 }
 
-static void Sha256Block(u32* state, const u8* block)
-{
+static void Sha256Block(u32* state, const u8* block) {
     u32 schedule[64];
-    for (u32 index = 0; index < 16; index++)
-    {
+    for (u32 index = 0; index < 16; index++) {
         schedule[index] = ((u32)block[index * 4] << 24) | ((u32)block[index * 4 + 1] << 16) | ((u32)block[index * 4 + 2] << 8) | (u32)block[index * 4 + 3];
     }
 
-    for (u32 index = 16; index < 64; index++)
-    {
+    for (u32 index = 16; index < 64; index++) {
         u32 sigma0 = Sha256RotateRight(schedule[index - 15], 7) ^ Sha256RotateRight(schedule[index - 15], 18) ^ (schedule[index - 15] >> 3);
         u32 sigma1 = Sha256RotateRight(schedule[index - 2], 17) ^ Sha256RotateRight(schedule[index - 2], 19) ^ (schedule[index - 2] >> 10);
         schedule[index] = schedule[index - 16] + sigma0 + schedule[index - 7] + sigma1;
@@ -219,8 +205,7 @@ static void Sha256Block(u32* state, const u8* block)
 
     u32 working[8];
     MemCpy(working, state, sizeof(working));
-    for (u32 round = 0; round < 64; round++)
-    {
+    for (u32 round = 0; round < 64; round++) {
         u32 sum1 = Sha256RotateRight(working[4], 6) ^ Sha256RotateRight(working[4], 11) ^ Sha256RotateRight(working[4], 25);
         u32 choice = (working[4] & working[5]) ^ (~working[4] & working[6]);
         u32 first = working[7] + sum1 + choice + Sha256RoundConstants[round] + schedule[round];
@@ -238,52 +223,186 @@ static void Sha256Block(u32* state, const u8* block)
         working[0] = first + second;
     }
 
-    for (u32 index = 0; index < 8; index++)
-    {
+    for (u32 index = 0; index < 8; index++) {
         state[index] += working[index];
     }
 }
 
-void Sha256(const void* data, u64 count, u8* out_digest)
-{
-    u32 state[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+typedef void (*HashBlockFunction)(u32* state, const u8* block);
+
+struct HashStream {
+    HashBlockFunction block_function;
+    u32 state[8];
+    u8 waiting[64];
+    u64 waiting_count;
+    u64 total;
+};
+
+static void HashStreamBegin(HashStream* stream, HashBlockFunction block_function, const u32* initial, u32 word_count) {
+    *stream = {};
+    stream->block_function = block_function;
+    MemCpy(stream->state, initial, word_count * sizeof(u32));
+}
+
+static void HashStreamAdd(HashStream* stream, const void* data, u64 count) {
     const u8* bytes = (const u8*)data;
-    u64 remaining = count;
-    while (remaining >= 64)
-    {
-        Sha256Block(state, bytes);
-        bytes += 64;
-        remaining -= 64;
+    stream->total += count;
+    if (stream->waiting_count > 0) {
+        u64 room = 64 - stream->waiting_count;
+        u64 taken = count < room ? count : room;
+        MemCpy(stream->waiting + stream->waiting_count, bytes, taken);
+        stream->waiting_count += taken;
+        bytes += taken;
+        count -= taken;
+        if (stream->waiting_count < 64) {
+            return;
+        }
+
+        stream->block_function(stream->state, stream->waiting);
+        stream->waiting_count = 0;
     }
 
+    while (count >= 64) {
+        stream->block_function(stream->state, bytes);
+        bytes += 64;
+        count -= 64;
+    }
+
+    if (count > 0) {
+        MemCpy(stream->waiting, bytes, count);
+        stream->waiting_count = count;
+    }
+}
+
+static void HashStreamEnd(HashStream* stream, u32 word_count, u8* out_digest) {
     // The rest, a 1 bit, zeros, then the length in bits, filling one block or two
     u8 last[128] = {};
-    if (remaining > 0)
-    {
-        MemCpy(last, bytes, remaining);
+    if (stream->waiting_count > 0) {
+        MemCpy(last, stream->waiting, stream->waiting_count);
     }
 
-    last[remaining] = 0x80;
-    u64 last_count = remaining < 56 ? 64 : 128;
-    u64 bit_count = count * 8;
-    for (u32 index = 0; index < 8; index++)
-    {
+    last[stream->waiting_count] = 0x80;
+    u64 last_count = stream->waiting_count < 56 ? 64 : 128;
+    u64 bit_count = stream->total * 8;
+    for (u32 index = 0; index < 8; index++) {
         last[last_count - 1 - index] = (u8)(bit_count >> (index * 8));
     }
 
-    Sha256Block(state, last);
-    if (last_count == 128)
-    {
-        Sha256Block(state, last + 64);
+    stream->block_function(stream->state, last);
+    if (last_count == 128) {
+        stream->block_function(stream->state, last + 64);
     }
 
-    for (u32 index = 0; index < 8; index++)
-    {
-        out_digest[index * 4] = (u8)(state[index] >> 24);
-        out_digest[index * 4 + 1] = (u8)(state[index] >> 16);
-        out_digest[index * 4 + 2] = (u8)(state[index] >> 8);
-        out_digest[index * 4 + 3] = (u8)state[index];
+    for (u32 index = 0; index < word_count; index++) {
+        out_digest[index * 4] = (u8)(stream->state[index] >> 24);
+        out_digest[index * 4 + 1] = (u8)(stream->state[index] >> 16);
+        out_digest[index * 4 + 2] = (u8)(stream->state[index] >> 8);
+        out_digest[index * 4 + 3] = (u8)stream->state[index];
     }
+}
+
+static void Hmac(HashBlockFunction block_function, const u32* initial, u32 word_count, const void* key, u64 key_count, const void* data, u64 count, u8* out_digest) {
+    HashStream stream;
+    u8 key_block[64] = {};
+    if (key_count > 64) {
+        HashStreamBegin(&stream, block_function, initial, word_count);
+        HashStreamAdd(&stream, key, key_count);
+        HashStreamEnd(&stream, word_count, key_block);
+    } else if (key_count > 0) {
+        MemCpy(key_block, key, key_count);
+    }
+
+    u8 pad[64];
+    for (u32 index = 0; index < 64; index++) {
+        pad[index] = key_block[index] ^ 0x36;
+    }
+
+    u8 inner[32];
+    HashStreamBegin(&stream, block_function, initial, word_count);
+    HashStreamAdd(&stream, pad, 64);
+    HashStreamAdd(&stream, data, count);
+    HashStreamEnd(&stream, word_count, inner);
+
+    for (u32 index = 0; index < 64; index++) {
+        pad[index] = key_block[index] ^ 0x5c;
+    }
+
+    HashStreamBegin(&stream, block_function, initial, word_count);
+    HashStreamAdd(&stream, pad, 64);
+    HashStreamAdd(&stream, inner, word_count * 4);
+    HashStreamEnd(&stream, word_count, out_digest);
+}
+
+static const u32 Sha256Initial[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+
+void Sha256(const void* data, u64 count, u8* out_digest) {
+    HashStream stream;
+    HashStreamBegin(&stream, Sha256Block, Sha256Initial, 8);
+    HashStreamAdd(&stream, data, count);
+    HashStreamEnd(&stream, 8, out_digest);
+}
+
+void HmacSha256(const void* key, u64 key_count, const void* data, u64 count, u8* out_digest) {
+    Hmac(Sha256Block, Sha256Initial, 8, key, key_count, data, count, out_digest);
+}
+
+static u32 Sha1RotateLeft(u32 value, u32 count) {
+    return (value << count) | (value >> (32 - count));
+}
+
+static void Sha1Block(u32* state, const u8* block) {
+    u32 schedule[80];
+    for (u32 index = 0; index < 16; index++) {
+        schedule[index] = ((u32)block[index * 4] << 24) | ((u32)block[index * 4 + 1] << 16) | ((u32)block[index * 4 + 2] << 8) | (u32)block[index * 4 + 3];
+    }
+
+    for (u32 index = 16; index < 80; index++) {
+        schedule[index] = Sha1RotateLeft(schedule[index - 3] ^ schedule[index - 8] ^ schedule[index - 14] ^ schedule[index - 16], 1);
+    }
+
+    u32 working[5];
+    MemCpy(working, state, sizeof(working));
+    for (u32 round = 0; round < 80; round++) {
+        u32 mixed = 0;
+        u32 constant = 0;
+        if (round < 20) {
+            mixed = (working[1] & working[2]) | (~working[1] & working[3]);
+            constant = 0x5a827999;
+        } else if (round < 40) {
+            mixed = working[1] ^ working[2] ^ working[3];
+            constant = 0x6ed9eba1;
+        } else if (round < 60) {
+            mixed = (working[1] & working[2]) | (working[1] & working[3]) | (working[2] & working[3]);
+            constant = 0x8f1bbcdc;
+        } else {
+            mixed = working[1] ^ working[2] ^ working[3];
+            constant = 0xca62c1d6;
+        }
+
+        u32 next = Sha1RotateLeft(working[0], 5) + mixed + working[4] + constant + schedule[round];
+        working[4] = working[3];
+        working[3] = working[2];
+        working[2] = Sha1RotateLeft(working[1], 30);
+        working[1] = working[0];
+        working[0] = next;
+    }
+
+    for (u32 index = 0; index < 5; index++) {
+        state[index] += working[index];
+    }
+}
+
+static const u32 Sha1Initial[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
+
+void Sha1(const void* data, u64 count, u8* out_digest) {
+    HashStream stream;
+    HashStreamBegin(&stream, Sha1Block, Sha1Initial, 5);
+    HashStreamAdd(&stream, data, count);
+    HashStreamEnd(&stream, 5, out_digest);
+}
+
+void HmacSha1(const void* key, u64 key_count, const void* data, u64 count, u8* out_digest) {
+    Hmac(Sha1Block, Sha1Initial, 5, key, key_count, data, count, out_digest);
 }
 
 } // namespace kraft

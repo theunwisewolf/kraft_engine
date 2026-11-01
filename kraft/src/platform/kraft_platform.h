@@ -83,6 +83,28 @@ struct PlatformState;
 #define KRAFT_CONSOLE_COLOR_RGB(r, g, b) "\x1B[38;2;" #r ";" #g ";" #b "m"
 #define KRAFT_CONSOLE_COLOR_BG_RGB(r, g, b) "\x1B[48;2;" #r ";" #g ";" #b "m"
 
+// The process's memory by what holds it, in bytes in physical memory that are this process's alone
+struct ProcessMemoryUse {
+    // what ProcessMemoryBytes returns
+    u64 total;
+
+    // malloc's and the other libraries' heaps
+    u64 heaps;
+
+    // the threads' stacks and what the system keeps for each thread
+    u64 stacks;
+    u32 threads;
+
+    // the graphics driver's libraries, its own heaps and the memory it shares with the GPU
+    u64 graphics;
+
+    // the program's and the other libraries' own data
+    u64 libraries;
+
+    // the rest taken straight from the system, arenas among it
+    u64 allocated;
+};
+
 struct KRAFT_API Platform {
     // If the platform wants to store any internal state,
     // it should do so in this variable
@@ -102,6 +124,9 @@ struct KRAFT_API Platform {
     static void MemDecommit(void* address, u64 size);
     static void MemRelease(void* address, u64 size);
     static u64 MemPageSize();
+
+    // Returns how much of the range is in physical memory, in bytes
+    static u64 MemResidentBytes(void* address, u64 size);
 
     static void* Malloc(u64 size, bool aligned);
     static void* Realloc(void* region, u64 size, bool aligned);
@@ -192,6 +217,14 @@ struct KRAFT_API Platform {
     static void InstallCrashHandler();
     static u64 ProcessMemoryBytes();
 
+    // Splits ProcessMemoryBytes by what holds it. It walks the whole address space, so it takes milliseconds.
+    static bool ProcessMemoryBreakdown(ProcessMemoryUse* out);
+
+    // Heaps made between these two are counted as graphics by ProcessMemoryBreakdown: call them around creating the
+    // graphics device and drawing the first frame with it
+    static void ProcessMemoryGraphicsBegin();
+    static void ProcessMemoryGraphicsEnd();
+
     // Returns true when this process's standard output goes somewhere: a terminal, a file or a pipe
     static bool HasStandardOutput();
 
@@ -202,11 +235,14 @@ struct KRAFT_API Platform {
     static Window* GetWindow();
     static bool OpenFileDialog(ArenaAllocator* arena, const char* filter, String8* out_path); // filter: "JSON Files|*.json|All Files|*.*"
 
+    // Several files picked at once, their paths pushed onto arena
+    static bool OpenFilesDialog(ArenaAllocator* arena, const char* filter, String8** out_paths, u32* out_count);
+
     // `suggested_name` is the file name the dialog starts with
     static bool SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path, String8 suggested_name = {});
     static bool OpenFolderDialog(ArenaAllocator* arena, const char* title, String8* out_path);
 
-    // Opens a file, folder or URL the way a double click would: a URL in the default browser, 
+    // Opens a file, folder or URL the way a double click would: a URL in the default browser,
     // a file in the app registered for its type
     static bool OpenWithSystem(String8 path);
 

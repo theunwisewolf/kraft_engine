@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <fcntl.h>
+#include <libproc.h>
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,6 +137,27 @@ u64 Platform::MemPageSize() {
     return (u64)getpagesize();
 }
 
+u64 Platform::MemResidentBytes(void* address, u64 size) {
+    u64 page_size = MemPageSize();
+    u64 end = (u64)address + size;
+    char pages[1024];
+    u64 resident = 0;
+    for (u64 at = (u64)address & ~(page_size - 1); at < end; at += sizeof(pages) * page_size) {
+        u64 length = end - at < sizeof(pages) * page_size ? end - at : sizeof(pages) * page_size;
+        if (mincore((void*)at, length, pages) != 0) {
+            continue;
+        }
+
+        for (u64 index = 0; index < (length + page_size - 1) / page_size; index++) {
+            if (pages[index] & MINCORE_INCORE) {
+                resident += page_size;
+            }
+        }
+    }
+
+    return resident;
+}
+
 void* Platform::Malloc(u64 size, bool aligned) {
     return malloc(size);
 }
@@ -244,10 +267,11 @@ bool Platform::VerifyEcdsaP256(const u8* public_key, const u8* digest, const u8*
     @autoreleasepool {
         NSData* key_data = [NSData dataWithBytes:key_bytes length:sizeof(key_bytes)];
         NSDictionary* attributes = @{
-            (id)kSecAttrKeyType: (id)kSecAttrKeyTypeECSECPrimeRandom,
-            (id)kSecAttrKeyClass: (id)kSecAttrKeyClassPublic,
-            (id)kSecAttrKeySizeInBits: @256,
+            (id)kSecAttrKeyType : (id)kSecAttrKeyTypeECSECPrimeRandom,
+            (id)kSecAttrKeyClass : (id)kSecAttrKeyClassPublic,
+            (id)kSecAttrKeySizeInBits : @256,
         };
+
         SecKeyRef key = SecKeyCreateWithData((CFDataRef)key_data, (CFDictionaryRef)attributes, nullptr);
         if (key) {
             NSData* digest_data = [NSData dataWithBytes:digest length:32];
@@ -306,8 +330,7 @@ f64 Platform::GetElapsedTime() {
 
 void Platform::SleepMilliseconds(u64 Milliseconds) {
     struct timespec duration = {(time_t)(Milliseconds / 1000), (long)((Milliseconds % 1000) * 1000000)};
-    while (nanosleep(&duration, &duration) != 0 && errno == EINTR) {
-    }
+    while (nanosleep(&duration, &duration) != 0 && errno == EINTR) {}
 }
 
 const char* Platform::GetKeyName(Keys key) {
@@ -360,6 +383,70 @@ u64 Platform::ProcessMemoryBytes() {
 
     // What Activity Monitor shows as the process's memory
     return info.phys_footprint;
+}
+
+// A Mac tags the graphics stack's memory as its own, so there is nothing to tell apart by when it was made
+void Platform::ProcessMemoryGraphicsBegin() {}
+
+void Platform::ProcessMemoryGraphicsEnd() {}
+
+// macOS tags each region with what made it
+static bool MacTagIsHeap(u32 tag) {
+    return tag == VM_MEMORY_MALLOC || tag == VM_MEMORY_MALLOC_SMALL || tag == VM_MEMORY_MALLOC_LARGE || tag == VM_MEMORY_MALLOC_HUGE || tag == VM_MEMORY_SBRK || tag == VM_MEMORY_REALLOC ||
+           tag == VM_MEMORY_MALLOC_TINY || tag == VM_MEMORY_MALLOC_LARGE_REUSABLE || tag == VM_MEMORY_MALLOC_LARGE_REUSED || tag == VM_MEMORY_MALLOC_NANO || tag == VM_MEMORY_MALLOC_MEDIUM;
+}
+
+static bool MacTagIsGraphics(u32 tag) {
+    return tag == VM_MEMORY_IOKIT || tag == VM_MEMORY_IOACCELERATOR || tag == VM_MEMORY_IOSURFACE || tag == VM_MEMORY_COREGRAPHICS || tag == VM_MEMORY_COREGRAPHICS_DATA ||
+           tag == VM_MEMORY_COREGRAPHICS_SHARED || tag == VM_MEMORY_COREGRAPHICS_FRAMEBUFFERS || tag == VM_MEMORY_COREGRAPHICS_BACKINGSTORES || tag == VM_MEMORY_COREGRAPHICS_XALLOC ||
+           tag == VM_MEMORY_LAYERKIT || tag == VM_MEMORY_CGIMAGE || tag == VM_MEMORY_COREIMAGE;
+}
+
+bool Platform::ProcessMemoryBreakdown(ProcessMemoryUse* out) {
+    *out = {};
+    out->total = ProcessMemoryBytes();
+    struct proc_taskinfo task = {};
+    if (proc_pidinfo(getpid(), PROC_PIDTASKINFO, 0, &task, sizeof(task)) == sizeof(task)) {
+        out->threads = (u32)task.pti_threadnum;
+    }
+
+    // Dirty pages and those swapped out are what the footprint counts; clean ones can be dropped and read again
+    mach_vm_address_t address = 0;
+    natural_t depth = 0;
+    while (true) {
+        mach_vm_size_t size = 0;
+        vm_region_submap_info_data_64_t info = {};
+        mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
+        if (mach_vm_region_recurse(mach_task_self(), &address, &size, &depth, (vm_region_recurse_info_t)&info, &count) != KERN_SUCCESS) {
+            break;
+        }
+
+        if (info.is_submap) {
+            depth++;
+            continue;
+        }
+
+        u64 bytes = ((u64)info.pages_dirtied + info.pages_swapped_out) * vm_page_size;
+        b32 shared = info.share_mode == SM_SHARED || info.share_mode == SM_TRUESHARED || info.share_mode == SM_SHARED_ALIASED;
+        if (bytes > 0 && MacTagIsGraphics(info.user_tag)) {
+            out->graphics += bytes;
+        } else if (bytes > 0 && !shared) {
+            char path[PROC_PIDPATHINFO_MAXSIZE];
+            if (MacTagIsHeap(info.user_tag)) {
+                out->heaps += bytes;
+            } else if (info.user_tag == VM_MEMORY_STACK) {
+                out->stacks += bytes;
+            } else if (info.user_tag == 0 && proc_regionfilename(getpid(), address, path, sizeof(path)) > 0) {
+                out->libraries += bytes;
+            } else {
+                out->allocated += bytes;
+            }
+        }
+
+        address += size;
+    }
+
+    return true;
 }
 
 String8 Platform::SystemFontDirectory(ArenaAllocator* arena) {
@@ -514,8 +601,15 @@ static void CrashHandler(int signal_number, siginfo_t* info, void* context) {
     u64 sp = user_context ? (u64)user_context->uc_mcontext->__ss.__rsp : 0;
 #endif
     u64 load_address = (u64)_dyld_get_image_header(0);
-    CrashPrint("[crash] %s (%d) at 0x%llX, code %d, address 0x%llX\n", CrashSignalName(signal_number), signal_number, (unsigned long long)pc, info ? info->si_code : 0,
-               (unsigned long long)(info ? (u64)info->si_addr : 0));
+    CrashPrint(
+        "[crash] %s (%d) at 0x%llX, code %d, address 0x%llX\n",
+        CrashSignalName(signal_number),
+        signal_number,
+        (unsigned long long)pc,
+        info ? info->si_code : 0,
+        (unsigned long long)(info ? (u64)info->si_addr : 0)
+    );
+
     CrashPrint("[crash] pc offset=0x%llX sp=0x%llX load address=0x%llX\n", (unsigned long long)(pc - load_address), (unsigned long long)sp, (unsigned long long)load_address);
 
     void* frames[64];
@@ -656,10 +750,7 @@ void MacUseCustomTitleBar(Window* window, i32 width, i32 height) {
         [ns_window layoutIfNeeded];
         g_system_caption_points = NSHeight(ns_window.frame) - NSMaxY(ns_window.contentLayoutRect);
 
-        g_caption_monitor = [[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown
-                                                                   handler:^NSEvent*(NSEvent* event) {
-                                                                       return MacCaptionMouseDown(window, event);
-                                                                   }] retain];
+        g_caption_monitor = [[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown handler:^NSEvent*(NSEvent* event) { return MacCaptionMouseDown(window, event); }] retain];
     }
 }
 
@@ -725,8 +816,7 @@ Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {
     State->PrimaryWindow->PlatformWindowState->ns_window = (void*)glfwGetCocoaWindow(State->PrimaryWindow->PlatformWindowHandle);
     if (!g_link_handler) {
         g_link_handler = [[KraftLinkHandler alloc] init];
-        [[NSAppleEventManager sharedAppleEventManager] setEventHandler:g_link_handler andSelector:@selector(openLink:withReply:) forEventClass:kInternetEventClass
-                                                            andEventID:kAEGetURL];
+        [[NSAppleEventManager sharedAppleEventManager] setEventHandler:g_link_handler andSelector:@selector(openLink:withReply:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
     }
 
     return State->PrimaryWindow;
@@ -845,7 +935,7 @@ static KraftDialogFilter* MacDialogApplyFilter(NSSavePanel* panel, const char* f
     popup.action = @selector(filterChanged:);
 
     NSTextField* label = [NSTextField labelWithString:@"Show:"];
-    NSStackView* row = [NSStackView stackViewWithViews:@[label, popup]];
+    NSStackView* row = [NSStackView stackViewWithViews:@[ label, popup ]];
     row.edgeInsets = NSEdgeInsetsMake(8, 12, 8, 12);
     panel.accessoryView = row;
     if ([panel isKindOfClass:[NSOpenPanel class]]) {
@@ -895,6 +985,29 @@ bool Platform::OpenFileDialog(ArenaAllocator* arena, const char* filter, String8
     return ok;
 }
 
+bool Platform::OpenFilesDialog(ArenaAllocator* arena, const char* filter, String8** out_paths, u32* out_count) {
+    *out_paths = nullptr;
+    *out_count = 0;
+    bool ok = false;
+    @autoreleasepool {
+        NSOpenPanel* panel = [NSOpenPanel openPanel];
+        panel.canChooseFiles = YES;
+        panel.canChooseDirectories = NO;
+        panel.allowsMultipleSelection = YES;
+        KraftDialogFilter* chooser = MacDialogApplyFilter(panel, filter);
+        if ([panel runModal] == NSModalResponseOK && panel.URLs.count > 0) {
+            *out_paths = ArenaPushArray(arena, String8, (u32)panel.URLs.count);
+            for (NSURL* url in panel.URLs) {
+                (*out_paths)[(*out_count)++] = MacPushString(arena, url.path);
+            }
+            ok = true;
+        }
+        (void)chooser;
+    }
+
+    return ok;
+}
+
 bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const char* default_extension, String8* out_path, String8 suggested_name) {
     bool ok = false;
     @autoreleasepool {
@@ -905,7 +1018,7 @@ bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const c
         if (default_extension && default_extension[0] && panel.allowedContentTypes.count == 0) {
             UTType* type = [UTType typeWithFilenameExtension:[NSString stringWithUTF8String:default_extension]];
             if (type) {
-                panel.allowedContentTypes = @[type];
+                panel.allowedContentTypes = @[ type ];
             }
         }
 
@@ -977,7 +1090,7 @@ bool Platform::RevealInFileManager(String8 path) {
     @autoreleasepool {
         NSString* text = MacString(path);
         if ([[NSFileManager defaultManager] fileExistsAtPath:text]) {
-            [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[[NSURL fileURLWithPath:text]]];
+            [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ [NSURL fileURLWithPath:text] ]];
             revealed = true;
         }
     }

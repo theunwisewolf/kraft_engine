@@ -399,6 +399,28 @@ static void HttpReadTimings(HINTERNET request, f64 headers_time, f64 end_time, N
     out->reused = connect_started == 0 || connect_started < asked_at;
 }
 
+// Gives the credentials to a 401 asking for the scheme the request answers with, so that sending again answers it
+static bool HttpAnswerChallenge(HttpTask* task, HINTERNET request) {
+    DWORD status = 0;
+    DWORD status_size = sizeof(status);
+    WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size, WINHTTP_NO_HEADER_INDEX);
+    DWORD supported = 0;
+    DWORD first = 0;
+    DWORD target = 0;
+    if (status != 401 || !WinHttpQueryAuthSchemes(request, &supported, &first, &target)) {
+        return false;
+    }
+
+    DWORD scheme = task->request.server_auth == HTTP_SERVER_AUTH_DIGEST ? WINHTTP_AUTH_SCHEME_DIGEST : WINHTTP_AUTH_SCHEME_NTLM;
+    if (!(supported & scheme)) {
+        return false;
+    }
+
+    wchar_t* username = HttpPushWide(task->arena, task->request.server_auth_username);
+    wchar_t* password = HttpPushWide(task->arena, task->request.server_auth_password);
+    return WinHttpSetCredentials(request, target, scheme, username, password, nullptr);
+}
+
 static void HttpFail(HttpTask* task, const char* reason) {
     DWORD code = GetLastError();
     task->response.ok = false;
@@ -464,6 +486,14 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
         WinHttpSetOption(request, WINHTTP_OPTION_DECOMPRESSION, &decompression, sizeof(decompression));
         DWORD no_cookies = WINHTTP_DISABLE_COOKIES;
         WinHttpSetOption(request, WINHTTP_OPTION_DISABLE_FEATURE, &no_cookies, sizeof(no_cookies));
+
+        // Given up front, as an intranet server's NTLM challenge is otherwise answered with the Windows logon
+        if (task->request.server_auth == HTTP_SERVER_AUTH_NTLM) {
+            wchar_t* username = HttpPushWide(arena, task->request.server_auth_username);
+            wchar_t* password = HttpPushWide(arena, task->request.server_auth_password);
+            WinHttpSetCredentials(request, WINHTTP_AUTH_TARGET_SERVER, WINHTTP_AUTH_SCHEME_NTLM, username, password, nullptr);
+        }
+
         if (task->request.no_redirects) {
             DWORD policy = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
             WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY, &policy, sizeof(policy));
@@ -543,6 +573,18 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
         if (!WinHttpReceiveResponse(request, nullptr)) {
             HttpFail(task, "receive failed");
             goto done;
+        }
+
+        if (task->request.server_auth != HTTP_SERVER_AUTH_NONE && HttpAnswerChallenge(task, request)) {
+            if (!WinHttpSendRequest(request, headers, headers_length, body, body_length, body_length, 0)) {
+                HttpFail(task, "send failed");
+                goto done;
+            }
+
+            if (!WinHttpReceiveResponse(request, nullptr)) {
+                HttpFail(task, "receive failed");
+                goto done;
+            }
         }
 
         f64 headers_time = Platform::GetAbsoluteTime();
@@ -682,6 +724,10 @@ HttpTask* HttpSend(HttpRequest request) {
     task->request.max_redirects = request.max_redirects;
     task->request.url = StringCopy(arena, request.url);
     task->request.body = request.body.count ? StringCopy(arena, request.body) : String8{};
+    task->request.server_auth = request.server_auth;
+    task->request.server_auth_username = StringCopy(arena, request.server_auth_username);
+    task->request.server_auth_password = StringCopy(arena, request.server_auth_password);
+
     if (request.headers && request.header_count > 0) {
         task->request.headers = ArenaPushArray(arena, HttpHeader, request.header_count);
         task->request.header_count = request.header_count;

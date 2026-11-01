@@ -21,6 +21,13 @@ struct HttpHeader {
     String8 value;
 };
 
+// The scheme to answer a server's 401 with, when it asks for one
+enum HttpServerAuth {
+    HTTP_SERVER_AUTH_NONE,
+    HTTP_SERVER_AUTH_DIGEST,
+    HTTP_SERVER_AUTH_NTLM,
+};
+
 // In microseconds
 // Any phase that was skipped remains 0
 struct NetTimings {
@@ -77,6 +84,10 @@ struct HttpRequest {
     // Runs on a thread of kraft's before each redirect is followed
     void (*before_redirect)(HttpRedirect* redirect, void* user);
     void* before_redirect_user;
+
+    HttpServerAuth server_auth;
+    String8 server_auth_username; // DOMAIN\user for NTLM with a domain
+    String8 server_auth_password;
 };
 
 #define KRAFT_HTTP_MAX_BODY KRAFT_SIZE_MB(1024)
