@@ -1248,6 +1248,9 @@ bool Platform::SaveFileDialog(ArenaAllocator* arena, const char* filter, const c
 }
 
 bool Platform::OpenWithSystem(String8 path) {
+    // VS Code's terminals and debugger set this, and an Electron app that inherits it
+    // VS Code among them, runs the file as a script
+    SetEnvironmentVariableW(L"ELECTRON_RUN_AS_NODE", nullptr);
     TempArena scratch = ScratchBegin(0, 0);
     wchar_t* wide = DialogPushWide(scratch.arena, (const char*)ArenaPushString8Copy(scratch.arena, path).ptr);
     bool opened = (INT_PTR)ShellExecuteW(nullptr, L"open", wide, nullptr, nullptr, SW_SHOWNORMAL) > 32;
