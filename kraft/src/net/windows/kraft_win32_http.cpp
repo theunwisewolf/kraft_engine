@@ -27,6 +27,9 @@ struct HttpTask {
     volatile i32 cancelled;
     volatile i32 timed_out;
     f64 deadline;
+    DWORD failure_code;
+    f64 sent_at; // the last WinHttpSendRequest, which the request times are of
+    u32 redirects;
 };
 
 // WinHTTP keeps connections alive per session, so one session for the app's lifetime
@@ -357,13 +360,16 @@ static void CALLBACK HttpStatusCallback(HINTERNET handle, DWORD_PTR context, DWO
     HttpTask* task = (HttpTask*)context;
     if (status == WINHTTP_CALLBACK_STATUS_SECURE_FAILURE) {
         task->secure_failure_flags = (info && info_length >= sizeof(DWORD)) ? *(DWORD*)info : 0;
-    } else if (status == WINHTTP_CALLBACK_STATUS_REDIRECT && info && task->request.before_redirect) {
-        HttpRedirected(task, handle, (const wchar_t*)info);
+    } else if (status == WINHTTP_CALLBACK_STATUS_REDIRECT) {
+        task->redirects++;
+        if (info && task->request.before_redirect) {
+            HttpRedirected(task, handle, (const wchar_t*)info);
+        }
     }
 }
 
 // Windows before 10 2004 has no per-step times, so the request is only measured as a whole
-static void HttpReadTimings(HINTERNET request, f64 headers_time, f64 end_time, NetTimings* out) {
+static void HttpReadTimings(HttpTask* task, HINTERNET request, f64 headers_time, f64 end_time, NetTimings* out) {
     WINHTTP_REQUEST_TIMES times = {};
 
     // In: the room there is, out: the count; 0 is rejected
@@ -385,6 +391,14 @@ static void HttpReadTimings(HINTERNET request, f64 headers_time, f64 end_time, N
     };
 
     out->measured = true;
+
+    // WinHTTP's own proxy stamps restart while a detection runs, so the proxy's time is from the send to the ask
+    f64 asked = asked_at ? (f64)asked_at / (f64)frequency.QuadPart : 0.0;
+    if (task->redirects == 0 && task->sent_at > 0.0 && asked > task->sent_at) {
+        out->proxy_micros = (u64)((asked - task->sent_at) * 1000000.0);
+    }
+
+    out->queue_micros = span(WinHttpConnectionAcquireStart, WinHttpConnectionAcquireWaitEnd) + span(WinHttpStreamWaitStart, WinHttpStreamWaitEnd);
     out->dns_micros = span(WinHttpNameResolutionStart, WinHttpNameResolutionEnd);
     out->connect_micros = span(WinHttpConnectionEstablishmentStart, WinHttpConnectionEstablishmentEnd);
 
@@ -423,8 +437,40 @@ static bool HttpAnswerChallenge(HttpTask* task, HINTERNET request) {
 
 static void HttpFail(HttpTask* task, const char* reason) {
     DWORD code = GetLastError();
+    task->failure_code = code;
     task->response.ok = false;
     task->response.error = StringFormat(task->arena, "%s: %S", reason, HttpErrorText(task->arena, code));
+}
+
+// A connection that failed reports none of its steps, so the time goes to the step its error names
+static void HttpNameFailedStep(HttpTask* task, NetTimings* timings) {
+    u64 named = timings->proxy_micros + timings->queue_micros + timings->dns_micros + timings->connect_micros + timings->tls_micros;
+    if (timings->send_micros > 0 || timings->wait_micros > 0 || timings->receive_micros > 0 || named >= timings->total_micros) {
+        return;
+    }
+
+    u64* step = nullptr;
+    switch (task->failure_code) {
+    case ERROR_WINHTTP_NAME_NOT_RESOLVED:        step = &timings->dns_micros; break;
+    case ERROR_WINHTTP_CANNOT_CONNECT:
+    case ERROR_WINHTTP_TIMEOUT:
+    case ERROR_WINHTTP_CONNECTION_ERROR:         step = &timings->connect_micros; break;
+    case ERROR_WINHTTP_SECURE_FAILURE:
+    case ERROR_WINHTTP_SECURE_CHANNEL_ERROR:
+    case ERROR_WINHTTP_SECURE_CERT_DATE_INVALID:
+    case ERROR_WINHTTP_SECURE_CERT_CN_INVALID:
+    case ERROR_WINHTTP_SECURE_INVALID_CA:
+    case ERROR_WINHTTP_SECURE_CERT_REV_FAILED:
+    case ERROR_WINHTTP_SECURE_INVALID_CERT:
+    case ERROR_WINHTTP_SECURE_CERT_REVOKED:
+    case ERROR_WINHTTP_SECURE_CERT_WRONG_USAGE:  step = &timings->tls_micros; break;
+    default:                                     step = AtomicLoad32(&task->timed_out) != 0 ? &timings->connect_micros : nullptr; break;
+    }
+
+    if (step) {
+        *step += timings->total_micros - named;
+        timings->measured = true;
+    }
 }
 
 static KRAFT_THREAD_ENTRY(HttpThreadProc) {
@@ -505,7 +551,7 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
         // The only way to learn why a certificate was rejected, a redirect's too, and what a redirect said
         {
             DWORD_PTR context = (DWORD_PTR)task;
-            DWORD callbacks = WINHTTP_CALLBACK_FLAG_SECURE_FAILURE | (task->request.before_redirect ? WINHTTP_CALLBACK_FLAG_REDIRECT : 0);
+            DWORD callbacks = WINHTTP_CALLBACK_FLAG_SECURE_FAILURE | WINHTTP_CALLBACK_FLAG_REDIRECT;
             WinHttpSetOption(request, WINHTTP_OPTION_CONTEXT_VALUE, &context, sizeof(context));
             WinHttpSetStatusCallback(request, HttpStatusCallback, callbacks, 0);
         }
@@ -547,6 +593,7 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
             body_length = (DWORD)task->request.body.count;
         }
 
+        task->sent_at = Platform::GetAbsoluteTime();
         if (!WinHttpSendRequest(request, headers, headers_length, body, body_length, body_length, 0)) {
             DWORD send_error = GetLastError();
             if (send_error != ERROR_WINHTTP_SECURE_FAILURE) {
@@ -563,6 +610,7 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
                 goto done;
             }
 
+            task->sent_at = Platform::GetAbsoluteTime();
             if (!WinHttpSendRequest(request, headers, headers_length, body, body_length, body_length, 0)) {
                 HttpFail(task, "send failed");
                 goto done;
@@ -576,6 +624,7 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
         }
 
         if (task->request.server_auth != HTTP_SERVER_AUTH_NONE && HttpAnswerChallenge(task, request)) {
+            task->sent_at = Platform::GetAbsoluteTime();
             if (!WinHttpSendRequest(request, headers, headers_length, body, body_length, body_length, 0)) {
                 HttpFail(task, "send failed");
                 goto done;
@@ -663,7 +712,7 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
             }
         }
 
-        HttpReadTimings(request, headers_time, Platform::GetAbsoluteTime(), &response->timings);
+        HttpReadTimings(task, request, headers_time, Platform::GetAbsoluteTime(), &response->timings);
         if (too_large) {
             response->ok = false;
             response->error = StringFormat(arena, "the response is larger than %llu MB, the most that is read", (unsigned long long)(KRAFT_HTTP_MAX_BODY / KRAFT_SIZE_MB(1)));
@@ -682,7 +731,7 @@ done: {
     HINTERNET owned_request = (HINTERNET)AtomicExchangePointer(&task->request_handle, nullptr);
     if (owned_request) {
         if (!response->timings.measured) {
-            HttpReadTimings(owned_request, 0, 0, &response->timings);
+            HttpReadTimings(task, owned_request, 0, 0, &response->timings);
         }
 
         WinHttpCloseHandle(owned_request);
@@ -700,6 +749,11 @@ done: {
     response->elapsed_micros = (u64)((Platform::GetAbsoluteTime() - start_time) * 1000000.0);
     response->elapsed_ms = response->elapsed_micros / 1000;
     response->timings.total_micros = response->elapsed_micros;
+
+    if (!response->ok && AtomicLoad32(&task->cancelled) == 0) {
+        HttpNameFailedStep(task, &response->timings);
+    }
+
     if (response->ok && task->request.after_response) {
         task->request.after_response(response, task->request.after_response_user);
     }

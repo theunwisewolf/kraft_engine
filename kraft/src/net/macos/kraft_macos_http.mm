@@ -48,6 +48,7 @@ struct HttpTask {
     f64 deadline;
     NSURLSessionDataTask* session_task;
     KraftHttpDelegate* delegate;
+    NSInteger failure_code;
 };
 
 // NSURLSession keeps connections open per session, so one session for the app's lifetime
@@ -582,11 +583,44 @@ static void HttpTakeResult(HttpTask* task, KraftHttpDelegate* delegate) {
     } else if (delegate->too_many_redirects) {
         HttpFail(task, "receive failed", S("too many redirects, or one that could not be followed"));
     } else if (delegate->error) {
+        if ([delegate->error.domain isEqualToString:NSURLErrorDomain]) {
+            task->failure_code = delegate->error.code;
+        }
         HttpFail(task, http ? "receive failed" : "send failed", HttpErrorText(arena, delegate->error));
     } else if (!http) {
         HttpFail(task, "receive failed", S("the reply was not valid HTTP"));
     } else {
         response->ok = true;
+    }
+}
+
+// A connection that failed reports none of its steps, so the time goes to the step its error names
+static void HttpNameFailedStep(HttpTask* task, NetTimings* timings) {
+    u64 named = timings->proxy_micros + timings->queue_micros + timings->dns_micros + timings->connect_micros + timings->tls_micros;
+    if (timings->send_micros > 0 || timings->wait_micros > 0 || timings->receive_micros > 0 || named >= timings->total_micros) {
+        return;
+    }
+    
+    u64* step = nullptr;
+    switch (task->failure_code) {
+    case NSURLErrorCannotFindHost:
+    case NSURLErrorDNSLookupFailed: step = &timings->dns_micros; break;
+    case NSURLErrorCannotConnectToHost:
+    case NSURLErrorTimedOut:
+    case NSURLErrorNetworkConnectionLost: step = &timings->connect_micros; break;
+    case NSURLErrorSecureConnectionFailed:
+    case NSURLErrorServerCertificateHasBadDate:
+    case NSURLErrorServerCertificateNotYetValid:
+    case NSURLErrorServerCertificateUntrusted:
+    case NSURLErrorServerCertificateHasUnknownRoot:
+    case NSURLErrorClientCertificateRejected:
+    case NSURLErrorClientCertificateRequired: step = &timings->tls_micros; break;
+    default: step = AtomicLoad32(&task->timed_out) != 0 ? &timings->connect_micros : nullptr; break;
+    }
+    
+    if (step) {
+        *step += timings->total_micros - named;
+        timings->measured = true;
     }
 }
 
@@ -660,6 +694,11 @@ static KRAFT_THREAD_ENTRY(HttpThreadProc) {
     response->elapsed_micros = (u64)((Platform::GetAbsoluteTime() - start_time) * 1000000.0);
     response->elapsed_ms = response->elapsed_micros / 1000;
     response->timings.total_micros = response->elapsed_micros;
+    
+    if (!response->ok && AtomicLoad32(&task->cancelled) == 0) {
+        HttpNameFailedStep(task, &response->timings);
+    }
+
     if (response->ok && task->request.after_response) {
         task->request.after_response(response, task->request.after_response_user);
     }

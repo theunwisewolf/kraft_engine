@@ -430,6 +430,31 @@ String8 Platform::ExecutableDirectory(ArenaAllocator* arena) {
     return StringCopy(arena, String8{{path.ptr}, length});
 }
 
+u32 Platform::PumpWindowMessages(f64 budget_seconds, bool* out_quit) {
+    f64 until = GetAbsoluteTime() + budget_seconds;
+    u32 handled = 0;
+    MSG message = {};
+    while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+        handled++;
+        if (message.message == WM_QUIT) {
+            *out_quit = true;
+            continue;
+        }
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+        if (GetAbsoluteTime() >= until) {
+            break;
+        }
+    }
+
+    return handled;
+}
+
+void Platform::WaitWindowMessage(f64 timeout_seconds) {
+    DWORD milliseconds = timeout_seconds < 0.0 ? INFINITE : (DWORD)(timeout_seconds * 1000.0);
+    MsgWaitForMultipleObjectsEx(0, nullptr, milliseconds, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+}
+
 u64 Platform::ProcessMemoryBytes() {
     PROCESS_MEMORY_COUNTERS_EX2 counters = {};
     counters.cb = sizeof(counters);
@@ -952,12 +977,7 @@ static int CustomFrameBorderThickness(HWND window_handle) {
 
 // Keeps the OS frame (resize borders, snap, shadow, double-click to maximize) but hands the caption
 // area to the client so the app can draw its own title bar. See Window::SetCaptionRegion
-static LRESULT CALLBACK CustomFrameWindowProc(HWND window_handle, UINT message, WPARAM wparam, LPARAM lparam) {
-    Window* window = (Window*)GetPropW(window_handle, KRAFT_WINDOW_PROPERTY);
-    WNDPROC original_proc = window ? window->PlatformWindowState->OriginalWindowProc : nullptr;
-    if (!original_proc) {
-        return DefWindowProcW(window_handle, message, wparam, lparam);
-    }
+static LRESULT CustomFrameHandle(Window* window, WNDPROC original_proc, HWND window_handle, UINT message, WPARAM wparam, LPARAM lparam) {
 
     switch (message) {
     case WM_NCCALCSIZE: {
@@ -1009,6 +1029,26 @@ static LRESULT CALLBACK CustomFrameWindowProc(HWND window_handle, UINT message, 
     }
 
     return CallWindowProcW(original_proc, window_handle, message, wparam, lparam);
+}
+
+static LRESULT CALLBACK CustomFrameWindowProc(HWND window_handle, UINT message, WPARAM wparam, LPARAM lparam) {
+    Window* window = (Window*)GetPropW(window_handle, KRAFT_WINDOW_PROPERTY);
+    WNDPROC original_proc = window ? window->PlatformWindowState->OriginalWindowProc : nullptr;
+    if (!original_proc) {
+        return DefWindowProcW(window_handle, message, wparam, lparam);
+    }
+
+    f64 started = Platform::GetAbsoluteTime();
+    LRESULT result = CustomFrameHandle(window, original_proc, window_handle, message, wparam, lparam);
+    f64 took = Platform::GetAbsoluteTime() - started;
+    window->MessageCount++;
+    window->MessageSeconds += took;
+    if (took > window->SlowestMessageSeconds) {
+        window->SlowestMessageSeconds = took;
+        window->SlowestMessage = message;
+    }
+
+    return result;
 }
 
 Window* Platform::CreatePlatformWindow(const WindowOptions* Opts) {

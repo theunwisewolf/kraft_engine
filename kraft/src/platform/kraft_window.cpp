@@ -180,9 +180,28 @@ void Window::SetCursorShape(CursorShape shape) {
     glfwSetCursor(this->PlatformWindowHandle, this->Cursors[cursor_index]);
 }
 
+// What one frame may spend on window messages before it is drawn; the rest wait for the next frame.
+#define KRAFT_MESSAGE_BUDGET_SECONDS 0.004
+
+static void PumpEvents(Window* window) {
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    bool quit = false;
+    // GLFW's own pump takes messages until there are none, so it only runs when none were waiting, for what it does after
+    // its loop: letting go of a Shift key the system sent no release for.
+    if (Platform::PumpWindowMessages(KRAFT_MESSAGE_BUDGET_SECONDS, &quit) == 0) {
+        glfwPollEvents();
+    }
+    if (quit) {
+        glfwSetWindowShouldClose(window->PlatformWindowHandle, GLFW_TRUE);
+    }
+#else
+    glfwPollEvents();
+#endif
+}
+
 bool Window::PollEvents() {
     this->Events.Clear();
-    glfwPollEvents();
+    PumpEvents(this);
     InputSystem::ProcessEvents(&this->Events);
 
     return !this->ShouldClose();
@@ -190,7 +209,12 @@ bool Window::PollEvents() {
 
 bool Window::WaitEvents() {
     this->Events.Clear();
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    Platform::WaitWindowMessage(-1.0);
+    PumpEvents(this);
+#else
     glfwWaitEvents();
+#endif
     InputSystem::ProcessEvents(&this->Events);
 
     return !this->ShouldClose();
@@ -198,7 +222,12 @@ bool Window::WaitEvents() {
 
 bool Window::WaitEvents(f64 timeout_seconds) {
     this->Events.Clear();
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    Platform::WaitWindowMessage(timeout_seconds);
+    PumpEvents(this);
+#else
     glfwWaitEventsTimeout(timeout_seconds);
+#endif
     InputSystem::ProcessEvents(&this->Events);
 
     return !this->ShouldClose();

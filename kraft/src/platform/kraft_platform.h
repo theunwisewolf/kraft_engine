@@ -216,6 +216,14 @@ struct KRAFT_API Platform {
     static String8 DocumentsDirectory(ArenaAllocator* arena);
     static void InstallCrashHandler();
     static u64 ProcessMemoryBytes();
+#if defined(KRAFT_PLATFORM_WINDOWS)
+    // Handles the thread's window messages until none are left or budget_seconds have gone, and returns how many it
+    // handled. Every move of a fast mouse brings a hit test and a cursor message with it, and a loop that takes messages
+    // until there are none can go on for as long as the mouse moves, with no frame drawn. out_quit is set by a WM_QUIT.
+    static u32 PumpWindowMessages(f64 budget_seconds, bool* out_quit);
+    // Waits until a window message is waiting, one left from before included; at most timeout_seconds when it is not negative
+    static void WaitWindowMessage(f64 timeout_seconds);
+#endif
 
     // Splits ProcessMemoryBytes by what holds it. It walks the whole address space, so it takes milliseconds.
     static bool ProcessMemoryBreakdown(ProcessMemoryUse* out);

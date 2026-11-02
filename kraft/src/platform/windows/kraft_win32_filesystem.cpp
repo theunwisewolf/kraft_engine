@@ -43,7 +43,9 @@ static WCHAR* Win32WidePath(ArenaAllocator* arena, String8 path) {
 // }
 
 KRAFT_API bool FileExists(String8 path) {
-    DWORD attributes = GetFileAttributes((char*)path.ptr);
+    TempArena scratch = ScratchBegin(0, 0);
+    DWORD attributes = GetFileAttributesW(Win32WidePath(scratch.arena, path));
+    ScratchEnd(scratch);
 
     return (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0);
 }
@@ -63,17 +65,19 @@ KRAFT_API bool FileSize(String8 path, u64* out_size) {
 }
 
 KRAFT_API bool DirectoryExists(String8 path) {
-    DWORD attributes = GetFileAttributes((char*)path.ptr);
+    TempArena scratch = ScratchBegin(0, 0);
+    DWORD attributes = GetFileAttributesW(Win32WidePath(scratch.arena, path));
+    ScratchEnd(scratch);
 
     return (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
 }
 
 KRAFT_API bool MakeDirectory(String8 path) {
-    if (CreateDirectoryA((char*)path.ptr, nullptr)) {
-        return true;
-    }
+    TempArena scratch = ScratchBegin(0, 0);
+    bool made = CreateDirectoryW(Win32WidePath(scratch.arena, path), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS;
+    ScratchEnd(scratch);
 
-    return GetLastError() == ERROR_ALREADY_EXISTS;
+    return made;
 }
 
 KRAFT_API bool MakeDirectories(ArenaAllocator* arena, String8 path) {
@@ -103,21 +107,18 @@ KRAFT_API bool MakeDirectories(ArenaAllocator* arena, String8 path) {
 }
 
 KRAFT_API bool RemoveFile(String8 path) {
-    if (DeleteFileA((char*)path.ptr)) {
-        return true;
-    }
-
-    DWORD error = GetLastError();
+    TempArena scratch = ScratchBegin(0, 0);
+    WCHAR* wide = Win32WidePath(scratch.arena, path);
+    bool removed = DeleteFileW(wide) != 0;
+    DWORD error = removed ? 0 : GetLastError();
     // Read-only files too, as on other systems
-    if (error == ERROR_ACCESS_DENIED && SetFileAttributesA((char*)path.ptr, FILE_ATTRIBUTE_NORMAL)) {
-        if (DeleteFileA((char*)path.ptr)) {
-            return true;
-        }
-
-        error = GetLastError();
+    if (error == ERROR_ACCESS_DENIED && SetFileAttributesW(wide, FILE_ATTRIBUTE_NORMAL)) {
+        removed = DeleteFileW(wide) != 0;
+        error = removed ? 0 : GetLastError();
     }
+    ScratchEnd(scratch);
 
-    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+    return removed || error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
 }
 
 KRAFT_API bool MovePath(String8 from, String8 to, bool replace_existing) {
@@ -193,9 +194,7 @@ KRAFT_API bool ReadLink(ArenaAllocator* arena, String8 path, LinkInfo* out) {
         return false;
     }
 
-    HANDLE file = CreateFileW(
-        wide, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr
-    );
+    HANDLE file = CreateFileW(wide, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
         ScratchEnd(scratch);
         return false;
@@ -551,13 +550,12 @@ KRAFT_API bool RemoveEmptyDirectory(String8 path) {
         return false;
     }
 
-    if (RemoveDirectoryA((char*)path.ptr)) {
-        return true;
-    }
+    TempArena scratch = ScratchBegin(0, 0);
+    bool removed = RemoveDirectoryW(Win32WidePath(scratch.arena, path)) != 0;
+    DWORD error = removed ? 0 : GetLastError();
+    ScratchEnd(scratch);
 
-    DWORD error = GetLastError();
-
-    return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+    return removed || error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
 }
 
 KRAFT_API Directory ReadDirEntries(ArenaAllocator* arena, String8 path) {

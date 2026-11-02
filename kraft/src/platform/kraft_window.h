@@ -92,6 +92,13 @@ struct KRAFT_API Window {
 
     CursorShape CurrentCursorShape;
     GLFWcursor* Cursors[CURSOR_SHAPE_COUNT];
+
+    // The window's messages since the caller last cleared these, on Windows with a custom title bar: how many were
+    // handled, the time that took, and the slowest one
+    u32 MessageCount;
+    f64 MessageSeconds;
+    u32 SlowestMessage;
+    f64 SlowestMessageSeconds;
 };
 
 } // namespace kraft

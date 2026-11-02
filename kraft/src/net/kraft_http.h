@@ -34,6 +34,8 @@ struct NetTimings {
     b32 measured; // false when the system can't report the phases, only the total
     b32 reused; // the request went over a connection that was already open
     b32 opened_ahead; // that connection was opened before the request, to be ready for it
+    u64 proxy_micros; // finding out whether to go through a proxy, before a connection is asked for
+    u64 queue_micros; // waiting for a connection: a free one, one still being opened, or a new one for one that had gone
     u64 dns_micros;
     u64 connect_micros;
     u64 tls_micros;
