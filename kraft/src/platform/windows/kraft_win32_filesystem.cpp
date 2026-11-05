@@ -566,33 +566,31 @@ KRAFT_API Directory ReadDirEntries(ArenaAllocator* arena, String8 path) {
         pattern = StringCat(scratch.arena, pattern, String8Raw("/*"));
     }
 
-    WIN32_FIND_DATA find_data;
-    HANDLE find_handle = FindFirstFile((char*)pattern.ptr, &find_data);
+    // In one pass, without the short 8.3 names, asking for many entries at a time
+    WIN32_FIND_DATAA find_data;
+    HANDLE find_handle = FindFirstFileExA((char*)pattern.ptr, FindExInfoBasic, &find_data, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
     if (find_handle == INVALID_HANDLE_VALUE) {
         ScratchEnd(scratch);
         return result;
     }
 
+    u32 capacity = 64;
+    FileSystemEntry* entries = ArenaPushArrayNoZero(scratch.arena, FileSystemEntry, capacity);
     u32 entry_count = 0;
     do {
-        if (strcmp(find_data.cFileName, ".") != 0 && strcmp(find_data.cFileName, "..") != 0)
-            entry_count++;
-    } while (FindNextFile(find_handle, &find_data) != 0);
-    FindClose(find_handle);
-
-    result.entries = ArenaPushArray(arena, FileSystemEntry, entry_count);
-    find_handle = FindFirstFile((char*)pattern.ptr, &find_data);
-    if (find_handle == INVALID_HANDLE_VALUE) {
-        ScratchEnd(scratch);
-        return result;
-    }
-
-    do {
-        if (strcmp(find_data.cFileName, ".") == 0 || strcmp(find_data.cFileName, "..") == 0)
+        if (strcmp(find_data.cFileName, ".") == 0 || strcmp(find_data.cFileName, "..") == 0) {
             continue;
-        if (result.entry_count >= entry_count)
-            break;
-        FileSystemEntry* entry = &result.entries[result.entry_count++];
+        }
+
+        if (entry_count == capacity) {
+            FileSystemEntry* grown = ArenaPushArrayNoZero(scratch.arena, FileSystemEntry, capacity * 2);
+            memcpy(grown, entries, sizeof(FileSystemEntry) * entry_count);
+            entries = grown;
+            capacity *= 2;
+        }
+
+        FileSystemEntry* entry = &entries[entry_count++];
+        *entry = {};
         entry->name = ArenaPushString8Copy(arena, String8FromCString(find_data.cFileName));
         entry->is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
         LARGE_INTEGER file_size;
@@ -609,8 +607,12 @@ KRAFT_API Directory ReadDirEntries(ArenaAllocator* arena, String8 path) {
         if (entry->is_link) {
             Win32LinkTargetEntry((char*)StringFormat(scratch.arena, "%S/%s", path, find_data.cFileName).ptr, entry);
         }
-    } while (FindNextFile(find_handle, &find_data) != 0);
+    } while (FindNextFileA(find_handle, &find_data) != 0);
     FindClose(find_handle);
+
+    result.entries = ArenaPushArray(arena, FileSystemEntry, entry_count);
+    memcpy(result.entries, entries, sizeof(FileSystemEntry) * entry_count);
+    result.entry_count = entry_count;
     ScratchEnd(scratch);
 
     return result;
