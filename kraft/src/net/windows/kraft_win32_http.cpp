@@ -69,12 +69,13 @@ static void HttpCloseSwap(void* volatile* slot) {
 
 const char* HttpMethodName(HttpMethod method) {
     switch (method) {
-    case HTTP_METHOD_GET:    return "GET";
-    case HTTP_METHOD_POST:   return "POST";
-    case HTTP_METHOD_PUT:    return "PUT";
-    case HTTP_METHOD_PATCH:  return "PATCH";
-    case HTTP_METHOD_DELETE: return "DELETE";
-    case HTTP_METHOD_HEAD:   return "HEAD";
+    case HTTP_METHOD_GET:     return "GET";
+    case HTTP_METHOD_POST:    return "POST";
+    case HTTP_METHOD_PUT:     return "PUT";
+    case HTTP_METHOD_PATCH:   return "PATCH";
+    case HTTP_METHOD_DELETE:  return "DELETE";
+    case HTTP_METHOD_HEAD:    return "HEAD";
+    case HTTP_METHOD_OPTIONS: return "OPTIONS";
     }
 
     return "GET";
@@ -82,12 +83,13 @@ const char* HttpMethodName(HttpMethod method) {
 
 static const wchar_t* HttpMethodWide(HttpMethod method) {
     switch (method) {
-    case HTTP_METHOD_GET:    return L"GET";
-    case HTTP_METHOD_POST:   return L"POST";
-    case HTTP_METHOD_PUT:    return L"PUT";
-    case HTTP_METHOD_PATCH:  return L"PATCH";
-    case HTTP_METHOD_DELETE: return L"DELETE";
-    case HTTP_METHOD_HEAD:   return L"HEAD";
+    case HTTP_METHOD_GET:     return L"GET";
+    case HTTP_METHOD_POST:    return L"POST";
+    case HTTP_METHOD_PUT:     return L"PUT";
+    case HTTP_METHOD_PATCH:   return L"PATCH";
+    case HTTP_METHOD_DELETE:  return L"DELETE";
+    case HTTP_METHOD_HEAD:    return L"HEAD";
+    case HTTP_METHOD_OPTIONS: return L"OPTIONS";
     }
 
     return L"GET";

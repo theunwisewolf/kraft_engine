@@ -163,6 +163,19 @@ bool StringContainsIgnoringCase(String8 str, String8 part) {
     return part.count == 0 || StringIndexOfIgnoringCase(str, part) < str.count;
 }
 
+bool StringCut(String8 str, String8 separator, String8* out_before, String8* out_after) {
+    u64 at = StringIndexOf(str, separator);
+    if (at >= str.count) {
+        *out_before = str;
+        *out_after = String8{};
+        return false;
+    }
+
+    *out_before = String8{.ptr = str.ptr, .count = at};
+    *out_after = String8{.ptr = str.ptr + at + separator.count, .count = str.count - at - separator.count};
+    return true;
+}
+
 String8 StringTrimLeft(String8 str) {
     while (str.count > 0 && CharIsSpace(str.ptr[0])) {
         str.ptr++;

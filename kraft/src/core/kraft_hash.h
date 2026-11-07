@@ -49,4 +49,7 @@ KRAFT_API void Sha1(const void* data, u64 count, u8* out_digest);
 // Computes the HMAC-SHA1 of the `count` bytes at `data` under the key into the 20 bytes at `out_digest`
 KRAFT_API void HmacSha1(const void* key, u64 key_count, const void* data, u64 count, u8* out_digest);
 
+// Returns the CRC-32 of the `count` bytes at `data`, the checksum gzip and zlib's crc32 compute
+KRAFT_API u32 Crc32(const void* data, u64 count);
+
 } // namespace kraft

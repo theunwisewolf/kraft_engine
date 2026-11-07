@@ -110,6 +110,10 @@ u64 StringIndexOfIgnoringCase(String8 str, String8 part, u64 from = 0);
 bool StringContains(String8 str, String8 part);
 bool StringContainsIgnoringCase(String8 str, String8 part);
 
+// Splits str at the first separator into what comes before and after it, and returns whether there was one
+// With none, all of str comes before it; nothing is copied
+bool StringCut(String8 str, String8 separator, String8* out_before, String8* out_after);
+
 // The string without the spaces, tabs, CRs and LFs at its ends; nothing is copied
 String8 StringTrim(String8 str);
 String8 StringTrimLeft(String8 str);

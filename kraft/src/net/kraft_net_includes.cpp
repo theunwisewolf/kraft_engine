@@ -1,3 +1,4 @@
+#include "kraft_http.cpp"
 #include "kraft_connection.cpp"
 
 #if defined(KRAFT_PLATFORM_WINDOWS)

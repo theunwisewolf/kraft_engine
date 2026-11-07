@@ -12,6 +12,7 @@
 #include "kraft_log.h"
 #include "kraft_memory.h"
 #include "kraft_hash.h"
+#include "kraft_deflate.h"
 #include "kraft_lexer.h"
 #include "kraft_buffer.h"
 #include "kraft_math.h"

@@ -405,4 +405,31 @@ void HmacSha1(const void* key, u64 key_count, const void* data, u64 count, u8* o
     Hmac(Sha1Block, Sha1Initial, 5, key, key_count, data, count, out_digest);
 }
 
+struct Crc32Table {
+    u32 entries[256];
+};
+
+static constexpr Crc32Table Crc32MakeTable() {
+    Crc32Table table = {};
+    for (u32 index = 0; index < 256; index++) {
+        u32 value = index;
+        for (u32 bit = 0; bit < 8; bit++) {
+            value = (value & 1) ? (value >> 1) ^ 0xEDB88320u : value >> 1;
+        }
+        table.entries[index] = value;
+    }
+    return table;
+}
+
+static constexpr Crc32Table Crc32Lookup = Crc32MakeTable();
+
+u32 Crc32(const void* data, u64 count) {
+    const u8* bytes = (const u8*)data;
+    u32 crc = 0xFFFFFFFFu;
+    for (u64 index = 0; index < count; index++) {
+        crc = Crc32Lookup.entries[(crc ^ bytes[index]) & 0xFF] ^ (crc >> 8);
+    }
+    return crc ^ 0xFFFFFFFFu;
+}
+
 } // namespace kraft

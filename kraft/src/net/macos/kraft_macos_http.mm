@@ -98,12 +98,13 @@ void HttpShutdown() {
 
 const char* HttpMethodName(HttpMethod method) {
     switch (method) {
-    case HTTP_METHOD_GET:    return "GET";
-    case HTTP_METHOD_POST:   return "POST";
-    case HTTP_METHOD_PUT:    return "PUT";
-    case HTTP_METHOD_PATCH:  return "PATCH";
-    case HTTP_METHOD_DELETE: return "DELETE";
-    case HTTP_METHOD_HEAD:   return "HEAD";
+    case HTTP_METHOD_GET:     return "GET";
+    case HTTP_METHOD_POST:    return "POST";
+    case HTTP_METHOD_PUT:     return "PUT";
+    case HTTP_METHOD_PATCH:   return "PATCH";
+    case HTTP_METHOD_DELETE:  return "DELETE";
+    case HTTP_METHOD_HEAD:    return "HEAD";
+    case HTTP_METHOD_OPTIONS: return "OPTIONS";
     }
 
     return "GET";

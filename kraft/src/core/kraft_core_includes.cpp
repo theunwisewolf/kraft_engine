@@ -7,5 +7,6 @@
 #include "kraft_asserts.cpp"
 #include "kraft_memory.cpp"
 #include "kraft_hash.cpp"
+#include "kraft_deflate.cpp"
 #include "kraft_lexer.cpp"
 #include "kraft_math.cpp"

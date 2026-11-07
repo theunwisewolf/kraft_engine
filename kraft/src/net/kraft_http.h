@@ -14,6 +14,7 @@ enum HttpMethod {
     HTTP_METHOD_PATCH,
     HTTP_METHOD_DELETE,
     HTTP_METHOD_HEAD,
+    HTTP_METHOD_OPTIONS,
 };
 
 struct HttpHeader {
@@ -116,6 +117,9 @@ struct HttpTask;
 
 // Returns the method as text, like "GET"
 KRAFT_API const char* HttpMethodName(HttpMethod method);
+
+// Returns a copy of the headers, their names and values with them, in arena; null when there are none
+KRAFT_API HttpHeader* HttpHeadersCopy(ArenaAllocator* arena, HttpHeader* headers, u32 count);
 
 // Default user-agent is "kraft" if this is not called before the first request
 KRAFT_API void HttpSetUserAgent(String8 user_agent);
